@@ -1,0 +1,33 @@
+[project]
+name = "textual-code"
+version = "0.0.1"
+description = "Code editor for who don't know how to use vi"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "textual[syntax]>=1.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.5",
+    "textual-dev>=1.7.0",
+]
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+# Disable fix for unused imports (`F401`) and unused variables (`F841`).
+unfixable = ["F401", "F841"]

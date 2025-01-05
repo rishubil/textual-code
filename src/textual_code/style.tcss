@@ -1,0 +1,127 @@
+#sidebar {
+    dock: left;
+    width: 20;
+}
+
+CodeEditorFooter {
+    dock: bottom;
+    height: 1;
+    margin: 0 1;
+    layout: grid;
+    grid-size: 2 1;
+    grid-gutter: 0 1;
+    grid-columns: 1fr auto;
+}
+
+CodeEditorFooter #path {
+    width: 100%;
+    background: $surface;
+}
+
+CodeEditorFooter #language {
+    text-align: center;
+    min-width: 0;
+    height: 1;
+    padding: 0 1;
+    border: none;
+}
+
+SaveAsModalScreen {
+    align: center middle;
+}
+
+SaveAsModalScreen #dialog {
+    grid-size: 2 3;
+    grid-gutter: 1 2;
+    grid-rows: 1fr 3 3;
+    padding: 0 1;
+    max-width: 60;
+    max-height: 11;
+    border: thick $background 80%;
+    background: $surface;
+}
+
+SaveAsModalScreen #title {
+    column-span: 2;
+    height: 1fr;
+    width: 1fr;
+    content-align: center middle;
+}
+
+SaveAsModalScreen #path {
+    column-span: 2;
+    height: 1fr;
+    width: 1fr;
+    content-align: center middle;
+}
+
+SaveAsModalScreen Button {
+    width: 100%;
+}
+
+UnsavedChangeModalScreen {
+    align: center middle;
+}
+
+UnsavedChangeModalScreen #dialog {
+    grid-size: 3 3;
+    grid-gutter: 1 2;
+    grid-rows: 1fr 1fr 3;
+    padding: 0 1;
+    max-width: 60;
+    max-height: 9;
+    border: thick $background 80%;
+    background: $surface;
+}
+
+UnsavedChangeModalScreen #title {
+    column-span: 3;
+    height: 1fr;
+    width: 1fr;
+    content-align: center middle;
+}
+
+UnsavedChangeModalScreen #message {
+    column-span: 3;
+    height: 1fr;
+    width: 1fr;
+    content-align: center middle;
+}
+
+UnsavedChangeModalScreen Button {
+    width: 100%;
+}
+
+
+UnsavedChangeQuitModalScreen {
+    align: center middle;
+}
+
+UnsavedChangeQuitModalScreen #dialog {
+    grid-size: 2 3;
+    grid-gutter: 1 2;
+    grid-rows: 1fr 1fr 3;
+    padding: 0 1;
+    max-width: 60;
+    max-height: 9;
+    border: thick $background 80%;
+    background: $surface;
+}
+
+UnsavedChangeQuitModalScreen #title {
+    column-span: 3;
+    height: 1fr;
+    width: 1fr;
+    content-align: center middle;
+}
+
+UnsavedChangeQuitModalScreen #message {
+    column-span: 3;
+    height: 1fr;
+    width: 1fr;
+    content-align: center middle;
+}
+
+UnsavedChangeQuitModalScreen Button {
+    width: 100%;
+}

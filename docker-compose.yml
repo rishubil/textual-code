@@ -1,0 +1,4 @@
+services:
+  app:
+    build: .
+    user: 1000:1000

@@ -1,0 +1,18 @@
+{
+    "name": "textual-code",
+    "dockerComposeFile": "docker-compose.dev.yml",
+    "service": "app",
+    "workspaceFolder": "/app",
+    "remoteUser": "appuser",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "charliermarsh.ruff",
+                "GitHub.copilot",
+                "mhutchie.git-graph",
+                "ms-python.python",
+                "Textualize.textual-syntax-highlighter"
+            ]
+        }
+    }
+}

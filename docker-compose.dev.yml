@@ -1,0 +1,9 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    user: 1000:1000
+    command: sleep infinity
+    volumes:
+      - .:/app

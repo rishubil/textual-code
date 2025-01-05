@@ -1,0 +1,25 @@
+{
+    "editor.formatOnSave": true,
+    "terminal.integrated.sendKeybindingsToShell": true,
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.fixAll": "explicit",
+            "source.organizeImports": "explicit"
+        },
+        "editor.defaultFormatter": "charliermarsh.ruff"
+    },
+    "python.testing.pytestArgs": [
+        "--rootdir",
+        "${workspaceFolder}/src"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/src"
+    ],
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}/src"
+    ],
+    "python.analysis.typeCheckingMode": "basic"
+}
