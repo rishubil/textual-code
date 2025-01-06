@@ -13,38 +13,39 @@ Code editor for who don't know how to use vi
 
 - [ ] Explore files
     - [x] Show the files in the sidebar
-    - [ ] Open folder from the command palette
-    - [ ] Open folder from command arguments
+    - [ ] Open a specific folder from the command palette
+    - [ ] Open a specific folder from command arguments
 - [ ] Create
     - [ ] Create a new file from the sidebar
     - [ ] Create a new file from the command palette
     - [ ] Create a new folder from the sidebar
     - [ ] Create a new folder from the command palette
 - [ ] Open file
-    - [x] Open a file from the sidebar
+    - [x] Open a specific file from the sidebar
     - [x] Open files to tabs
     - [x] Open new file from the command palette
     - [x] Open new file from shortcut
-    - [ ] Open a file from the command palette
-    - [ ] Open a file from command arguments
+    - [ ] Open a specific file from the command palette
+    - [ ] Open a specific file from command arguments
 - [ ] Save file
     - [x] Save the current file
     - [x] Save as the current file
     - [x] Save the current file from shortcut
-    - [ ] Save the current file from the command palette
+    - [x] Save the current file from the command palette
     - [ ] Save all files
 - [ ] Close file
     - [x] Close the current file
     - [x] Close the current file from shortcut
+    - [x] Close the current file from the command palette
     - [x] Ask to save the file before closing
     - [ ] Close all files
-    - [ ] Close a file from the command palette
 - [ ] Delete
     - [x] Delete the current file
-    - [x] Delete a file from the command palette
-    - [ ] Delete a file from the sidebar
-    - [ ] Delete a folder from the sidebar
-    - [ ] Delete a folder from the command palette
+    - [x] Delete the current file from the command palette
+    - [ ] Delete a specific file from the sidebar
+    - [ ] Delete a specific file from the command palette
+    - [ ] Delete a specific folder from the sidebar
+    - [ ] Delete a specific folder from the command palette
     - [x] Ask to confirm before deleting
 - [ ] Edit file
     - [x] Basic text editing
