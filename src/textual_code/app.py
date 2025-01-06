@@ -1,7 +1,5 @@
 from collections.abc import Iterable
-from functools import partial
 from pathlib import Path
-from typing import cast
 from uuid import uuid4
 
 from textual import on
@@ -32,6 +30,7 @@ from textual_code.modals import (
     UnsavedChangeQuitModalResult,
     UnsavedChangeQuitModalScreen,
 )
+from textual_code.utils import ready_to_handle
 
 
 class Explorer(Static):
@@ -51,8 +50,8 @@ class Explorer(Static):
 
     @on(DirectoryTree.FileSelected)
     def file_selected(self, event: DirectoryTree.FileSelected):
-        event.stop()
-        self.post_message(self.FileOpened(path=event.path.resolve()))
+        with ready_to_handle(self, event):
+            self.post_message(self.FileOpened(path=event.path.resolve()))
 
 
 class Sidebar(Static):
@@ -77,8 +76,8 @@ class Sidebar(Static):
 
     @on(Explorer.FileOpened)
     def file_opened(self, event: Explorer.FileOpened):
-        event.stop()
-        self.post_message(self.FileOpened(path=event.path))
+        with ready_to_handle(self, event):
+            self.post_message(self.FileOpened(path=event.path))
 
 
 class CodeEditorFooter(Static):
@@ -386,57 +385,35 @@ class CodeEditor(Static):
 
     @on(TextArea.Changed)
     def text_changed(self, event: TextArea.Changed):
-        event.stop()
-        self.text = event.text_area.text
+        with ready_to_handle(self, event, should_exists=[self.editor]):
+            self.text = event.text_area.text
 
     @on(FocusRequsted)
     def focus_requested(self, event: FocusRequsted):
-        event.stop()
-        if not self.is_mounted or self.editor is None:
-            # recycle event if the widget is not mounted yet
-            callback = partial(self.post_message, event)
-            self.set_timer(delay=0.1, callback=callback)
-            return
-        self.editor.focus()
+        with ready_to_handle(self, event, should_exists=[self.editor]):
+            if self.editor is None:
+                raise ValueError("TextArea is not mounted")
+            self.editor.focus()
 
     @on(SaveRequested)
     def save_requested(self, event: SaveRequested):
-        event.stop()
-        if not self.is_mounted or self.editor is None:
-            # recycle event if the widget is not mounted yet
-            callback = partial(self.post_message, event)
-            self.set_timer(delay=0.1, callback=callback)
-            return
-        self.action_save()
+        with ready_to_handle(self, event, should_exists=[self.editor]):
+            self.action_save()
 
     @on(SaveAsRequested)
     def save_as_requested(self, event: SaveAsRequested):
-        event.stop()
-        if not self.is_mounted or self.editor is None:
-            # recycle event if the widget is not mounted yet
-            callback = partial(self.post_message, event)
-            self.set_timer(delay=0.1, callback=callback)
-            return
-        self.action_save_as()
+        with ready_to_handle(self, event, should_exists=[self.editor]):
+            self.action_save_as()
 
     @on(CloseRequested)
     def close_requested(self, event: CloseRequested):
-        event.stop()
-        if not self.is_mounted or self.editor is None:
-            # recycle event if the widget is not mounted yet
-            callback = partial(self.post_message, event)
-            self.set_timer(delay=0.1, callback=callback)
-            return
-        self.action_close()
+        with ready_to_handle(self, event, should_exists=[self.editor]):
+            self.action_close()
 
     @on(DeleteRequested)
     def delete_requested(self, event: DeleteRequested):
-        event.stop()
-        if not self.is_mounted:
-            callback = partial(self.post_message, event)
-            self.set_timer(delay=0.1, callback=callback)
-            return
-        self.action_delete()
+        with ready_to_handle(self, event, should_exists=[self.editor]):
+            self.action_delete()
 
 
 class MainContent(Static):
@@ -576,69 +553,36 @@ class MainContent(Static):
 
     @on(CodeEditor.TitleChanged)
     def code_editor_title_changed(self, event: CodeEditor.TitleChanged):
-        event.stop()
-        if not self.is_mounted or self.tabbed_content is None:
-            # recycle event if the widget is not mounted yet
-            callback = partial(self.post_message, event)
-            self.set_timer(delay=0.1, callback=callback)
-            return
-
-        if self.is_opened_pane(event.pane_id):
-            self.tabbed_content.get_tab(event.pane_id).label = event.title
+        with ready_to_handle(self, event, should_exists=[self.tabbed_content]):
+            if self.tabbed_content is None:
+                raise ValueError("TabbedContent is not mounted")
+            if self.is_opened_pane(event.pane_id):
+                self.tabbed_content.get_tab(event.pane_id).label = event.title
 
     @on(CodeEditor.SavedAs)
     def code_editor_saved_as(self, event: CodeEditor.SavedAs):
-        event.stop()
-        self.opened_files[event.path] = event.pane_id
+        with ready_to_handle(self, event, should_exists=[self.tabbed_content]):
+            self.opened_files[event.path] = event.pane_id
 
     @on(CodeEditor.Closed)
     def code_editor_closed(self, event: CodeEditor.Closed):
-        event.stop()
-        if not self.is_mounted or self.tabbed_content is None:
-            # recycle event if the widget is not mounted yet
-            callback = partial(self.post_message, event)
-            self.set_timer(delay=0.1, callback=callback)
-            return
-
-        self.post_message(self.CloseCodeEditorRequested(pane_id=event.pane_id))
+        with ready_to_handle(self, event, should_exists=[self.tabbed_content]):
+            self.post_message(self.CloseCodeEditorRequested(pane_id=event.pane_id))
 
     @on(CodeEditor.Deleted)
     def code_editor_deleted(self, event: CodeEditor.Deleted):
-        event.stop()
-        if not self.is_mounted or self.tabbed_content is None:
-            # recycle event if the widget is not mounted yet
-            callback = partial(self.post_message, event)
-            self.set_timer(delay=0.1, callback=callback)
-            return
-
-        self.post_message(self.CloseCodeEditorRequested(pane_id=event.pane_id))
+        with ready_to_handle(self, event, should_exists=[self.tabbed_content]):
+            self.post_message(self.CloseCodeEditorRequested(pane_id=event.pane_id))
 
     @on(OpenCodeEditorRequested)
     async def open_code_editor_requested(self, event: OpenCodeEditorRequested) -> None:
-        """
-        Open a code editor pane and activate it.
-
-        If the path is already opened, use the existing one.
-        """
-        event.stop()
-        if not self.is_mounted or self.tabbed_content is None:
-            # recycle event if the widget is not mounted yet
-            callback = partial(self.post_message, event)
-            self.set_timer(delay=0.1, callback=callback)
-            return
-
-        await self.action_open_code_editor(event.path, event.focus)
+        with ready_to_handle(self, event, should_exists=[self.tabbed_content]):
+            await self.action_open_code_editor(event.path, event.focus)
 
     @on(CloseCodeEditorRequested)
     def close_code_editor_requested(self, event: CloseCodeEditorRequested) -> None:
-        event.stop()
-        if not self.is_mounted or self.tabbed_content is None:
-            # recycle event if the widget is not mounted yet
-            callback = partial(self.post_message, event)
-            self.set_timer(delay=0.1, callback=callback)
-            return
-
-        self.action_close_code_editor(event.pane_id)
+        with ready_to_handle(self, event, should_exists=[self.tabbed_content]):
+            self.action_close_code_editor(event.pane_id)
 
 
 class TextualCode(App):
@@ -762,24 +706,14 @@ class TextualCode(App):
 
     @on(Sidebar.FileOpened)
     def file_opened(self, event: Sidebar.FileOpened):
-        event.stop()
-        if not self.is_mounted or self.main_content is None:
-            # recycle event if the widget is not mounted yet
-            callback = partial(self.post_message, event)
-            self.set_timer(delay=0.1, callback=callback)
-            return
-
-        self.main_content.post_message(
-            MainContent.OpenCodeEditorRequested(path=event.path, focus=True)
-        )
+        with ready_to_handle(self, event, should_exists=[self.main_content]):
+            if self.main_content is None:
+                raise ValueError("MainContent is not mounted")
+            self.main_content.post_message(
+                MainContent.OpenCodeEditorRequested(path=event.path, focus=True)
+            )
 
     @on(ReloadExplorerRequested)
     def reload_explorer_requested(self, event: ReloadExplorerRequested):
-        event.stop()
-        if not self.is_mounted or self.main_content is None:
-            # recycle event if the widget is not mounted yet
-            callback = partial(self.post_message, event)
-            self.set_timer(delay=0.1, callback=callback)
-            return
-
-        self.action_reload_explorer()
+        with ready_to_handle(self, event, should_exists=[self.sidebar]):
+            self.action_reload_explorer()
