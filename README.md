@@ -80,6 +80,17 @@ Code editor for who don't know how to use vi
     - [x] Show the sidebar
     - [ ] Hide the sidebar
     - [ ] Resize the sidebar
+- [ ] Setting
+    - [ ] Themes
+        - [ ] UI
+        - [ ] Syntax highlighting
+    - [ ] Shortcuts
+    - [ ] Editor
+        - [ ] default indentation size and style
+        - [ ] default line ending
+        - [ ] default encoding
+- [ ] Etc
+    - [ ] Support EditorConfig
 
 ## Usage
 
