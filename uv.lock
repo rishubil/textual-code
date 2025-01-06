@@ -467,7 +467,7 @@ syntax = [
 [[package]]
 name = "textual-code"
 version = "0.0.1"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "textual", extra = ["syntax"] },
 ]

@@ -19,4 +19,3 @@ ADD . /app
 RUN --mount=type=cache,target=/home/appuser/.cache/uv,uid=1000,gid=1000 \
     uv sync --frozen --no-dev
 ENV PATH="/app/.venv/bin:$PATH"
-# CMD ["fastapi", "dev", "--host", "0.0.0.0", "/app/src/uv_docker_example"]

@@ -17,5 +17,4 @@ RUN addgroup --system --gid 1000 appuser \
     && adduser --home /home/appuser --system --uid 1000 --gid 1000 appuser
 USER appuser
 ENV PATH="/app/.venv/bin:$PATH"
-ENTRYPOINT ["python", "src/run.py"]
-# CMD ["fastapi", "dev", "--host", "0.0.0.0", "/app/src/uv_docker_example"]
+ENTRYPOINT ["textual-code"]

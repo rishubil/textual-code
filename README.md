@@ -151,5 +151,5 @@ uv run textual console
 Then, you can run the following command to run the code:
 
 ```bash
-uv run textual run --dev src/run.py
+uv run textual run --dev textual_code:main
 ```
