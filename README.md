@@ -77,7 +77,16 @@ Code editor for who don't know how to use vi
     - [ ] Hide the sidebar
     - [ ] Resize the sidebar
 
+## Usage
+
+```bash
+docker compose build app
+docker compose run --rm app
+```
+
 ## Development
+
+(You need to use devcontainer to run the code)
 
 To open the textual console, run the following command:
 
