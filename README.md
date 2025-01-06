@@ -46,6 +46,15 @@ Code editor for who don't know how to use vi
     - [x] Basic text editing
     - [ ] Multiple cursors
     - [ ] Code completion
+    - [ ] Syntax highlighting
+        - [x] Detect the language from the file extension
+        - [ ] Change the language
+        - [ ] Add more languages
+    - [ ] Change Indentation size and style
+    - [ ] Change line ending
+    - [ ] Change encoding
+    - [ ] Show line and column numbers
+    - [ ] Goto line and column 
 - [ ] Search and replace
     - [ ] Plain Search
     - [ ] Regex search
