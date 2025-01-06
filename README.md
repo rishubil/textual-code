@@ -9,6 +9,37 @@ Code editor for who don't know how to use vi
 > This project is in the early stages of development.
 > It is not ready for use yet.
 
+## What is Textual Code?
+
+Textual Code is a TUI-based code editor that feels familiar right from the start.
+
+You’ve probably had to SSH into a server at some point just to tweak a few lines of code.
+However, vi or Emacs can be overkill for quick fixes, requiring you to remember a whole host of commands for even the simplest changes.
+Furthermore, nano doesn’t always provide enough features for comfortable coding, and setting up a GUI editor on a remote server can be a real hassle.
+
+That’s why Textual Code was created.
+You likely use a GUI editor like VS Code or Sublime Text in your day-to-day work, and Textual Code offers a similar experience with no learning curve.
+It behaves much like any other code editor you’re used to.
+
+We’re not asking you to switch to Textual Code as your main editor.
+Just remember it’s there when you need to jump onto a server and make a few quick edits.
+It’s that simple.
+
+## Features
+
+> [!WARNING]  
+> This project is in the early stages of development.
+> the features listed below are not yet implemented or are only partially implemented.
+
+- Commonly used shortcuts, such as `Ctrl+S` to save and `Ctrl+F` to search
+- Command palette for quick access to all features, and no need to remember shortcuts
+- Multiple cursors
+- Mouse support
+- Find and replace from workspace
+- Explore files in the sidebar
+- Open files to tabs
+- Syntax highlighting
+
 ## TODO
 
 - [ ] Explore files
@@ -92,8 +123,15 @@ Code editor for who don't know how to use vi
         - [ ] default encoding
 - [ ] Etc
     - [ ] Support EditorConfig
+- [ ] Release
+    - [ ] Package the project
+    - [ ] Make the project available on PyPI
 
 ## Usage
+
+Textual Code is not available on PyPI yet.
+
+You can run the code using Docker.
 
 ```bash
 docker compose build app
