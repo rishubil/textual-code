@@ -360,14 +360,18 @@ class CodeEditor(Static):
 
     def action_delete(self) -> None:
         if not self.path:
-            self.notify("No file to delete", severity="error")
+            self.notify(
+                "No file to delete. Please save the file first.", severity="error"
+            )
             return
 
         def do_delete(result: DeleteFileModalResult | None):
             if not result or result.is_cancelled:
                 return
             if not self.path:
-                self.notify("No file to delete", severity="error")
+                self.notify(
+                    "No file to delete. Please save the file first.", severity="error"
+                )
                 return
             if result.should_delete:
                 try:
@@ -378,7 +382,7 @@ class CodeEditor(Static):
                 except Exception as e:
                     self.notify(f"Error deleting file: {e}", severity="error")
 
-        self.app.push_screen(DeleteFileModalScreen(), do_delete)
+        self.app.push_screen(DeleteFileModalScreen(self.path), do_delete)
 
     @on(TextArea.Changed)
     def text_changed(self, event: TextArea.Changed):
@@ -699,6 +703,8 @@ class TextualCode(App):
         code_editor = self.main_content.get_active_code_editor()
         if code_editor is not None:
             code_editor.post_message(CodeEditor.SaveRequested())
+        else:
+            self.notify("No file to save. Please open a file first.", severity="error")
 
     def action_save_file_as(self) -> None:
         if self.main_content is None:
@@ -707,6 +713,8 @@ class TextualCode(App):
         code_editor = self.main_content.get_active_code_editor()
         if code_editor is not None:
             code_editor.post_message(CodeEditor.SaveAsRequested())
+        else:
+            self.notify("No file to save. Please open a file first.", severity="error")
 
     def action_new_editor(self) -> None:
         if self.main_content is None:
@@ -723,6 +731,8 @@ class TextualCode(App):
         code_editor = self.main_content.get_active_code_editor()
         if code_editor is not None:
             code_editor.post_message(CodeEditor.CloseRequested())
+        else:
+            self.notify("No file to close. Please open a file first.", severity="error")
 
     def action_delete_file(self) -> None:
         if self.main_content is None:
@@ -731,6 +741,10 @@ class TextualCode(App):
         code_editor = self.main_content.get_active_code_editor()
         if code_editor is not None:
             code_editor.post_message(CodeEditor.DeleteRequested())
+        else:
+            self.notify(
+                "No file to delete. Please open a file first.", severity="error"
+            )
 
     def action_quit(self) -> None:
         if self.query_one(MainContent).has_unsaved_pane():

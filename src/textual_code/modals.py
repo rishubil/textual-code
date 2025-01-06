@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from pathlib import Path
 
 from textual import on
 from textual.app import ComposeResult
@@ -79,17 +80,17 @@ class UnsavedChangeQuitModalScreen(ModalScreen[UnsavedChangeQuitModalResult]):
         yield Grid(
             Label("Do you want to quit without saving?", id="title"),
             Label("If you don't save, changes will be lost.", id="message"),
-            Button("Yes", variant="primary", id="yes"),
-            Button("No", variant="default", id="no"),
+            Button("Quit", variant="warning", id="quit"),
+            Button("Cancel", variant="default", id="cancel"),
             id="dialog",
         )
 
-    @on(Button.Pressed, "#yes")
-    def yes(self) -> None:
+    @on(Button.Pressed, "#quit")
+    def quit(self) -> None:
         self.dismiss(UnsavedChangeQuitModalResult(should_quit=True))
 
-    @on(Button.Pressed, "#no")
-    def no(self) -> None:
+    @on(Button.Pressed, "#cancel")
+    def cancel(self) -> None:
         self.dismiss(UnsavedChangeQuitModalResult(should_quit=False))
 
 
@@ -100,9 +101,14 @@ class DeleteFileModalResult:
 
 
 class DeleteFileModalScreen(ModalScreen[DeleteFileModalResult]):
+    def __init__(self, path: Path) -> None:
+        super().__init__()
+        self.path = path
+
     def compose(self) -> ComposeResult:
         yield Grid(
             Label("Are you sure you want to delete this file?", id="title"),
+            Label(str(self.path), id="message"),
             Button("Delete", variant="warning", id="delete"),
             Button("Cancel", variant="default", id="cancel"),
             id="dialog",
