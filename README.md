@@ -40,12 +40,12 @@ Code editor for who don't know how to use vi
     - [ ] Close all files
     - [ ] Close a file from the command palette
 - [ ] Delete
-    - [ ] Delete the current file
-    - [ ] Delete a file from the command palette
+    - [x] Delete the current file
+    - [x] Delete a file from the command palette
     - [ ] Delete a file from the sidebar
     - [ ] Delete a folder from the sidebar
     - [ ] Delete a folder from the command palette
-    - [ ] Ask to confirm before deleting
+    - [x] Ask to confirm before deleting
 - [ ] Edit file
     - [x] Basic text editing
     - [ ] Multiple cursors

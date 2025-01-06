@@ -23,6 +23,8 @@ from textual.widgets import (
 )
 
 from textual_code.modals import (
+    DeleteFileModalResult,
+    DeleteFileModalScreen,
     SaveAsModalResult,
     SaveAsModalScreen,
     UnsavedChangeModalResult,
@@ -149,6 +151,11 @@ class CodeEditor(Static):
             self.pane_id = pane_id
             self.title = title
 
+    class Saved(Message):
+        def __init__(self, pane_id: str) -> None:
+            super().__init__()
+            self.pane_id = pane_id
+
     class SavedAs(Message):
         def __init__(self, pane_id: str, path: Path) -> None:
             super().__init__()
@@ -156,6 +163,11 @@ class CodeEditor(Static):
             self.path = path
 
     class Closed(Message):
+        def __init__(self, pane_id: str) -> None:
+            super().__init__()
+            self.pane_id = pane_id
+
+    class Deleted(Message):
         def __init__(self, pane_id: str) -> None:
             super().__init__()
             self.pane_id = pane_id
@@ -173,6 +185,10 @@ class CodeEditor(Static):
             super().__init__()
 
     class CloseRequested(Message):
+        def __init__(self) -> None:
+            super().__init__()
+
+    class DeleteRequested(Message):
         def __init__(self) -> None:
             super().__init__()
 
@@ -267,6 +283,8 @@ class CodeEditor(Static):
                     f.write(self.text)
                 self.initial_text = self.text
                 self.notify("File saved", severity="information")
+                self.post_message(self.Saved(pane_id=self.pane_id))
+                self.post_message(TextualCode.ReloadExplorerRequested())
                 return
             except Exception as e:
                 self.notify(f"Error saving file: {e}", severity="error")
@@ -296,12 +314,12 @@ class CodeEditor(Static):
                     f.write(self.text)
                 self.initial_text = self.text
                 self.path = new_path
-                self.notify("File saved", severity="information")
+                self.post_message(self.SavedAs(pane_id=self.pane_id, path=new_path))
+                self.post_message(TextualCode.ReloadExplorerRequested())
+                self.notify(f"File saved: {self.path}", severity="information")
             except Exception as e:
                 self.notify(f"Error saving file: {e}", severity="error")
                 return
-
-            self.post_message(self.SavedAs(pane_id=self.pane_id, path=new_path))
 
         self.app.push_screen(SaveAsModalScreen(), do_save_as)
         return
@@ -339,6 +357,28 @@ class CodeEditor(Static):
 
         self.post_message(self.Closed(pane_id=self.pane_id))
         return
+
+    def action_delete(self) -> None:
+        if not self.path:
+            self.notify("No file to delete", severity="error")
+            return
+
+        def do_delete(result: DeleteFileModalResult | None):
+            if not result or result.is_cancelled:
+                return
+            if not self.path:
+                self.notify("No file to delete", severity="error")
+                return
+            if result.should_delete:
+                try:
+                    self.path.unlink()
+                    self.notify(f"File deleted: {self.path}", severity="information")
+                    self.post_message(self.Deleted(pane_id=self.pane_id))
+                    self.post_message(TextualCode.ReloadExplorerRequested())
+                except Exception as e:
+                    self.notify(f"Error deleting file: {e}", severity="error")
+
+        self.app.push_screen(DeleteFileModalScreen(), do_delete)
 
     @on(TextArea.Changed)
     def text_changed(self, event: TextArea.Changed):
@@ -385,6 +425,15 @@ class CodeEditor(Static):
             return
         self.action_close()
 
+    @on(DeleteRequested)
+    def delete_requested(self, event: DeleteRequested):
+        event.stop()
+        if not self.is_mounted:
+            callback = partial(self.post_message, event)
+            self.set_timer(delay=0.1, callback=callback)
+            return
+        self.action_delete()
+
 
 class MainContent(Static):
     BINDINGS = [
@@ -397,6 +446,11 @@ class MainContent(Static):
             super().__init__()
             self.path = path
             self.focus = focus
+
+    class CloseCodeEditorRequested(Message):
+        def __init__(self, pane_id: str) -> None:
+            super().__init__()
+            self.pane_id = pane_id
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -500,6 +554,12 @@ class MainContent(Static):
                 CodeEditor.FocusRequsted()
             )
 
+    def action_close_code_editor(self, pane_id: str) -> None:
+        self.close_pane(pane_id)
+
+        # Remove the file from the opened_files dict
+        self.opened_files = {k: v for k, v in self.opened_files.items() if v != pane_id}
+
     def action_save(self):
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
@@ -526,7 +586,6 @@ class MainContent(Static):
     def code_editor_saved_as(self, event: CodeEditor.SavedAs):
         event.stop()
         self.opened_files[event.path] = event.pane_id
-        cast(TextualCode, self.app).action_reload_explorer()
 
     @on(CodeEditor.Closed)
     def code_editor_closed(self, event: CodeEditor.Closed):
@@ -537,12 +596,18 @@ class MainContent(Static):
             self.set_timer(delay=0.1, callback=callback)
             return
 
-        self.close_pane(event.pane_id)
+        self.post_message(self.CloseCodeEditorRequested(pane_id=event.pane_id))
 
-        # Remove the file from the opened_files dict
-        self.opened_files = {
-            k: v for k, v in self.opened_files.items() if v != event.pane_id
-        }
+    @on(CodeEditor.Deleted)
+    def code_editor_deleted(self, event: CodeEditor.Deleted):
+        event.stop()
+        if not self.is_mounted or self.tabbed_content is None:
+            # recycle event if the widget is not mounted yet
+            callback = partial(self.post_message, event)
+            self.set_timer(delay=0.1, callback=callback)
+            return
+
+        self.post_message(self.CloseCodeEditorRequested(pane_id=event.pane_id))
 
     @on(OpenCodeEditorRequested)
     async def open_code_editor_requested(self, event: OpenCodeEditorRequested) -> None:
@@ -560,8 +625,23 @@ class MainContent(Static):
 
         await self.action_open_code_editor(event.path, event.focus)
 
+    @on(CloseCodeEditorRequested)
+    def close_code_editor_requested(self, event: CloseCodeEditorRequested) -> None:
+        event.stop()
+        if not self.is_mounted or self.tabbed_content is None:
+            # recycle event if the widget is not mounted yet
+            callback = partial(self.post_message, event)
+            self.set_timer(delay=0.1, callback=callback)
+            return
+
+        self.action_close_code_editor(event.pane_id)
+
 
 class TextualCode(App):
+    class ReloadExplorerRequested(Message):
+        def __init__(self) -> None:
+            super().__init__()
+
     CSS_PATH = "style.tcss"
 
     BINDINGS = [Binding("ctrl+n", "new_editor", "New file")]
@@ -597,6 +677,9 @@ class TextualCode(App):
         )
         yield SystemCommand(
             "Close file", "Close the current file", self.action_close_file
+        )
+        yield SystemCommand(
+            "Delete file", "Delete the current file", self.action_delete_file
         )
 
     def action_reload_explorer(self) -> None:
@@ -641,6 +724,14 @@ class TextualCode(App):
         if code_editor is not None:
             code_editor.post_message(CodeEditor.CloseRequested())
 
+    def action_delete_file(self) -> None:
+        if self.main_content is None:
+            raise ValueError("MainContent is not mounted")
+
+        code_editor = self.main_content.get_active_code_editor()
+        if code_editor is not None:
+            code_editor.post_message(CodeEditor.DeleteRequested())
+
     def action_quit(self) -> None:
         if self.query_one(MainContent).has_unsaved_pane():
 
@@ -667,3 +758,14 @@ class TextualCode(App):
         self.main_content.post_message(
             MainContent.OpenCodeEditorRequested(path=event.path, focus=True)
         )
+
+    @on(ReloadExplorerRequested)
+    def reload_explorer_requested(self, event: ReloadExplorerRequested):
+        event.stop()
+        if not self.is_mounted or self.main_content is None:
+            # recycle event if the widget is not mounted yet
+            callback = partial(self.post_message, event)
+            self.set_timer(delay=0.1, callback=callback)
+            return
+
+        self.action_reload_explorer()

@@ -91,3 +91,27 @@ class UnsavedChangeQuitModalScreen(ModalScreen[UnsavedChangeQuitModalResult]):
     @on(Button.Pressed, "#no")
     def no(self) -> None:
         self.dismiss(UnsavedChangeQuitModalResult(should_quit=False))
+
+
+@dataclass
+class DeleteFileModalResult:
+    is_cancelled: bool
+    should_delete: bool
+
+
+class DeleteFileModalScreen(ModalScreen[DeleteFileModalResult]):
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Are you sure you want to delete this file?", id="title"),
+            Button("Delete", variant="warning", id="delete"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#delete")
+    def delete(self) -> None:
+        self.dismiss(DeleteFileModalResult(is_cancelled=False, should_delete=True))
+
+    @on(Button.Pressed, "#cancel")
+    def cancel(self) -> None:
+        self.dismiss(DeleteFileModalResult(is_cancelled=True, should_delete=False))
