@@ -5,6 +5,10 @@ Code editor for who don't know how to use vi
 
 ![Screenshot](docs/preview.svg)
 
+> [!WARNING]  
+> This project is in the early stages of development.
+> It is not ready for use yet.
+
 ## TODO
 
 - [ ] Explore files
