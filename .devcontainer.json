@@ -8,6 +8,7 @@
         "vscode": {
             "extensions": [
                 "charliermarsh.ruff",
+                "esbenp.prettier-vscode",
                 "GitHub.copilot",
                 "mhutchie.git-graph",
                 "ms-python.python",
