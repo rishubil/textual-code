@@ -21,6 +21,7 @@ classifiers = [
 requires-python = ">=3.12"
 dependencies = [
     "textual[syntax]>=1.0.0",
+    "typer>=0.15.1",
 ]
 
 [project.urls]

@@ -39,12 +39,42 @@ It’s that simple.
 - Open files to tabs
 - Syntax highlighting
 
+## Installation
+
+```bash
+pip install textual-code
+```
+
+## Usage
+
+To open the textual code, run the following command in your workspace:
+
+```bash
+textual-code
+```
+
+## Development
+
+(You need to use devcontainer to run the code)
+
+To open the textual console, run the following command:
+
+```bash
+uv run textual console
+```
+
+Then, you can run the following command to run the code:
+
+```bash
+uv run textual run --dev textual_code:main
+```
+
 ## TODO
 
 - [ ] Explore files
   - [x] Show the files in the sidebar
+  - [x] Open a specific folder from command arguments
   - [ ] Open a specific folder from the command palette
-  - [ ] Open a specific folder from command arguments
 - [ ] Create
   - [ ] Create a new file from the sidebar
   - [ ] Create a new file from the command palette
@@ -55,8 +85,9 @@ It’s that simple.
   - [x] Open files to tabs
   - [x] Open new file from the command palette
   - [x] Open new file from shortcut
+  - [x] Open a specific file from command arguments
   - [ ] Open a specific file from the command palette
-  - [ ] Open a specific file from command arguments
+  - [ ] Open new file from command arguments
 - [ ] Save file
   - [x] Save the current file
   - [x] Save as the current file
@@ -125,33 +156,3 @@ It’s that simple.
 - [x] Release
   - [x] Package the project
   - [x] Make the project available on PyPI
-
-## Installation
-
-```bash
-pip install textual-code
-```
-
-## Usage
-
-To open the textual code, run the following command in your workspace:
-
-```bash
-textual-code
-```
-
-## Development
-
-(You need to use devcontainer to run the code)
-
-To open the textual console, run the following command:
-
-```bash
-uv run textual console
-```
-
-Then, you can run the following command to run the code:
-
-```bash
-uv run textual run --dev textual_code:main
-```

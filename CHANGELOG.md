@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add feature to open file or folder from command arguments
+
 ## [0.0.2] - 2025-01-07
 
 ### Added

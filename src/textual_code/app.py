@@ -5,7 +5,7 @@ from uuid import uuid4
 from textual import on
 from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding
-from textual.events import Mount
+from textual.events import Mount, Ready
 from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import Screen
@@ -39,12 +39,14 @@ class Explorer(Static):
             super().__init__()
             self.path = path.resolve()
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, workspace_path: Path, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.directory_tree: DirectoryTree | None = None
 
+        self.workspace_path = workspace_path
+
     def compose(self) -> ComposeResult:
-        self.directory_tree = DirectoryTree(Path())
+        self.directory_tree = DirectoryTree(self.workspace_path)
         self.directory_tree.show_root = False
         yield self.directory_tree
 
@@ -60,16 +62,18 @@ class Sidebar(Static):
             super().__init__()
             self.path = path.resolve()
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, workspace_path: Path, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.tabbed_content: TabbedContent | None = None
         self.explorer_pane: TabPane | None = None
         self.explorer: Explorer | None = None
 
+        self.workspace_path = workspace_path
+
     def compose(self) -> ComposeResult:
         self.tabbed_content = TabbedContent()
         self.explorer_pane = TabPane("Explorer")
-        self.explorer = Explorer(id="explorer")
+        self.explorer = Explorer(id="explorer", workspace_path=self.workspace_path)
 
         with self.tabbed_content, self.explorer_pane:
             yield self.explorer
@@ -594,20 +598,37 @@ class TextualCode(App):
 
     BINDINGS = [Binding("ctrl+n", "new_editor", "New file")]
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(
+        self, workspace_path: Path, with_open_file: Path | None, *args, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.sidebar: Sidebar | None = None
         self.main_content: MainContent | None = None
         self.footer: Footer | None = None
 
+        self.workspace_path = workspace_path
+        self.with_open_file = with_open_file
+
     def compose(self) -> ComposeResult:
-        self.sidebar = Sidebar(id="sidebar")
+        self.sidebar = Sidebar(id="sidebar", workspace_path=self.workspace_path)
         self.main_content = MainContent(id="main")
         self.footer = Footer()
 
         yield self.sidebar
         yield self.main_content
         yield self.footer
+
+    @on(Ready)
+    def readied(self, event: Ready):
+        if self.with_open_file is not None:
+            with ready_to_handle(self, event, should_exists=[self.main_content]):
+                if self.main_content is None:
+                    raise ValueError("MainContent is not mounted")
+                self.main_content.post_message(
+                    MainContent.OpenCodeEditorRequested(
+                        path=self.with_open_file, focus=True
+                    )
+                )
 
     def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
         yield from super().get_system_commands(screen)
