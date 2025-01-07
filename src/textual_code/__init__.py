@@ -13,7 +13,8 @@ def main(
     target_path: Annotated[
         Path | None,
         typer.Argument(
-            help="Path to the workspace directory", show_default="working directory"
+            help="Path to the directory or file to open.",
+            show_default="working directory",
         ),
     ] = None,
 ):
