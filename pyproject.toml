@@ -1,6 +1,6 @@
 [project]
 name = "textual-code"
-version = "0.0.1"
+version = "0.0.2"
 description = "Code editor for who don't know how to use vi"
 authors = [
     {name = "Nesswit", email = "rishubil@gmail.com"},

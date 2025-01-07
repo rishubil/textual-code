@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2] - 2025-01-07
+
 ### Added
 
 - Add basic text editing features
 
-[unreleased]: https://github.com/rishubil/textual-code/compare/31ff5bd6270b9a8f8bc08ee81ad720479256491d...HEAD
+[unreleased]: https://github.com/rishubil/textual-code/compare/v0.0.2...HEAD
+[0.0.2]: https://github.com/olivierlacan/keep-a-changelog/releases/tag/v0.0.2
