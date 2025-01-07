@@ -20,6 +20,7 @@ dependencies = [
 
 [project.urls]
 Repository = "https://github.com/rishubil/textual-code.git"
+Changelog = "https://github.com/rishubil/textual-code/blob/master/CHANGELOG.md"
 
 [project.scripts]
 textual-code = "textual_code:main"
