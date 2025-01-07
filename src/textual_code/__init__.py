@@ -9,7 +9,7 @@ from textual_code.app import TextualCode
 err_console = Console(stderr=True)
 
 
-def main(
+def typer_main(
     target_path: Annotated[
         Path | None,
         typer.Argument(
@@ -37,5 +37,9 @@ def main(
     app.run()
 
 
+def main():
+    typer.run(typer_main)
+
+
 if __name__ == "__main__":
-    typer.run(main)
+    main()
