@@ -122,19 +122,22 @@ It’s that simple.
     - [ ] default encoding
 - [ ] Etc
   - [ ] Support EditorConfig
-- [ ] Release
-  - [ ] Package the project
-  - [ ] Make the project available on PyPI
+- [x] Release
+  - [x] Package the project
+  - [x] Make the project available on PyPI
+
+## Installation
+
+```bash
+pip install textual-code
+```
 
 ## Usage
 
-Textual Code is not available on PyPI yet.
-
-You can run the code using Docker.
+To open the textual code, run the following command in your workspace:
 
 ```bash
-docker compose build app
-docker compose run --rm app
+textual-code
 ```
 
 ## Development
