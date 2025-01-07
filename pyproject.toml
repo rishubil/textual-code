@@ -31,6 +31,7 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "pre-commit>=4.0.1",
     "ruff>=0.8.5",
     "textual-dev>=1.7.0",
 ]
