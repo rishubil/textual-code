@@ -1,4 +1,4 @@
-#sidebar {
+Sidebar {
     dock: left;
     width: 20;
 }
