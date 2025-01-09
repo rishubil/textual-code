@@ -7,12 +7,18 @@ from textual_code.widgets.explorer import Explorer
 
 
 class Sidebar(Static):
+    """
+    Sidebar widget for the Textual Code application.
+    """
+
     def __init__(self, workspace_path: Path, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+
+        # the path to open in the explorer
         self.workspace_path = workspace_path
 
     def compose(self) -> ComposeResult:
-        with TabbedContent(), TabPane("Explorer", id="explorer_pane"):
+        with TabbedContent(), TabPane("Explorer"):
             yield Explorer(workspace_path=self.workspace_path)
 
     @property

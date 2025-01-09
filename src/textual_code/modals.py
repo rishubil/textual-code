@@ -14,11 +14,21 @@ from textual.widgets import (
 
 @dataclass
 class SaveAsModalResult:
+    """
+    The result of the Save As modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
     is_cancelled: bool
+    # The file path to save to, or None if the dialog was cancelled.
     file_path: str | None
 
 
 class SaveAsModalScreen(ModalScreen[SaveAsModalResult]):
+    """
+    Modal dialog for saving a file to a specific path.
+    """
+
     def compose(self) -> ComposeResult:
         yield Grid(
             Label("Save As", id="title"),
@@ -30,23 +40,33 @@ class SaveAsModalScreen(ModalScreen[SaveAsModalResult]):
 
     @on(Input.Submitted, "#path")
     @on(Button.Pressed, "#save")
-    def save(self) -> None:
+    def on_save(self) -> None:
         self.dismiss(
             SaveAsModalResult(is_cancelled=False, file_path=self.query_one(Input).value)
         )
 
     @on(Button.Pressed, "#cancel")
-    def cancel(self) -> None:
+    def on_cancel(self) -> None:
         self.dismiss(SaveAsModalResult(is_cancelled=True, file_path=None))
 
 
 @dataclass
 class UnsavedChangeModalResult:
+    """
+    The result of the Unsaved Change modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
     is_cancelled: bool
+    # Whether to save the changes. None if the dialog was cancelled.
     should_save: bool | None
 
 
 class UnsavedChangeModalScreen(ModalScreen[UnsavedChangeModalResult]):
+    """
+    Modal dialog for handling unsaved changes.
+    """
+
     def compose(self) -> ComposeResult:
         yield Grid(
             Label("Do you want to save the changes before closing?", id="title"),
@@ -58,24 +78,33 @@ class UnsavedChangeModalScreen(ModalScreen[UnsavedChangeModalResult]):
         )
 
     @on(Button.Pressed, "#save")
-    def save(self) -> None:
+    def on_save(self) -> None:
         self.dismiss(UnsavedChangeModalResult(is_cancelled=False, should_save=True))
 
     @on(Button.Pressed, "#dont_save")
-    def dont_save(self) -> None:
+    def on_dont_save(self) -> None:
         self.dismiss(UnsavedChangeModalResult(is_cancelled=False, should_save=False))
 
     @on(Button.Pressed, "#cancel")
-    def cancel(self) -> None:
+    def on_cancel(self) -> None:
         self.dismiss(UnsavedChangeModalResult(is_cancelled=True, should_save=None))
 
 
 @dataclass
 class UnsavedChangeQuitModalResult:
+    """
+    The result of the Unsaved Change Quit modal dialog.
+    """
+
+    # Whether to quit without saving.
     should_quit: bool
 
 
 class UnsavedChangeQuitModalScreen(ModalScreen[UnsavedChangeQuitModalResult]):
+    """
+    Modal dialog for quitting without saving.
+    """
+
     def compose(self) -> ComposeResult:
         yield Grid(
             Label("Do you want to quit without saving?", id="title"),
@@ -86,21 +115,31 @@ class UnsavedChangeQuitModalScreen(ModalScreen[UnsavedChangeQuitModalResult]):
         )
 
     @on(Button.Pressed, "#quit")
-    def quit(self) -> None:
+    def on_quit(self) -> None:
         self.dismiss(UnsavedChangeQuitModalResult(should_quit=True))
 
     @on(Button.Pressed, "#cancel")
-    def cancel(self) -> None:
+    def on_cancel(self) -> None:
         self.dismiss(UnsavedChangeQuitModalResult(should_quit=False))
 
 
 @dataclass
 class DeleteFileModalResult:
+    """
+    The result of the Delete File modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
     is_cancelled: bool
+    # Whether to delete the file. None if the dialog was cancelled
     should_delete: bool
 
 
 class DeleteFileModalScreen(ModalScreen[DeleteFileModalResult]):
+    """
+    Modal dialog for deleting a file.
+    """
+
     def __init__(self, path: Path) -> None:
         super().__init__()
         self.path = path
@@ -115,9 +154,9 @@ class DeleteFileModalScreen(ModalScreen[DeleteFileModalResult]):
         )
 
     @on(Button.Pressed, "#delete")
-    def delete(self) -> None:
+    def on_delete(self) -> None:
         self.dismiss(DeleteFileModalResult(is_cancelled=False, should_delete=True))
 
     @on(Button.Pressed, "#cancel")
-    def cancel(self) -> None:
+    def on_cancel(self) -> None:
         self.dismiss(DeleteFileModalResult(is_cancelled=True, should_delete=False))

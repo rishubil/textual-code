@@ -20,8 +20,16 @@ from textual_code.modals import (
 
 
 class CodeEditorFooter(Static):
-    path: reactive[Path | None] = reactive(None)
-    language: reactive[str | None] = reactive(None)
+    """
+    Footer for the CodeEditor widget.
+
+    It displays the information about the current file being edited.
+    """
+
+    # the path of the file
+    path: reactive[Path | None] = reactive(None, init=False)
+    # the language of the file
+    language: reactive[str | None] = reactive(None, init=False)
 
     def __init__(
         self,
@@ -46,10 +54,12 @@ class CodeEditorFooter(Static):
             id="language",
         )
 
-    def watch_path(self, path: Path | None):
+    def watch_path(self, path: Path | None) -> None:
+        # update the path view with the new path
         self.path_view.update(str(path) if path else "")
 
-    def watch_language(self, language: str | None):
+    def watch_language(self, language: str | None) -> None:
+        # update the language button with the new language
         self.language_button.label = language or "plain"
 
     @property
@@ -62,13 +72,31 @@ class CodeEditorFooter(Static):
 
 
 class CodeEditor(Static):
+    """
+    Code editor widget.
+
+    It allows the user to edit code in a text area, with syntax highlighting.
+    """
+
+    # the unique ID of the pane.
+    # this is used to identify the pane in the MainView.
     pane_id: reactive[str] = reactive("", init=False)
+    # the path of the file
     path: reactive[Path | None] = reactive(None, init=False)
+    # the initial text of the editor.
+    # this is the text that was loaded from the file.
+    # if the text is change from the initial text, the editor is considered to have
+    # unsaved changes.
     initial_text: reactive[str] = reactive("", init=False)
+    # the current text of the editor
     text: reactive[str] = reactive("", init=False)
+    # the title of the editor.
+    # it will be displayed in the tab of the pane.
     title: reactive[str] = reactive("...", init=False)
+    # the language of the file
     language: reactive[str | None] = reactive(None, init=False)
 
+    # mapping of file extensions to language names
     LANGUAGE_EXTENSIONS = {
         "py": "python",
         "json": "json",
@@ -92,6 +120,10 @@ class CodeEditor(Static):
 
     @dataclass
     class TitleChanged(Message):
+        """
+        Message to notify that the title of the editor has changed.
+        """
+
         code_editor: "CodeEditor"
 
         @property
@@ -100,6 +132,10 @@ class CodeEditor(Static):
 
     @dataclass
     class Saved(Message):
+        """
+        Message to notify that the file has been saved.
+        """
+
         code_editor: "CodeEditor"
 
         @property
@@ -108,6 +144,10 @@ class CodeEditor(Static):
 
     @dataclass
     class SavedAs(Message):
+        """
+        Message to notify that the file has been saved as a new file.
+        """
+
         code_editor: "CodeEditor"
 
         @property
@@ -116,6 +156,10 @@ class CodeEditor(Static):
 
     @dataclass
     class Closed(Message):
+        """
+        Message to notify that the editor has been closed.
+        """
+
         code_editor: "CodeEditor"
 
         @property
@@ -124,6 +168,10 @@ class CodeEditor(Static):
 
     @dataclass
     class Deleted(Message):
+        """
+        Message to notify that the file has been deleted.
+        """
+
         code_editor: "CodeEditor"
 
         @property
@@ -132,12 +180,17 @@ class CodeEditor(Static):
 
     @classmethod
     def generate_pane_id(cls) -> str:
+        """
+        Generate a unique pane ID.
+        """
         return f"pane-code-editor-{uuid4().hex}"
 
     def __init__(self, pane_id: str, path: Path | None, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.set_reactive(CodeEditor.pane_id, pane_id)
         self.set_reactive(CodeEditor.path, path)
+
+        # if a path is provided, load the file content
         if path is not None:
             try:
                 with path.open() as f:
@@ -159,11 +212,19 @@ class CodeEditor(Static):
         )
 
     @on(Mount)
-    def mounted(self, event: Mount):
+    def on_mount(self, event: Mount) -> None:
+        # update the title of the editor
         self.update_title()
+        # update the language of the editor
         self.load_language_from_path(self.path)
 
     def update_title(self) -> None:
+        """
+        Update the title of the editor.
+
+        The title is the name of the file, with an asterisk (*) if there are unsaved.
+        If the file path is not set, the title is "<Untitled>".
+        """
         is_changed = False
         if self.text != self.initial_text:
             is_changed = True
@@ -172,45 +233,66 @@ class CodeEditor(Static):
             name = self.path.name
         self.title = f"{name}{'*' if is_changed else ''}"
 
-    def load_language_from_path(self, path: Path | None):
+    def load_language_from_path(self, path: Path | None) -> None:
+        """
+        Update the language of the editor based on the file extension.
+        """
         if path is None:
             self.language = None
             return
         extension = path.suffix.lstrip(".")
         self.language = self.LANGUAGE_EXTENSIONS.get(extension, None)
 
-    def replace_initial_text(self, initial_text: str):
-        self.update_title()
+    def replace_editor_text(self, text: str) -> None:
+        """
+        Replace the text in the editor with the new text.
+        """
+
         self.editor.replace(
-            initial_text,
+            text,
             self.editor.document.start,
             self.editor.document.end,
         )
 
-    def watch_title(self, title: str):
+    def watch_title(self, title: str) -> None:
+        # notify that the title has changed
+        # this will update the tab title in the MainView
         self.post_message(
             self.TitleChanged(
                 code_editor=self,
             )
         )
 
-    def watch_text(self, text: str):
+    def watch_text(self, text: str) -> None:
+        # update the title, as the text has changed
         self.update_title()
 
-    def watch_initial_text(self, initial_text: str):
+    def watch_initial_text(self, initial_text: str) -> None:
+        # update the title, as the initial text has changed
         self.update_title()
-        self.replace_initial_text(initial_text)
+        # replace the text in the editor with the new initial text
+        self.replace_editor_text(initial_text)
 
-    def watch_path(self, path: Path | None):
+    def watch_path(self, path: Path | None) -> None:
+        # update the title, as the path has changed
         self.update_title()
+
+        # update the language based on the new path
         self.load_language_from_path(path)
+
+        # update the path in the footer
         self.footer.path = path
 
     def watch_language(self, language: str | None):
+        # update the language in the editor
         self.editor.language = language
+        # update the language in the footer
         self.footer.language = language
 
     def action_save(self) -> None:
+        """
+        Save the current text to the file.
+        """
         if self.path is None:
             self.action_save_as()
         else:
@@ -230,6 +312,10 @@ class CodeEditor(Static):
                 return
 
     def action_save_as(self) -> None:
+        """
+        Save the current text to a new file.
+        """
+
         def do_save_as(result: SaveAsModalResult | None) -> None:
             if result is None or result.is_cancelled:
                 return
@@ -246,6 +332,7 @@ class CodeEditor(Static):
             try:
                 with open(new_path, "w") as f:
                     f.write(self.text)
+
                 self.initial_text = self.text
                 self.path = new_path
                 self.post_message(
@@ -262,6 +349,10 @@ class CodeEditor(Static):
         return
 
     def action_close(self) -> None:
+        """
+        Close the editor.
+        """
+
         def do_unsaved_changes(result: UnsavedChangeModalResult | None) -> None:
             if result is None or result.is_cancelled:
                 return
@@ -303,6 +394,9 @@ class CodeEditor(Static):
         return
 
     def action_delete(self) -> None:
+        """
+        Delete the file.
+        """
         if not self.path:
             self.notify(
                 "No file to delete. Please save the file first.", severity="error"
@@ -332,10 +426,16 @@ class CodeEditor(Static):
         self.app.push_screen(DeleteFileModalScreen(self.path), do_delete)
 
     def action_focus(self) -> None:
+        """
+        Focus the editor.
+        """
         self.editor.focus()
 
     @on(TextArea.Changed)
-    def text_changed(self, event: TextArea.Changed):
+    def on_text_changed(self, event: TextArea.Changed):
+        event.stop()
+
+        # update the text when editor's text changes
         self.text = event.control.text
 
     @property
