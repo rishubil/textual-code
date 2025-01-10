@@ -6,6 +6,7 @@ from pathlib import Path
 from textual import on
 from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding
+from textual.command import CommandPalette
 from textual.events import Ready
 from textual.message import Message
 from textual.screen import Screen
@@ -16,6 +17,7 @@ from textual.widgets import (
     TabPane,
 )
 
+from textual_code.commands import OpenFileCommandProvider
 from textual_code.modals import (
     UnsavedChangeQuitModalResult,
     UnsavedChangeQuitModalScreen,
@@ -253,6 +255,15 @@ class TextualCode(App):
         Message to request reloading the explorer.
         """
 
+    @dataclass
+    class OpneFileRequested(Message):
+        """
+        Message to request opening a file in the code editor.
+        """
+
+        # the path to the file to open.
+        path: Path
+
     CSS_PATH = "style.tcss"
 
     BINDINGS = [Binding("ctrl+n", "new_editor", "New file")]
@@ -301,6 +312,12 @@ class TextualCode(App):
         yield SystemCommand(
             "Delete file", "Delete the current file", self.action_delete_file
         )
+        yield SystemCommand(
+            "Open file",
+            "Open a file in the code editor",
+            self.action_open_file_with_command_palette,
+        )
+        yield SystemCommand("Open folder", "Quit the app", self.action_quit)
 
     def action_reload_explorer(self) -> None:
         """
@@ -364,6 +381,17 @@ class TextualCode(App):
                 "No file to delete. Please open a file first.", severity="error"
             )
 
+    def action_open_file_with_command_palette(self) -> None:
+        """
+        Open a file in the code editor with the command palette.
+        """
+        self.push_screen(
+            CommandPalette(
+                providers=[OpenFileCommandProvider],
+                placeholder="Search for files...",
+            ),
+        )
+
     def action_quit(self) -> None:
         """
         Quit the app.
@@ -399,6 +427,11 @@ class TextualCode(App):
     def on_reload_explorer_requested(self, event: ReloadExplorerRequested):
         # reload the explorer when requested
         self.action_reload_explorer()
+
+    @on(OpneFileRequested)
+    async def on_open_file_requested(self, event: OpneFileRequested):
+        # open the file in the code editor when requested
+        await self.main_view.action_open_code_editor(path=event.path, focus=True)
 
     @property
     def main_view(self) -> MainView:

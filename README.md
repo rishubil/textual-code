@@ -71,10 +71,9 @@ uv run textual run --dev textual_code:main
 
 ## TODO
 
-- [ ] Explore files
+- [x] Explore files
   - [x] Show the files in the sidebar
   - [x] Open a specific folder from command arguments
-  - [ ] Open a specific folder from the command palette
 - [ ] Create
   - [ ] Create a new file from the sidebar
   - [ ] Create a new file from the command palette
@@ -86,7 +85,7 @@ uv run textual run --dev textual_code:main
   - [x] Open new file from the command palette
   - [x] Open new file from shortcut
   - [x] Open a specific file from command arguments
-  - [ ] Open a specific file from the command palette
+  - [x] Open a specific file from the command palette
   - [ ] Open new file from command arguments
 - [ ] Save file
   - [x] Save the current file
