@@ -17,7 +17,11 @@ from textual.widgets import (
     TabPane,
 )
 
-from textual_code.commands import OpenFileCommandProvider
+from textual_code.commands import (
+    CreateDirCommandProvider,
+    CreateFileCommandProvider,
+    OpenFileCommandProvider,
+)
 from textual_code.modals import (
     UnsavedChangeQuitModalResult,
     UnsavedChangeQuitModalScreen,
@@ -256,13 +260,24 @@ class TextualCode(App):
         """
 
     @dataclass
-    class OpneFileRequested(Message):
+    class OpenFileRequested(Message):
         """
         Message to request opening a file in the code editor.
         """
 
         # the path to the file to open.
         path: Path
+
+    @dataclass
+    class CreateFileOrDirRequested(Message):
+        """
+        Message to request creating a new file or directory.
+        """
+
+        # the path to the file or directory to create.
+        path: Path
+        # if the path is a directory.
+        is_dir: bool
 
     CSS_PATH = "style.tcss"
 
@@ -316,6 +331,16 @@ class TextualCode(App):
             "Open file",
             "Open a file in the code editor",
             self.action_open_file_with_command_palette,
+        )
+        yield SystemCommand(
+            "Create file",
+            "Create a new file at a path",
+            self.action_create_file_with_command_palette,
+        )
+        yield SystemCommand(
+            "Create directory",
+            "Create a new directory at a path",
+            self.action_create_directory_with_command_palette,
         )
         yield SystemCommand("Open folder", "Quit the app", self.action_quit)
 
@@ -392,6 +417,28 @@ class TextualCode(App):
             ),
         )
 
+    def action_create_file_with_command_palette(self) -> None:
+        """
+        Create a new file with the command palette.
+        """
+        self.push_screen(
+            CommandPalette(
+                providers=[CreateFileCommandProvider],
+                placeholder="Enter file path...",
+            ),
+        )
+
+    def action_create_directory_with_command_palette(self) -> None:
+        """
+        Create a new directory with the command palette.
+        """
+        self.push_screen(
+            CommandPalette(
+                providers=[CreateDirCommandProvider],
+                placeholder="Enter directory path...",
+            ),
+        )
+
     def action_quit(self) -> None:
         """
         Quit the app.
@@ -428,10 +475,46 @@ class TextualCode(App):
         # reload the explorer when requested
         self.action_reload_explorer()
 
-    @on(OpneFileRequested)
-    async def on_open_file_requested(self, event: OpneFileRequested):
+    @on(OpenFileRequested)
+    async def on_open_file_requested(self, event: OpenFileRequested):
         # open the file in the code editor when requested
         await self.main_view.action_open_code_editor(path=event.path, focus=True)
+
+    @on(CreateFileOrDirRequested)
+    async def on_create_file_or_dir_requested(self, event: CreateFileOrDirRequested):
+        # check if the file or directory already exists
+        if event.path.exists():
+            self.notify(
+                f"{'Directory' if event.is_dir else 'File'}"
+                f" already exists: {event.path}",
+                severity="error",
+            )
+            return
+
+        # create the file or directory
+        if not event.is_dir:
+            try:
+                event.path.touch()
+            except Exception as e:
+                self.notify(
+                    f"Failed to create file: {event.path}: {e}", severity="error"
+                )
+                return
+        else:
+            try:
+                event.path.mkdir(parents=True)
+            except Exception as e:
+                self.notify(
+                    f"Failed to create directory: {event.path}: {e}", severity="error"
+                )
+                return
+
+        # reload the explorer after creating the file or directory
+        self.action_reload_explorer()
+
+        # open the file in the code editor if it is a file
+        if not event.is_dir:
+            await self.main_view.action_open_code_editor(path=event.path, focus=True)
 
     @property
     def main_view(self) -> MainView:

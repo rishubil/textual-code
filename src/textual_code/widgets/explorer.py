@@ -3,6 +3,7 @@ from pathlib import Path
 
 from textual import on
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.message import Message
 from textual.widgets import DirectoryTree, Static
 
@@ -11,6 +12,11 @@ class Explorer(Static):
     """
     A widget for exploring the file system.
     """
+
+    BINDINGS = [
+        Binding("ctrl+n", "create_file", "Create file"),
+        Binding("ctrl+d", "create_directory", "Create directory"),
+    ]
 
     @dataclass
     class FileOpenRequested(Message):
@@ -37,6 +43,24 @@ class Explorer(Static):
         directory_tree = DirectoryTree(self.workspace_path)
         directory_tree.show_root = False  # don't show the root directory
         yield directory_tree
+
+    def action_create_file(self) -> None:
+        """
+        Create a new file at a path.
+        """
+        from textual_code.app import TextualCode
+
+        assert isinstance(self.app, TextualCode)
+        self.app.action_create_file_with_command_palette()
+
+    def action_create_directory(self) -> None:
+        """
+        Create a new directory at a path.
+        """
+        from textual_code.app import TextualCode
+
+        assert isinstance(self.app, TextualCode)
+        self.app.action_create_directory_with_command_palette()
 
     @on(DirectoryTree.FileSelected)
     def on_file_selected(self, event: DirectoryTree.FileSelected):

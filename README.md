@@ -74,11 +74,11 @@ uv run textual run --dev textual_code:main
 - [x] Explore files
   - [x] Show the files in the sidebar
   - [x] Open a specific folder from command arguments
-- [ ] Create
-  - [ ] Create a new file from the sidebar
-  - [ ] Create a new file from the command palette
-  - [ ] Create a new folder from the sidebar
-  - [ ] Create a new folder from the command palette
+- [x] Create
+  - [x] Create a new file from the sidebar
+  - [x] Create a new file from the command palette
+  - [x] Create a new folder from the sidebar
+  - [x] Create a new folder from the command palette
 - [ ] Open file
   - [x] Open a specific file from the sidebar
   - [x] Open files to tabs

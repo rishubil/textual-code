@@ -10,11 +10,9 @@ class OpenFileCommandProvider(Provider):
     """A command provider to open a file in the viewer."""
 
     def read_files(self, workspace_path: Path) -> list[Path]:
-        """Get a list of files in the workspace."""
         return list(workspace_path.glob("**/*"))
 
     async def startup(self) -> None:
-        """Called once when the command palette is opened, prior to searching."""
         from textual_code.app import TextualCode
 
         assert isinstance(self.app, TextualCode)
@@ -24,7 +22,6 @@ class OpenFileCommandProvider(Provider):
         self.file_paths = await worker.wait()
 
     async def search(self, query: str) -> Hits:
-        """Search for files."""
         from textual_code.app import TextualCode
 
         matcher = self.matcher(query)
@@ -39,7 +36,7 @@ class OpenFileCommandProvider(Provider):
                         matcher.highlight(command),
                         partial(
                             lambda path: self.app.post_message(
-                                TextualCode.OpneFileRequested(path=path)
+                                TextualCode.OpenFileRequested(path=path)
                             ),
                             path,
                         ),
@@ -48,3 +45,49 @@ class OpenFileCommandProvider(Provider):
 
         for hit in heapq.nlargest(20, hits(), key=lambda hit: hit.score):
             yield hit
+
+
+class BaseCreatePathCommandProvider(Provider):
+    @property
+    def is_dir(self) -> bool:
+        raise NotImplementedError
+
+    async def startup(self) -> None:
+        from textual_code.app import TextualCode
+
+        assert isinstance(self.app, TextualCode)
+        self.workspace_path: Path = self.app.workspace_path
+
+    async def search(self, query: str) -> Hits:
+        from textual_code.app import TextualCode
+
+        target_path = (self.workspace_path / query).resolve()
+
+        yield Hit(
+            1,
+            str(target_path),
+            partial(
+                lambda path, is_dir: self.app.post_message(
+                    TextualCode.CreateFileOrDirRequested(path=path, is_dir=is_dir)
+                ),
+                target_path,
+                self.is_dir,
+            ),
+            help=f"Create this {'directory' if self.is_dir else 'file'}",
+        )
+
+
+class CreateDirCommandProvider(BaseCreatePathCommandProvider):
+    """A command provider to create a new directory."""
+
+    @property
+    def is_dir(self) -> bool:
+        return True
+
+
+class CreateFileCommandProvider(BaseCreatePathCommandProvider):
+    """A command provider to create a new file."""
+
+    @property
+    def is_dir(self) -> bool:
+        return False
