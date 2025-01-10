@@ -18,9 +18,8 @@ from textual.widgets import (
 )
 
 from textual_code.commands import (
-    CreateDirCommandProvider,
-    CreateFileCommandProvider,
-    OpenFileCommandProvider,
+    create_create_file_or_dir_command_provider,
+    create_open_file_command_provider,
 )
 from textual_code.modals import (
     UnsavedChangeQuitModalResult,
@@ -412,7 +411,14 @@ class TextualCode(App):
         """
         self.push_screen(
             CommandPalette(
-                providers=[OpenFileCommandProvider],
+                providers=[
+                    create_open_file_command_provider(
+                        self.workspace_path,
+                        post_message_callback=lambda path: self.app.post_message(
+                            self.OpenFileRequested(path=path)
+                        ),
+                    )
+                ],
                 placeholder="Search for files...",
             ),
         )
@@ -423,7 +429,15 @@ class TextualCode(App):
         """
         self.push_screen(
             CommandPalette(
-                providers=[CreateFileCommandProvider],
+                providers=[
+                    create_create_file_or_dir_command_provider(
+                        self.workspace_path,
+                        is_dir=False,
+                        post_message_callback=lambda path: self.app.post_message(
+                            self.CreateFileOrDirRequested(path=path, is_dir=False)
+                        ),
+                    )
+                ],
                 placeholder="Enter file path...",
             ),
         )
@@ -434,7 +448,15 @@ class TextualCode(App):
         """
         self.push_screen(
             CommandPalette(
-                providers=[CreateDirCommandProvider],
+                providers=[
+                    create_create_file_or_dir_command_provider(
+                        self.workspace_path,
+                        is_dir=True,
+                        post_message_callback=lambda path: self.app.post_message(
+                            self.CreateFileOrDirRequested(path=path, is_dir=True)
+                        ),
+                    )
+                ],
                 placeholder="Enter directory path...",
             ),
         )

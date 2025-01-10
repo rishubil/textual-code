@@ -1,93 +1,105 @@
 import heapq
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from functools import partial
 from pathlib import Path
+from typing import Any
 
 from textual.command import Hit, Hits, Provider
 
 
-class OpenFileCommandProvider(Provider):
-    """A command provider to open a file in the viewer."""
+def create_open_file_command_provider(
+    workspace_path: Path, post_message_callback: Callable[[Path], Any]
+) -> type[Provider]:
+    class OpenFileCommandProvider(Provider):
+        """A command provider to open a file in the viewer."""
 
-    def read_files(self, workspace_path: Path) -> list[Path]:
-        return list(workspace_path.glob("**/*"))
+        def read_files(self, workspace_path: Path) -> list[Path]:
+            return list(workspace_path.glob("**/*"))
 
-    async def startup(self) -> None:
-        from textual_code.app import TextualCode
+        async def startup(self) -> None:
+            worker = self.app.run_worker(
+                partial(self.read_files, workspace_path), thread=True
+            )
+            self.file_paths = await worker.wait()
 
-        assert isinstance(self.app, TextualCode)
-        worker = self.app.run_worker(
-            partial(self.read_files, self.app.workspace_path), thread=True
-        )
-        self.file_paths = await worker.wait()
+        async def search(self, query: str) -> Hits:
+            matcher = self.matcher(query)
 
-    async def search(self, query: str) -> Hits:
-        from textual_code.app import TextualCode
-
-        matcher = self.matcher(query)
-
-        def hits() -> Generator[Hit, None, None]:
-            for path in self.file_paths:
-                command = f"{str(path)}"
-                score = matcher.match(command)
-                if score > 0:
-                    yield Hit(
-                        score,
-                        matcher.highlight(command),
-                        partial(
-                            lambda path: self.app.post_message(
-                                TextualCode.OpenFileRequested(path=path)
+            def hits() -> Generator[Hit, None, None]:
+                for path in self.file_paths:
+                    command = f"{str(path)}"
+                    score = matcher.match(command)
+                    if score > 0:
+                        yield Hit(
+                            score,
+                            matcher.highlight(command),
+                            partial(
+                                post_message_callback,
+                                path,
                             ),
-                            path,
-                        ),
-                        help="Open this file in the viewer",
-                    )
+                            help="Open this file in the viewer",
+                        )
 
-        for hit in heapq.nlargest(20, hits(), key=lambda hit: hit.score):
-            yield hit
+            for hit in heapq.nlargest(20, hits(), key=lambda hit: hit.score):
+                yield hit
+
+    return OpenFileCommandProvider
 
 
 class BaseCreatePathCommandProvider(Provider):
+    """
+    Base class for CreatePathCommandProvider
+    """
+
     @property
     def is_dir(self) -> bool:
         raise NotImplementedError
 
-    async def startup(self) -> None:
-        from textual_code.app import TextualCode
+    @property
+    def workspace_path(self) -> Path:
+        raise NotImplementedError
 
-        assert isinstance(self.app, TextualCode)
-        self.workspace_path: Path = self.app.workspace_path
+    @property
+    def post_message_callback(self) -> Callable[[Path], Any]:
+        raise NotImplementedError
 
     async def search(self, query: str) -> Hits:
-        from textual_code.app import TextualCode
-
         target_path = (self.workspace_path / query).resolve()
 
         yield Hit(
             1,
             str(target_path),
             partial(
-                lambda path, is_dir: self.app.post_message(
-                    TextualCode.CreateFileOrDirRequested(path=path, is_dir=is_dir)
-                ),
+                self.post_message_callback,
                 target_path,
-                self.is_dir,
             ),
             help=f"Create this {'directory' if self.is_dir else 'file'}",
         )
 
 
-class CreateDirCommandProvider(BaseCreatePathCommandProvider):
-    """A command provider to create a new directory."""
+def create_create_file_or_dir_command_provider(
+    workspace_path: Path,
+    is_dir: bool,
+    post_message_callback: Callable[[Path], Any],
+) -> type[Provider]:
+    # rename for clarity
+    passed_workspace_path = workspace_path
+    passed_is_dir = is_dir
+    passed_post_message_callback = post_message_callback
 
-    @property
-    def is_dir(self) -> bool:
-        return True
+    class CreatePathCommandProvider(BaseCreatePathCommandProvider):
+        """A command provider to create a new file or directory."""
 
+        @property
+        def is_dir(self) -> bool:
+            return passed_is_dir
 
-class CreateFileCommandProvider(BaseCreatePathCommandProvider):
-    """A command provider to create a new file."""
+        @property
+        def workspace_path(self) -> Path:
+            return passed_workspace_path
 
-    @property
-    def is_dir(self) -> bool:
-        return False
+        @property
+        def post_message_callback(self) -> Callable[[Path], Any]:
+            return passed_post_message_callback
+
+    return CreatePathCommandProvider
