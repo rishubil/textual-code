@@ -38,8 +38,13 @@ def typer_main(
         workspace_path = target_path.parent
         with_open_file = target_path
     elif not target_path.exists():
-        err_console.print(f"Error: {target_path} does not exist.")
-        raise typer.Exit(code=1)
+        try:
+            target_path.touch()
+        except Exception as e:
+            err_console.print(f"Error: {e}")
+            raise typer.Exit(code=1) from e
+        workspace_path = target_path.parent
+        with_open_file = target_path
     else:
         err_console.print(f"Error: {target_path} is not a directory or a file.")
         raise typer.Exit(code=1)

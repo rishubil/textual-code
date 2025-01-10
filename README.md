@@ -79,14 +79,14 @@ uv run textual run --dev textual_code:main
   - [x] Create a new file from the command palette
   - [x] Create a new folder from the sidebar
   - [x] Create a new folder from the command palette
-- [ ] Open file
+- [x] Open file
   - [x] Open a specific file from the sidebar
   - [x] Open files to tabs
   - [x] Open new file from the command palette
   - [x] Open new file from shortcut
   - [x] Open a specific file from command arguments
   - [x] Open a specific file from the command palette
-  - [ ] Open new file from command arguments
+  - [x] Open new file from command arguments
 - [ ] Save file
   - [x] Save the current file
   - [x] Save as the current file
