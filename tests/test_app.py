@@ -205,3 +205,17 @@ async def test_quit_with_unsaved_quit_button_exits(
         await pilot.pause()
         await pilot.click("#quit")
         await pilot.pause()
+
+
+# ── Close all files ──────────────────────────────────────────────────────────
+
+
+async def test_close_all_files_via_app_action(workspace: Path, sample_py_file: Path):
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == 1
+
+        app.action_close_all_files()
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == 0

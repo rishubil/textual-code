@@ -39,6 +39,7 @@ class MainView(Static):
         Binding("ctrl+s", "save", "Save"),
         Binding("ctrl+shift+s", "save_all", "Save all"),
         Binding("ctrl+w", "close", "Close tab", priority=True),
+        Binding("ctrl+shift+w", "close_all", "Close all", priority=True),
     ]
 
     def __init__(self, *args, **kwargs) -> None:
@@ -240,6 +241,23 @@ class MainView(Static):
         if code_editor is not None:
             code_editor.action_close()
 
+    def action_close_all(self) -> None:
+        """Close all open code editors, prompting for unsaved changes."""
+        editors: list[CodeEditor] = []
+        for pane_id in list(self.opened_pane_ids):
+            pane = self.tabbed_content.get_pane(pane_id)
+            editors.append(pane.query_one(CodeEditor))
+        self._close_next(editors)
+
+    def _close_next(self, editors: list[CodeEditor]) -> None:
+        if not editors:
+            return
+        editor = editors[0]
+        remaining = editors[1:]
+        editor.action_close(
+            on_complete=lambda closed: self._close_next(remaining) if closed else None
+        )
+
     @on(CodeEditor.TitleChanged)
     def on_code_editor_title_changed(self, event: CodeEditor.TitleChanged):
         # update the tab label when the title of the code editor changes
@@ -350,6 +368,9 @@ class TextualCode(App):
             "Close file", "Close the current file", self.action_close_file
         )
         yield SystemCommand(
+            "Close all files", "Close all open files", self.action_close_all_files
+        )
+        yield SystemCommand(
             "Delete file", "Delete the current file", self.action_delete_file
         )
         yield SystemCommand(
@@ -372,6 +393,10 @@ class TextualCode(App):
     def action_save_all_files(self) -> None:
         """Save all open files."""
         self.call_next(self.main_view.action_save_all)
+
+    def action_close_all_files(self) -> None:
+        """Close all open files."""
+        self.call_next(self.main_view.action_close_all)
 
     def action_reload_explorer(self) -> None:
         """

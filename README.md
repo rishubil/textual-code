@@ -93,12 +93,12 @@ uv run textual run --dev textual_code:main
   - [x] Save the current file from shortcut
   - [x] Save the current file from the command palette
   - [x] Save all files
-- [ ] Close file
+- [x] Close file
   - [x] Close the current file
   - [x] Close the current file from shortcut
   - [x] Close the current file from the command palette
   - [x] Ask to save the file before closing
-  - [ ] Close all files
+  - [x] Close all files
 - [ ] Delete
   - [x] Delete the current file
   - [x] Delete the current file from the command palette

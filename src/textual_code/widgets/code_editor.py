@@ -360,50 +360,57 @@ class CodeEditor(Static):
         self.app.push_screen(SaveAsModalScreen(), do_save_as)
         return
 
-    def action_close(self) -> None:
+    def action_close(
+        self, *, on_complete: Callable[[bool], None] | None = None
+    ) -> None:
         """
         Close the editor.
         """
 
         def do_unsaved_changes(result: UnsavedChangeModalResult | None) -> None:
             if result is None or result.is_cancelled:
+                if on_complete:
+                    on_complete(False)
                 return
 
             if result.should_save is None:
                 self.notify("Please select an option", severity="error")
+                if on_complete:
+                    on_complete(False)
                 return
 
             if result.should_save:
+                if self.path is None:
+                    self.notify(
+                        "Cannot save: no file path. Use 'Save As' first.",
+                        severity="error",
+                    )
+                    if on_complete:
+                        on_complete(False)
+                    return
                 self.action_save()
                 if self.text == self.initial_text:
-                    self.post_message(
-                        self.Closed(
-                            code_editor=self,
-                        )
-                    )
+                    self.post_message(self.Closed(code_editor=self))
+                    if on_complete:
+                        on_complete(True)
                     return
                 else:
-                    # file was not saved, so don't close the editor
+                    if on_complete:
+                        on_complete(False)
                     return
             else:
-                self.post_message(
-                    self.Closed(
-                        code_editor=self,
-                    )
-                )
+                self.post_message(self.Closed(code_editor=self))
+                if on_complete:
+                    on_complete(True)
                 return
 
         if self.text != self.initial_text:
-            # There are unsaved changes, ask the user if they want to save the changes
             self.app.push_screen(UnsavedChangeModalScreen(), do_unsaved_changes)
             return
 
-        self.post_message(
-            self.Closed(
-                code_editor=self,
-            )
-        )
-        return
+        self.post_message(self.Closed(code_editor=self))
+        if on_complete:
+            on_complete(True)
 
     def action_delete(self) -> None:
         """

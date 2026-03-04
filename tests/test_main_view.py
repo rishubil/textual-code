@@ -13,7 +13,12 @@ MainView tab management tests.
 from pathlib import Path
 
 from tests.conftest import make_app
-from textual_code.modals import SaveAsModalResult, SaveAsModalScreen
+from textual_code.modals import (
+    SaveAsModalResult,
+    SaveAsModalScreen,
+    UnsavedChangeModalResult,
+    UnsavedChangeModalScreen,
+)
 from textual_code.widgets.code_editor import CodeEditor
 
 # ── Open file → tab created ───────────────────────────────────────────────────
@@ -421,3 +426,305 @@ async def test_save_all_files_via_app_action(workspace: Path, sample_py_file: Pa
         await pilot.pause()
         assert app.main_view.has_unsaved_pane() is False
         assert sample_py_file.read_text() == "modified\n"
+
+
+# ── close_all ──────────────────────────────────────────────────────────────────
+
+
+async def test_close_all_noop_when_no_files_open(workspace: Path):
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.main_view.action_close_all()
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == 0
+
+
+async def test_close_all_closes_single_clean_file(
+    workspace: Path, sample_py_file: Path
+):
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == 1
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == 0
+
+
+async def test_close_all_closes_all_clean_files(workspace: Path):
+    file_a = workspace / "a.py"
+    file_b = workspace / "b.py"
+    file_c = workspace / "c.py"
+    file_a.write_text("a\n")
+    file_b.write_text("b\n")
+    file_c.write_text("c\n")
+
+    app = make_app(workspace, open_file=file_a)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=file_b)
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=file_c)
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == 3
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == 0
+
+
+async def test_close_all_single_unsaved_shows_modal(
+    workspace: Path, sample_py_file: Path
+):
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "modified\n"
+        await pilot.pause()
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+
+        # Dismiss modal to allow app to shut down cleanly
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=True, should_save=None)
+        )
+        await pilot.pause()
+
+
+async def test_close_all_single_unsaved_save_closes(
+    workspace: Path, sample_py_file: Path
+):
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "modified\n"
+        await pilot.pause()
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=False, should_save=True)
+        )
+        await pilot.pause()
+
+        assert sample_py_file.read_text() == "modified\n"
+        assert len(app.main_view.opened_pane_ids) == 0
+
+
+async def test_close_all_single_unsaved_dont_save_closes(
+    workspace: Path, sample_py_file: Path
+):
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "modified\n"
+        await pilot.pause()
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=False, should_save=False)
+        )
+        await pilot.pause()
+
+        assert len(app.main_view.opened_pane_ids) == 0
+
+
+async def test_close_all_single_unsaved_cancel_stops(
+    workspace: Path, sample_py_file: Path
+):
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "modified\n"
+        await pilot.pause()
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=True, should_save=None)
+        )
+        await pilot.pause()
+
+        assert len(app.main_view.opened_pane_ids) == 1
+
+
+async def test_close_all_mixed_clean_and_dirty(
+    workspace: Path, sample_py_file: Path, sample_json_file: Path
+):
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=sample_json_file)
+        await pilot.pause()
+
+        # Dirty the json file only
+        json_pane_id = app.main_view.pane_id_from_path(sample_json_file)
+        assert json_pane_id is not None
+        app.main_view.tabbed_content.get_pane(json_pane_id).query_one(
+            CodeEditor
+        ).text = "modified\n"
+        await pilot.pause()
+
+        assert len(app.main_view.opened_pane_ids) == 2
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+
+        # Modal should appear for the dirty file
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=False, should_save=False)
+        )
+        await pilot.pause()
+
+        # Both files should be closed
+        assert len(app.main_view.opened_pane_ids) == 0
+
+
+async def test_close_all_cancel_stops_remaining(workspace: Path):
+    file_a = workspace / "a.py"
+    file_b = workspace / "b.py"
+    file_c = workspace / "c.py"
+    file_a.write_text("a\n")
+    file_b.write_text("b\n")
+    file_c.write_text("c\n")
+
+    app = make_app(workspace, open_file=file_a)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=file_b)
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=file_c)
+        await pilot.pause()
+
+        # Dirty all 3 files
+        for pane_id in list(app.main_view.opened_pane_ids):
+            pane = app.main_view.tabbed_content.get_pane(pane_id)
+            pane.query_one(CodeEditor).text = "modified\n"
+        await pilot.pause()
+
+        assert len(app.main_view.opened_pane_ids) == 3
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+
+        # 1st modal: Don't save → closes 1st file
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=False, should_save=False)
+        )
+        await pilot.pause()
+
+        # 2nd modal: Cancel → stops
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=True, should_save=None)
+        )
+        await pilot.pause()
+
+        # 2 files remain (3 - 1 = 2)
+        assert len(app.main_view.opened_pane_ids) == 2
+
+
+async def test_close_all_sequential_multiple_unsaved(
+    workspace: Path, sample_py_file: Path, sample_json_file: Path
+):
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=sample_json_file)
+        await pilot.pause()
+
+        # Dirty both files
+        for pane_id in list(app.main_view.opened_pane_ids):
+            pane = app.main_view.tabbed_content.get_pane(pane_id)
+            pane.query_one(CodeEditor).text = "modified\n"
+        await pilot.pause()
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+
+        # 1st modal appears
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=False, should_save=False)
+        )
+        await pilot.pause()
+
+        # After 1st Don't save: 1st file closed, 2nd modal appears (sequential)
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+        assert len(app.main_view.opened_pane_ids) == 1
+
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=False, should_save=False)
+        )
+        await pilot.pause()
+
+        # Both files now closed
+        assert len(app.main_view.opened_pane_ids) == 0
+
+
+async def test_close_all_untitled_unsaved_save_shows_error(workspace: Path):
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_id = await app.main_view.open_code_editor_pane(path=None)
+        await pilot.pause()
+
+        pane = app.main_view.tabbed_content.get_pane(pane_id)
+        pane.query_one(CodeEditor).text = "modified\n"
+        await pilot.pause()
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=False, should_save=True)
+        )
+        await pilot.pause()
+
+        # Tab should NOT be closed (no path to save to)
+        assert len(app.main_view.opened_pane_ids) == 1
+
+
+async def test_close_all_untitled_dont_save_closes(workspace: Path):
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_id = await app.main_view.open_code_editor_pane(path=None)
+        await pilot.pause()
+
+        pane = app.main_view.tabbed_content.get_pane(pane_id)
+        pane.query_one(CodeEditor).text = "modified\n"
+        await pilot.pause()
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=False, should_save=False)
+        )
+        await pilot.pause()
+
+        assert len(app.main_view.opened_pane_ids) == 0
