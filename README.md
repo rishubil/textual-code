@@ -119,7 +119,7 @@ uv run textual run --dev textual_code:main
   - [ ] Change line ending
   - [ ] Change encoding
   - [x] Show line and column numbers
-  - [ ] Goto line and column
+  - [x] Goto line and column
 - [ ] Search and replace
   - [ ] Plain Search
   - [ ] Regex search

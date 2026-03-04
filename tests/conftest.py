@@ -50,6 +50,13 @@ def sample_json_file(workspace: Path) -> Path:
     return f
 
 
+@pytest.fixture
+def multiline_file(workspace: Path) -> Path:
+    f = workspace / "multiline.txt"
+    f.write_text("\n".join(f"line{i}" for i in range(1, 11)) + "\n")
+    return f
+
+
 # Snapshot tests use a fixed, per-test workspace path so the footer path
 # display is stable across runs and doesn't cause false snapshot failures.
 # Each test gets its own subdirectory named after the test function.

@@ -13,6 +13,8 @@ from textual.widgets import Button, Label, Static, TextArea
 from textual_code.modals import (
     DeleteFileModalResult,
     DeleteFileModalScreen,
+    GotoLineModalResult,
+    GotoLineModalScreen,
     SaveAsModalResult,
     SaveAsModalScreen,
     UnsavedChangeModalResult,
@@ -457,6 +459,36 @@ class CodeEditor(Static):
                     self.notify(f"Error deleting file: {e}", severity="error")
 
         self.app.push_screen(DeleteFileModalScreen(self.path), do_delete)
+
+    def action_goto_line(self) -> None:
+        """
+        Open the Goto Line modal and move the cursor to the specified location.
+        """
+
+        def do_goto(result: GotoLineModalResult | None) -> None:
+            if not result or result.is_cancelled or not result.value:
+                return
+            try:
+                parts = result.value.split(":")
+                row = int(parts[0]) - 1
+                col = int(parts[1]) - 1 if len(parts) > 1 else 0
+            except ValueError:
+                self.notify(
+                    "Invalid location format. Use 'line' or 'line:col'.",
+                    severity="error",
+                )
+                return
+            line_count = len(self.editor.document.lines)
+            if row < 0 or row >= line_count:
+                self.notify(
+                    f"Line {row + 1} is out of range (1–{line_count}).",
+                    severity="error",
+                )
+                return
+            col = max(0, col)
+            self.editor.cursor_location = (row, col)
+
+        self.app.push_screen(GotoLineModalScreen(), do_goto)
 
     def action_focus(self) -> None:
         """

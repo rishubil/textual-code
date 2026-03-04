@@ -160,3 +160,41 @@ class DeleteFileModalScreen(ModalScreen[DeleteFileModalResult]):
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
         self.dismiss(DeleteFileModalResult(is_cancelled=True, should_delete=False))
+
+
+@dataclass
+class GotoLineModalResult:
+    """
+    The result of the Goto Line modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The raw location string ("5" or "3:7"), or None if cancelled.
+    value: str | None
+
+
+class GotoLineModalScreen(ModalScreen[GotoLineModalResult]):
+    """
+    Modal dialog for jumping to a specific line and column.
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Go to Line", id="title"),
+            Input(placeholder="line or line:col (e.g. 5 or 3:7)", id="location"),
+            Button("Goto", variant="primary", id="goto"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Input.Submitted, "#location")
+    @on(Button.Pressed, "#goto")
+    def on_goto(self) -> None:
+        self.dismiss(
+            GotoLineModalResult(is_cancelled=False, value=self.query_one(Input).value)
+        )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(GotoLineModalResult(is_cancelled=True, value=None))

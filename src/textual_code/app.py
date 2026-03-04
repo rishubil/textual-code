@@ -40,6 +40,7 @@ class MainView(Static):
         Binding("ctrl+shift+s", "save_all", "Save all"),
         Binding("ctrl+w", "close", "Close tab", priority=True),
         Binding("ctrl+shift+w", "close_all", "Close all", priority=True),
+        Binding("ctrl+g", "goto_line", "Goto line"),
     ]
 
     def __init__(self, *args, **kwargs) -> None:
@@ -241,6 +242,14 @@ class MainView(Static):
         if code_editor is not None:
             code_editor.action_close()
 
+    def action_goto_line(self) -> None:
+        """
+        Open the Goto Line modal for the active code editor.
+        """
+        code_editor = self.get_active_code_editor()
+        if code_editor is not None:
+            code_editor.action_goto_line()
+
     def action_close_all(self) -> None:
         """Close all open code editors, prompting for unsaved changes."""
         editors: list[CodeEditor] = []
@@ -395,6 +404,21 @@ class TextualCode(App):
             self.action_create_directory_with_command_palette,
         )
         yield SystemCommand("Open folder", "Quit the app", self.action_quit)
+        yield SystemCommand(
+            "Goto line",
+            "Go to a specific line and column",
+            self.action_goto_line_cmd,
+        )
+
+    def action_goto_line_cmd(self) -> None:
+        """
+        Open the Goto Line modal via command palette.
+        """
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.action_goto_line)
+        else:
+            self.notify("No file open.", severity="error")
 
     def action_save_all_files(self) -> None:
         """Save all open files."""

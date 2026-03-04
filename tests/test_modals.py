@@ -11,6 +11,8 @@ from textual.widgets import Label
 from textual_code.modals import (
     DeleteFileModalResult,
     DeleteFileModalScreen,
+    GotoLineModalResult,
+    GotoLineModalScreen,
     SaveAsModalResult,
     SaveAsModalScreen,
     UnsavedChangeModalResult,
@@ -218,3 +220,60 @@ async def test_delete_modal_shows_file_path(tmp_path):
         await pilot.pause()
         message_label = app.screen.query_one("#message")
         assert str(f) in str(message_label.content)
+
+
+# ── GotoLineModalScreen ───────────────────────────────────────────────────────
+
+
+class _GotoLineApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result: GotoLineModalResult | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(GotoLineModalScreen(), self._on_result)
+
+    def _on_result(self, result: GotoLineModalResult | None) -> None:
+        self.result = result
+
+
+async def test_goto_line_modal_goto_button():
+    app = _GotoLineApp()
+    async with app.run_test() as pilot:
+        input_widget = app.screen.query_one("#location")
+        await pilot.click(input_widget)
+        await pilot.press("5")
+        await pilot.click("#goto")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.value == "5"
+
+
+async def test_goto_line_modal_cancel_button():
+    app = _GotoLineApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.value is None
+
+
+async def test_goto_line_modal_enter_submits():
+    app = _GotoLineApp()
+    async with app.run_test() as pilot:
+        input_widget = app.screen.query_one("#location")
+        await pilot.click(input_widget)
+        await pilot.press("3", ":", "7")
+        await pilot.press("enter")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.value == "3:7"

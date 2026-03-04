@@ -17,6 +17,7 @@ import pytest
 from tests.conftest import make_app
 from textual_code.modals import (
     DeleteFileModalScreen,
+    GotoLineModalScreen,
     SaveAsModalScreen,
     UnsavedChangeModalScreen,
 )
@@ -363,3 +364,93 @@ async def test_footer_cursor_position_updates_on_move(
 
         cursor_label = editor.footer.cursor_view
         assert "Ln 1, Col 6" in str(cursor_label.content)
+
+
+# ── Goto Line ─────────────────────────────────────────────────────────────────
+
+
+async def test_ctrl_g_opens_goto_line_modal(workspace: Path, multiline_file: Path):
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+g")
+        await pilot.pause()
+        assert isinstance(app.screen, GotoLineModalScreen)
+
+
+async def test_goto_line_moves_cursor_to_line(workspace: Path, multiline_file: Path):
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.action_goto_line()
+        await pilot.pause()
+
+        input_widget = app.screen.query_one("#location")
+        await pilot.click(input_widget)
+        await pilot.press("5")
+        await pilot.click("#goto")
+        await pilot.pause()
+
+        assert editor.editor.cursor_location == (4, 0)
+
+
+async def test_goto_line_with_column_moves_cursor(
+    workspace: Path, multiline_file: Path
+):
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.action_goto_line()
+        await pilot.pause()
+
+        input_widget = app.screen.query_one("#location")
+        await pilot.click(input_widget)
+        await pilot.press("3", ":", "4")
+        await pilot.click("#goto")
+        await pilot.pause()
+
+        assert editor.editor.cursor_location == (2, 3)
+
+
+async def test_goto_line_cancel_keeps_cursor(workspace: Path, multiline_file: Path):
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        original_location = editor.editor.cursor_location
+
+        editor.action_goto_line()
+        await pilot.pause()
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+        assert editor.editor.cursor_location == original_location
+
+
+async def test_goto_line_invalid_input_no_move(workspace: Path, multiline_file: Path):
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        original_location = editor.editor.cursor_location
+
+        editor.action_goto_line()
+        await pilot.pause()
+
+        input_widget = app.screen.query_one("#location")
+        await pilot.click(input_widget)
+        await pilot.press("a", "b", "c")
+        await pilot.click("#goto")
+        await pilot.pause()
+
+        assert editor.editor.cursor_location == original_location
