@@ -3,9 +3,8 @@
 .devcontainer/.claude/*
 .devcontainer/.claude.json
 .devcontainer/.claude.json.backup
-.devcontainer/qmd-cache/models
-.devcontainer/qmd-cache/*.sqlite-shm
-.devcontainer/qmd-cache/*.sqlite-wal
+.devcontainer/qmd-cache/
+.devcontainer/qmd-config/
 .devcontainer/data
 .devcontainer/uv
 
@@ -18,6 +17,9 @@ __pycache__/
 # claude
 .claude/settings.local.json
 CLAUDE.local.md
+
+# Test artifacts
+snapshot_report.html
 
 # --- gitignore end ---
 
