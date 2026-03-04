@@ -139,7 +139,7 @@ uv run textual run --dev textual_code:main
   - [ ] Move tabs between split views
 - [ ] Sidebar
   - [x] Show the sidebar
-  - [ ] Hide the sidebar
+  - [x] Hide the sidebar
   - [ ] Resize the sidebar
 - [ ] Setting
   - [ ] Themes

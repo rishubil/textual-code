@@ -7,6 +7,7 @@ TextualCode app integration tests.
 - File/directory creation (CreateFileOrDirRequested)
 - OpenFileRequested message
 - Quit (with/without unsaved changes)
+- Sidebar toggle (Ctrl+B)
 """
 
 from pathlib import Path
@@ -219,3 +220,52 @@ async def test_close_all_files_via_app_action(workspace: Path, sample_py_file: P
         app.action_close_all_files()
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 0
+
+
+# ── Sidebar toggle ────────────────────────────────────────────────────────────
+
+
+async def test_sidebar_visible_by_default(workspace: Path):
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.sidebar.display is True
+
+
+async def test_ctrl_b_hides_sidebar(workspace: Path):
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.sidebar.display is True
+
+        await pilot.press("ctrl+b")
+        await pilot.pause()
+        assert app.sidebar.display is False
+
+
+async def test_ctrl_b_toggles_sidebar_back(workspace: Path):
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        await pilot.press("ctrl+b")
+        await pilot.pause()
+        assert app.sidebar.display is False
+
+        await pilot.press("ctrl+b")
+        await pilot.pause()
+        assert app.sidebar.display is True
+
+
+async def test_toggle_sidebar_action(workspace: Path):
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        app.action_toggle_sidebar()
+        await pilot.pause()
+        assert app.sidebar.display is False
+
+        app.action_toggle_sidebar()
+        await pilot.pause()
+        assert app.sidebar.display is True

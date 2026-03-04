@@ -321,7 +321,10 @@ class TextualCode(App):
 
     CSS_PATH = "style.tcss"
 
-    BINDINGS = [Binding("ctrl+n", "new_editor", "New file")]
+    BINDINGS = [
+        Binding("ctrl+n", "new_editor", "New file"),
+        Binding("ctrl+b", "toggle_sidebar", "Toggle sidebar"),
+    ]
 
     def __init__(
         self, workspace_path: Path, with_open_file: Path | None, *args, **kwargs
@@ -349,6 +352,9 @@ class TextualCode(App):
 
     def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
         yield from super().get_system_commands(screen)
+        yield SystemCommand(
+            "Toggle sidebar", "Show or hide the sidebar", self.action_toggle_sidebar
+        )
         yield SystemCommand(
             "Reload explorer", "Reload the explorer", self.action_reload_explorer
         )
@@ -397,6 +403,12 @@ class TextualCode(App):
     def action_close_all_files(self) -> None:
         """Close all open files."""
         self.call_next(self.main_view.action_close_all)
+
+    def action_toggle_sidebar(self) -> None:
+        """
+        Toggle the sidebar visibility.
+        """
+        self.sidebar.display = not self.sidebar.display
 
     def action_reload_explorer(self) -> None:
         """
