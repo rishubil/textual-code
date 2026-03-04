@@ -87,12 +87,12 @@ uv run textual run --dev textual_code:main
   - [x] Open a specific file from command arguments
   - [x] Open a specific file from the command palette
   - [x] Open new file from command arguments
-- [ ] Save file
+- [x] Save file
   - [x] Save the current file
   - [x] Save as the current file
   - [x] Save the current file from shortcut
   - [x] Save the current file from the command palette
-  - [ ] Save all files
+  - [x] Save all files
 - [ ] Close file
   - [x] Close the current file
   - [x] Close the current file from shortcut

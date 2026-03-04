@@ -59,33 +59,27 @@ app.action_quit()   # has_unsaved_pane() 가 확실히 True
 
 ---
 
-## 알려진 Flaky 스냅샷 테스트
+## ~~알려진~~ 해결된 Flaky 스냅샷 테스트 (commit `5b2ec0c`)
 
-두 스냅샷 테스트가 `@pytest.mark.xfail(strict=False)` 로 마크되어 있다.
+> **상태: 수정 완료** — commit `5b2ec0c fix: eliminate flaky snapshot tests by removing focus race condition`
 
-### 근본 원인
+### 근본 원인 (수정 전)
 
 `app.py` 의 `action_open_code_editor` 가 `editor.call_later(editor.action_focus)` 로
-포커스를 비동기 예약한다. 이 지연된 포커스 이벤트가 `snap_compare` 의 `run_before`
-콜백과 경쟁하여 비결정적 렌더링 상태를 만든다.
+포커스를 비동기 예약했다. 이 지연된 포커스 이벤트가 `snap_compare` 의 `run_before`
+콜백과 경쟁하여 비결정적 렌더링 상태를 만들었다.
+
+### 수정 내용
+
+`call_later` 를 제거하고 `editor.action_focus()` 를 직접 호출하도록 변경:
 
 ```python
-# app.py - 원인 코드
-editor.call_later(editor.action_focus)   # 비동기 예약 → 타이밍 불확정
+# app.py - 수정 후
+editor.action_focus()   # 동기 직접 호출 → 타이밍 결정적
 ```
 
-**수정 방향** (아직 미구현): `call_later` 대신 `await editor.action_focus()` 로
-변경하거나, `on_ready` 전체를 async/await 체인으로 처리해야 한다.
-
-### 영향받는 테스트
-
-| 테스트 | 이유 |
-|--------|------|
-| `test_snapshot_unsaved_change_modal` | `pilot.press("x")` + `ctrl+w` 흐름에서 포커스 경쟁 |
-| `test_snapshot_unsaved_quit_modal`   | `pilot.press("x")` + `action_quit()` 흐름에서 포커스 경쟁 |
-
-`xfail(strict=False)` 이므로 통과 시 `xpassed`, 실패 시 `xfailed` 로 보고되며
-전체 테스트 결과에는 영향을 주지 않는다.
+`@pytest.mark.xfail(strict=False)` 마크도 함께 제거되어 두 테스트가
+정상 통과 테스트로 전환되었다.
 
 ---
 

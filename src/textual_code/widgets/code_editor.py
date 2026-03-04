@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
@@ -311,22 +312,28 @@ class CodeEditor(Static):
                 self.notify(f"Error saving file: {e}", severity="error")
                 return
 
-    def action_save_as(self) -> None:
+    def action_save_as(self, *, on_complete: Callable | None = None) -> None:
         """
         Save the current text to a new file.
         """
 
         def do_save_as(result: SaveAsModalResult | None) -> None:
             if result is None or result.is_cancelled:
+                if on_complete:
+                    on_complete()
                 return
 
             if result.file_path is None:
                 self.notify("File path cannot be empty", severity="error")
+                if on_complete:
+                    on_complete()
                 return
 
             new_path = Path(result.file_path).resolve()
             if new_path.exists():
                 self.notify("File already exists", severity="error")
+                if on_complete:
+                    on_complete()
                 return
 
             try:
@@ -343,7 +350,12 @@ class CodeEditor(Static):
                 self.notify(f"File saved: {self.path}", severity="information")
             except Exception as e:
                 self.notify(f"Error saving file: {e}", severity="error")
+                if on_complete:
+                    on_complete()
                 return
+
+            if on_complete:
+                on_complete()
 
         self.app.push_screen(SaveAsModalScreen(), do_save_as)
         return

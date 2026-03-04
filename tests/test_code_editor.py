@@ -309,7 +309,7 @@ async def test_footer_shows_file_path(workspace: Path, sample_py_file: Path):
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         path_label = editor.footer.path_view
-        assert str(sample_py_file) in str(path_label.renderable)
+        assert str(sample_py_file) in str(path_label.content)
 
 
 async def test_footer_shows_language(workspace: Path, sample_py_file: Path):

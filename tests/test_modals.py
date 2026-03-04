@@ -40,7 +40,7 @@ class _SaveAsApp(App):
 async def test_save_as_modal_save_button():
     app = _SaveAsApp()
     async with app.run_test() as pilot:
-        input_widget = app.query_one("#path")
+        input_widget = app.screen.query_one("#path")
         await pilot.click(input_widget)
         await pilot.press("t", "e", "s", "t", ".", "t", "x", "t")
         await pilot.click("#save")
@@ -65,7 +65,7 @@ async def test_save_as_modal_cancel_button():
 async def test_save_as_modal_enter_submits():
     app = _SaveAsApp()
     async with app.run_test() as pilot:
-        input_widget = app.query_one("#path")
+        input_widget = app.screen.query_one("#path")
         await pilot.click(input_widget)
         await pilot.press("m", "y", ".", "p", "y")
         await pilot.press("enter")
@@ -216,5 +216,5 @@ async def test_delete_modal_shows_file_path(tmp_path):
     app = _DeleteFileApp(f)
     async with app.run_test() as pilot:
         await pilot.pause()
-        message_label = app.query_one("#message")
-        assert str(f) in message_label.renderable
+        message_label = app.screen.query_one("#message")
+        assert str(f) in str(message_label.content)

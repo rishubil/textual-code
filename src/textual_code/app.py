@@ -37,6 +37,7 @@ class MainView(Static):
 
     BINDINGS = [
         Binding("ctrl+s", "save", "Save"),
+        Binding("ctrl+shift+s", "save_all", "Save all"),
         Binding("ctrl+w", "close", "Close tab", priority=True),
     ]
 
@@ -207,6 +208,30 @@ class MainView(Static):
         if code_editor is not None:
             code_editor.action_save()
 
+    def action_save_all(self) -> None:
+        """Save all open code editors with unsaved changes."""
+        editors = []
+        for pane_id in list(self.opened_pane_ids):
+            pane = self.tabbed_content.get_pane(pane_id)
+            code_editor = pane.query_one(CodeEditor)
+            if code_editor.text != code_editor.initial_text:
+                editors.append(code_editor)
+        # Files with paths first (save synchronously), untitled last (needs modal)
+        editors.sort(key=lambda e: e.path is None)
+        self._save_next(editors)
+
+    def _save_next(self, editors: list[CodeEditor]) -> None:
+        if not editors:
+            return
+        editor = editors[0]
+        remaining = editors[1:]
+        if editor.path is not None:
+            editor.action_save()
+            self._save_next(remaining)
+        else:
+            self.tabbed_content.active = editor.pane_id
+            editor.action_save_as(on_complete=lambda: self._save_next(remaining))
+
     def action_close(self):
         """
         Close the active code editor.
@@ -311,6 +336,9 @@ class TextualCode(App):
         )
         yield SystemCommand("Save file", "Save the current file", self.action_save_file)
         yield SystemCommand(
+            "Save all files", "Save all open files", self.action_save_all_files
+        )
+        yield SystemCommand(
             "Save file as",
             "Save the current file as new file",
             self.action_save_file_as,
@@ -340,6 +368,10 @@ class TextualCode(App):
             self.action_create_directory_with_command_palette,
         )
         yield SystemCommand("Open folder", "Quit the app", self.action_quit)
+
+    def action_save_all_files(self) -> None:
+        """Save all open files."""
+        self.call_next(self.main_view.action_save_all)
 
     def action_reload_explorer(self) -> None:
         """
@@ -538,11 +570,13 @@ class TextualCode(App):
 
     @property
     def main_view(self) -> MainView:
-        return self.query_one(MainView)
+        # Use the base screen so this works even when a modal is active
+        return self.screen_stack[0].query_one(MainView)
 
     @property
     def sidebar(self) -> Sidebar:
-        return self.query_one(Sidebar)
+        # Use the base screen so this works even when a modal is active
+        return self.screen_stack[0].query_one(Sidebar)
 
     @property
     def footer(self) -> Footer:
