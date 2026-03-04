@@ -188,9 +188,7 @@ class MainView(Static):
         self.tabbed_content.active = pane_id
         if focus:
             editor = self.tabbed_content.get_pane(pane_id).query_one(CodeEditor)
-
-            # we need to call_later because the editor is not composed yet
-            editor.call_later(editor.action_focus)
+            editor.action_focus()
 
     async def action_close_code_editor(self, pane_id: str) -> None:
         """

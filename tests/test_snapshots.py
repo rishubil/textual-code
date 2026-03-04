@@ -16,8 +16,6 @@ Compare on subsequent runs:
 
 from pathlib import Path
 
-import pytest
-
 from tests.conftest import make_app
 
 TERMINAL_SIZE = (120, 40)
@@ -131,15 +129,6 @@ def test_snapshot_save_as_modal(
     assert snap_compare(app, run_before=open_save_as, terminal_size=TERMINAL_SIZE)
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "Flaky: same call_later(editor.action_focus) timing issue as "
-        "test_snapshot_unsaved_quit_modal.  When pilot.press() text input "
-        "and the deferred focus event race, the close action may not detect "
-        "unsaved changes and the modal does not appear."
-    ),
-)
 def test_snapshot_unsaved_change_modal(
     snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
 ):
@@ -150,25 +139,14 @@ def test_snapshot_unsaved_change_modal(
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
-        editor.action_focus()
+        editor.text = "modified content\n"
         await pilot.pause()
-        await pilot.press("x")
-        await pilot.pause()
-        await pilot.press("ctrl+w")
+        editor.action_close()
         await pilot.pause()
 
     assert snap_compare(app, run_before=modify_and_close, terminal_size=TERMINAL_SIZE)
 
 
-@pytest.mark.xfail(
-    strict=False,
-    reason=(
-        "Flaky: non-deterministic timing of call_later(editor.action_focus) "
-        "in action_open_code_editor occasionally causes the quit modal not to "
-        "appear before the snapshot is captured.  Root fix requires app-level "
-        "change to await focus instead of deferring it."
-    ),
-)
 def test_snapshot_unsaved_quit_modal(
     snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
 ):
@@ -179,9 +157,7 @@ def test_snapshot_unsaved_quit_modal(
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
-        editor.action_focus()
-        await pilot.pause()
-        await pilot.press("x")
+        editor.text = "modified content\n"
         await pilot.pause()
         app.action_quit()
         await pilot.pause()
