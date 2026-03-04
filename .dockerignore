@@ -1,2 +1,24 @@
-.venv
+# devcontainer
+!.devcontainer/.claude
+.devcontainer/.claude/*
+.devcontainer/.claude.json
+.devcontainer/.claude.json.backup
+.devcontainer/qmd-cache/models
+.devcontainer/qmd-cache/*.sqlite-shm
+.devcontainer/qmd-cache/*.sqlite-wal
+.devcontainer/data
+.devcontainer/uv
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# claude
+.claude/settings.local.json
+CLAUDE.local.md
+
+# --- gitignore end ---
+
 dist/

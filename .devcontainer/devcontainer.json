@@ -1,0 +1,26 @@
+{
+    "name": "textual-code-devcontainer",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "textual-code-devcontainer-app",
+    "workspaceFolder": "/project",
+    "remoteUser": "1000", // uid of the user in the container, typically a non-root user
+    "postCreateCommand": "/project/.devcontainer/ensure-ai-symlinks.sh",
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "window.autoDetectColorScheme": true,
+                "workbench.preferredDarkColorTheme": "One Dark Pro",
+                "workbench.preferredLightColorTheme": "Visual Studio Light"
+            },
+            "extensions": [
+                "Anthropic.claude-code",
+                "astral-sh.ty",
+                "charliermarsh.ruff",
+                "GitHub.copilot",
+                "mhutchie.git-graph",
+                "ms-python.python",
+                "Textualize.textual-syntax-highlighter"
+            ]
+        }
+    }
+}
