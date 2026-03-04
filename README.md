@@ -118,7 +118,7 @@ uv run textual run --dev textual_code:main
   - [ ] Change Indentation size and style
   - [ ] Change line ending
   - [ ] Change encoding
-  - [ ] Show line and column numbers
+  - [x] Show line and column numbers
   - [ ] Goto line and column
 - [ ] Search and replace
   - [ ] Plain Search

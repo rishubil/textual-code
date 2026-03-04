@@ -8,14 +8,19 @@ CodeEditorFooter {
     height: 1;
     margin: 0 1;
     layout: grid;
-    grid-size: 2 1;
+    grid-size: 3 1;
     grid-gutter: 0 1;
-    grid-columns: 1fr auto;
+    grid-columns: 1fr auto auto;
 }
 
 CodeEditorFooter #path {
     width: 100%;
     background: $surface;
+}
+
+CodeEditorFooter #cursor {
+    background: $surface;
+    padding: 0 1;
 }
 
 CodeEditorFooter #language {

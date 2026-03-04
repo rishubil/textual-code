@@ -31,6 +31,8 @@ class CodeEditorFooter(Static):
     path: reactive[Path | None] = reactive(None, init=False)
     # the language of the file
     language: reactive[str | None] = reactive(None, init=False)
+    # the cursor location (row, col) — zero-based internally, displayed 1-based
+    cursor_location: reactive[tuple[int, int]] = reactive((0, 0), init=False)
 
     def __init__(
         self,
@@ -49,6 +51,10 @@ class CodeEditorFooter(Static):
             str(self.path) if self.path else "",
             id="path",
         )
+        yield Label(
+            "Ln 1, Col 1",
+            id="cursor",
+        )
         yield Button(
             self.language or "plain",
             variant="default",
@@ -63,9 +69,17 @@ class CodeEditorFooter(Static):
         # update the language button with the new language
         self.language_button.label = language or "plain"
 
+    def watch_cursor_location(self, location: tuple[int, int]) -> None:
+        row, col = location
+        self.cursor_view.update(f"Ln {row + 1}, Col {col + 1}")
+
     @property
     def path_view(self) -> Label:
         return self.query_one("#path", Label)
+
+    @property
+    def cursor_view(self) -> Label:
+        return self.query_one("#cursor", Label)
 
     @property
     def language_button(self) -> Button:
@@ -456,6 +470,13 @@ class CodeEditor(Static):
 
         # update the text when editor's text changes
         self.text = event.control.text
+
+    @on(TextArea.SelectionChanged)
+    def on_selection_changed(self, event: TextArea.SelectionChanged):
+        event.stop()
+
+        # update the cursor position in the footer
+        self.footer.cursor_location = event.selection.end
 
     @property
     def editor(self) -> TextArea:

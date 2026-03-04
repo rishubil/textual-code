@@ -331,3 +331,35 @@ async def test_footer_plain_for_untitled(workspace: Path):
         assert editor is not None
         lang_button = editor.footer.language_button
         assert "plain" in str(lang_button.label)
+
+
+# ── Cursor position ────────────────────────────────────────────────────────────
+
+
+async def test_footer_shows_cursor_position_initially(workspace: Path):
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+n")
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        cursor_label = editor.footer.cursor_view
+        assert "Ln 1, Col 1" in str(cursor_label.content)
+
+
+async def test_footer_cursor_position_updates_on_move(
+    workspace: Path, sample_py_file: Path
+):
+    # sample_py_file contains "print('hello')\n"
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # Move cursor to column 5 (0-based) = "Col 6" (1-based display)
+        editor.editor.cursor_location = (0, 5)
+        await pilot.pause()
+
+        cursor_label = editor.footer.cursor_view
+        assert "Ln 1, Col 6" in str(cursor_label.content)
