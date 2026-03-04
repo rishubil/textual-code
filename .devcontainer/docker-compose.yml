@@ -1,7 +1,7 @@
 name: textual-code-devcontainer
 
 services:
-  textual-code-wordsync-app:
+  textual-code-devcontainer-app:
     build:
       context: .
       dockerfile: Dockerfile

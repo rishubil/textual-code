@@ -1,7 +1,7 @@
 {
     "name": "textual-code-devcontainer",
     "dockerComposeFile": "docker-compose.yml",
-    "service": "textual-code-wordsync-app",
+    "service": "textual-code-devcontainer-app",
     "workspaceFolder": "/project",
     "remoteUser": "1000", // uid of the user in the container, typically a non-root user
     "postCreateCommand": "/project/.devcontainer/ensure-ai-symlinks.sh",
