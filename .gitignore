@@ -15,7 +15,7 @@ __pycache__/
 .venv/
 
 # claude
-.claude/settings.local.json
+.claude/
 CLAUDE.local.md
 
 # Test artifacts
