@@ -2,11 +2,11 @@
 Regex search/replace feature tests.
 
 Behaviour spec:
-- use_regex=True → python re 패턴으로 검색
-- 잘못된 regex → error notification, 크래시 없음
-- (?i) 인라인 플래그로 대소문자 무시 검색 가능
-- replace_all에서 캡처 그룹 지원 (\1 등)
-- use_regex=False (기본값) → 기존 평범한 문자열 검색 (회귀 없음)
+- use_regex=True → search using Python re patterns
+- Invalid regex → error notification, no crash
+- (?i) inline flag enables case-insensitive search
+- Capture groups supported in replace_all (\\1 etc.)
+- use_regex=False (default) → plain string search as before (no regression)
 """
 
 from pathlib import Path
@@ -21,17 +21,17 @@ from textual_code.widgets.code_editor import _find_next
 
 @pytest.fixture
 def regex_file(workspace: Path) -> Path:
-    """regex 테스트용 파일."""
+    """File used for regex tests."""
     f = workspace / "regex_test.txt"
     f.write_text("hello world\nHELLO WORLD\nfoo123 bar456\n")
     return f
 
 
-# ── _find_next 단위 테스트 ──────────────────────────────────────────────────────
+# ── _find_next unit tests ─────────────────────────────────────────────────────
 
 
 def test_find_next_plain_returns_tuple():
-    """use_regex=False → (start, end) 튜플 반환."""
+    """use_regex=False → returns (start, end) tuple."""
     text = "hello world"
     start, end = _find_next(text, "world", 0, use_regex=False)
     assert start == 6
@@ -39,12 +39,12 @@ def test_find_next_plain_returns_tuple():
 
 
 def test_find_next_plain_not_found_returns_minus_one():
-    """use_regex=False → 없으면 (-1, -1) 반환."""
+    """use_regex=False → returns (-1, -1) when not found."""
     assert _find_next("hello", "xyz", 0, use_regex=False) == (-1, -1)
 
 
 def test_find_next_regex_basic():
-    """use_regex=True → 패턴 매칭."""
+    """use_regex=True → pattern matching."""
     text = "hello world"
     start, end = _find_next(text, r"he.lo", 0, use_regex=True)
     assert start == 0
@@ -52,41 +52,41 @@ def test_find_next_regex_basic():
 
 
 def test_find_next_regex_not_found():
-    """use_regex=True → 패턴 없으면 (-1, -1)."""
+    """use_regex=True → (-1, -1) when pattern not found."""
     assert _find_next("hello", r"xyz.+", 0, use_regex=True) == (-1, -1)
 
 
 def test_find_next_regex_wrap_around():
-    """use_regex=True → cursor 이후 없으면 처음부터 재검색."""
+    """use_regex=True → wraps around from start when no match after cursor."""
     text = "abc def abc"
-    # cursor_offset=4 (d 위치), 'abc' 는 이후에 offset 8에 있음
+    # cursor_offset=4 (at 'd'), 'abc' is found after at offset 8
     start, end = _find_next(text, r"abc", 4, use_regex=True)
     assert start == 8
     assert end == 11
 
 
 def test_find_next_regex_wrap_around_from_end():
-    """cursor 이후에 없고, 처음에 있으면 처음 것을 반환."""
+    """No match after cursor but exists before → returns the first match."""
     text = "abc def"
-    # cursor_offset=4 → 'abc'는 cursor 이후에 없음 → wrap → offset 0
+    # cursor_offset=4 → 'abc' not found after cursor → wrap → offset 0
     start, end = _find_next(text, r"abc", 4, use_regex=True)
     assert start == 0
     assert end == 3
 
 
 def test_find_next_invalid_regex_raises():
-    """잘못된 regex → re.error 발생."""
+    """Invalid regex → raises re.error."""
     import re
 
     with pytest.raises(re.error):
         _find_next("hello", r"[unclosed", 0, use_regex=True)
 
 
-# ── regex find 통합 테스트 ──────────────────────────────────────────────────────
+# ── regex find integration tests ─────────────────────────────────────────────
 
 
 async def test_regex_find_matches_dot_pattern(workspace: Path, regex_file: Path):
-    """he.lo 패턴으로 hello를 선택한다."""
+    """Pattern he.lo selects 'hello'."""
     app = make_app(workspace, open_file=regex_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -113,7 +113,7 @@ async def test_regex_find_matches_dot_pattern(workspace: Path, regex_file: Path)
 
 
 async def test_regex_find_no_match_shows_warning(workspace: Path, regex_file: Path):
-    """매칭 없는 regex → 커서 이동 없음 (not found)."""
+    """No-match regex → cursor does not move (not found)."""
     app = make_app(workspace, open_file=regex_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -140,14 +140,14 @@ async def test_regex_find_no_match_shows_warning(workspace: Path, regex_file: Pa
 
 
 async def test_regex_find_wrap_around(workspace: Path, regex_file: Path):
-    """커서 끝에서 regex 검색 → wrap-around로 처음 매치를 찾는다."""
+    """Regex search from end of file → finds first match via wrap-around."""
     app = make_app(workspace, open_file=regex_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
-        # 마지막 라인으로 커서 이동
+        # Move cursor to last line
         editor.editor.cursor_location = (2, 0)
         await pilot.pause()
 
@@ -166,13 +166,13 @@ async def test_regex_find_wrap_around(workspace: Path, regex_file: Path):
         await pilot.pause()
 
         sel = editor.editor.selection
-        # wrap-around → 첫 번째 'hello' at (0, 0)
+        # wrap-around → first 'hello' at (0, 0)
         assert sel.start == (0, 0)
         assert sel.end == (0, 5)
 
 
 async def test_invalid_regex_find_shows_error(workspace: Path, regex_file: Path):
-    """잘못된 regex → error notification, 크래시 없음."""
+    """Invalid regex → error notification, no crash."""
     app = make_app(workspace, open_file=regex_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -196,12 +196,12 @@ async def test_invalid_regex_find_shows_error(workspace: Path, regex_file: Path)
         await pilot.click("#find")
         await pilot.pause()
 
-        # 크래시 없음 + 커서 이동 없음
+        # no crash + cursor unchanged
         assert editor.editor.cursor_location == original_location
 
 
 async def test_regex_find_case_insensitive_inline(workspace: Path, regex_file: Path):
-    """(?i)hello → HELLO도 선택된다."""
+    """(?i)hello → also selects 'HELLO'."""
     # regex_file: "hello world\nHELLO WORLD\nfoo123 bar456\n"
     app = make_app(workspace, open_file=regex_file)
     async with app.run_test() as pilot:
@@ -209,7 +209,7 @@ async def test_regex_find_case_insensitive_inline(workspace: Path, regex_file: P
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
-        # 커서를 첫 'hello' 이후로 이동해서 두 번째 'HELLO'를 찾도록
+        # Move cursor past first 'hello' to find second 'HELLO'
         editor.editor.cursor_location = (1, 0)
         await pilot.pause()
 
@@ -229,13 +229,13 @@ async def test_regex_find_case_insensitive_inline(workspace: Path, regex_file: P
         await pilot.pause()
 
         sel = editor.editor.selection
-        # 커서가 (1,0)이므로 (1,0)부터 검색 → HELLO at (1,0)–(1,5)
+        # cursor at (1,0) → searches from (1,0) → HELLO at (1,0)–(1,5)
         assert sel.start == (1, 0)
         assert sel.end == (1, 5)
 
 
 async def test_plain_find_regression(workspace: Path, regex_file: Path):
-    """use_regex 체크 없음 → 기존 평범한 검색 동작 유지."""
+    """Without checking use_regex → plain string search works as before."""
     app = make_app(workspace, open_file=regex_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -245,7 +245,7 @@ async def test_plain_find_regression(workspace: Path, regex_file: Path):
         editor.action_find()
         await pilot.pause()
 
-        # use_regex 체크 안 함
+        # do not check use_regex
         input_widget = app.screen.query_one("#query")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
@@ -257,11 +257,11 @@ async def test_plain_find_regression(workspace: Path, regex_file: Path):
         assert sel.end == (0, 5)
 
 
-# ── regex replace_all 통합 테스트 ─────────────────────────────────────────────
+# ── regex replace_all integration tests ──────────────────────────────────────
 
 
 async def test_regex_replace_all_basic(workspace: Path, regex_file: Path):
-    r"""\d+ → [NUM] 전체 치환."""
+    r"""\d+ → replace all occurrences with [NUM]."""
     app = make_app(workspace, open_file=regex_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -290,7 +290,7 @@ async def test_regex_replace_all_basic(workspace: Path, regex_file: Path):
 
 
 async def test_regex_replace_all_capture_group(workspace: Path):
-    r"""(\w+) → [\1] 캡처 그룹 치환."""
+    r"""(\w+) → [\1] capture group replacement."""
     f = workspace / "capture.txt"
     f.write_text("hello world\n")
     app = make_app(workspace, open_file=f)
@@ -321,7 +321,7 @@ async def test_regex_replace_all_capture_group(workspace: Path):
 
 
 async def test_invalid_regex_replace_all_error(workspace: Path, regex_file: Path):
-    """잘못된 regex replace_all → error notification, 텍스트 변경 없음."""
+    """Invalid regex in replace_all → error notification, text unchanged."""
     app = make_app(workspace, open_file=regex_file)
     original_text = regex_file.read_text()
     async with app.run_test() as pilot:
@@ -344,15 +344,15 @@ async def test_invalid_regex_replace_all_error(workspace: Path, regex_file: Path
         await pilot.click("#replace_all")
         await pilot.pause()
 
-        # 텍스트 변경 없음
+        # text unchanged
         assert editor.text == original_text
 
 
-# ── regex replace single 통합 테스트 ──────────────────────────────────────────
+# ── regex replace single integration tests ────────────────────────────────────
 
 
 async def test_regex_replace_single_match_replaces(workspace: Path):
-    r"""선택이 fullmatch → 치환 후 다음 매치 선택."""
+    r"""Selection is a fullmatch → replace, then select next match."""
     f = workspace / "single_rep.txt"
     f.write_text("foo123 foo456\n")
     app = make_app(workspace, open_file=f)
@@ -361,7 +361,7 @@ async def test_regex_replace_single_match_replaces(workspace: Path):
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
-        # 먼저 foo123을 선택
+        # First select foo123
         from textual.widgets.text_area import Selection
 
         editor.editor.selection = Selection(start=(0, 0), end=(0, 6))
@@ -382,13 +382,13 @@ async def test_regex_replace_single_match_replaces(workspace: Path):
         await pilot.click("#replace")
         await pilot.pause()
 
-        # foo123 → X, 그 후 foo456 선택됨
+        # foo123 → X, then foo456 is selected
         assert "X" in editor.text
         assert "foo123" not in editor.text
 
 
 async def test_regex_replace_single_no_match_finds(workspace: Path):
-    """선택이 불일치 → 다음 regex 매치를 선택만 한다."""
+    """Selection does not match → only selects the next regex match."""
     f = workspace / "no_match_sel.txt"
     f.write_text("hello foo123\n")
     app = make_app(workspace, open_file=f)
@@ -397,7 +397,7 @@ async def test_regex_replace_single_no_match_finds(workspace: Path):
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
-        # cursor는 처음에 있고 선택 없음 (selected_text != "foo\d+")
+        # cursor at start with no selection (selected_text != "foo\d+")
         editor.action_replace()
         await pilot.pause()
 
@@ -414,15 +414,15 @@ async def test_regex_replace_single_no_match_finds(workspace: Path):
         await pilot.pause()
 
         sel = editor.editor.selection
-        # foo123 at (0, 6)–(0, 12) 가 선택돼야 함
+        # foo123 at (0, 6)–(0, 12) should be selected
         assert sel.start == (0, 6)
         assert sel.end == (0, 12)
-        # 텍스트는 아직 변경 안 됨
+        # text not yet changed
         assert "foo123" in editor.text
 
 
 async def test_invalid_regex_replace_single_error(workspace: Path, regex_file: Path):
-    """잘못된 regex replace single → error notification, 텍스트 변경 없음."""
+    """Invalid regex in replace single → error notification, text unchanged."""
     app = make_app(workspace, open_file=regex_file)
     original_text = regex_file.read_text()
     async with app.run_test() as pilot:
@@ -445,5 +445,5 @@ async def test_invalid_regex_replace_single_error(workspace: Path, regex_file: P
         await pilot.click("#replace")
         await pilot.pause()
 
-        # 텍스트 변경 없음
+        # text unchanged
         assert editor.text == original_text

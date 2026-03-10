@@ -93,7 +93,7 @@ def _convert_indentation(text: str, to_type: str, to_size: int) -> str:
 
 
 def _detect_line_ending(raw_text: str) -> str:
-    """원본 파일 텍스트(open(newline="")로 읽음)에서 줄 끝 형식 감지."""
+    """Detect line ending style from raw file text (read with open(newline=""))."""
     if "\r\n" in raw_text:
         return "crlf"
     if "\r" in raw_text:
@@ -102,7 +102,10 @@ def _detect_line_ending(raw_text: str) -> str:
 
 
 def _convert_line_ending(text: str, line_ending: str) -> str:
-    """TextArea.text(\n만 포함)를 지정 줄 끝 형식으로 변환 (저장 시 사용)."""
+    """Convert TextArea.text (LF-only) to the specified line ending style.
+
+    Used when saving the file.
+    """
     if line_ending == "crlf":
         return text.replace("\n", "\r\n")
     if line_ending == "cr":

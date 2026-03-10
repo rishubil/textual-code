@@ -59,26 +59,30 @@ TextualCode (App) — app.py
 
 **Adding new modals**: subclass `ModalScreen[ResultType]` in `modals.py`, define a result dataclass, call `self.dismiss(result)` on completion.
 
-## Textual 공식 문서 참조
+## Textual Official Documentation
 
-Textual API, Widget, Screen, Worker, reactive 등 프레임워크 동작이 불확실할 때 **반드시 공식 문서를 WebFetch로 확인**하세요.
+When Textual framework behaviour (API, Widget, Screen, Worker, reactive, etc.) is uncertain, **always check the official docs via WebFetch**.
 
-- **문서 도메인**: `textual.textualize.io` (WebFetch 허가됨)
-- 주요 참조:
-  - `https://textual.textualize.io/api/app/` — App · screen_stack · query_one 동작
+- **Docs domain**: `textual.textualize.io` (WebFetch permitted)
+- Key references:
+  - `https://textual.textualize.io/api/app/` — App · screen_stack · query_one behaviour
   - `https://textual.textualize.io/guide/screens/` — ModalScreen · push_screen · dismiss · screen_stack
-  - `https://textual.textualize.io/guide/events/` — Message · on_* 핸들러 · post_message · @on 데코레이터
-  - `https://textual.textualize.io/guide/reactivity/` — reactive · watch_* 트리거 조건 · equate
+  - `https://textual.textualize.io/guide/events/` — Message · on_* handlers · post_message · @on decorator
+  - `https://textual.textualize.io/guide/reactivity/` — reactive · watch_* trigger conditions · equate
   - `https://textual.textualize.io/guide/workers/` — Worker · @work(exclusive=True) · AwaitComplete
-  - `https://textual.textualize.io/guide/testing/` — pilot.pause() · run_test() · 테스트 주의사항
+  - `https://textual.textualize.io/guide/testing/` — pilot.pause() · run_test() · testing caveats
   - `https://textual.textualize.io/guide/input/` — BINDINGS · Binding · priority · action_*
   - `https://textual.textualize.io/guide/command_palette/` — CommandPalette · Provider · SystemCommand
-  - `https://textual.textualize.io/guide/styles/` — TCSS 스타일 · 색상 · 레이아웃
+  - `https://textual.textualize.io/guide/styles/` — TCSS styles · colours · layout
   - `https://textual.textualize.io/widgets/tabbed_content/` — TabbedContent · TabPane · active
-  - `https://textual.textualize.io/widgets/directory_tree/` — DirectoryTree · reload() · Worker 주의
-  - `https://textual.textualize.io/widgets/text_area/` — TextArea · replace() · Changed 이벤트
+  - `https://textual.textualize.io/widgets/directory_tree/` — DirectoryTree · reload() · Worker caveats
+  - `https://textual.textualize.io/widgets/text_area/` — TextArea · replace() · Changed event
 
-**추측 금지**: 동작이 불명확하면 문서를 먼저 확인하고 구현하세요.
+**No guessing**: if behaviour is unclear, check the docs before implementing.
+
+## Language Convention
+
+All code comments, docstrings, and documentation (including files in `docs/`) must be written in **English**.
 
 ## Key Conventions
 

@@ -1,5 +1,5 @@
 """
-커맨드 팔레트에서 파일/폴더 삭제 통합 테스트.
+Integration tests for deleting files/folders from the command palette.
 """
 
 from pathlib import Path
@@ -14,7 +14,7 @@ from textual_code.modals import DeleteFileModalScreen
 async def test_delete_palette_file_message_opens_modal(
     workspace: Path, sample_py_file: Path
 ):
-    """DeletePathWithPaletteRequested(파일) 포스트 → DeleteFileModalScreen 열림."""
+    """Posting DeletePathWithPaletteRequested(file) → DeleteFileModalScreen opens."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -26,7 +26,7 @@ async def test_delete_palette_file_message_opens_modal(
 
 
 async def test_delete_palette_directory_message_opens_modal(workspace: Path):
-    """DeletePathWithPaletteRequested(디렉토리) 포스트 → DeleteFileModalScreen 열림."""
+    """Posting DeletePathWithPaletteRequested(directory) opens DeleteFileModalScreen."""
     subdir = workspace / "subdir"
     subdir.mkdir()
 
@@ -41,7 +41,7 @@ async def test_delete_palette_directory_message_opens_modal(workspace: Path):
 async def test_delete_palette_file_confirm_deletes_file(
     workspace: Path, sample_py_file: Path
 ):
-    """파일 삭제 확인 → 파일 실제 삭제됨."""
+    """Confirming file deletion → file is actually deleted."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -60,7 +60,7 @@ async def test_delete_palette_file_confirm_deletes_file(
 
 
 async def test_delete_palette_directory_confirm_deletes_directory(workspace: Path):
-    """디렉토리 삭제 확인 → 디렉토리 실제 삭제됨."""
+    """Confirming directory deletion → directory is actually deleted."""
     subdir = workspace / "subdir"
     subdir.mkdir()
 
@@ -80,7 +80,7 @@ async def test_delete_palette_directory_confirm_deletes_directory(workspace: Pat
 
 
 async def test_delete_palette_nonempty_directory_deletes_all_contents(workspace: Path):
-    """비어있지 않은 디렉토리 삭제 확인 → 전체 내용 삭제됨."""
+    """Confirming deletion of non-empty directory → all contents deleted."""
     subdir = workspace / "subdir"
     subdir.mkdir()
     (subdir / "file1.txt").write_text("hello")
@@ -102,7 +102,7 @@ async def test_delete_palette_nonempty_directory_deletes_all_contents(workspace:
 
 
 async def test_delete_palette_cancel_keeps_file(workspace: Path, sample_py_file: Path):
-    """취소 → 파일 유지됨."""
+    """Cancel → file is preserved."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -123,7 +123,7 @@ async def test_delete_palette_cancel_keeps_file(workspace: Path, sample_py_file:
 async def test_delete_palette_open_tab_file_closes_tab(
     workspace: Path, sample_py_file: Path
 ):
-    """열린 탭 파일 삭제 → 탭 닫힘."""
+    """Deleting an open tab's file → tab is closed."""
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -143,7 +143,7 @@ async def test_delete_palette_open_tab_file_closes_tab(
 
 
 async def test_get_system_commands_contains_delete_file_or_directory(workspace: Path):
-    """get_system_commands()에 'Delete file or directory' 포함."""
+    """get_system_commands() includes 'Delete file or directory'."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -155,7 +155,7 @@ async def test_get_system_commands_contains_delete_file_or_directory(workspace: 
 async def test_action_delete_file_or_dir_with_command_palette_opens_palette(
     workspace: Path,
 ):
-    """action_delete_file_or_dir_with_command_palette() → CommandPalette 열림."""
+    """action_delete_file_or_dir_with_command_palette() → CommandPalette opens."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()

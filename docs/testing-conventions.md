@@ -1,98 +1,98 @@
-# 테스트 작성 규칙 및 알려진 이슈
+# Testing Conventions and Known Issues
 
-## editor.text 직접 할당: 언제 허용하고 언제 금지하는가
+## editor.text Direct Assignment: When Allowed and When Forbidden
 
-`editor.text = "..."` 는 `CodeEditor` reactive 프로퍼티를 직접 변경하며,
-**`TextArea` 위젯의 렌더링된 내용은 바꾸지 않는다.**
+`editor.text = "..."` directly modifies the `CodeEditor` reactive property,
+but **does not update the rendered content of the `TextArea` widget**.
 
-### 허용: 단위 테스트에서 reactive 레이어 검증
+### Allowed: Verifying the reactive layer in unit tests
 
-`test_code_editor.py`, `test_main_view.py`, `test_app.py`에서는 직접 할당이 적합하다.
+Direct assignment is appropriate in `test_code_editor.py`, `test_main_view.py`, and `test_app.py`.
 
-- 목적: `CodeEditor`의 reactive 로직 (`watch_text`, `update_title`,
-  `has_unsaved_pane()` 등)을 테스트하는 것이지, 실제 타이핑 흐름이 아님
-- `TextArea` 시각 내용이 스크린샷에 캡처되지 않으므로 경쟁 조건이 노출되지 않음
+- Purpose: testing `CodeEditor`'s reactive logic (`watch_text`, `update_title`,
+  `has_unsaved_pane()`, etc.), not the actual typing flow
+- No race conditions are exposed because `TextArea` visual content is not captured in snapshots
 
 ```python
-# OK: reactive 레이어 동작 확인
+# OK: verify reactive layer behaviour
 editor.text = "modified\n"
 await pilot.pause()
 assert editor.title.endswith("*")
 ```
 
-### 허용: 스냅샷에서 TextArea 내용이 아닌 상태 변경 시각화
+### Allowed: Snapshot tests that visualise state changes other than TextArea content
 
-탭 제목의 `*` 같이 TextArea 내용이 아닌 UI 요소를 찍을 때는 직접 할당이 더 안정적이다.
-`pilot.press()` 는 커서 위치 등 시각 노이즈를 유발할 수 있다.
+For UI elements like the `*` in a tab title, direct assignment is more stable than `pilot.press()`,
+which can introduce visual noise such as cursor position.
 
 ```python
-# test_snapshot_unsaved_marker 에서 사용 - 탭 제목 * 검증
+# used in test_snapshot_unsaved_marker - verifies tab title *
 editor.text = "modified content\n"
 await pilot.pause()
 # snapshot: tab title shows *, TextArea still shows original content
 ```
 
-### 금지: 스냅샷에서 "파일이 수정됨"이라는 앱 로직에 의존할 때
+### Forbidden: When snapshot behaviour depends on "file is modified" app logic
 
-`app.action_quit()`, `ctrl+w` 처럼 `has_unsaved_pane()` 결과에 따라 동작이
-달라지는 흐름에서 직접 할당을 쓰면 **flaky** 해진다.
+Flows controlled by `has_unsaved_pane()` — such as `app.action_quit()` or `ctrl+w` —
+become **flaky** when direct assignment is used.
 
-**원인**: `pilot.pause()` 이후 Textual 이벤트 루프가 `TextArea.Changed`를 처리하면
-`editor.text` 가 TextArea의 현재 내용(원본)으로 덮어 쓰일 수 있다. 그 결과
-`has_unsaved_pane()` 가 False를 반환해 모달이 열리지 않고 앱이 즉시 종료된다.
+**Root cause**: after `pilot.pause()`, the Textual event loop may process `TextArea.Changed`
+and overwrite `editor.text` with the TextArea's current (original) content. As a result,
+`has_unsaved_pane()` returns False, the modal never opens, and the app exits immediately.
 
 ```python
-# BAD: 경쟁 조건 발생 가능
+# BAD: race condition possible
 editor.text = "modified\n"
 await pilot.pause()
-app.action_quit()   # has_unsaved_pane() 이 False 를 반환할 수도 있음
+app.action_quit()   # has_unsaved_pane() may return False
 ```
 
 ```python
-# GOOD: pilot.press() 로 TextArea.Changed 흐름 전체를 거침
+# GOOD: goes through the full TextArea.Changed flow via pilot.press()
 editor.action_focus()
 await pilot.pause()
 await pilot.press("x")
 await pilot.pause()
-app.action_quit()   # has_unsaved_pane() 가 확실히 True
+app.action_quit()   # has_unsaved_pane() is reliably True
 ```
 
 ---
 
-## ~~알려진~~ 해결된 Flaky 스냅샷 테스트 (commit `5b2ec0c`)
+## ~~Known~~ Resolved Flaky Snapshot Tests (commit `5b2ec0c`)
 
-> **상태: 수정 완료** — commit `5b2ec0c fix: eliminate flaky snapshot tests by removing focus race condition`
+> **Status: Fixed** — commit `5b2ec0c fix: eliminate flaky snapshot tests by removing focus race condition`
 
-### 근본 원인 (수정 전)
+### Root cause (before fix)
 
-`app.py` 의 `action_open_code_editor` 가 `editor.call_later(editor.action_focus)` 로
-포커스를 비동기 예약했다. 이 지연된 포커스 이벤트가 `snap_compare` 의 `run_before`
-콜백과 경쟁하여 비결정적 렌더링 상태를 만들었다.
+`action_open_code_editor` in `app.py` scheduled focus asynchronously via
+`editor.call_later(editor.action_focus)`. This deferred focus event raced with
+the `run_before` callback of `snap_compare`, creating non-deterministic rendering state.
 
-### 수정 내용
+### Fix
 
-`call_later` 를 제거하고 `editor.action_focus()` 를 직접 호출하도록 변경:
+Removed `call_later` and changed to a direct synchronous call to `editor.action_focus()`:
 
 ```python
-# app.py - 수정 후
-editor.action_focus()   # 동기 직접 호출 → 타이밍 결정적
+# app.py - after fix
+editor.action_focus()   # synchronous direct call → deterministic timing
 ```
 
-`@pytest.mark.xfail(strict=False)` 마크도 함께 제거되어 두 테스트가
-정상 통과 테스트로 전환되었다.
+The `@pytest.mark.xfail(strict=False)` marks were also removed, converting both tests
+to normal passing tests.
 
 ---
 
-## 스냅샷 재생성 방법
+## How to Regenerate Snapshots
 
-스냅샷은 **반드시 전체 테스트 스위트와 함께** 갱신해야 한다.
-`tests/test_snapshots.py` 만 단독으로 `--snapshot-update` 하면
-비스냅샷 테스트가 남긴 전역 상태가 반영되지 않아 비교 시 불일치가 발생한다.
+Snapshots **must** be updated together with the full test suite.
+Running `--snapshot-update` on `tests/test_snapshots.py` alone omits global state
+left by non-snapshot tests, causing mismatches on the next full run.
 
 ```bash
-# 올바른 방법: 전체 테스트로 갱신
+# Correct: update with the full test suite
 uv run pytest tests/ --snapshot-update
 
-# 틀린 방법: 스냅샷만 단독 갱신 (이후 전체 실행 시 일부 실패 가능)
+# Wrong: update snapshots in isolation (may cause partial failures on next full run)
 uv run pytest tests/test_snapshots.py --snapshot-update
 ```

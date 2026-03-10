@@ -1,6 +1,6 @@
 """
-모달 다이얼로그 테스트.
-각 모달을 래핑 TestApp으로 독립 테스트한다.
+Modal dialog tests.
+Each modal is tested independently using a wrapping TestApp.
 """
 
 from pathlib import Path
@@ -226,7 +226,7 @@ async def test_delete_modal_shows_file_path(tmp_path):
 
 
 async def test_delete_modal_file_title_contains_file(tmp_path):
-    """파일 경로 → 모달 title에 'file' 포함, 'directory' 미포함."""
+    """File path → modal title contains 'file', not 'directory'."""
     f = tmp_path / "myfile.py"
     f.write_text("content")
     app = _DeleteFileApp(f)
@@ -239,7 +239,7 @@ async def test_delete_modal_file_title_contains_file(tmp_path):
 
 
 async def test_delete_modal_file_warning_cannot_be_undone(tmp_path):
-    """파일 경로 → #warning에 'cannot be undone' 포함."""
+    """File path → #warning contains 'cannot be undone'."""
     f = tmp_path / "myfile.py"
     f.write_text("content")
     app = _DeleteFileApp(f)
@@ -250,7 +250,7 @@ async def test_delete_modal_file_warning_cannot_be_undone(tmp_path):
 
 
 async def test_delete_modal_directory_title_contains_directory_and_contents(tmp_path):
-    """디렉토리 경로 → 모달 title에 'directory'와 'contents' 포함."""
+    """Directory path → modal title contains 'directory' and 'contents'."""
     d = tmp_path / "mydir"
     d.mkdir()
     app = _DeleteFileApp(d)
@@ -263,7 +263,7 @@ async def test_delete_modal_directory_title_contains_directory_and_contents(tmp_
 
 
 async def test_delete_modal_directory_warning_cannot_be_undone(tmp_path):
-    """디렉토리 경로 → #warning에 'cannot be undone' 포함."""
+    """Directory path → #warning contains 'cannot be undone'."""
     d = tmp_path / "mydir"
     d.mkdir()
     app = _DeleteFileApp(d)
@@ -573,7 +573,7 @@ async def test_replace_modal_empty_replace_text_returns_empty_string():
 
 
 async def test_find_modal_has_use_regex_checkbox():
-    """FindModalScreen에 #use_regex Checkbox가 존재한다."""
+    """FindModalScreen has a #use_regex Checkbox."""
     from textual.widgets import Checkbox
 
     app = _FindApp()
@@ -584,7 +584,7 @@ async def test_find_modal_has_use_regex_checkbox():
 
 
 async def test_find_modal_use_regex_false_by_default():
-    """체크하지 않으면 result.use_regex == False."""
+    """Without checking, result.use_regex == False."""
     app = _FindApp()
     async with app.run_test() as pilot:
         await pilot.click("#find")
@@ -595,7 +595,7 @@ async def test_find_modal_use_regex_false_by_default():
 
 
 async def test_find_modal_use_regex_true_when_checked():
-    """Checkbox 체크 후 Find하면 result.use_regex == True."""
+    """After checking the Checkbox and clicking Find, result.use_regex == True."""
     from textual.widgets import Checkbox
 
     app = _FindApp()
@@ -613,7 +613,7 @@ async def test_find_modal_use_regex_true_when_checked():
 
 
 async def test_replace_modal_has_use_regex_checkbox():
-    """ReplaceModalScreen에 #use_regex Checkbox가 존재한다."""
+    """ReplaceModalScreen has a #use_regex Checkbox."""
     from textual.widgets import Checkbox
 
     app = _ReplaceApp()
@@ -624,7 +624,7 @@ async def test_replace_modal_has_use_regex_checkbox():
 
 
 async def test_replace_modal_use_regex_false_by_default():
-    """체크하지 않으면 result.use_regex == False."""
+    """Without checking, result.use_regex == False."""
     app = _ReplaceApp()
     async with app.run_test() as pilot:
         await pilot.click("#replace")
@@ -635,7 +635,7 @@ async def test_replace_modal_use_regex_false_by_default():
 
 
 async def test_replace_modal_use_regex_true_when_checked():
-    """Checkbox 체크 후 Replace하면 result.use_regex == True."""
+    """After checking the Checkbox and clicking Replace, result.use_regex == True."""
     from textual.widgets import Checkbox
 
     app = _ReplaceApp()
@@ -670,7 +670,7 @@ class _ChangeIndentApp(App):
 
 
 async def test_change_indent_modal_has_type_select():
-    """ChangeIndentModalScreen에 #indent_type Select가 존재한다."""
+    """ChangeIndentModalScreen has an #indent_type Select."""
     from textual.widgets import Select
 
     app = _ChangeIndentApp()
@@ -681,7 +681,7 @@ async def test_change_indent_modal_has_type_select():
 
 
 async def test_change_indent_modal_has_size_select():
-    """ChangeIndentModalScreen에 #indent_size Select가 존재한다."""
+    """ChangeIndentModalScreen has an #indent_size Select."""
     from textual.widgets import Select
 
     app = _ChangeIndentApp()
@@ -692,7 +692,7 @@ async def test_change_indent_modal_has_size_select():
 
 
 async def test_change_indent_modal_apply_returns_spaces_4():
-    """Apply 클릭 → indent_type='spaces', indent_size=4, is_cancelled=False."""
+    """Clicking Apply → indent_type='spaces', indent_size=4, is_cancelled=False."""
     from textual.widgets import Select
 
     app = _ChangeIndentApp()
@@ -709,7 +709,7 @@ async def test_change_indent_modal_apply_returns_spaces_4():
 
 
 async def test_change_indent_modal_apply_returns_tabs():
-    """Apply 클릭 (tabs) → indent_type='tabs', is_cancelled=False."""
+    """Clicking Apply (tabs) → indent_type='tabs', is_cancelled=False."""
     from textual.widgets import Select
 
     app = _ChangeIndentApp()
@@ -726,7 +726,7 @@ async def test_change_indent_modal_apply_returns_tabs():
 
 
 async def test_change_indent_modal_cancel_returns_cancelled():
-    """Cancel 클릭 → is_cancelled=True, indent_type/size=None."""
+    """Clicking Cancel → is_cancelled=True, indent_type/size=None."""
     app = _ChangeIndentApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
@@ -763,7 +763,7 @@ class _ChangeLineEndingApp(App):
 
 
 async def test_change_line_ending_modal_has_select():
-    """ChangeLineEndingModalScreen에 #line_ending Select가 존재한다."""
+    """ChangeLineEndingModalScreen has a #line_ending Select."""
     from textual.widgets import Select
 
     app = _ChangeLineEndingApp()
@@ -774,7 +774,7 @@ async def test_change_line_ending_modal_has_select():
 
 
 async def test_change_line_ending_modal_apply_returns_lf():
-    """Apply 클릭 (lf) → line_ending='lf', is_cancelled=False."""
+    """Clicking Apply (lf) → line_ending='lf', is_cancelled=False."""
     from textual.widgets import Select
 
     app = _ChangeLineEndingApp(current_line_ending="lf")
@@ -789,7 +789,7 @@ async def test_change_line_ending_modal_apply_returns_lf():
 
 
 async def test_change_line_ending_modal_apply_returns_crlf():
-    """Apply 클릭 (crlf) → line_ending='crlf', is_cancelled=False."""
+    """Clicking Apply (crlf) → line_ending='crlf', is_cancelled=False."""
     from textual.widgets import Select
 
     app = _ChangeLineEndingApp(current_line_ending="lf")
@@ -804,7 +804,7 @@ async def test_change_line_ending_modal_apply_returns_crlf():
 
 
 async def test_change_line_ending_modal_cancel_returns_cancelled():
-    """Cancel 클릭 → is_cancelled=True, line_ending=None."""
+    """Clicking Cancel → is_cancelled=True, line_ending=None."""
     app = _ChangeLineEndingApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
@@ -816,7 +816,7 @@ async def test_change_line_ending_modal_cancel_returns_cancelled():
 
 
 async def test_change_line_ending_modal_initial_value_is_current():
-    """current_line_ending='crlf' → Select 초기값 'crlf'."""
+    """current_line_ending='crlf' → Select initial value is 'crlf'."""
     from textual.widgets import Select
 
     app = _ChangeLineEndingApp(current_line_ending="crlf")

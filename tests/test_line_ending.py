@@ -1,8 +1,8 @@
 """
-줄 끝 변환 기능 테스트.
+Line ending conversion feature tests.
 
-단위 테스트: _detect_line_ending, _convert_line_ending 헬퍼 함수
-통합 테스트: action_change_line_ending via ChangeLineEndingModalScreen
+Unit tests: _detect_line_ending, _convert_line_ending helper functions
+Integration tests: action_change_line_ending via ChangeLineEndingModalScreen
 """
 
 from pathlib import Path
@@ -15,39 +15,39 @@ from textual_code.widgets.code_editor import (
     _detect_line_ending,
 )
 
-# ── _detect_line_ending 단위 테스트 ──────────────────────────────────────────
+# ── _detect_line_ending unit tests ───────────────────────────────────────────
 
 
 def test_detect_lf_only():
-    """\n만 포함된 텍스트 → 'lf'."""
+    """Text with only \\n → 'lf'."""
     assert _detect_line_ending("\nhello") == "lf"
 
 
 def test_detect_crlf():
-    """\r\n 포함 텍스트 → 'crlf'."""
+    """Text containing \\r\\n → 'crlf'."""
     assert _detect_line_ending("hello\r\nworld") == "crlf"
 
 
 def test_detect_cr_only():
-    """\r만 포함된 텍스트 → 'cr'."""
+    """Text with only \\r → 'cr'."""
     assert _detect_line_ending("hello\rworld") == "cr"
 
 
 def test_detect_empty_string():
-    """빈 문자열 → 'lf' (기본값)."""
+    """Empty string → 'lf' (default)."""
     assert _detect_line_ending("") == "lf"
 
 
 def test_detect_crlf_priority():
-    """\r\n과 \r 혼재 시 'crlf' 우선."""
+    """Mixed \\r\\n and \\r → 'crlf' takes priority."""
     assert _detect_line_ending("a\r\nb\rc") == "crlf"
 
 
-# ── _convert_line_ending 단위 테스트 ─────────────────────────────────────────
+# ── _convert_line_ending unit tests ──────────────────────────────────────────
 
 
 def test_convert_lf_noop():
-    """ "lf" 지정 시 텍스트 그대로."""
+    """Specifying 'lf' leaves text unchanged."""
     assert _convert_line_ending("hello\nworld", "lf") == "hello\nworld"
 
 
@@ -62,21 +62,21 @@ def test_convert_to_cr():
 
 
 def test_convert_multiline_crlf():
-    """여러 \n 모두 \r\n으로 교체."""
+    """All \\n replaced with \\r\\n."""
     text = "a\nb\nc"
     assert _convert_line_ending(text, "crlf") == "a\r\nb\r\nc"
 
 
 def test_convert_empty_string():
-    """빈 문자열 → 빈 문자열."""
+    """Empty string → empty string."""
     assert _convert_line_ending("", "crlf") == ""
 
 
-# ── 통합 테스트용 앱 ─────────────────────────────────────────────────────────
+# ── Integration test app ──────────────────────────────────────────────────────
 
 
 class _LineEndingTestApp(App):
-    """CodeEditor를 포함한 통합 테스트용 앱."""
+    """Test app containing a CodeEditor for integration tests."""
 
     def __init__(self, path: Path | None = None):
         super().__init__()
@@ -91,11 +91,11 @@ class _LineEndingTestApp(App):
         return self.query_one(CodeEditor)
 
 
-# ── 통합 테스트 ───────────────────────────────────────────────────────────────
+# ── Integration tests ─────────────────────────────────────────────────────────
 
 
 async def test_file_load_detects_crlf(tmp_path: Path):
-    """CRLF 파일 로드 → editor.line_ending == 'crlf'."""
+    """Loading a CRLF file → editor.line_ending == 'crlf'."""
     f = tmp_path / "test.txt"
     f.write_bytes(b"hello\r\nworld")
 
@@ -108,7 +108,7 @@ async def test_file_load_detects_crlf(tmp_path: Path):
 
 
 async def test_file_load_detects_lf(tmp_path: Path):
-    """LF 파일 로드 → editor.line_ending == 'lf'."""
+    """Loading an LF file → editor.line_ending == 'lf'."""
     f = tmp_path / "test.txt"
     f.write_bytes(b"hello\nworld")
 
@@ -145,7 +145,7 @@ async def test_change_line_ending_updates_reactive(tmp_path: Path):
 
 
 async def test_change_line_ending_cancel_no_change(tmp_path: Path):
-    """Cancel → line_ending 불변."""
+    """Cancel → line_ending unchanged."""
     f = tmp_path / "test.txt"
     f.write_bytes(b"hello\nworld")
 
@@ -166,7 +166,7 @@ async def test_change_line_ending_cancel_no_change(tmp_path: Path):
 
 
 async def test_save_writes_crlf_to_disk(tmp_path: Path):
-    """line_ending='crlf' 후 저장 → 파일에 \r\n."""
+    """After setting line_ending='crlf' and saving → file contains \\r\\n."""
     f = tmp_path / "test.txt"
     f.write_bytes(b"hello\nworld")
 
@@ -194,7 +194,7 @@ async def test_save_writes_crlf_to_disk(tmp_path: Path):
 
 
 async def test_footer_shows_line_ending(tmp_path: Path):
-    """footer #line_ending_btn 라벨 == 'LF'."""
+    """Footer #line_ending_btn label == 'LF'."""
     from textual.widgets import Button
 
     f = tmp_path / "test.txt"
@@ -210,7 +210,7 @@ async def test_footer_shows_line_ending(tmp_path: Path):
 
 
 async def test_change_line_ending_cmd_no_editor(tmp_path: Path):
-    """열린 파일 없으면 error notify."""
+    """No open file → error notification."""
     from tests.conftest import make_app
 
     tc_app = make_app(tmp_path)
@@ -231,7 +231,7 @@ async def test_change_line_ending_cmd_no_editor(tmp_path: Path):
 
 
 async def test_select_crlf_shows_warning_toast(tmp_path: Path):
-    """Apply CRLF → warning notify 표시."""
+    """Apply CRLF → warning notification shown."""
     from textual.widgets import Select
 
     f = tmp_path / "test.txt"
@@ -261,7 +261,7 @@ async def test_select_crlf_shows_warning_toast(tmp_path: Path):
 
 
 async def test_select_lf_no_warning_toast(tmp_path: Path):
-    """Apply LF → warning notify 없음."""
+    """Apply LF → no warning notification."""
     from textual.widgets import Select
 
     f = tmp_path / "test.txt"
@@ -291,7 +291,7 @@ async def test_select_lf_no_warning_toast(tmp_path: Path):
 
 
 class _NotifyCapturingApp(App):
-    """on_mount warning 캡처를 위해 app.notify를 오버라이드한 테스트 앱."""
+    """Test app that overrides app.notify to capture on_mount warnings."""
 
     def __init__(self, path: Path):
         super().__init__()
@@ -312,7 +312,7 @@ class _NotifyCapturingApp(App):
 
 
 async def test_open_crlf_file_shows_warning_toast(tmp_path: Path):
-    """CRLF 파일 로드 시 on_mount에서 warning notify."""
+    """Opening a CRLF file → warning notification from on_mount."""
     f = tmp_path / "test.txt"
     f.write_bytes(b"hello\r\nworld")
 
@@ -324,7 +324,7 @@ async def test_open_crlf_file_shows_warning_toast(tmp_path: Path):
 
 
 async def test_open_lf_file_no_warning_toast(tmp_path: Path):
-    """LF 파일 로드 시 warning notify 없음."""
+    """Opening an LF file → no warning notification."""
     f = tmp_path / "test.txt"
     f.write_bytes(b"hello\nworld")
 

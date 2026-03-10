@@ -1,8 +1,8 @@
 """
-들여쓰기 변환 기능 테스트.
+Indentation conversion feature tests.
 
-단위 테스트: _convert_indentation 헬퍼 함수
-통합 테스트: action_change_indent via ChangeIndentModalScreen
+Unit tests: _convert_indentation helper function
+Integration tests: action_change_indent via ChangeIndentModalScreen
 """
 
 from pathlib import Path
@@ -11,7 +11,7 @@ from textual.app import App, ComposeResult
 
 from textual_code.widgets.code_editor import CodeEditor, _convert_indentation
 
-# ── _convert_indentation 단위 테스트 ─────────────────────────────────────────
+# ── _convert_indentation unit tests ──────────────────────────────────────────
 
 
 def test_tabs_to_spaces_size4():
@@ -35,44 +35,44 @@ def test_spaces_to_tabs_remainder():
 
 
 def test_spaces_resize_2_to_4():
-    """2-space indent를 같은 크기로 변환하면 그대로."""
-    # _convert_indentation은 target type/size로 직접 정규화
+    """Converting 2-space indent to the same size leaves it unchanged."""
+    # _convert_indentation normalizes directly to target type/size
     result = _convert_indentation("  hello", "spaces", 2)
     assert result == "  hello"
 
 
 def test_multiline_all_converted():
-    """여러 줄 모두 변환."""
+    """All lines are converted."""
     text = "\thello\n\tworld"
     result = _convert_indentation(text, "spaces", 4)
     assert result == "    hello\n    world"
 
 
 def test_empty_line_preserved():
-    """빈 줄은 그대로 유지."""
+    """Empty lines are preserved as-is."""
     text = "\thello\n\n\tworld"
     result = _convert_indentation(text, "spaces", 4)
     assert result == "    hello\n\n    world"
 
 
 def test_no_indent_unchanged():
-    """들여쓰기 없는 줄은 변화 없음."""
+    """Lines with no indentation are unchanged."""
     assert _convert_indentation("hello", "spaces", 4) == "hello"
     assert _convert_indentation("hello", "tabs", 4) == "hello"
 
 
 def test_already_tabs_to_tabs():
-    """탭 → 탭: 동일 크기면 그대로."""
+    """Tabs → tabs: same size leaves it unchanged."""
     assert _convert_indentation("\thello", "tabs", 4) == "\thello"
 
 
 def test_already_spaces_to_spaces_same_size():
-    """스페이스 → 스페이스 같은 크기: 변화 없음."""
+    """Spaces → spaces same size: no change."""
     assert _convert_indentation("    hello", "spaces", 4) == "    hello"
 
 
 def test_double_indent_to_spaces():
-    """이중 탭 → 8 spaces."""
+    """Double tab → 8 spaces."""
     assert _convert_indentation("\t\thello", "spaces", 4) == "        hello"
 
 
@@ -81,11 +81,11 @@ def test_spaces_to_tabs_size8():
     assert _convert_indentation("        hello", "tabs", 8) == "\thello"
 
 
-# ── 통합 테스트 ───────────────────────────────────────────────────────────────
+# ── Integration tests ─────────────────────────────────────────────────────────
 
 
 class _IndentTestApp(App):
-    """CodeEditor를 포함한 통합 테스트용 앱."""
+    """Test app containing a CodeEditor for integration tests."""
 
     def __init__(self, text: str = "    hello\n    world"):
         super().__init__()
@@ -105,7 +105,7 @@ class _IndentTestApp(App):
 
 
 async def test_change_indent_modal_apply_spaces():
-    """Apply Spaces 4 → 텍스트가 스페이스 들여쓰기로 변환된다."""
+    """Apply Spaces 4 → text is converted to space indentation."""
     from textual.widgets import Select
 
     app = _IndentTestApp(text="\thello\n\tworld")
@@ -128,7 +128,7 @@ async def test_change_indent_modal_apply_spaces():
 
 
 async def test_change_indent_modal_apply_tabs():
-    """Apply Tabs → 텍스트가 탭 들여쓰기로 변환된다."""
+    """Apply Tabs → text is converted to tab indentation."""
     from textual.widgets import Select
 
     app = _IndentTestApp(text="    hello\n    world")
@@ -151,7 +151,7 @@ async def test_change_indent_modal_apply_tabs():
 
 
 async def test_change_indent_cancel_no_change():
-    """Cancel → 텍스트 변경 없음."""
+    """Cancel → text unchanged."""
     original = "\thello\n\tworld"
     app = _IndentTestApp(text=original)
     async with app.run_test() as pilot:
@@ -170,7 +170,7 @@ async def test_change_indent_cancel_no_change():
 
 
 async def test_change_indent_updates_textarea_settings():
-    """Apply 후 TextArea의 indent_type과 indent_width가 업데이트된다."""
+    """After Apply, TextArea's indent_type and indent_width are updated."""
     from textual.widgets import Select, TextArea
 
     app = _IndentTestApp(text="\thello")
@@ -196,7 +196,7 @@ async def test_change_indent_updates_textarea_settings():
 
 
 async def test_change_indent_cmd_no_editor_notifies(workspace: Path):
-    """열린 파일 없을 때 command palette action → notify error."""
+    """No open file when command palette action triggered → error notification."""
     from tests.conftest import make_app
 
     tc_app = make_app(workspace)
