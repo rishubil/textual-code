@@ -46,6 +46,52 @@ def create_open_file_command_provider(
     return OpenFileCommandProvider
 
 
+def create_delete_path_command_provider(
+    workspace_path: Path,
+    post_message_callback: Callable[[Path], Any],
+) -> type[Provider]:
+    passed_workspace_path = workspace_path
+    passed_post_message_callback = post_message_callback
+
+    class DeletePathCommandProvider(Provider):
+        """A command provider to delete a file or directory."""
+
+        def read_paths(self, workspace_path: Path) -> list[Path]:
+            return [
+                p
+                for p in workspace_path.rglob("*")
+                if not any(
+                    part.startswith(".") for part in p.relative_to(workspace_path).parts
+                )
+            ]
+
+        async def startup(self) -> None:
+            worker = self.app.run_worker(
+                partial(self.read_paths, passed_workspace_path), thread=True
+            )
+            self.paths = await worker.wait()
+
+        async def search(self, query: str) -> Hits:
+            matcher = self.matcher(query)
+
+            def hits() -> Generator[Hit, None, None]:
+                for path in self.paths:
+                    relative = path.relative_to(passed_workspace_path)
+                    score = matcher.match(str(relative))
+                    if score > 0:
+                        yield Hit(
+                            score,
+                            matcher.highlight(str(relative)),
+                            partial(passed_post_message_callback, path),
+                            help="Delete directory" if path.is_dir() else "Delete file",
+                        )
+
+            for hit in heapq.nlargest(20, hits(), key=lambda hit: hit.score):
+                yield hit
+
+    return DeletePathCommandProvider
+
+
 class BaseCreatePathCommandProvider(Provider):
     """
     Base class for CreatePathCommandProvider

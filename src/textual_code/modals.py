@@ -146,9 +146,14 @@ class DeleteFileModalScreen(ModalScreen[DeleteFileModalResult]):
         self.path = path
 
     def compose(self) -> ComposeResult:
+        if self.path.is_dir():
+            title = "Permanently delete this directory and ALL its contents?"
+        else:
+            title = "Permanently delete this file?"
         yield Grid(
-            Label("Are you sure you want to delete this file?", id="title"),
+            Label(title, id="title"),
             Label(str(self.path), id="message"),
+            Label("This action cannot be undone.", id="warning"),
             Button("Delete", variant="warning", id="delete"),
             Button("Cancel", variant="default", id="cancel"),
             id="dialog",

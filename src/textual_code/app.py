@@ -19,6 +19,7 @@ from textual.widgets import (
 
 from textual_code.commands import (
     create_create_file_or_dir_command_provider,
+    create_delete_path_command_provider,
     create_open_file_command_provider,
 )
 from textual_code.modals import (
@@ -348,6 +349,15 @@ class TextualCode(App):
         # if the path is a directory.
         is_dir: bool
 
+    @dataclass
+    class DeletePathWithPaletteRequested(Message):
+        """
+        Message to request deleting a file or directory via command palette.
+        """
+
+        # the path to the file or directory to delete.
+        path: Path
+
     CSS_PATH = "style.tcss"
 
     BINDINGS = [
@@ -443,6 +453,11 @@ class TextualCode(App):
             "Replace",
             "Find and replace text in the current file",
             self.action_replace_cmd,
+        )
+        yield SystemCommand(
+            "Delete file or directory",
+            "Delete a file or directory from the workspace",
+            self.action_delete_file_or_dir_with_command_palette,
         )
 
     def action_goto_line_cmd(self) -> None:
@@ -598,6 +613,24 @@ class TextualCode(App):
             ),
         )
 
+    def action_delete_file_or_dir_with_command_palette(self) -> None:
+        """
+        Delete a file or directory with the command palette.
+        """
+        self.push_screen(
+            CommandPalette(
+                providers=[
+                    create_delete_path_command_provider(
+                        self.workspace_path,
+                        post_message_callback=lambda path: self.app.post_message(
+                            self.DeletePathWithPaletteRequested(path=path)
+                        ),
+                    )
+                ],
+                placeholder="Delete file or directory...",
+            ),
+        )
+
     def action_create_directory_with_command_palette(self) -> None:
         """
         Create a new directory with the command palette.
@@ -633,6 +666,37 @@ class TextualCode(App):
             self.push_screen(UnsavedChangeQuitModalScreen(), do_force_quit)
             return
         self.exit()
+
+    @on(DeletePathWithPaletteRequested)
+    def on_delete_path_with_palette_requested(
+        self, event: DeletePathWithPaletteRequested
+    ) -> None:
+        import shutil
+
+        path = event.path
+
+        def do_delete(result: DeleteFileModalResult | None) -> None:
+            if not result or result.is_cancelled or not result.should_delete:
+                return
+            try:
+                if path.is_dir():
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+            except Exception as e:
+                self.notify(f"Error deleting: {e}", severity="error")
+                return
+
+            pane_id = self.main_view.pane_id_from_path(path)
+            if pane_id:
+                self.call_next(
+                    partial(self.main_view.action_close_code_editor, pane_id)
+                )
+
+            self.action_reload_explorer()
+            self.notify(f"Deleted: {path.name}", severity="information")
+
+        self.push_screen(DeleteFileModalScreen(path), do_delete)
 
     @on(Explorer.FileDeleteRequested)
     def on_explorer_file_delete_requested(

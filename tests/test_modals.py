@@ -223,6 +223,54 @@ async def test_delete_modal_shows_file_path(tmp_path):
         assert str(f) in str(message_label.content)
 
 
+async def test_delete_modal_file_title_contains_file(tmp_path):
+    """파일 경로 → 모달 title에 'file' 포함, 'directory' 미포함."""
+    f = tmp_path / "myfile.py"
+    f.write_text("content")
+    app = _DeleteFileApp(f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        title_label = app.screen.query_one("#title")
+        title_text = str(title_label.content)
+        assert "file" in title_text.lower()
+        assert "directory" not in title_text.lower()
+
+
+async def test_delete_modal_file_warning_cannot_be_undone(tmp_path):
+    """파일 경로 → #warning에 'cannot be undone' 포함."""
+    f = tmp_path / "myfile.py"
+    f.write_text("content")
+    app = _DeleteFileApp(f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        warning_label = app.screen.query_one("#warning")
+        assert "cannot be undone" in str(warning_label.content).lower()
+
+
+async def test_delete_modal_directory_title_contains_directory_and_contents(tmp_path):
+    """디렉토리 경로 → 모달 title에 'directory'와 'contents' 포함."""
+    d = tmp_path / "mydir"
+    d.mkdir()
+    app = _DeleteFileApp(d)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        title_label = app.screen.query_one("#title")
+        title_text = str(title_label.content).lower()
+        assert "directory" in title_text
+        assert "contents" in title_text
+
+
+async def test_delete_modal_directory_warning_cannot_be_undone(tmp_path):
+    """디렉토리 경로 → #warning에 'cannot be undone' 포함."""
+    d = tmp_path / "mydir"
+    d.mkdir()
+    app = _DeleteFileApp(d)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        warning_label = app.screen.query_one("#warning")
+        assert "cannot be undone" in str(warning_label.content).lower()
+
+
 # ── GotoLineModalScreen ───────────────────────────────────────────────────────
 
 
