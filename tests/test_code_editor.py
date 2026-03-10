@@ -366,6 +366,95 @@ async def test_footer_cursor_position_updates_on_move(
         assert "Ln 1, Col 6" in str(cursor_label.content)
 
 
+async def test_footer_shows_ln1_col1_on_file_open(
+    workspace: Path, sample_py_file: Path
+):
+    """Opening a file positions cursor at Ln 1, Col 1."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert "Ln 1, Col 1" in str(editor.footer.cursor_view.content)
+
+
+async def test_footer_cursor_second_line(workspace: Path, multiline_file: Path):
+    """Moving to second line shows Ln 2, Col 1."""
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.editor.cursor_location = (1, 0)
+        await pilot.pause()
+
+        assert "Ln 2, Col 1" in str(editor.footer.cursor_view.content)
+
+
+async def test_footer_cursor_end_of_line(workspace: Path, sample_py_file: Path):
+    """Cursor at end of 'print('hello')' (14 chars) → Col 15."""
+    # sample_py_file: "print('hello')\n" — 14 chars before \n
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.editor.cursor_location = (0, 14)
+        await pilot.pause()
+
+        assert "Col 15" in str(editor.footer.cursor_view.content)
+
+
+async def test_footer_cursor_updates_after_goto_line(
+    workspace: Path, multiline_file: Path
+):
+    """After goto_line, footer reflects the new cursor position."""
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.action_goto_line()
+        await pilot.pause()
+
+        input_widget = app.screen.query_one("#location")
+        await pilot.click(input_widget)
+        await pilot.press("7")
+        await pilot.click("#goto")
+        await pilot.pause()
+
+        assert "Ln 7" in str(editor.footer.cursor_view.content)
+        assert "Col 1" in str(editor.footer.cursor_view.content)
+
+
+async def test_footer_path_updates_on_tab_switch(
+    workspace: Path, sample_py_file: Path, sample_json_file: Path
+):
+    """Footer shows the correct path when switching between tabs."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=sample_json_file)
+        await pilot.pause()
+
+        json_editor = app.main_view.get_active_code_editor()
+        assert json_editor is not None
+        assert str(sample_json_file) in str(json_editor.footer.path_view.content)
+
+        # Switch back to py tab
+        py_pane_id = app.main_view.pane_id_from_path(sample_py_file)
+        assert py_pane_id is not None
+        app.main_view.focus_pane(py_pane_id)
+        await pilot.pause()
+
+        py_editor = app.main_view.get_active_code_editor()
+        assert py_editor is not None
+        assert str(sample_py_file) in str(py_editor.footer.path_view.content)
+
+
 # ── Goto Line ─────────────────────────────────────────────────────────────────
 
 
@@ -454,6 +543,121 @@ async def test_goto_line_invalid_input_no_move(workspace: Path, multiline_file: 
         await pilot.pause()
 
         assert editor.editor.cursor_location == original_location
+
+
+async def test_goto_line_out_of_range_high_no_move(
+    workspace: Path, multiline_file: Path
+):
+    """Line number beyond file length → notification, cursor unchanged."""
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        original_location = editor.editor.cursor_location
+
+        editor.action_goto_line()
+        await pilot.pause()
+
+        input_widget = app.screen.query_one("#location")
+        await pilot.click(input_widget)
+        await pilot.press("9", "9", "9")
+        await pilot.click("#goto")
+        await pilot.pause()
+
+        assert editor.editor.cursor_location == original_location
+
+
+async def test_goto_line_zero_is_out_of_range(workspace: Path, multiline_file: Path):
+    """Line 0 is invalid (1-indexed); cursor should not move."""
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        original_location = editor.editor.cursor_location
+
+        editor.action_goto_line()
+        await pilot.pause()
+
+        input_widget = app.screen.query_one("#location")
+        await pilot.click(input_widget)
+        await pilot.press("0")
+        await pilot.click("#goto")
+        await pilot.pause()
+
+        assert editor.editor.cursor_location == original_location
+
+
+async def test_goto_first_line(workspace: Path, multiline_file: Path):
+    """Goto line 1 moves cursor to row 0."""
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # Move away from first line first
+        editor.editor.cursor_location = (5, 0)
+        await pilot.pause()
+
+        editor.action_goto_line()
+        await pilot.pause()
+
+        input_widget = app.screen.query_one("#location")
+        await pilot.click(input_widget)
+        await pilot.press("1")
+        await pilot.click("#goto")
+        await pilot.pause()
+
+        assert editor.editor.cursor_location[0] == 0
+
+
+async def test_goto_last_line(workspace: Path, multiline_file: Path):
+    """Goto the last line (10th in multiline_file)."""
+    # multiline_file has 10 lines ("line1" … "line10")
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.action_goto_line()
+        await pilot.pause()
+
+        input_widget = app.screen.query_one("#location")
+        await pilot.click(input_widget)
+        await pilot.press("1", "0")
+        await pilot.click("#goto")
+        await pilot.pause()
+
+        assert editor.editor.cursor_location[0] == 9  # 0-based
+
+
+async def test_goto_line_col_zero_input_clamps_to_zero(
+    workspace: Path, multiline_file: Path
+):
+    """Col input '0' (1-indexed 0 → 0-based -1) clamps to col 0."""
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.action_goto_line()
+        await pilot.pause()
+
+        input_widget = app.screen.query_one("#location")
+        await pilot.click(input_widget)
+        await pilot.press("3", ":", "0")
+        await pilot.click("#goto")
+        await pilot.pause()
+
+        row, col = editor.editor.cursor_location
+        assert row == 2
+        assert col == 0
 
 
 # ── Change Language ────────────────────────────────────────────────────────────

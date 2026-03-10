@@ -202,6 +202,44 @@ class GotoLineModalScreen(ModalScreen[GotoLineModalResult]):
 
 
 @dataclass
+class FindModalResult:
+    """
+    The result of the Find modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The search query, or None if cancelled.
+    query: str | None
+
+
+class FindModalScreen(ModalScreen[FindModalResult]):
+    """
+    Modal dialog for finding text in the current file.
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Find", id="title"),
+            Input(placeholder="Search...", id="query"),
+            Button("Find", variant="primary", id="find"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Input.Submitted, "#query")
+    @on(Button.Pressed, "#find")
+    def on_find(self) -> None:
+        self.dismiss(
+            FindModalResult(is_cancelled=False, query=self.query_one(Input).value)
+        )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(FindModalResult(is_cancelled=True, query=None))
+
+
+@dataclass
 class ChangeLanguageModalResult:
     """
     The result of the Change Language modal dialog.

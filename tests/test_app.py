@@ -269,3 +269,104 @@ async def test_toggle_sidebar_action(workspace: Path):
         app.action_toggle_sidebar()
         await pilot.pause()
         assert app.sidebar.display is True
+
+
+# ── Change Language (app-level) ───────────────────────────────────────────────
+
+
+async def test_change_language_cmd_no_editor_opens_no_modal(workspace: Path):
+    from textual_code.modals import ChangeLanguageModalScreen
+
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_change_language_cmd()
+        await pilot.pause()
+        assert not isinstance(app.screen, ChangeLanguageModalScreen)
+
+
+async def test_change_language_cmd_with_editor_opens_modal(
+    workspace: Path, sample_py_file: Path
+):
+    from textual_code.modals import ChangeLanguageModalScreen
+
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.action_change_language()
+        await pilot.pause()
+        assert isinstance(app.screen, ChangeLanguageModalScreen)
+
+
+# ── Goto Line (app-level) ─────────────────────────────────────────────────────
+
+
+async def test_goto_line_cmd_no_editor_opens_no_modal(workspace: Path):
+    from textual_code.modals import GotoLineModalScreen
+
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_goto_line_cmd()
+        await pilot.pause()
+        assert not isinstance(app.screen, GotoLineModalScreen)
+
+
+async def test_ctrl_g_no_editor_opens_no_modal(workspace: Path):
+    from textual_code.modals import GotoLineModalScreen
+
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+g")
+        await pilot.pause()
+        assert not isinstance(app.screen, GotoLineModalScreen)
+
+
+# ── Sidebar toggle (extended) ─────────────────────────────────────────────────
+
+
+async def test_ctrl_b_three_times_ends_visible(workspace: Path):
+    """3 toggles → odd count → sidebar hidden."""
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        for _ in range(3):
+            await pilot.press("ctrl+b")
+            await pilot.pause()
+        assert app.sidebar.display is False
+
+
+async def test_ctrl_b_four_times_ends_visible(workspace: Path):
+    """4 toggles → even count → sidebar visible again."""
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        for _ in range(4):
+            await pilot.press("ctrl+b")
+            await pilot.pause()
+        assert app.sidebar.display is True
+
+
+async def test_toggle_sidebar_with_file_open_preserves_editor(
+    workspace: Path, sample_py_file: Path
+):
+    """Toggling sidebar while a file is open does not affect editor content."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        original_text = editor.text
+
+        await pilot.press("ctrl+b")
+        await pilot.pause()
+        assert app.sidebar.display is False
+        assert editor.text == original_text
+
+        await pilot.press("ctrl+b")
+        await pilot.pause()
+        assert app.sidebar.display is True
+        assert editor.text == original_text

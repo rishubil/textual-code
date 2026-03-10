@@ -15,6 +15,8 @@ from textual_code.modals import (
     ChangeLanguageModalScreen,
     DeleteFileModalResult,
     DeleteFileModalScreen,
+    FindModalResult,
+    FindModalScreen,
     GotoLineModalResult,
     GotoLineModalScreen,
     SaveAsModalResult,
@@ -22,6 +24,18 @@ from textual_code.modals import (
     UnsavedChangeModalResult,
     UnsavedChangeModalScreen,
 )
+
+
+def _text_offset_to_location(text: str, offset: int) -> tuple[int, int]:
+    """Convert a character offset in *text* to a (row, col) location."""
+    row = col = 0
+    for ch in text[:offset]:
+        if ch == "\n":
+            row += 1
+            col = 0
+        else:
+            col += 1
+    return (row, col)
 
 
 class CodeEditorFooter(Static):
@@ -491,6 +505,46 @@ class CodeEditor(Static):
             self.editor.cursor_location = (row, col)
 
         self.app.push_screen(GotoLineModalScreen(), do_goto)
+
+    def action_find(self) -> None:
+        """
+        Open the Find modal and select the first match in the current file.
+
+        Searches from the current cursor position forward. If no match is
+        found after the cursor, wraps around to the beginning of the file.
+        """
+
+        def do_find(result: FindModalResult | None) -> None:
+            if result is None or result.is_cancelled or not result.query:
+                return
+
+            query = result.query
+            text = self.text
+
+            # Convert cursor position to a character offset
+            cursor_row, cursor_col = self.editor.cursor_location
+            lines = text.split("\n")
+            cursor_offset = (
+                sum(len(lines[i]) + 1 for i in range(cursor_row)) + cursor_col
+            )
+
+            # Search from cursor onwards, then wrap around
+            idx = text.find(query, cursor_offset)
+            if idx == -1:
+                idx = text.find(query, 0)
+
+            if idx == -1:
+                self.notify(f"'{query}' not found", severity="warning")
+                return
+
+            start_loc = _text_offset_to_location(text, idx)
+            end_loc = _text_offset_to_location(text, idx + len(query))
+
+            from textual.widgets.text_area import Selection
+
+            self.editor.selection = Selection(start=start_loc, end=end_loc)
+
+        self.app.push_screen(FindModalScreen(), do_find)
 
     def action_change_language(self) -> None:
         """

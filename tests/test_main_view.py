@@ -428,6 +428,65 @@ async def test_save_all_files_via_app_action(workspace: Path, sample_py_file: Pa
         assert sample_py_file.read_text() == "modified\n"
 
 
+async def test_ctrl_shift_s_triggers_save_all(workspace: Path, sample_py_file: Path):
+    """Ctrl+Shift+S saves all modified files."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "via_shortcut\n"
+        await pilot.pause()
+        assert app.main_view.has_unsaved_pane() is True
+
+        await pilot.press("ctrl+shift+s")
+        await pilot.pause()
+        assert app.main_view.has_unsaved_pane() is False
+
+    assert sample_py_file.read_text() == "via_shortcut\n"
+
+
+async def test_save_all_clean_untitled_no_modal(workspace: Path):
+    """A clean (unmodified) untitled file is skipped by save_all — no modal."""
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.open_code_editor_pane(path=None)
+        await pilot.pause()
+        # Untitled file is clean (text == initial_text == "")
+
+        app.main_view.action_save_all()
+        await pilot.pause()
+
+        # No modal should appear for a clean untitled file
+        from textual_code.modals import SaveAsModalScreen
+
+        assert not isinstance(app.screen, SaveAsModalScreen)
+
+
+async def test_save_all_idempotent_on_already_saved(
+    workspace: Path, sample_py_file: Path
+):
+    """Calling save_all twice on already-saved files has no side effects."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "first_write\n"
+        await pilot.pause()
+
+        app.main_view.action_save_all()
+        await pilot.pause()
+        assert sample_py_file.read_text() == "first_write\n"
+
+        # Second call — nothing modified, nothing to save
+        app.main_view.action_save_all()
+        await pilot.pause()
+        assert sample_py_file.read_text() == "first_write\n"
+        assert app.main_view.has_unsaved_pane() is False
+
+
 # ── close_all ──────────────────────────────────────────────────────────────────
 
 
@@ -728,3 +787,91 @@ async def test_close_all_untitled_dont_save_closes(workspace: Path):
         await pilot.pause()
 
         assert len(app.main_view.opened_pane_ids) == 0
+
+
+async def test_ctrl_shift_w_triggers_close_all(workspace: Path, sample_py_file: Path):
+    """Ctrl+Shift+W closes all clean files without prompting."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == 1
+
+        await pilot.press("ctrl+shift+w")
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == 0
+
+
+async def test_close_all_clears_opened_files_dict(
+    workspace: Path, sample_py_file: Path, sample_json_file: Path
+):
+    """After close_all, opened_files dict is empty."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=sample_json_file)
+        await pilot.pause()
+        assert len(app.main_view.opened_files) == 2
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+        assert len(app.main_view.opened_files) == 0
+
+
+async def test_close_all_allows_reopen_same_file(workspace: Path, sample_py_file: Path):
+    """After close_all, the same file can be reopened."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == 1
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == 0
+        assert app.main_view.pane_id_from_path(sample_py_file) is None
+
+        await app.main_view.action_open_code_editor(path=sample_py_file)
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == 1
+
+
+async def test_close_all_all_dirty_save_all_writes_to_disk(workspace: Path):
+    """close_all with Save on each dirty file persists content to disk."""
+    file_a = workspace / "a.py"
+    file_b = workspace / "b.py"
+    file_a.write_text("original_a\n")
+    file_b.write_text("original_b\n")
+
+    app = make_app(workspace, open_file=file_a)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=file_b)
+        await pilot.pause()
+
+        pane_id_a = app.main_view.pane_id_from_path(file_a)
+        pane_id_b = app.main_view.pane_id_from_path(file_b)
+        assert pane_id_a and pane_id_b
+        app.main_view.tabbed_content.get_pane(pane_id_a).query_one(
+            CodeEditor
+        ).text = "saved_a\n"
+        app.main_view.tabbed_content.get_pane(pane_id_b).query_one(
+            CodeEditor
+        ).text = "saved_b\n"
+        await pilot.pause()
+
+        app.main_view.action_close_all()
+        await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=False, should_save=True)
+        )
+        await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+        app.screen.dismiss(
+            UnsavedChangeModalResult(is_cancelled=False, should_save=True)
+        )
+        await pilot.pause()
+
+        assert len(app.main_view.opened_pane_ids) == 0
+
+    assert file_a.read_text() == "saved_a\n"
+    assert file_b.read_text() == "saved_b\n"

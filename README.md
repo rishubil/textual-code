@@ -121,11 +121,11 @@ uv run textual run --dev textual_code:main
   - [x] Show line and column numbers
   - [x] Goto line and column
 - [ ] Search and replace
-  - [ ] Plain Search
+  - [x] Plain Search
   - [ ] Regex search
   - [ ] Replace all
   - [ ] Select all occurrences
-  - [ ] In the current file
+  - [x] In the current file
   - [ ] In all files
 - [ ] Markdown preview
   - [ ] Show the markdown preview

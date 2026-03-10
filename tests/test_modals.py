@@ -9,6 +9,7 @@ from textual.app import App, ComposeResult
 from textual.widgets import Label
 
 from textual_code.modals import (
+    ChangeLanguageModalResult,
     DeleteFileModalResult,
     DeleteFileModalScreen,
     GotoLineModalResult,
@@ -277,3 +278,161 @@ async def test_goto_line_modal_enter_submits():
     assert app.result is not None
     assert app.result.is_cancelled is False
     assert app.result.value == "3:7"
+
+
+# ── ChangeLanguageModalScreen ─────────────────────────────────────────────────
+
+
+class _ChangeLanguageApp(App):
+    def __init__(self, languages: list[str], current_language: str | None):
+        super().__init__()
+        self._languages = languages
+        self._current_language = current_language
+        self.result: ChangeLanguageModalResult | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        from textual_code.modals import ChangeLanguageModalScreen
+
+        self.push_screen(
+            ChangeLanguageModalScreen(
+                languages=self._languages,
+                current_language=self._current_language,
+            ),
+            self._on_result,
+        )
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_change_language_modal_apply_returns_language():
+    from textual.widgets import Select
+
+    app = _ChangeLanguageApp(languages=["python", "javascript"], current_language=None)
+    async with app.run_test() as pilot:
+        app.screen.query_one(Select).value = "python"
+        await pilot.click("#apply")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.language == "python"
+
+
+async def test_change_language_modal_cancel_returns_cancelled():
+    app = _ChangeLanguageApp(languages=["python"], current_language="python")
+    async with app.run_test() as pilot:
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.language is None
+
+
+async def test_change_language_modal_plain_returns_none_language():
+    from textual.widgets import Select
+
+    app = _ChangeLanguageApp(languages=["python"], current_language="python")
+    async with app.run_test() as pilot:
+        app.screen.query_one(Select).value = "plain"
+        await pilot.click("#apply")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.language is None
+
+
+async def test_change_language_modal_initial_plain_when_no_language():
+    from textual.widgets import Select
+
+    app = _ChangeLanguageApp(languages=["python", "rust"], current_language=None)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        select = app.screen.query_one(Select)
+        assert select.value == "plain"
+
+
+async def test_change_language_modal_initial_value_is_current_language():
+    from textual.widgets import Select
+
+    app = _ChangeLanguageApp(languages=["python", "rust"], current_language="rust")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        select = app.screen.query_one(Select)
+        assert select.value == "rust"
+
+
+# ── FindModalScreen ───────────────────────────────────────────────────────────
+
+
+class _FindApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        from textual_code.modals import FindModalScreen
+
+        self.push_screen(FindModalScreen(), self._on_result)
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_find_modal_find_button_returns_query():
+    app = _FindApp()
+    async with app.run_test() as pilot:
+        input_widget = app.screen.query_one("#query")
+        await pilot.click(input_widget)
+        await pilot.press("h", "e", "l", "l", "o")
+        await pilot.click("#find")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.query == "hello"
+
+
+async def test_find_modal_cancel_button_returns_cancelled():
+    app = _FindApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.query is None
+
+
+async def test_find_modal_enter_submits():
+    app = _FindApp()
+    async with app.run_test() as pilot:
+        input_widget = app.screen.query_one("#query")
+        await pilot.click(input_widget)
+        await pilot.press("f", "o", "o")
+        await pilot.press("enter")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.query == "foo"
+
+
+async def test_find_modal_empty_query_allowed():
+    """FindModalScreen allows empty query (the caller decides what to do)."""
+    app = _FindApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#find")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.query == ""
