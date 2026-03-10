@@ -1,5 +1,34 @@
 # Features
 
+## Cursor Button: clickable footer position opens GotoLineModalScreen
+
+The cursor position (`#cursor_btn`) in `CodeEditorFooter` is a `Button` rather than a plain `Label`,
+so clicking it opens `GotoLineModalScreen` — the same modal as `Ctrl+G`.
+
+### Why Button not Label
+
+A `Label` has no click semantics; using `Button` gives free keyboard accessibility,
+hover styling, and the standard `Button.Pressed` event without custom mouse handling.
+
+### Event flow
+
+1. User clicks `#cursor_btn` in the footer
+2. `CodeEditor.on_cursor_button_pressed` handles `Button.Pressed` (CSS selector `#cursor_btn`)
+3. Handler calls `self.action_goto_line()`, which pushes `GotoLineModalScreen`
+4. Modal result moves `editor.cursor_location`; `TextArea.SelectionChanged` fires
+5. `CodeEditor.on_text_area_selection_changed` updates `footer.cursor_location` reactive
+6. `watch_cursor_location` sets `cursor_button.label` to the new `"Ln X, Col Y"` string
+
+### Label vs Button update API
+
+`Button.label` is a reactive property (not a method), so updates use assignment:
+
+```python
+self.cursor_button.label = f"Ln {row + 1}, Col {col + 1}"
+```
+
+This differs from `Label.update(text)`.
+
 ## EditorConfig: .editorconfig file discovery, glob matching, property override
 
 ### Why stdlib-only, no editorconfig PyPI package

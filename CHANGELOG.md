@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add Close All Files feature (Ctrl+Shift+W): close all open editor tabs with unsaved-change prompts
 - Add Save All Files feature (Ctrl+Shift+S): save all open editor tabs
 - Add Toggle Sidebar feature (Ctrl+B): show/hide the sidebar, also accessible via command palette
-- Show line and column numbers in editor footer: cursor position updates in real time (Ln X, Col Y)
+- Show line and column numbers in editor footer: cursor position updates in real time (Ln X, Col Y); position button is clickable to open Goto Line modal
 - Add Delete file/folder from sidebar: press Delete key on a selected node in the file tree
 - Add Delete file/folder from command palette: delete any file or directory via command palette with improved modal UX (dynamic title, undo warning)
 - Add file external change detection: polls mtime every 2 seconds, auto-reloads when no unsaved changes, shows warning notification when unsaved changes exist

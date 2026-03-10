@@ -120,7 +120,7 @@ uv run textual run --dev textual_code:main
   - [x] Change line ending
   - [x] Change encoding
   - [x] Show line and column numbers
-    - [ ] show in the footer bar (clickable to goto line and column)
+    - [x] show in the footer bar (clickable to goto line and column)
   - [x] Goto line and column
 - [ ] Search and replace
   - [x] Plain Search

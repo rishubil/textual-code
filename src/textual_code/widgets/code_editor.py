@@ -373,9 +373,10 @@ class CodeEditorFooter(Static):
             str(self.path) if self.path else "",
             id="path",
         )
-        yield Label(
+        yield Button(
             "Ln 1, Col 1",
-            id="cursor",
+            variant="default",
+            id="cursor_btn",
         )
         yield Button(
             self.line_ending.upper(),
@@ -408,7 +409,7 @@ class CodeEditorFooter(Static):
 
     def watch_cursor_location(self, location: tuple[int, int]) -> None:
         row, col = location
-        self.cursor_view.update(f"Ln {row + 1}, Col {col + 1}")
+        self.cursor_button.label = f"Ln {row + 1}, Col {col + 1}"
 
     def watch_line_ending(self, line_ending: str) -> None:
         self.line_ending_button.label = line_ending.upper()
@@ -427,8 +428,8 @@ class CodeEditorFooter(Static):
         return self.query_one("#path", Label)
 
     @property
-    def cursor_view(self) -> Label:
-        return self.query_one("#cursor", Label)
+    def cursor_button(self) -> Button:
+        return self.query_one("#cursor_btn", Button)
 
     @property
     def line_ending_button(self) -> Button:
@@ -1009,6 +1010,11 @@ class CodeEditor(Static):
             self.editor.cursor_location = (row, col)
 
         self.app.push_screen(GotoLineModalScreen(), do_goto)
+
+    @on(Button.Pressed, "#cursor_btn")
+    def on_cursor_button_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_goto_line()
 
     def action_find(self) -> None:
         """

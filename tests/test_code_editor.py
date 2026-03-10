@@ -344,8 +344,8 @@ async def test_footer_shows_cursor_position_initially(workspace: Path):
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
-        cursor_label = editor.footer.cursor_view
-        assert "Ln 1, Col 1" in str(cursor_label.content)
+        cursor_btn = editor.footer.cursor_button
+        assert "Ln 1, Col 1" in str(cursor_btn.label)
 
 
 async def test_footer_cursor_position_updates_on_move(
@@ -362,8 +362,8 @@ async def test_footer_cursor_position_updates_on_move(
         editor.editor.cursor_location = (0, 5)
         await pilot.pause()
 
-        cursor_label = editor.footer.cursor_view
-        assert "Ln 1, Col 6" in str(cursor_label.content)
+        cursor_btn = editor.footer.cursor_button
+        assert "Ln 1, Col 6" in str(cursor_btn.label)
 
 
 async def test_footer_shows_ln1_col1_on_file_open(
@@ -375,7 +375,7 @@ async def test_footer_shows_ln1_col1_on_file_open(
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
-        assert "Ln 1, Col 1" in str(editor.footer.cursor_view.content)
+        assert "Ln 1, Col 1" in str(editor.footer.cursor_button.label)
 
 
 async def test_footer_cursor_second_line(workspace: Path, multiline_file: Path):
@@ -389,7 +389,7 @@ async def test_footer_cursor_second_line(workspace: Path, multiline_file: Path):
         editor.editor.cursor_location = (1, 0)
         await pilot.pause()
 
-        assert "Ln 2, Col 1" in str(editor.footer.cursor_view.content)
+        assert "Ln 2, Col 1" in str(editor.footer.cursor_button.label)
 
 
 async def test_footer_cursor_end_of_line(workspace: Path, sample_py_file: Path):
@@ -404,7 +404,7 @@ async def test_footer_cursor_end_of_line(workspace: Path, sample_py_file: Path):
         editor.editor.cursor_location = (0, 14)
         await pilot.pause()
 
-        assert "Col 15" in str(editor.footer.cursor_view.content)
+        assert "Col 15" in str(editor.footer.cursor_button.label)
 
 
 async def test_footer_cursor_updates_after_goto_line(
@@ -426,8 +426,8 @@ async def test_footer_cursor_updates_after_goto_line(
         await pilot.click("#goto")
         await pilot.pause()
 
-        assert "Ln 7" in str(editor.footer.cursor_view.content)
-        assert "Col 1" in str(editor.footer.cursor_view.content)
+        assert "Ln 7" in str(editor.footer.cursor_button.label)
+        assert "Col 1" in str(editor.footer.cursor_button.label)
 
 
 async def test_footer_path_updates_on_tab_switch(

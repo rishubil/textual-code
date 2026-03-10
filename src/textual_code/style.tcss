@@ -18,9 +18,12 @@ CodeEditorFooter #path {
     background: $surface;
 }
 
-CodeEditorFooter #cursor {
-    background: $surface;
+CodeEditorFooter #cursor_btn {
+    text-align: center;
+    min-width: 0;
+    height: 1;
     padding: 0 1;
+    border: none;
 }
 
 CodeEditorFooter #line_ending_btn {
