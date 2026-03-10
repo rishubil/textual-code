@@ -166,7 +166,7 @@ uv run textual run --dev textual_code:main
     - [ ] default indentation size and style
     - [ ] default line ending
     - [ ] default encoding
-- [ ] Etc
+- [x] Etc
   - [x] Support EditorConfig
 - [x] Release
   - [x] Package the project
