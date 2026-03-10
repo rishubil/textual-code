@@ -16,6 +16,8 @@ from textual_code.modals import (
     ChangeIndentModalScreen,
     ChangeLanguageModalResult,
     ChangeLanguageModalScreen,
+    ChangeLineEndingModalResult,
+    ChangeLineEndingModalScreen,
     DeleteFileModalResult,
     DeleteFileModalScreen,
     FindModalResult,
@@ -90,6 +92,29 @@ def _convert_indentation(text: str, to_type: str, to_size: int) -> str:
     return "\n".join(result)
 
 
+def _detect_line_ending(raw_text: str) -> str:
+    """원본 파일 텍스트(open(newline="")로 읽음)에서 줄 끝 형식 감지."""
+    if "\r\n" in raw_text:
+        return "crlf"
+    if "\r" in raw_text:
+        return "cr"
+    return "lf"
+
+
+def _convert_line_ending(text: str, line_ending: str) -> str:
+    """TextArea.text(\n만 포함)를 지정 줄 끝 형식으로 변환 (저장 시 사용)."""
+    if line_ending == "crlf":
+        return text.replace("\n", "\r\n")
+    if line_ending == "cr":
+        return text.replace("\n", "\r")
+    return text
+
+
+_LINE_ENDING_WARNING = (
+    "{ending} line endings: copied/pasted text will use LF internally."
+)
+
+
 class CodeEditorFooter(Static):
     """
     Footer for the CodeEditor widget.
@@ -103,11 +128,14 @@ class CodeEditorFooter(Static):
     language: reactive[str | None] = reactive(None, init=False)
     # the cursor location (row, col) — zero-based internally, displayed 1-based
     cursor_location: reactive[tuple[int, int]] = reactive((0, 0), init=False)
+    # the line ending style
+    line_ending: reactive[str] = reactive("lf", init=False)
 
     def __init__(
         self,
         path: Path | None,
         language: str | None,
+        line_ending: str = "lf",
         *args,
         **kwargs,
     ) -> None:
@@ -115,6 +143,7 @@ class CodeEditorFooter(Static):
 
         self.set_reactive(CodeEditor.path, path)
         self.set_reactive(CodeEditor.language, language)
+        self.set_reactive(CodeEditor.line_ending, line_ending)
 
     def compose(self) -> ComposeResult:
         yield Label(
@@ -124,6 +153,11 @@ class CodeEditorFooter(Static):
         yield Label(
             "Ln 1, Col 1",
             id="cursor",
+        )
+        yield Button(
+            self.line_ending.upper(),
+            variant="default",
+            id="line_ending_btn",
         )
         yield Button(
             self.language or "plain",
@@ -143,6 +177,9 @@ class CodeEditorFooter(Static):
         row, col = location
         self.cursor_view.update(f"Ln {row + 1}, Col {col + 1}")
 
+    def watch_line_ending(self, line_ending: str) -> None:
+        self.line_ending_button.label = line_ending.upper()
+
     @property
     def path_view(self) -> Label:
         return self.query_one("#path", Label)
@@ -150,6 +187,10 @@ class CodeEditorFooter(Static):
     @property
     def cursor_view(self) -> Label:
         return self.query_one("#cursor", Label)
+
+    @property
+    def line_ending_button(self) -> Button:
+        return self.query_one("#line_ending_btn", Button)
 
     @property
     def language_button(self) -> Button:
@@ -180,6 +221,8 @@ class CodeEditor(Static):
     title: reactive[str] = reactive("...", init=False)
     # the language of the file
     language: reactive[str | None] = reactive(None, init=False)
+    # the line ending style of the file
+    line_ending: reactive[str] = reactive("lf", init=False)
 
     # mapping of file extensions to language names
     LANGUAGE_EXTENSIONS = {
@@ -278,11 +321,15 @@ class CodeEditor(Static):
         # if a path is provided, load the file content
         if path is not None:
             try:
-                with path.open() as f:
-                    text = f.read()
+                with path.open(newline="") as f:
+                    raw_text = f.read()
             except Exception as e:
-                text = ""
+                raw_text = ""
                 self.notify(f"Error reading file: {e}", severity="error")
+            detected = _detect_line_ending(raw_text)
+            self.set_reactive(CodeEditor.line_ending, detected)
+            # normalize to \n for the editor
+            text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
             self.set_reactive(CodeEditor.initial_text, text)
             self.set_reactive(CodeEditor.text, text)
 
@@ -294,6 +341,7 @@ class CodeEditor(Static):
         yield CodeEditorFooter(
             path=self.path,
             language=self.language,
+            line_ending=self.line_ending,
         )
 
     @on(Mount)
@@ -302,6 +350,8 @@ class CodeEditor(Static):
         self.update_title()
         # update the language of the editor
         self.load_language_from_path(self.path)
+        # warn if the file has non-LF line endings
+        self._notify_non_lf_if_needed()
 
     def update_title(self) -> None:
         """
@@ -374,6 +424,17 @@ class CodeEditor(Static):
         # update the language in the footer
         self.footer.language = language
 
+    def watch_line_ending(self, line_ending: str) -> None:
+        # update the line ending in the footer
+        self.footer.line_ending = line_ending
+
+    def _notify_non_lf_if_needed(self) -> None:
+        if self.line_ending != "lf":
+            self.notify(
+                _LINE_ENDING_WARNING.format(ending=self.line_ending.upper()),
+                severity="warning",
+            )
+
     def action_save(self) -> None:
         """
         Save the current text to the file.
@@ -382,8 +443,8 @@ class CodeEditor(Static):
             self.action_save_as()
         else:
             try:
-                with self.path.open("w") as f:
-                    f.write(self.text)
+                with self.path.open("w", newline="") as f:
+                    f.write(_convert_line_ending(self.text, self.line_ending))
                 self.initial_text = self.text
                 self.notify("File saved", severity="information")
                 self.post_message(
@@ -421,8 +482,8 @@ class CodeEditor(Static):
                 return
 
             try:
-                with open(new_path, "w") as f:
-                    f.write(self.text)
+                with open(new_path, "w", newline="") as f:
+                    f.write(_convert_line_ending(self.text, self.line_ending))
 
                 self.initial_text = self.text
                 self.path = new_path
@@ -735,6 +796,27 @@ class CodeEditor(Static):
             self.editor.indent_width = result.indent_size
 
         self.app.push_screen(ChangeIndentModalScreen(), do_change)
+
+    def action_change_line_ending(self) -> None:
+        """
+        Open the Change Line Ending modal and update the line ending style.
+        """
+
+        def do_change(result: ChangeLineEndingModalResult | None) -> None:
+            if result is None or result.is_cancelled:
+                return
+            self.line_ending = result.line_ending
+            self._notify_non_lf_if_needed()
+
+        self.app.push_screen(
+            ChangeLineEndingModalScreen(current_line_ending=self.line_ending),
+            do_change,
+        )
+
+    @on(Button.Pressed, "#line_ending_btn")
+    def on_line_ending_button_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_change_line_ending()
 
     @on(Button.Pressed, "#language")
     def on_language_button_pressed(self, event: Button.Pressed) -> None:

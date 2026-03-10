@@ -420,3 +420,51 @@ class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
                 is_cancelled=True, indent_type=None, indent_size=None
             )
         )
+
+
+@dataclass
+class ChangeLineEndingModalResult:
+    """
+    The result of the Change Line Ending modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The selected line ending: "lf", "crlf", or "cr", or None if cancelled.
+    line_ending: str | None
+
+
+class ChangeLineEndingModalScreen(ModalScreen[ChangeLineEndingModalResult]):
+    """
+    Modal dialog for changing the line ending style.
+    """
+
+    def __init__(self, current_line_ending: str = "lf") -> None:
+        super().__init__()
+        self._current_line_ending = current_line_ending
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Change Line Ending", id="title"),
+            Select(
+                options=[
+                    ("LF (Unix/macOS)", "lf"),
+                    ("CRLF (Windows)", "crlf"),
+                    ("CR (Classic Mac)", "cr"),
+                ],
+                value=self._current_line_ending,
+                id="line_ending",
+            ),
+            Button("Apply", variant="primary", id="apply"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#apply")
+    def on_apply(self) -> None:
+        value = str(self.query_one(Select).value)
+        self.dismiss(ChangeLineEndingModalResult(is_cancelled=False, line_ending=value))
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(ChangeLineEndingModalResult(is_cancelled=True, line_ending=None))

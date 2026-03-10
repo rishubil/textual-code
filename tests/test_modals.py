@@ -11,6 +11,7 @@ from textual.widgets import Label
 from textual_code.modals import (
     ChangeIndentModalResult,
     ChangeLanguageModalResult,
+    ChangeLineEndingModalResult,
     DeleteFileModalResult,
     DeleteFileModalScreen,
     GotoLineModalResult,
@@ -735,3 +736,91 @@ async def test_change_indent_modal_cancel_returns_cancelled():
     assert app.result.is_cancelled is True
     assert app.result.indent_type is None
     assert app.result.indent_size is None
+
+
+# ── ChangeLineEndingModalScreen ───────────────────────────────────────────────
+
+
+class _ChangeLineEndingApp(App):
+    def __init__(self, current_line_ending: str = "lf"):
+        super().__init__()
+        self._current_line_ending = current_line_ending
+        self.result: ChangeLineEndingModalResult | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        from textual_code.modals import ChangeLineEndingModalScreen
+
+        self.push_screen(
+            ChangeLineEndingModalScreen(current_line_ending=self._current_line_ending),
+            self._on_result,
+        )
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_change_line_ending_modal_has_select():
+    """ChangeLineEndingModalScreen에 #line_ending Select가 존재한다."""
+    from textual.widgets import Select
+
+    app = _ChangeLineEndingApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        select = app.screen.query_one("#line_ending", Select)
+        assert select is not None
+
+
+async def test_change_line_ending_modal_apply_returns_lf():
+    """Apply 클릭 (lf) → line_ending='lf', is_cancelled=False."""
+    from textual.widgets import Select
+
+    app = _ChangeLineEndingApp(current_line_ending="lf")
+    async with app.run_test() as pilot:
+        app.screen.query_one("#line_ending", Select).value = "lf"
+        await pilot.click("#apply")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.line_ending == "lf"
+
+
+async def test_change_line_ending_modal_apply_returns_crlf():
+    """Apply 클릭 (crlf) → line_ending='crlf', is_cancelled=False."""
+    from textual.widgets import Select
+
+    app = _ChangeLineEndingApp(current_line_ending="lf")
+    async with app.run_test() as pilot:
+        app.screen.query_one("#line_ending", Select).value = "crlf"
+        await pilot.click("#apply")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.line_ending == "crlf"
+
+
+async def test_change_line_ending_modal_cancel_returns_cancelled():
+    """Cancel 클릭 → is_cancelled=True, line_ending=None."""
+    app = _ChangeLineEndingApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.line_ending is None
+
+
+async def test_change_line_ending_modal_initial_value_is_current():
+    """current_line_ending='crlf' → Select 초기값 'crlf'."""
+    from textual.widgets import Select
+
+    app = _ChangeLineEndingApp(current_line_ending="crlf")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        select = app.screen.query_one("#line_ending", Select)
+        assert select.value == "crlf"

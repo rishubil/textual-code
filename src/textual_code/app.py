@@ -464,6 +464,11 @@ class TextualCode(App):
             "Change indentation style and size",
             self.action_change_indent_cmd,
         )
+        yield SystemCommand(
+            "Change Line Ending",
+            "Change the line ending style (LF, CRLF, CR)",
+            self.action_change_line_ending_cmd,
+        )
 
     def action_goto_line_cmd(self) -> None:
         """
@@ -512,6 +517,16 @@ class TextualCode(App):
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
             self.call_next(code_editor.action_change_indent)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_change_line_ending_cmd(self) -> None:
+        """
+        Open the Change Line Ending modal via command palette.
+        """
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.action_change_line_ending)
         else:
             self.notify("No file open.", severity="error")
 
