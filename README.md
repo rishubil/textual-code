@@ -116,7 +116,7 @@ uv run textual run --dev textual_code:main
     - [x] Change the language
     - [ ] Add more languages
   - [x] Change Indentation size and style
-    - [ ] show in the footer bar (clickable to change)
+    - [x] show in the footer bar (clickable to change)
   - [x] Change line ending
   - [x] Change encoding
   - [x] Show line and column numbers

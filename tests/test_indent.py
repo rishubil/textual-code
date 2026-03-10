@@ -195,6 +195,87 @@ async def test_change_indent_updates_textarea_settings():
     assert indent_width == 2
 
 
+# ── Footer button display tests ───────────────────────────────────────────────
+
+
+async def test_footer_shows_default_indent():
+    """Default indent → #indent_btn label == '4 Spaces'."""
+    from textual.widgets import Button
+
+    app = _IndentTestApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        btn = app.query_one("#indent_btn", Button)
+        label = str(btn.label)
+    assert label == "4 Spaces"
+
+
+async def test_footer_shows_tabs_after_change():
+    """After applying Tabs → #indent_btn label == 'Tabs'."""
+    from textual.widgets import Button, Select
+
+    app = _IndentTestApp(text="    hello\n    world")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_indent()
+        await pilot.pause()
+        app.screen.query_one("#indent_type", Select).value = "tabs"
+        app.screen.query_one("#indent_size", Select).value = 4
+        await pilot.click("#apply")
+        await pilot.pause()
+        btn = app.screen_stack[0].query_one("#indent_btn", Button)
+        label = str(btn.label)
+    assert label == "Tabs"
+
+
+async def test_footer_shows_2_spaces_after_change():
+    """After applying 2 Spaces → #indent_btn label == '2 Spaces'."""
+    from textual.widgets import Button, Select
+
+    app = _IndentTestApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_indent()
+        await pilot.pause()
+        app.screen.query_one("#indent_type", Select).value = "spaces"
+        app.screen.query_one("#indent_size", Select).value = 2
+        await pilot.click("#apply")
+        await pilot.pause()
+        btn = app.screen_stack[0].query_one("#indent_btn", Button)
+        label = str(btn.label)
+    assert label == "2 Spaces"
+
+
+async def test_indent_button_opens_modal():
+    """Clicking #indent_btn → ChangeIndentModalScreen becomes active."""
+    from textual_code.modals import ChangeIndentModalScreen
+
+    app = _IndentTestApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.click("#indent_btn")
+        await pilot.pause()
+        assert isinstance(app.screen, ChangeIndentModalScreen)
+
+
+async def test_change_indent_updates_editor_reactives():
+    """After applying indent change, editor indent_type and indent_size are updated."""
+    from textual.widgets import Select
+
+    app = _IndentTestApp(text="\thello")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_indent()
+        await pilot.pause()
+        app.screen.query_one("#indent_type", Select).value = "spaces"
+        app.screen.query_one("#indent_size", Select).value = 2
+        await pilot.click("#apply")
+        await pilot.pause()
+        ce = app.screen_stack[0].query_one(CodeEditor)
+    assert ce.indent_type == "spaces"
+    assert ce.indent_size == 2
+
+
 async def test_change_indent_cmd_no_editor_notifies(workspace: Path):
     """No open file when command palette action triggered → error notification."""
     from tests.conftest import make_app

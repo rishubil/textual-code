@@ -115,6 +115,13 @@ def _convert_line_ending(text: str, line_ending: str) -> str:
     return text
 
 
+def _indent_display(indent_type: str, indent_size: int) -> str:
+    """Return footer display label for indentation settings."""
+    if indent_type == "tabs":
+        return "Tabs"
+    return f"{indent_size} Spaces"
+
+
 _ENCODING_DISPLAY: dict[str, str] = {
     "utf-8": "UTF-8",
     "utf-8-sig": "UTF-8 BOM",
@@ -158,6 +165,10 @@ class CodeEditorFooter(Static):
     line_ending: reactive[str] = reactive("lf", init=False)
     # the file encoding
     encoding: reactive[str] = reactive("utf-8", init=False)
+    # the indentation type ("spaces" or "tabs")
+    indent_type: reactive[str] = reactive("spaces", init=False)
+    # the indentation size (2, 4, or 8)
+    indent_size: reactive[int] = reactive(4, init=False)
 
     def __init__(
         self,
@@ -165,6 +176,8 @@ class CodeEditorFooter(Static):
         language: str | None,
         line_ending: str = "lf",
         encoding: str = "utf-8",
+        indent_type: str = "spaces",
+        indent_size: int = 4,
         *args,
         **kwargs,
     ) -> None:
@@ -174,6 +187,8 @@ class CodeEditorFooter(Static):
         self.set_reactive(CodeEditor.language, language)
         self.set_reactive(CodeEditor.line_ending, line_ending)
         self.set_reactive(CodeEditor.encoding, encoding)
+        self.set_reactive(CodeEditor.indent_type, indent_type)
+        self.set_reactive(CodeEditor.indent_size, indent_size)
 
     def compose(self) -> ComposeResult:
         yield Label(
@@ -193,6 +208,11 @@ class CodeEditorFooter(Static):
             _ENCODING_DISPLAY.get(self.encoding, self.encoding),
             variant="default",
             id="encoding_btn",
+        )
+        yield Button(
+            _indent_display(self.indent_type, self.indent_size),
+            variant="default",
+            id="indent_btn",
         )
         yield Button(
             self.language or "plain",
@@ -218,6 +238,12 @@ class CodeEditorFooter(Static):
     def watch_encoding(self, encoding: str) -> None:
         self.encoding_button.label = _ENCODING_DISPLAY.get(encoding, encoding)
 
+    def watch_indent_type(self, indent_type: str) -> None:
+        self.indent_button.label = _indent_display(indent_type, self.indent_size)
+
+    def watch_indent_size(self, indent_size: int) -> None:
+        self.indent_button.label = _indent_display(self.indent_type, indent_size)
+
     @property
     def path_view(self) -> Label:
         return self.query_one("#path", Label)
@@ -233,6 +259,10 @@ class CodeEditorFooter(Static):
     @property
     def encoding_button(self) -> Button:
         return self.query_one("#encoding_btn", Button)
+
+    @property
+    def indent_button(self) -> Button:
+        return self.query_one("#indent_btn", Button)
 
     @property
     def language_button(self) -> Button:
@@ -267,6 +297,10 @@ class CodeEditor(Static):
     line_ending: reactive[str] = reactive("lf", init=False)
     # the file encoding
     encoding: reactive[str] = reactive("utf-8", init=False)
+    # the indentation type ("spaces" or "tabs")
+    indent_type: reactive[str] = reactive("spaces", init=False)
+    # the indentation size (2, 4, or 8)
+    indent_size: reactive[int] = reactive(4, init=False)
 
     # mapping of file extensions to language names
     LANGUAGE_EXTENSIONS = {
@@ -395,6 +429,8 @@ class CodeEditor(Static):
             language=self.language,
             line_ending=self.line_ending,
             encoding=self.encoding,
+            indent_type=self.indent_type,
+            indent_size=self.indent_size,
         )
 
     @on(Mount)
@@ -484,6 +520,12 @@ class CodeEditor(Static):
     def watch_encoding(self, encoding: str) -> None:
         # update the encoding in the footer
         self.footer.encoding = encoding
+
+    def watch_indent_type(self, indent_type: str) -> None:
+        self.footer.indent_type = indent_type
+
+    def watch_indent_size(self, indent_size: int) -> None:
+        self.footer.indent_size = indent_size
 
     def _notify_non_lf_if_needed(self) -> None:
         if self.line_ending != "lf":
@@ -850,6 +892,8 @@ class CodeEditor(Static):
             self.replace_editor_text(new_text)
             self.editor.indent_type = result.indent_type
             self.editor.indent_width = result.indent_size
+            self.indent_type = result.indent_type
+            self.indent_size = result.indent_size
 
         self.app.push_screen(ChangeIndentModalScreen(), do_change)
 
@@ -893,6 +937,11 @@ class CodeEditor(Static):
     def on_encoding_button_pressed(self, event: Button.Pressed) -> None:
         event.stop()
         self.action_change_encoding()
+
+    @on(Button.Pressed, "#indent_btn")
+    def on_indent_button_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_change_indent()
 
     @on(Button.Pressed, "#language")
     def on_language_button_pressed(self, event: Button.Pressed) -> None:
