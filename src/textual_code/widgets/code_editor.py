@@ -19,6 +19,8 @@ from textual_code.modals import (
     FindModalScreen,
     GotoLineModalResult,
     GotoLineModalScreen,
+    ReplaceModalResult,
+    ReplaceModalScreen,
     SaveAsModalResult,
     SaveAsModalScreen,
     UnsavedChangeModalResult,
@@ -36,6 +38,17 @@ def _text_offset_to_location(text: str, offset: int) -> tuple[int, int]:
         else:
             col += 1
     return (row, col)
+
+
+def _find_next(text: str, query: str, cursor_offset: int) -> int:
+    """Return character offset of next match from cursor_offset, wrapping around.
+
+    Returns -1 if not found.
+    """
+    idx = text.find(query, cursor_offset)
+    if idx == -1:
+        idx = text.find(query, 0)
+    return idx
 
 
 class CodeEditorFooter(Static):
@@ -528,23 +541,82 @@ class CodeEditor(Static):
                 sum(len(lines[i]) + 1 for i in range(cursor_row)) + cursor_col
             )
 
-            # Search from cursor onwards, then wrap around
-            idx = text.find(query, cursor_offset)
-            if idx == -1:
-                idx = text.find(query, 0)
+            idx = _find_next(text, query, cursor_offset)
 
             if idx == -1:
                 self.notify(f"'{query}' not found", severity="warning")
                 return
 
-            start_loc = _text_offset_to_location(text, idx)
-            end_loc = _text_offset_to_location(text, idx + len(query))
+            from textual.widgets.text_area import Selection
+
+            self.editor.selection = Selection(
+                start=_text_offset_to_location(text, idx),
+                end=_text_offset_to_location(text, idx + len(query)),
+            )
+
+        self.app.push_screen(FindModalScreen(), do_find)
+
+    def action_replace(self) -> None:
+        """
+        Open the Replace modal and replace occurrences in the current file.
+        """
+
+        def do_replace(result: ReplaceModalResult | None) -> None:
+            if result is None or result.is_cancelled or not result.find_query:
+                return
 
             from textual.widgets.text_area import Selection
 
-            self.editor.selection = Selection(start=start_loc, end=end_loc)
+            find_query = result.find_query
+            replace_text = result.replace_text or ""
 
-        self.app.push_screen(FindModalScreen(), do_find)
+            if result.action == "replace_all":
+                count = self.text.count(find_query)
+                if count == 0:
+                    self.notify(f"'{find_query}' not found", severity="warning")
+                    return
+                new_text = self.text.replace(find_query, replace_text)
+                self.replace_editor_text(new_text)
+                self.notify(f"Replaced {count} occurrence(s)", severity="information")
+                return
+
+            # Replace (single): if current selection matches, replace then find next
+            sel = self.editor.selection
+            text = self.text
+            lines = text.split("\n")
+            start_offset = (
+                sum(len(lines[i]) + 1 for i in range(sel.start[0])) + sel.start[1]
+            )
+            end_offset = sum(len(lines[i]) + 1 for i in range(sel.end[0])) + sel.end[1]
+            selected_text = text[start_offset:end_offset]
+
+            if selected_text == find_query:
+                new_text = text[:start_offset] + replace_text + text[end_offset:]
+                search_from = start_offset + len(replace_text)
+                idx = _find_next(new_text, find_query, search_from)
+                self.replace_editor_text(new_text)
+                if idx != -1:
+                    self.editor.selection = Selection(
+                        start=_text_offset_to_location(new_text, idx),
+                        end=_text_offset_to_location(new_text, idx + len(find_query)),
+                    )
+            else:
+                # Selection doesn't match — just find next occurrence
+                cursor_row, cursor_col = self.editor.cursor_location
+                lines = text.split("\n")
+                cursor_offset = (
+                    sum(len(lines[i]) + 1 for i in range(cursor_row)) + cursor_col
+                )
+                idx = _find_next(text, find_query, cursor_offset)
+                if idx == -1:
+                    self.notify(f"'{find_query}' not found", severity="warning")
+                    return
+                self.editor.selection = Selection(
+                    start=_text_offset_to_location(text, idx),
+                    end=_text_offset_to_location(text, idx + len(find_query)),
+                )
+
+        self.app.push_screen(ReplaceModalScreen(), do_replace)
 
     def action_change_language(self) -> None:
         """

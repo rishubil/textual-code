@@ -240,6 +240,69 @@ class FindModalScreen(ModalScreen[FindModalResult]):
 
 
 @dataclass
+class ReplaceModalResult:
+    """
+    The result of the Replace modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The action to perform: "replace" or "replace_all", or None if cancelled.
+    action: str | None
+    # The search query, or None if cancelled.
+    find_query: str | None
+    # The replacement text, or None if cancelled.
+    replace_text: str | None
+
+
+class ReplaceModalScreen(ModalScreen[ReplaceModalResult]):
+    """
+    Modal dialog for finding and replacing text in the current file.
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Replace", id="title"),
+            Input(placeholder="Find...", id="find_query"),
+            Input(placeholder="Replace with...", id="replace_text"),
+            Button("Replace", variant="primary", id="replace"),
+            Button("Replace All", variant="primary", id="replace_all"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#replace")
+    def on_replace(self) -> None:
+        self.dismiss(
+            ReplaceModalResult(
+                is_cancelled=False,
+                action="replace",
+                find_query=self.query_one("#find_query", Input).value,
+                replace_text=self.query_one("#replace_text", Input).value,
+            )
+        )
+
+    @on(Button.Pressed, "#replace_all")
+    def on_replace_all(self) -> None:
+        self.dismiss(
+            ReplaceModalResult(
+                is_cancelled=False,
+                action="replace_all",
+                find_query=self.query_one("#find_query", Input).value,
+                replace_text=self.query_one("#replace_text", Input).value,
+            )
+        )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(
+            ReplaceModalResult(
+                is_cancelled=True, action=None, find_query=None, replace_text=None
+            )
+        )
+
+
+@dataclass
 class ChangeLanguageModalResult:
     """
     The result of the Change Language modal dialog.

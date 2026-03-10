@@ -436,3 +436,84 @@ async def test_find_modal_empty_query_allowed():
     assert app.result is not None
     assert app.result.is_cancelled is False
     assert app.result.query == ""
+
+
+# ── ReplaceModalScreen ────────────────────────────────────────────────────────
+
+
+class _ReplaceApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        from textual_code.modals import ReplaceModalScreen
+
+        self.push_screen(ReplaceModalScreen(), self._on_result)
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_replace_modal_replace_button_returns_action_replace():
+    app = _ReplaceApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#find_query")
+        await pilot.press("f", "o", "o")
+        await pilot.click("#replace_text")
+        await pilot.press("b", "a", "r")
+        await pilot.click("#replace")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.action == "replace"
+    assert app.result.find_query == "foo"
+    assert app.result.replace_text == "bar"
+
+
+async def test_replace_modal_replace_all_button_returns_action_replace_all():
+    app = _ReplaceApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#find_query")
+        await pilot.press("h", "e", "l", "l", "o")
+        await pilot.click("#replace_text")
+        await pilot.press("h", "i")
+        await pilot.click("#replace_all")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.action == "replace_all"
+    assert app.result.find_query == "hello"
+    assert app.result.replace_text == "hi"
+
+
+async def test_replace_modal_cancel_returns_cancelled():
+    app = _ReplaceApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.action is None
+    assert app.result.find_query is None
+    assert app.result.replace_text is None
+
+
+async def test_replace_modal_empty_replace_text_returns_empty_string():
+    """replace_text is "" (not None) when the replacement field is left blank."""
+    app = _ReplaceApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#find_query")
+        await pilot.press("f", "o", "o")
+        # leave replace_text empty
+        await pilot.click("#replace")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.replace_text == ""
