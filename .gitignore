@@ -20,3 +20,7 @@ CLAUDE.local.md
 
 # Test artifacts
 snapshot_report.html
+
+# Environment
+.env
+.env.local
