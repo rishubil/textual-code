@@ -11,6 +11,8 @@ from textual.reactive import reactive
 from textual.widgets import Button, Label, Static, TextArea
 
 from textual_code.modals import (
+    ChangeLanguageModalResult,
+    ChangeLanguageModalScreen,
     DeleteFileModalResult,
     DeleteFileModalScreen,
     GotoLineModalResult,
@@ -489,6 +491,30 @@ class CodeEditor(Static):
             self.editor.cursor_location = (row, col)
 
         self.app.push_screen(GotoLineModalScreen(), do_goto)
+
+    def action_change_language(self) -> None:
+        """
+        Open the Change Language modal and update the syntax highlighting language.
+        """
+        languages = sorted(set(self.LANGUAGE_EXTENSIONS.values()))
+
+        def do_change(result: ChangeLanguageModalResult | None) -> None:
+            if result is None or result.is_cancelled:
+                return
+            self.language = result.language
+
+        self.app.push_screen(
+            ChangeLanguageModalScreen(
+                languages=languages,
+                current_language=self.language,
+            ),
+            do_change,
+        )
+
+    @on(Button.Pressed, "#language")
+    def on_language_button_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_change_language()
 
     def action_focus(self) -> None:
         """

@@ -409,6 +409,11 @@ class TextualCode(App):
             "Go to a specific line and column",
             self.action_goto_line_cmd,
         )
+        yield SystemCommand(
+            "Change language",
+            "Change the syntax highlighting language",
+            self.action_change_language_cmd,
+        )
 
     def action_goto_line_cmd(self) -> None:
         """
@@ -417,6 +422,16 @@ class TextualCode(App):
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
             self.call_next(code_editor.action_goto_line)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_change_language_cmd(self) -> None:
+        """
+        Open the Change Language modal via command palette.
+        """
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.action_change_language)
         else:
             self.notify("No file open.", severity="error")
 

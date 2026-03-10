@@ -9,6 +9,7 @@ from textual.widgets import (
     Button,
     Input,
     Label,
+    Select,
 )
 
 
@@ -198,3 +199,47 @@ class GotoLineModalScreen(ModalScreen[GotoLineModalResult]):
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
         self.dismiss(GotoLineModalResult(is_cancelled=True, value=None))
+
+
+@dataclass
+class ChangeLanguageModalResult:
+    """
+    The result of the Change Language modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The selected language, or None for plain (no syntax highlighting).
+    language: str | None
+
+
+class ChangeLanguageModalScreen(ModalScreen[ChangeLanguageModalResult]):
+    """
+    Modal dialog for changing the syntax highlighting language.
+    """
+
+    def __init__(self, languages: list[str], current_language: str | None) -> None:
+        super().__init__()
+        self._languages = languages
+        self._current_language = current_language
+
+    def compose(self) -> ComposeResult:
+        options = [("plain", "plain")] + [(lang, lang) for lang in self._languages]
+        initial = self._current_language if self._current_language else "plain"
+        yield Grid(
+            Label("Change Language", id="title"),
+            Select(options=options, value=initial, id="language"),
+            Button("Apply", variant="primary", id="apply"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#apply")
+    def on_apply(self) -> None:
+        value = self.query_one(Select).value
+        language = None if value == "plain" or value is Select.BLANK else str(value)
+        self.dismiss(ChangeLanguageModalResult(is_cancelled=False, language=language))
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(ChangeLanguageModalResult(is_cancelled=True, language=None))

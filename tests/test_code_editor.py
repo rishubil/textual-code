@@ -454,3 +454,115 @@ async def test_goto_line_invalid_input_no_move(workspace: Path, multiline_file: 
         await pilot.pause()
 
         assert editor.editor.cursor_location == original_location
+
+
+# ── Change Language ────────────────────────────────────────────────────────────
+
+
+async def test_language_button_opens_change_language_modal(
+    workspace: Path, sample_py_file: Path
+):
+    from textual_code.modals import ChangeLanguageModalScreen
+
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        await pilot.click("#language")
+        await pilot.pause()
+        assert isinstance(app.screen, ChangeLanguageModalScreen)
+
+
+async def test_change_language_action_opens_modal(
+    workspace: Path, sample_py_file: Path
+):
+    from textual_code.modals import ChangeLanguageModalScreen
+
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.action_change_language()
+        await pilot.pause()
+        assert isinstance(app.screen, ChangeLanguageModalScreen)
+
+
+async def test_change_language_updates_editor_language(
+    workspace: Path, sample_py_file: Path
+):
+    from textual.widgets import Select
+
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.language == "python"
+
+        editor.action_change_language()
+        await pilot.pause()
+
+        app.screen.query_one(Select).value = "javascript"
+        await pilot.click("#apply")
+        await pilot.pause()
+
+        assert editor.language == "javascript"
+
+
+async def test_change_language_to_plain(workspace: Path, sample_py_file: Path):
+    from textual.widgets import Select
+
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.language == "python"
+
+        editor.action_change_language()
+        await pilot.pause()
+
+        app.screen.query_one(Select).value = "plain"
+        await pilot.click("#apply")
+        await pilot.pause()
+
+        assert editor.language is None
+
+
+async def test_change_language_cancel_keeps_language(
+    workspace: Path, sample_py_file: Path
+):
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.language == "python"
+
+        editor.action_change_language()
+        await pilot.pause()
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+        assert editor.language == "python"
+
+
+async def test_change_language_updates_footer(workspace: Path, sample_py_file: Path):
+    from textual.widgets import Select
+
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.action_change_language()
+        await pilot.pause()
+
+        app.screen.query_one(Select).value = "rust"
+        await pilot.click("#apply")
+        await pilot.pause()
+
+        assert "rust" in str(editor.footer.language_button.label)
