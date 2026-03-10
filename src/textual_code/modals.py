@@ -362,3 +362,61 @@ class ChangeLanguageModalScreen(ModalScreen[ChangeLanguageModalResult]):
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
         self.dismiss(ChangeLanguageModalResult(is_cancelled=True, language=None))
+
+
+@dataclass
+class ChangeIndentModalResult:
+    """
+    The result of the Change Indentation modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The indentation type: "spaces" or "tabs", or None if cancelled.
+    indent_type: str | None
+    # The indentation size: 2, 4, or 8, or None if cancelled.
+    indent_size: int | None
+
+
+class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
+    """
+    Modal dialog for changing indentation style and size.
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Change Indentation", id="title"),
+            Select(
+                options=[("Spaces", "spaces"), ("Tabs", "tabs")],
+                value="spaces",
+                id="indent_type",
+            ),
+            Select(
+                options=[("2", 2), ("4", 4), ("8", 8)],
+                value=4,
+                id="indent_size",
+            ),
+            Button("Apply", variant="primary", id="apply"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#apply")
+    def on_apply(self) -> None:
+        indent_type = str(self.query_one("#indent_type", Select).value)
+        indent_size = int(self.query_one("#indent_size", Select).value)
+        self.dismiss(
+            ChangeIndentModalResult(
+                is_cancelled=False,
+                indent_type=indent_type,
+                indent_size=indent_size,
+            )
+        )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(
+            ChangeIndentModalResult(
+                is_cancelled=True, indent_type=None, indent_size=None
+            )
+        )

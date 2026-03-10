@@ -12,6 +12,8 @@ from textual.reactive import reactive
 from textual.widgets import Button, Label, Static, TextArea
 
 from textual_code.modals import (
+    ChangeIndentModalResult,
+    ChangeIndentModalScreen,
     ChangeLanguageModalResult,
     ChangeLanguageModalScreen,
     DeleteFileModalResult,
@@ -64,6 +66,28 @@ def _find_next(
         if idx != -1:
             return idx, idx + len(query)
         return -1, -1
+
+
+def _convert_indentation(text: str, to_type: str, to_size: int) -> str:
+    """Convert the leading indentation of each line to the target type and size.
+
+    Each existing tab is treated as *to_size* virtual spaces when computing the
+    new leading whitespace, so mixed indent files are normalized correctly.
+    """
+    lines = text.split("\n")
+    result = []
+    for line in lines:
+        stripped = line.lstrip()
+        leading = line[: len(line) - len(stripped)]
+        # Normalize to virtual spaces (each tab counts as to_size spaces)
+        spaces = leading.replace("\t", " " * to_size)
+        if to_type == "tabs":
+            n_tabs, remainder = divmod(len(spaces), to_size)
+            new_leading = "\t" * n_tabs + " " * remainder
+        else:
+            new_leading = spaces
+        result.append(new_leading + stripped)
+    return "\n".join(result)
 
 
 class CodeEditorFooter(Static):
@@ -694,6 +718,23 @@ class CodeEditor(Static):
             ),
             do_change,
         )
+
+    def action_change_indent(self) -> None:
+        """
+        Open the Change Indentation modal and convert the file's indentation.
+        """
+
+        def do_change(result: ChangeIndentModalResult | None) -> None:
+            if result is None or result.is_cancelled:
+                return
+            new_text = _convert_indentation(
+                self.text, result.indent_type, result.indent_size
+            )
+            self.replace_editor_text(new_text)
+            self.editor.indent_type = result.indent_type
+            self.editor.indent_width = result.indent_size
+
+        self.app.push_screen(ChangeIndentModalScreen(), do_change)
 
     @on(Button.Pressed, "#language")
     def on_language_button_pressed(self, event: Button.Pressed) -> None:

@@ -9,6 +9,7 @@ from textual.app import App, ComposeResult
 from textual.widgets import Label
 
 from textual_code.modals import (
+    ChangeIndentModalResult,
     ChangeLanguageModalResult,
     DeleteFileModalResult,
     DeleteFileModalScreen,
@@ -645,3 +646,92 @@ async def test_replace_modal_use_regex_true_when_checked():
 
     assert app.result is not None
     assert app.result.use_regex is True
+
+
+# ── ChangeIndentModalScreen ───────────────────────────────────────────────────
+
+
+class _ChangeIndentApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result: ChangeIndentModalResult | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        from textual_code.modals import ChangeIndentModalScreen
+
+        self.push_screen(ChangeIndentModalScreen(), self._on_result)
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_change_indent_modal_has_type_select():
+    """ChangeIndentModalScreen에 #indent_type Select가 존재한다."""
+    from textual.widgets import Select
+
+    app = _ChangeIndentApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        select = app.screen.query_one("#indent_type", Select)
+        assert select is not None
+
+
+async def test_change_indent_modal_has_size_select():
+    """ChangeIndentModalScreen에 #indent_size Select가 존재한다."""
+    from textual.widgets import Select
+
+    app = _ChangeIndentApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        select = app.screen.query_one("#indent_size", Select)
+        assert select is not None
+
+
+async def test_change_indent_modal_apply_returns_spaces_4():
+    """Apply 클릭 → indent_type='spaces', indent_size=4, is_cancelled=False."""
+    from textual.widgets import Select
+
+    app = _ChangeIndentApp()
+    async with app.run_test() as pilot:
+        app.screen.query_one("#indent_type", Select).value = "spaces"
+        app.screen.query_one("#indent_size", Select).value = 4
+        await pilot.click("#apply")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.indent_type == "spaces"
+    assert app.result.indent_size == 4
+
+
+async def test_change_indent_modal_apply_returns_tabs():
+    """Apply 클릭 (tabs) → indent_type='tabs', is_cancelled=False."""
+    from textual.widgets import Select
+
+    app = _ChangeIndentApp()
+    async with app.run_test() as pilot:
+        app.screen.query_one("#indent_type", Select).value = "tabs"
+        app.screen.query_one("#indent_size", Select).value = 2
+        await pilot.click("#apply")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.indent_type == "tabs"
+    assert app.result.indent_size == 2
+
+
+async def test_change_indent_modal_cancel_returns_cancelled():
+    """Cancel 클릭 → is_cancelled=True, indent_type/size=None."""
+    app = _ChangeIndentApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.indent_type is None
+    assert app.result.indent_size is None

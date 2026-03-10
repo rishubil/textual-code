@@ -115,7 +115,7 @@ uv run textual run --dev textual_code:main
     - [x] Detect the language from the file extension
     - [x] Change the language
     - [ ] Add more languages
-  - [ ] Change Indentation size and style
+  - [x] Change Indentation size and style
   - [ ] Change line ending
   - [ ] Change encoding
   - [x] Show line and column numbers
