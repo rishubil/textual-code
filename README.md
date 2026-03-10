@@ -116,9 +116,11 @@ uv run textual run --dev textual_code:main
     - [x] Change the language
     - [ ] Add more languages
   - [x] Change Indentation size and style
+    - [ ] show in the footer bar (clickable to change)
   - [x] Change line ending
   - [ ] Change encoding
   - [x] Show line and column numbers
+    - [ ] show in the footer bar (clickable to goto line and column)
   - [x] Goto line and column
 - [ ] Search and replace
   - [x] Plain Search
@@ -126,7 +128,7 @@ uv run textual run --dev textual_code:main
   - [x] Replace all
   - [ ] Select all occurrences
   - [x] In the current file
-  - [ ] In all files
+  - [ ] In all files (sidebar panel)
 - [ ] Markdown preview
   - [ ] Show the markdown preview
   - [ ] Live preview
@@ -135,12 +137,26 @@ uv run textual run --dev textual_code:main
   - [ ] Split the view vertically
   - [ ] Close the split view
   - [ ] Resize the split view
+    - [ ] Resize the split view by dragging the border
+    - [ ] Resize the split view from the command palette (set the size of current split view)
+      - [ ] Absolute size
+      - [ ] Relative size (+/-)
+      - [ ] Percentage size
   - [ ] Move the focus to the split view
   - [ ] Move tabs between split views
+    - [ ] Move tabs from the command palette
+    - [ ] Move tabs by dragging the tab
+      - [ ] Move tabs between split views by dragging the tab to the other split view
+      - [ ] Split the view and move the tab to the new split view by dragging the tab to the edge of the other split view
 - [ ] Sidebar
   - [x] Show the sidebar
   - [x] Hide the sidebar
   - [ ] Resize the sidebar
+    - [ ] Resize the sidebar by dragging the border
+    - [ ] Resize the sidebar from the command palette (set the width of the sidebar)
+      - [ ] Absolute size
+      - [ ] Relative size (+/-)
+      - [ ] Percentage size
 - [ ] Setting
   - [ ] Themes
     - [ ] UI
