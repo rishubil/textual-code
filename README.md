@@ -122,7 +122,7 @@ uv run textual run --dev textual_code:main
   - [x] Goto line and column
 - [ ] Search and replace
   - [x] Plain Search
-  - [ ] Regex search
+  - [x] Regex search
   - [x] Replace all
   - [ ] Select all occurrences
   - [x] In the current file

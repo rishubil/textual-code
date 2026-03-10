@@ -1,3 +1,4 @@
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -40,15 +41,29 @@ def _text_offset_to_location(text: str, offset: int) -> tuple[int, int]:
     return (row, col)
 
 
-def _find_next(text: str, query: str, cursor_offset: int) -> int:
-    """Return character offset of next match from cursor_offset, wrapping around.
+def _find_next(
+    text: str, query: str, cursor_offset: int, use_regex: bool = False
+) -> tuple[int, int]:
+    """Return (start, end) of next match from cursor_offset, wrapping around.
 
-    Returns -1 if not found.
+    Returns (-1, -1) if not found.
+    Raises re.error for invalid regex when use_regex=True.
     """
-    idx = text.find(query, cursor_offset)
-    if idx == -1:
-        idx = text.find(query, 0)
-    return idx
+    if use_regex:
+        pattern = re.compile(query)
+        match = pattern.search(text, cursor_offset)
+        if match is None:
+            match = pattern.search(text, 0)
+        if match is not None:
+            return match.start(), match.end()
+        return -1, -1
+    else:
+        idx = text.find(query, cursor_offset)
+        if idx == -1:
+            idx = text.find(query, 0)
+        if idx != -1:
+            return idx, idx + len(query)
+        return -1, -1
 
 
 class CodeEditorFooter(Static):
@@ -541,17 +556,22 @@ class CodeEditor(Static):
                 sum(len(lines[i]) + 1 for i in range(cursor_row)) + cursor_col
             )
 
-            idx = _find_next(text, query, cursor_offset)
+            use_regex = result.use_regex
+            try:
+                start_idx, end_idx = _find_next(text, query, cursor_offset, use_regex)
+            except re.error as e:
+                self.notify(f"Invalid regex: {e}", severity="error")
+                return
 
-            if idx == -1:
+            if start_idx == -1:
                 self.notify(f"'{query}' not found", severity="warning")
                 return
 
             from textual.widgets.text_area import Selection
 
             self.editor.selection = Selection(
-                start=_text_offset_to_location(text, idx),
-                end=_text_offset_to_location(text, idx + len(query)),
+                start=_text_offset_to_location(text, start_idx),
+                end=_text_offset_to_location(text, end_idx),
             )
 
         self.app.push_screen(FindModalScreen(), do_find)
@@ -571,11 +591,23 @@ class CodeEditor(Static):
             replace_text = result.replace_text or ""
 
             if result.action == "replace_all":
-                count = self.text.count(find_query)
-                if count == 0:
-                    self.notify(f"'{find_query}' not found", severity="warning")
+                use_regex = result.use_regex
+                try:
+                    if use_regex:
+                        count = len(re.findall(find_query, self.text))
+                        if count == 0:
+                            self.notify(f"'{find_query}' not found", severity="warning")
+                            return
+                        new_text = re.sub(find_query, replace_text, self.text)
+                    else:
+                        count = self.text.count(find_query)
+                        if count == 0:
+                            self.notify(f"'{find_query}' not found", severity="warning")
+                            return
+                        new_text = self.text.replace(find_query, replace_text)
+                except re.error as e:
+                    self.notify(f"Invalid regex: {e}", severity="error")
                     return
-                new_text = self.text.replace(find_query, replace_text)
                 self.replace_editor_text(new_text)
                 self.notify(f"Replaced {count} occurrence(s)", severity="information")
                 return
@@ -590,15 +622,35 @@ class CodeEditor(Static):
             end_offset = sum(len(lines[i]) + 1 for i in range(sel.end[0])) + sel.end[1]
             selected_text = text[start_offset:end_offset]
 
-            if selected_text == find_query:
-                new_text = text[:start_offset] + replace_text + text[end_offset:]
-                search_from = start_offset + len(replace_text)
-                idx = _find_next(new_text, find_query, search_from)
+            use_regex = result.use_regex
+            try:
+                if not use_regex:
+                    match_found = selected_text == find_query
+                else:
+                    match_found = bool(re.fullmatch(find_query, selected_text))
+            except re.error as e:
+                self.notify(f"Invalid regex: {e}", severity="error")
+                return
+
+            if match_found:
+                if use_regex:
+                    replacement = re.sub(find_query, replace_text, selected_text)
+                else:
+                    replacement = replace_text
+                new_text = text[:start_offset] + replacement + text[end_offset:]
+                search_from = start_offset + len(replacement)
+                try:
+                    start_idx, end_idx = _find_next(
+                        new_text, find_query, search_from, use_regex
+                    )
+                except re.error:
+                    start_idx = -1
+                    end_idx = -1
                 self.replace_editor_text(new_text)
-                if idx != -1:
+                if start_idx != -1:
                     self.editor.selection = Selection(
-                        start=_text_offset_to_location(new_text, idx),
-                        end=_text_offset_to_location(new_text, idx + len(find_query)),
+                        start=_text_offset_to_location(new_text, start_idx),
+                        end=_text_offset_to_location(new_text, end_idx),
                     )
             else:
                 # Selection doesn't match — just find next occurrence
@@ -607,13 +659,19 @@ class CodeEditor(Static):
                 cursor_offset = (
                     sum(len(lines[i]) + 1 for i in range(cursor_row)) + cursor_col
                 )
-                idx = _find_next(text, find_query, cursor_offset)
-                if idx == -1:
+                try:
+                    start_idx, end_idx = _find_next(
+                        text, find_query, cursor_offset, use_regex
+                    )
+                except re.error as e:
+                    self.notify(f"Invalid regex: {e}", severity="error")
+                    return
+                if start_idx == -1:
                     self.notify(f"'{find_query}' not found", severity="warning")
                     return
                 self.editor.selection = Selection(
-                    start=_text_offset_to_location(text, idx),
-                    end=_text_offset_to_location(text, idx + len(find_query)),
+                    start=_text_offset_to_location(text, start_idx),
+                    end=_text_offset_to_location(text, end_idx),
                 )
 
         self.app.push_screen(ReplaceModalScreen(), do_replace)

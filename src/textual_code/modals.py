@@ -7,6 +7,7 @@ from textual.containers import Grid
 from textual.screen import ModalScreen
 from textual.widgets import (
     Button,
+    Checkbox,
     Input,
     Label,
     Select,
@@ -216,6 +217,8 @@ class FindModalResult:
     is_cancelled: bool
     # The search query, or None if cancelled.
     query: str | None
+    # Whether to use regex matching.
+    use_regex: bool = False
 
 
 class FindModalScreen(ModalScreen[FindModalResult]):
@@ -227,6 +230,7 @@ class FindModalScreen(ModalScreen[FindModalResult]):
         yield Grid(
             Label("Find", id="title"),
             Input(placeholder="Search...", id="query"),
+            Checkbox("Use regex", id="use_regex"),
             Button("Find", variant="primary", id="find"),
             Button("Cancel", variant="default", id="cancel"),
             id="dialog",
@@ -236,7 +240,11 @@ class FindModalScreen(ModalScreen[FindModalResult]):
     @on(Button.Pressed, "#find")
     def on_find(self) -> None:
         self.dismiss(
-            FindModalResult(is_cancelled=False, query=self.query_one(Input).value)
+            FindModalResult(
+                is_cancelled=False,
+                query=self.query_one(Input).value,
+                use_regex=self.query_one("#use_regex", Checkbox).value,
+            )
         )
 
     @on(Button.Pressed, "#cancel")
@@ -258,6 +266,8 @@ class ReplaceModalResult:
     find_query: str | None
     # The replacement text, or None if cancelled.
     replace_text: str | None
+    # Whether to use regex matching.
+    use_regex: bool = False
 
 
 class ReplaceModalScreen(ModalScreen[ReplaceModalResult]):
@@ -270,6 +280,7 @@ class ReplaceModalScreen(ModalScreen[ReplaceModalResult]):
             Label("Replace", id="title"),
             Input(placeholder="Find...", id="find_query"),
             Input(placeholder="Replace with...", id="replace_text"),
+            Checkbox("Use regex", id="use_regex"),
             Button("Replace", variant="primary", id="replace"),
             Button("Replace All", variant="primary", id="replace_all"),
             Button("Cancel", variant="default", id="cancel"),
@@ -284,6 +295,7 @@ class ReplaceModalScreen(ModalScreen[ReplaceModalResult]):
                 action="replace",
                 find_query=self.query_one("#find_query", Input).value,
                 replace_text=self.query_one("#replace_text", Input).value,
+                use_regex=self.query_one("#use_regex", Checkbox).value,
             )
         )
 
@@ -295,6 +307,7 @@ class ReplaceModalScreen(ModalScreen[ReplaceModalResult]):
                 action="replace_all",
                 find_query=self.query_one("#find_query", Input).value,
                 replace_text=self.query_one("#replace_text", Input).value,
+                use_regex=self.query_one("#use_regex", Checkbox).value,
             )
         )
 

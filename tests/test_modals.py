@@ -565,3 +565,83 @@ async def test_replace_modal_empty_replace_text_returns_empty_string():
 
     assert app.result is not None
     assert app.result.replace_text == ""
+
+
+# ── FindModalScreen use_regex ──────────────────────────────────────────────────
+
+
+async def test_find_modal_has_use_regex_checkbox():
+    """FindModalScreen에 #use_regex Checkbox가 존재한다."""
+    from textual.widgets import Checkbox
+
+    app = _FindApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        assert checkbox is not None
+
+
+async def test_find_modal_use_regex_false_by_default():
+    """체크하지 않으면 result.use_regex == False."""
+    app = _FindApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#find")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.use_regex is False
+
+
+async def test_find_modal_use_regex_true_when_checked():
+    """Checkbox 체크 후 Find하면 result.use_regex == True."""
+    from textual.widgets import Checkbox
+
+    app = _FindApp()
+    async with app.run_test() as pilot:
+        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        await pilot.click(checkbox)
+        await pilot.click("#find")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.use_regex is True
+
+
+# ── ReplaceModalScreen use_regex ───────────────────────────────────────────────
+
+
+async def test_replace_modal_has_use_regex_checkbox():
+    """ReplaceModalScreen에 #use_regex Checkbox가 존재한다."""
+    from textual.widgets import Checkbox
+
+    app = _ReplaceApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        assert checkbox is not None
+
+
+async def test_replace_modal_use_regex_false_by_default():
+    """체크하지 않으면 result.use_regex == False."""
+    app = _ReplaceApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#replace")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.use_regex is False
+
+
+async def test_replace_modal_use_regex_true_when_checked():
+    """Checkbox 체크 후 Replace하면 result.use_regex == True."""
+    from textual.widgets import Checkbox
+
+    app = _ReplaceApp()
+    async with app.run_test() as pilot:
+        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        await pilot.click(checkbox)
+        await pilot.click("#replace")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.use_regex is True
