@@ -99,7 +99,7 @@ uv run textual run --dev textual_code:main
   - [x] Close the current file from the command palette
   - [x] Ask to save the file before closing
   - [x] Close all files
-- [ ] Delete
+- [x] Delete
   - [x] Delete the current file
   - [x] Delete the current file from the command palette
   - [x] Delete a specific file from the sidebar
@@ -167,7 +167,7 @@ uv run textual run --dev textual_code:main
     - [ ] default line ending
     - [ ] default encoding
 - [ ] Etc
-  - [ ] Support EditorConfig
+  - [x] Support EditorConfig
 - [x] Release
   - [x] Package the project
   - [x] Make the project available on PyPI
