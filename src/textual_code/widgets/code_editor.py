@@ -40,6 +40,179 @@ from textual_code.modals import (
 )
 
 
+def _editorconfig_glob_to_pattern(glob: str) -> re.Pattern:
+    """Convert an EditorConfig glob pattern to a compiled re.Pattern.
+
+    If the glob contains no slash, it is prefixed with '**/' so that it
+    matches the filename at any directory depth (per EditorConfig spec).
+    """
+    if "/" not in glob:
+        glob = "**/" + glob
+    return re.compile(_glob_to_regex(glob))
+
+
+def _glob_to_regex(glob: str) -> str:
+    """Translate a single EditorConfig glob string into a regex string."""
+    result: list[str] = []
+    i = 0
+    n = len(glob)
+    while i < n:
+        c = glob[i]
+        if c == "\\" and i + 1 < n:
+            result.append(re.escape(glob[i + 1]))
+            i += 2
+        elif c == "*":
+            if i + 1 < n and glob[i + 1] == "*":
+                if i + 2 < n and glob[i + 2] == "/":
+                    # **/ → optional path prefix (matches zero or more dirs)
+                    result.append("(.*/)?")
+                    i += 3
+                else:
+                    result.append(".*")
+                    i += 2
+            else:
+                result.append("[^/]*")
+                i += 1
+        elif c == "?":
+            result.append("[^/]")
+            i += 1
+        elif c == "[":
+            j = i + 1
+            if j < n and glob[j] == "!":
+                j += 1
+            if j < n and glob[j] == "]":
+                j += 1
+            while j < n and glob[j] != "]":
+                j += 1
+            bracket = glob[i : j + 1]
+            if bracket.startswith("[!"):
+                bracket = "[^" + bracket[2:]
+            result.append(bracket)
+            i = j + 1
+        elif c == "{":
+            j = i + 1
+            depth = 1
+            while j < n and depth > 0:
+                if glob[j] == "{":
+                    depth += 1
+                elif glob[j] == "}":
+                    depth -= 1
+                j += 1
+            inner = glob[i + 1 : j - 1]
+            range_match = re.match(r"^(-?\d+)\.\.(-?\d+)$", inner)
+            if range_match:
+                n1, n2 = int(range_match.group(1)), int(range_match.group(2))
+                if n1 < n2:
+                    alternatives = [str(x) for x in range(n1, n2 + 1)]
+                    result.append("(" + "|".join(alternatives) + ")")
+                else:
+                    result.append(re.escape(glob[i:j]))
+            else:
+                parts = inner.split(",")
+                converted = [_glob_to_regex(p) for p in parts]
+                result.append("(" + "|".join(converted) + ")")
+            i = j
+        elif c == "/":
+            result.append("/")
+            i += 1
+        else:
+            result.append(re.escape(c))
+            i += 1
+    return "".join(result)
+
+
+def _parse_editorconfig_file(
+    ec_file: Path, target_file: Path
+) -> tuple[bool, dict[str, str]]:
+    """Parse one .editorconfig file and return (is_root, matched_properties).
+
+    is_root is True only when 'root = true' appears in the preamble
+    (before any section header). Properties from sections whose glob matches
+    *target_file* are collected; later sections override earlier ones.
+    All keys and values are lowercased.
+    """
+    is_root = False
+    result: dict[str, str] = {}
+    try:
+        rel_str = str(target_file.relative_to(ec_file.parent)).replace("\\", "/")
+    except ValueError:
+        return False, {}
+
+    content = ec_file.read_text(encoding="utf-8", errors="replace")
+    in_preamble = True
+    current_section_matches = False
+
+    for line in content.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("#") or stripped.startswith(";"):
+            continue
+        if stripped.startswith("[") and stripped.endswith("]"):
+            in_preamble = False
+            glob = stripped[1:-1]
+            try:
+                pattern = _editorconfig_glob_to_pattern(glob)
+                current_section_matches = bool(pattern.fullmatch(rel_str))
+            except re.error:
+                current_section_matches = False
+            continue
+        if "=" in stripped:
+            key, _, value = stripped.partition("=")
+            key = key.strip().lower()
+            value = value.strip().lower()
+            if in_preamble:
+                if key == "root" and value == "true":
+                    is_root = True
+            elif current_section_matches:
+                result[key] = value
+
+    return is_root, result
+
+
+def _read_editorconfig(path: Path) -> dict[str, str]:
+    """Return EditorConfig properties that apply to *path*.
+
+    Traverses from path.parent upward, collecting .editorconfig files.
+    Closer files take precedence over more distant ones.
+    Stops at root=true (preamble only) or the filesystem root.
+    All keys and values are lowercased.
+    """
+    result: dict[str, str] = {}
+
+    # Collect .editorconfig files from closest to farthest
+    config_files: list[Path] = []
+    directory = path.parent
+    while True:
+        ec_file = directory / ".editorconfig"
+        if ec_file.is_file():
+            config_files.append(ec_file)
+        parent = directory.parent
+        if parent == directory:
+            break
+        directory = parent
+
+    # Process closest first; closer keys win (not overwritten by farther)
+    for ec_file in config_files:
+        is_root, props = _parse_editorconfig_file(ec_file, path)
+        for key, value in props.items():
+            if key not in result:
+                result[key] = value
+        if is_root:
+            break
+
+    return result
+
+
+_CHARSET_MAP: dict[str, str] = {
+    "utf-8": "utf-8",
+    "utf-8-bom": "utf-8-sig",
+    "utf-16be": "utf-16",
+    "utf-16le": "utf-16",
+    "latin1": "latin-1",
+}
+
+
 def _text_offset_to_location(text: str, offset: int) -> tuple[int, int]:
     """Convert a character offset in *text* to a (row, col) location."""
     row = col = 0
@@ -426,6 +599,37 @@ class CodeEditor(Static):
             self.set_reactive(CodeEditor.text, text)
             with contextlib.suppress(OSError):
                 self._file_mtime = path.stat().st_mtime
+
+            # Apply EditorConfig overrides (after auto-detect)
+            ec = _read_editorconfig(path)
+
+            ec_indent_style = ec.get("indent_style")
+            if ec_indent_style == "space":
+                self.set_reactive(CodeEditor.indent_type, "spaces")
+            elif ec_indent_style == "tab":
+                self.set_reactive(CodeEditor.indent_type, "tabs")
+
+            ec_indent = ec.get("indent_size")
+            if ec_indent == "tab":
+                ec_indent = ec.get("tab_width")
+            # When indent_style=tab and no indent_size, fall back to tab_width
+            if not ec_indent and ec_indent_style == "tab":
+                ec_indent = ec.get("tab_width")
+            if ec_indent and ec_indent != "unset":
+                with contextlib.suppress(ValueError):
+                    size = int(ec_indent)
+                    if size in (2, 4, 8):
+                        self.set_reactive(CodeEditor.indent_size, size)
+
+            ec_charset = ec.get("charset")
+            if ec_charset and ec_charset != "unset":
+                enc = _CHARSET_MAP.get(ec_charset)
+                if enc:
+                    self.set_reactive(CodeEditor.encoding, enc)
+
+            ec_eol = ec.get("end_of_line")
+            if ec_eol and ec_eol != "unset" and ec_eol in ("lf", "crlf", "cr"):
+                self.set_reactive(CodeEditor.line_ending, ec_eol)
 
     def compose(self) -> ComposeResult:
         yield TextArea.code_editor(

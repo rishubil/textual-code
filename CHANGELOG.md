@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add file external change detection: polls mtime every 2 seconds, auto-reloads when no unsaved changes, shows warning notification when unsaved changes exist
 - Add "Reload file" command palette entry for manual reload; shows discard confirmation modal when unsaved changes are present
 - Add overwrite confirmation modal when saving over a file that was modified externally
+- Add EditorConfig support: reads `.editorconfig` files from file directory up to `root = true`, applies indent style/size, charset, and end-of-line settings; supports full EditorConfig glob syntax (`*`, `**`, `?`, `[seq]`, `[!seq]`, `{s1,s2}`, `{n..m}`, `\x`)
 
 ## [0.0.2] - 2025-01-07
 

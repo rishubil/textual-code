@@ -1,5 +1,72 @@
 # Features
 
+## EditorConfig: .editorconfig file discovery, glob matching, property override
+
+### Why stdlib-only, no editorconfig PyPI package
+
+No additional dependency is needed. `configparser`-style line parsing, `re` for glob-to-regex conversion, and `pathlib` for directory traversal cover the full spec.
+
+### Discovery and precedence rules
+
+`_read_editorconfig(path)` walks from `path.parent` upward collecting `.editorconfig` files:
+
+- **Closer file wins**: properties from a nearer `.editorconfig` are never overwritten by a farther one
+- **Later section wins within a file**: if two sections in the same file both match, the lower one's values override
+- **`root = true` stops traversal**: only recognised in the preamble (before the first `[section]` header); `root = true` inside a section is ignored
+- Traversal also stops at the filesystem root
+
+### Glob pattern matching: slash rule matters
+
+`_editorconfig_glob_to_pattern(glob)` converts EditorConfig globs to `re.Pattern`.
+The critical rule from the spec:
+
+| Glob has `/`? | Behaviour |
+|--------------|-----------|
+| No (`*.py`) | Prefixed with `**/` → matches at **any directory depth** |
+| Yes (`src/*.py`) | Anchored to `.editorconfig` dir; `src/` prefix required |
+
+Special tokens:
+
+| Token | Regex |
+|-------|-------|
+| `**` followed by `/` | `(.*/)? ` (zero or more path components) |
+| `**` otherwise | `.*` |
+| `*` | `[^/]*` |
+| `?` | `[^/]` |
+| `[!seq]` | `[^seq]` |
+| `{s1,s2}` | `(s1\|s2)` |
+| `{n1..n2}` | integer alternatives `(n1\|...\|n2)` |
+| `\x` | `re.escape(x)` |
+
+### Comment and value parsing: no inline comments
+
+Per spec, `;` and `#` are comment markers **only at the start of a line** (after optional whitespace stripping).
+`indent_style = space # not inline` → value is `space # not inline`.
+Keys and values are normalized to lowercase.
+
+### Properties applied to CodeEditor reactives
+
+| EditorConfig value | CodeEditor reactive |
+|-------------------|---------------------|
+| `indent_style=space` | `indent_type="spaces"` |
+| `indent_style=tab` | `indent_type="tabs"` |
+| `indent_size=N` (N ∈ {2,4,8}) | `indent_size=N` |
+| `indent_size=tab` or `indent_style=tab` without `indent_size` | uses `tab_width` value |
+| `charset=utf-8-bom` | `encoding="utf-8-sig"` |
+| `charset=latin1` | `encoding="latin-1"` |
+| `charset=utf-16be/le` | `encoding="utf-16"` |
+| `end_of_line=lf/crlf/cr` | `line_ending=...` |
+| any property `=unset` | ignored (auto-detect retained) |
+| `indent_size` not in (2,4,8) | ignored |
+
+`trim_trailing_whitespace` and `insert_final_newline` are parsed but not applied (feature unsupported by the editor).
+
+### Override is applied once at open time
+
+EditorConfig is read in `CodeEditor.__init__` after the auto-detect block (encoding, line endings). It does not re-apply on save or on `.editorconfig` file changes.
+
+---
+
 ## File Watcher: mtime polling, auto-reload, manual reload
 
 ### Why mtime polling instead of watchdog
