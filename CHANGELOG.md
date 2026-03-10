@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add feature to open a specific file from the command palette
 - Add feature to create a new file or directory
 - Add feature to open new file from command arguments
+- Add Change Encoding feature: auto-detect encoding on load (UTF-8, UTF-8 BOM, UTF-16, Latin-1), display in footer, change via modal or command palette, save with correct encoding
 
 ## [0.0.2] - 2025-01-07
 

@@ -468,3 +468,52 @@ class ChangeLineEndingModalScreen(ModalScreen[ChangeLineEndingModalResult]):
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
         self.dismiss(ChangeLineEndingModalResult(is_cancelled=True, line_ending=None))
+
+
+@dataclass
+class ChangeEncodingModalResult:
+    """
+    The result of the Change Encoding modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The selected encoding, or None if cancelled.
+    encoding: str | None
+
+
+class ChangeEncodingModalScreen(ModalScreen[ChangeEncodingModalResult]):
+    """
+    Modal dialog for changing the file encoding.
+    """
+
+    def __init__(self, current_encoding: str = "utf-8") -> None:
+        super().__init__()
+        self._current_encoding = current_encoding
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Change Encoding", id="title"),
+            Select(
+                options=[
+                    ("UTF-8", "utf-8"),
+                    ("UTF-8 BOM", "utf-8-sig"),
+                    ("UTF-16", "utf-16"),
+                    ("Latin-1", "latin-1"),
+                ],
+                value=self._current_encoding,
+                id="encoding",
+            ),
+            Button("Apply", variant="primary", id="apply"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#apply")
+    def on_apply(self) -> None:
+        value = str(self.query_one(Select).value)
+        self.dismiss(ChangeEncodingModalResult(is_cancelled=False, encoding=value))
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(ChangeEncodingModalResult(is_cancelled=True, encoding=None))

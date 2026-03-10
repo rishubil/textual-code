@@ -469,6 +469,11 @@ class TextualCode(App):
             "Change the line ending style (LF, CRLF, CR)",
             self.action_change_line_ending_cmd,
         )
+        yield SystemCommand(
+            "Change Encoding",
+            "Change the file encoding (UTF-8, UTF-8 BOM, UTF-16, Latin-1)",
+            self.action_change_encoding_cmd,
+        )
 
     def action_goto_line_cmd(self) -> None:
         """
@@ -527,6 +532,16 @@ class TextualCode(App):
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
             self.call_next(code_editor.action_change_line_ending)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_change_encoding_cmd(self) -> None:
+        """
+        Open the Change Encoding modal via command palette.
+        """
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.action_change_encoding)
         else:
             self.notify("No file open.", severity="error")
 

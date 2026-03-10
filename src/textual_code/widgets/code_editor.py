@@ -12,6 +12,8 @@ from textual.reactive import reactive
 from textual.widgets import Button, Label, Static, TextArea
 
 from textual_code.modals import (
+    ChangeEncodingModalResult,
+    ChangeEncodingModalScreen,
     ChangeIndentModalResult,
     ChangeIndentModalScreen,
     ChangeLanguageModalResult,
@@ -113,6 +115,27 @@ def _convert_line_ending(text: str, line_ending: str) -> str:
     return text
 
 
+_ENCODING_DISPLAY: dict[str, str] = {
+    "utf-8": "UTF-8",
+    "utf-8-sig": "UTF-8 BOM",
+    "utf-16": "UTF-16",
+    "latin-1": "Latin-1",
+}
+
+
+def _detect_encoding(raw_bytes: bytes) -> str:
+    """Detect file encoding from raw bytes using BOM inspection with UTF-8 fallback."""
+    if raw_bytes.startswith(b"\xef\xbb\xbf"):
+        return "utf-8-sig"
+    if raw_bytes.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return "utf-16"
+    try:
+        raw_bytes.decode("utf-8")
+        return "utf-8"
+    except UnicodeDecodeError:
+        return "latin-1"
+
+
 _LINE_ENDING_WARNING = (
     "{ending} line endings: copied/pasted text will use LF internally."
 )
@@ -133,12 +156,15 @@ class CodeEditorFooter(Static):
     cursor_location: reactive[tuple[int, int]] = reactive((0, 0), init=False)
     # the line ending style
     line_ending: reactive[str] = reactive("lf", init=False)
+    # the file encoding
+    encoding: reactive[str] = reactive("utf-8", init=False)
 
     def __init__(
         self,
         path: Path | None,
         language: str | None,
         line_ending: str = "lf",
+        encoding: str = "utf-8",
         *args,
         **kwargs,
     ) -> None:
@@ -147,6 +173,7 @@ class CodeEditorFooter(Static):
         self.set_reactive(CodeEditor.path, path)
         self.set_reactive(CodeEditor.language, language)
         self.set_reactive(CodeEditor.line_ending, line_ending)
+        self.set_reactive(CodeEditor.encoding, encoding)
 
     def compose(self) -> ComposeResult:
         yield Label(
@@ -161,6 +188,11 @@ class CodeEditorFooter(Static):
             self.line_ending.upper(),
             variant="default",
             id="line_ending_btn",
+        )
+        yield Button(
+            _ENCODING_DISPLAY.get(self.encoding, self.encoding),
+            variant="default",
+            id="encoding_btn",
         )
         yield Button(
             self.language or "plain",
@@ -183,6 +215,9 @@ class CodeEditorFooter(Static):
     def watch_line_ending(self, line_ending: str) -> None:
         self.line_ending_button.label = line_ending.upper()
 
+    def watch_encoding(self, encoding: str) -> None:
+        self.encoding_button.label = _ENCODING_DISPLAY.get(encoding, encoding)
+
     @property
     def path_view(self) -> Label:
         return self.query_one("#path", Label)
@@ -194,6 +229,10 @@ class CodeEditorFooter(Static):
     @property
     def line_ending_button(self) -> Button:
         return self.query_one("#line_ending_btn", Button)
+
+    @property
+    def encoding_button(self) -> Button:
+        return self.query_one("#encoding_btn", Button)
 
     @property
     def language_button(self) -> Button:
@@ -226,6 +265,8 @@ class CodeEditor(Static):
     language: reactive[str | None] = reactive(None, init=False)
     # the line ending style of the file
     line_ending: reactive[str] = reactive("lf", init=False)
+    # the file encoding
+    encoding: reactive[str] = reactive("utf-8", init=False)
 
     # mapping of file extensions to language names
     LANGUAGE_EXTENSIONS = {
@@ -324,15 +365,23 @@ class CodeEditor(Static):
         # if a path is provided, load the file content
         if path is not None:
             try:
-                with path.open(newline="") as f:
-                    raw_text = f.read()
+                raw_bytes = path.read_bytes()
             except Exception as e:
-                raw_text = ""
+                raw_bytes = b""
                 self.notify(f"Error reading file: {e}", severity="error")
+            detected_encoding = _detect_encoding(raw_bytes)
+            self.set_reactive(CodeEditor.encoding, detected_encoding)
+            try:
+                raw_text = raw_bytes.decode(detected_encoding)
+            except Exception:
+                raw_text = raw_bytes.decode("latin-1", errors="replace")
             detected = _detect_line_ending(raw_text)
             self.set_reactive(CodeEditor.line_ending, detected)
             # normalize to \n for the editor
             text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
+            # remove BOM char if present (utf-8-sig decodes it, but guard defensively)
+            if text.startswith("\ufeff"):
+                text = text[1:]
             self.set_reactive(CodeEditor.initial_text, text)
             self.set_reactive(CodeEditor.text, text)
 
@@ -345,6 +394,7 @@ class CodeEditor(Static):
             path=self.path,
             language=self.language,
             line_ending=self.line_ending,
+            encoding=self.encoding,
         )
 
     @on(Mount)
@@ -431,6 +481,10 @@ class CodeEditor(Static):
         # update the line ending in the footer
         self.footer.line_ending = line_ending
 
+    def watch_encoding(self, encoding: str) -> None:
+        # update the encoding in the footer
+        self.footer.encoding = encoding
+
     def _notify_non_lf_if_needed(self) -> None:
         if self.line_ending != "lf":
             self.notify(
@@ -446,8 +500,8 @@ class CodeEditor(Static):
             self.action_save_as()
         else:
             try:
-                with self.path.open("w", newline="") as f:
-                    f.write(_convert_line_ending(self.text, self.line_ending))
+                content = _convert_line_ending(self.text, self.line_ending)
+                self.path.write_bytes(content.encode(self.encoding))
                 self.initial_text = self.text
                 self.notify("File saved", severity="information")
                 self.post_message(
@@ -485,9 +539,8 @@ class CodeEditor(Static):
                 return
 
             try:
-                with open(new_path, "w", newline="") as f:
-                    f.write(_convert_line_ending(self.text, self.line_ending))
-
+                content = _convert_line_ending(self.text, self.line_ending)
+                new_path.write_bytes(content.encode(self.encoding))
                 self.initial_text = self.text
                 self.path = new_path
                 self.post_message(
@@ -816,10 +869,30 @@ class CodeEditor(Static):
             do_change,
         )
 
+    def action_change_encoding(self) -> None:
+        """
+        Open the Change Encoding modal and update the file encoding.
+        """
+
+        def do_change(result: ChangeEncodingModalResult | None) -> None:
+            if result is None or result.is_cancelled:
+                return
+            self.encoding = result.encoding
+
+        self.app.push_screen(
+            ChangeEncodingModalScreen(current_encoding=self.encoding),
+            do_change,
+        )
+
     @on(Button.Pressed, "#line_ending_btn")
     def on_line_ending_button_pressed(self, event: Button.Pressed) -> None:
         event.stop()
         self.action_change_line_ending()
+
+    @on(Button.Pressed, "#encoding_btn")
+    def on_encoding_button_pressed(self, event: Button.Pressed) -> None:
+        event.stop()
+        self.action_change_encoding()
 
     @on(Button.Pressed, "#language")
     def on_language_button_pressed(self, event: Button.Pressed) -> None:
