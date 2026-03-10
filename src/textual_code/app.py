@@ -22,6 +22,8 @@ from textual_code.commands import (
     create_open_file_command_provider,
 )
 from textual_code.modals import (
+    DeleteFileModalResult,
+    DeleteFileModalScreen,
     UnsavedChangeQuitModalResult,
     UnsavedChangeQuitModalScreen,
 )
@@ -631,6 +633,38 @@ class TextualCode(App):
             self.push_screen(UnsavedChangeQuitModalScreen(), do_force_quit)
             return
         self.exit()
+
+    @on(Explorer.FileDeleteRequested)
+    def on_explorer_file_delete_requested(
+        self, event: Explorer.FileDeleteRequested
+    ) -> None:
+        import shutil
+
+        path = event.path
+
+        def do_delete(result: DeleteFileModalResult | None) -> None:
+            if not result or result.is_cancelled or not result.should_delete:
+                return
+            try:
+                if path.is_dir():
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+            except Exception as e:
+                self.notify(f"Error deleting: {e}", severity="error")
+                return
+
+            # close the tab if the deleted file is open
+            pane_id = self.main_view.pane_id_from_path(path)
+            if pane_id:
+                self.call_next(
+                    partial(self.main_view.action_close_code_editor, pane_id)
+                )
+
+            self.action_reload_explorer()
+            self.notify(f"Deleted: {path.name}", severity="information")
+
+        self.push_screen(DeleteFileModalScreen(path), do_delete)
 
     @on(Explorer.FileOpenRequested)
     async def on_file_open_requested(self, event: Explorer.FileOpenRequested):

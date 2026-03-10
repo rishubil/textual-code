@@ -16,6 +16,7 @@ class Explorer(Static):
     BINDINGS = [
         Binding("ctrl+n", "create_file", "Create file"),
         Binding("ctrl+d", "create_directory", "Create directory"),
+        Binding("delete", "delete_node", "Delete"),
     ]
 
     @dataclass
@@ -27,6 +28,21 @@ class Explorer(Static):
         explorer: "Explorer"
 
         # the path to the file to open.
+        path: Path
+
+        @property
+        def control(self) -> "Explorer":
+            return self.explorer
+
+    @dataclass
+    class FileDeleteRequested(Message):
+        """
+        Message to request deleting a file or directory.
+        """
+
+        explorer: "Explorer"
+
+        # the path to the file or directory to delete.
         path: Path
 
         @property
@@ -52,6 +68,15 @@ class Explorer(Static):
 
         assert isinstance(self.app, TextualCode)
         self.app.action_create_file_with_command_palette()
+
+    def action_delete_node(self) -> None:
+        """
+        Delete the currently focused file or directory.
+        """
+        node = self.directory_tree.cursor_node
+        if node is None or node.data is None:
+            return
+        self.post_message(self.FileDeleteRequested(explorer=self, path=node.data.path))
 
     def action_create_directory(self) -> None:
         """

@@ -102,9 +102,9 @@ uv run textual run --dev textual_code:main
 - [ ] Delete
   - [x] Delete the current file
   - [x] Delete the current file from the command palette
-  - [ ] Delete a specific file from the sidebar
+  - [x] Delete a specific file from the sidebar
   - [ ] Delete a specific file from the command palette
-  - [ ] Delete a specific folder from the sidebar
+  - [x] Delete a specific folder from the sidebar
   - [ ] Delete a specific folder from the command palette
   - [x] Ask to confirm before deleting
 - [ ] Edit file
