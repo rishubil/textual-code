@@ -153,10 +153,10 @@ uv run textual run --dev textual_code:main
   - [x] Hide the sidebar
   - [ ] Resize the sidebar
     - [ ] Resize the sidebar by dragging the border
-    - [ ] Resize the sidebar from the command palette (set the width of the sidebar)
-      - [ ] Absolute size
-      - [ ] Relative size (+/-)
-      - [ ] Percentage size
+    - [x] Resize the sidebar from the command palette (set the width of the sidebar)
+      - [x] Absolute size
+      - [x] Relative size (+/-)
+      - [x] Percentage size
 - [ ] Setting
   - [ ] Themes
     - [ ] UI

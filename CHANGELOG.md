@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add "Reload file" command palette entry for manual reload; shows discard confirmation modal when unsaved changes are present
 - Add overwrite confirmation modal when saving over a file that was modified externally
 - Add EditorConfig support: reads `.editorconfig` files from file directory up to `root = true`, applies indent style/size, charset, and end-of-line settings; supports full EditorConfig glob syntax (`*`, `**`, `?`, `[seq]`, `[!seq]`, `{s1,s2}`, `{n..m}`, `\x`)
+- Add Resize Sidebar command in command palette: set sidebar width using absolute cells (`30`), relative offset (`+5`, `-3`), or percentage (`30%`); enforces min 5 / max app-width-5 cells, 1%–90% for percentages
 
 ## [0.0.2] - 2025-01-07
 

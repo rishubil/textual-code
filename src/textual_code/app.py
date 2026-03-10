@@ -25,12 +25,66 @@ from textual_code.commands import (
 from textual_code.modals import (
     DeleteFileModalResult,
     DeleteFileModalScreen,
+    SidebarResizeModalResult,
+    SidebarResizeModalScreen,
     UnsavedChangeQuitModalResult,
     UnsavedChangeQuitModalScreen,
 )
 from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.explorer import Explorer
 from textual_code.widgets.sidebar import Sidebar
+
+
+def _parse_sidebar_resize(
+    value: str, current_width: int, max_width: int
+) -> int | str | None:
+    """
+    Parse a sidebar resize expression.
+
+    Formats:
+      "30"   → absolute 30 cells
+      "+5"   → current + 5
+      "-3"   → current - 3
+      "30%"  → percentage string "30%"
+
+    Returns:
+      int   → absolute cell width (5 ≤ result ≤ max_width)
+      str   → percentage string like "30%" (1% – 90%)
+      None  → invalid or out-of-range input
+    """
+    value = value.strip()
+    if not value:
+        return None
+
+    # Percentage
+    if value.endswith("%"):
+        try:
+            pct = int(value[:-1])
+        except ValueError:
+            return None
+        if pct < 1 or pct > 90:
+            return None
+        return f"{pct}%"
+
+    # Relative
+    if value.startswith(("+", "-")):
+        try:
+            delta = int(value)
+        except ValueError:
+            return None
+        result = current_width + delta
+        if result < 5 or result > max_width:
+            return None
+        return result
+
+    # Absolute
+    try:
+        result = int(value)
+    except ValueError:
+        return None
+    if result < 5 or result > max_width:
+        return None
+    return result
 
 
 class MainView(Static):
@@ -479,6 +533,11 @@ class TextualCode(App):
             "Reload the current file from disk",
             self.action_reload_file_cmd,
         )
+        yield SystemCommand(
+            "Resize sidebar",
+            "Set the sidebar width (e.g. 30, +5, -3, 30%)",
+            self.action_resize_sidebar_cmd,
+        )
 
     def action_goto_line_cmd(self) -> None:
         """
@@ -557,6 +616,26 @@ class TextualCode(App):
             self.call_next(code_editor.action_reload_file)
         else:
             self.notify("No file open.", severity="error")
+
+    def action_resize_sidebar_cmd(self) -> None:
+        """Open the Resize Sidebar modal via command palette."""
+
+        def on_result(result: SidebarResizeModalResult | None) -> None:
+            if result is None or result.is_cancelled:
+                return
+            current_width = self.sidebar.size.width
+            max_width = self.size.width - 5
+            parsed = _parse_sidebar_resize(result.value or "", current_width, max_width)
+            if parsed is None:
+                self.notify(
+                    f"Invalid sidebar width: {result.value!r}. "
+                    "Use a number (30), +/-offset (+5), or percent (30%).",
+                    severity="error",
+                )
+                return
+            self.sidebar.styles.width = parsed
+
+        self.call_next(lambda: self.push_screen(SidebarResizeModalScreen(), on_result))
 
     def action_save_all_files(self) -> None:
         """Save all open files."""

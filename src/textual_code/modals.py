@@ -549,6 +549,47 @@ class DiscardAndReloadModalScreen(ModalScreen[DiscardAndReloadModalResult]):
 
 
 @dataclass
+class SidebarResizeModalResult:
+    """
+    The result of the Sidebar Resize modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The raw user input string, or None if cancelled.
+    value: str | None
+
+
+class SidebarResizeModalScreen(ModalScreen[SidebarResizeModalResult]):
+    """
+    Modal dialog for resizing the sidebar.
+    Accepts: absolute ("30"), relative ("+5" or "-3"), or percentage ("30%").
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Resize Sidebar", id="title"),
+            Input(placeholder="e.g. 30  or  +5  or  30%", id="value"),
+            Button("Resize", variant="primary", id="submit"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Input.Submitted, "#value")
+    @on(Button.Pressed, "#submit")
+    def on_submit(self) -> None:
+        self.dismiss(
+            SidebarResizeModalResult(
+                is_cancelled=False, value=self.query_one(Input).value
+            )
+        )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(SidebarResizeModalResult(is_cancelled=True, value=None))
+
+
+@dataclass
 class ChangeEncodingModalResult:
     """
     The result of the Change Encoding modal dialog.
