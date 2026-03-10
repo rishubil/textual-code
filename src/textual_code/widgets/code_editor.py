@@ -1,3 +1,4 @@
+import contextlib
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -22,10 +23,14 @@ from textual_code.modals import (
     ChangeLineEndingModalScreen,
     DeleteFileModalResult,
     DeleteFileModalScreen,
+    DiscardAndReloadModalResult,
+    DiscardAndReloadModalScreen,
     FindModalResult,
     FindModalScreen,
     GotoLineModalResult,
     GotoLineModalScreen,
+    OverwriteConfirmModalResult,
+    OverwriteConfirmModalScreen,
     ReplaceModalResult,
     ReplaceModalScreen,
     SaveAsModalResult,
@@ -395,6 +400,7 @@ class CodeEditor(Static):
         super().__init__(*args, **kwargs)
         self.set_reactive(CodeEditor.pane_id, pane_id)
         self.set_reactive(CodeEditor.path, path)
+        self._file_mtime: float | None = None
 
         # if a path is provided, load the file content
         if path is not None:
@@ -418,6 +424,8 @@ class CodeEditor(Static):
                 text = text[1:]
             self.set_reactive(CodeEditor.initial_text, text)
             self.set_reactive(CodeEditor.text, text)
+            with contextlib.suppress(OSError):
+                self._file_mtime = path.stat().st_mtime
 
     def compose(self) -> ComposeResult:
         yield TextArea.code_editor(
@@ -441,6 +449,8 @@ class CodeEditor(Static):
         self.load_language_from_path(self.path)
         # warn if the file has non-LF line endings
         self._notify_non_lf_if_needed()
+        # poll for external file changes every 2 seconds
+        self.set_interval(2.0, self._poll_file_change)
 
     def update_title(self) -> None:
         """
@@ -534,27 +544,104 @@ class CodeEditor(Static):
                 severity="warning",
             )
 
+    def _poll_file_change(self) -> None:
+        """Check if file was modified externally; auto-reload if no unsaved changes."""
+        if self.path is None or self._file_mtime is None:
+            return
+        try:
+            current_mtime = self.path.stat().st_mtime
+        except OSError:
+            return
+        if current_mtime == self._file_mtime:
+            return
+        if self.text != self.initial_text:
+            self.notify(
+                "File changed externally. Reload to apply changes.", severity="warning"
+            )
+        else:
+            self._reload_file()
+
+    def _reload_file(self) -> None:
+        """Reload file content from disk, resetting unsaved state."""
+        if self.path is None:
+            return
+        try:
+            raw_bytes = self.path.read_bytes()
+        except OSError as e:
+            self.notify(f"Error reloading file: {e}", severity="error")
+            return
+        detected_encoding = _detect_encoding(raw_bytes)
+        try:
+            raw_text = raw_bytes.decode(detected_encoding)
+        except Exception:
+            raw_text = raw_bytes.decode("latin-1", errors="replace")
+        detected = _detect_line_ending(raw_text)
+        text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
+        if text.startswith("\ufeff"):
+            text = text[1:]
+        self.encoding = detected_encoding
+        self.line_ending = detected
+        self.initial_text = text  # triggers watch_initial_text → replace_editor_text
+        self.text = text  # sync reactive so text == initial_text immediately
+        with contextlib.suppress(OSError):
+            self._file_mtime = self.path.stat().st_mtime
+        self.notify("File reloaded.", severity="information")
+
+    def action_reload_file(self) -> None:
+        """Manually reload the current file from disk."""
+        if self.path is None:
+            self.notify("No file to reload.", severity="error")
+            return
+        if self.text != self.initial_text:
+
+            def do_reload(result: DiscardAndReloadModalResult | None) -> None:
+                if result is None or result.is_cancelled or not result.should_reload:
+                    return
+                self._reload_file()
+
+            self.app.push_screen(DiscardAndReloadModalScreen(), do_reload)
+            return
+        self._reload_file()
+
+    def _write_to_disk(self) -> None:
+        """Write current text to disk and update mtime. Requires self.path is set."""
+        try:
+            content = _convert_line_ending(self.text, self.line_ending)
+            self.path.write_bytes(content.encode(self.encoding))
+            self.initial_text = self.text
+            with contextlib.suppress(OSError):
+                self._file_mtime = self.path.stat().st_mtime
+            self.notify("File saved", severity="information")
+            self.post_message(self.Saved(code_editor=self))
+        except Exception as e:
+            self.notify(f"Error saving file: {e}", severity="error")
+
     def action_save(self) -> None:
         """
         Save the current text to the file.
         """
         if self.path is None:
             self.action_save_as()
-        else:
-            try:
-                content = _convert_line_ending(self.text, self.line_ending)
-                self.path.write_bytes(content.encode(self.encoding))
-                self.initial_text = self.text
-                self.notify("File saved", severity="information")
-                self.post_message(
-                    self.Saved(
-                        code_editor=self,
-                    )
-                )
-                return
-            except Exception as e:
-                self.notify(f"Error saving file: {e}", severity="error")
-                return
+            return
+        # Check for external changes before saving
+        try:
+            current_mtime = self.path.stat().st_mtime
+        except OSError:
+            current_mtime = None
+        if (
+            current_mtime is not None
+            and self._file_mtime is not None
+            and current_mtime != self._file_mtime
+        ):
+
+            def do_overwrite(result: OverwriteConfirmModalResult | None) -> None:
+                if result is None or result.is_cancelled or not result.should_overwrite:
+                    return
+                self._write_to_disk()
+
+            self.app.push_screen(OverwriteConfirmModalScreen(), do_overwrite)
+            return
+        self._write_to_disk()
 
     def action_save_as(self, *, on_complete: Callable | None = None) -> None:
         """
@@ -585,6 +672,8 @@ class CodeEditor(Static):
                 new_path.write_bytes(content.encode(self.encoding))
                 self.initial_text = self.text
                 self.path = new_path
+                with contextlib.suppress(OSError):
+                    self._file_mtime = new_path.stat().st_mtime
                 self.post_message(
                     self.SavedAs(
                         code_editor=self,

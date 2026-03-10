@@ -471,6 +471,84 @@ class ChangeLineEndingModalScreen(ModalScreen[ChangeLineEndingModalResult]):
 
 
 @dataclass
+class OverwriteConfirmModalResult:
+    """
+    The result of the Overwrite Confirm modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # Whether to overwrite the file. None if cancelled.
+    should_overwrite: bool | None
+
+
+class OverwriteConfirmModalScreen(ModalScreen[OverwriteConfirmModalResult]):
+    """Confirm overwriting a file that was modified externally."""
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("File changed externally", id="title"),
+            Label(
+                "The file was modified externally. Overwrite with your changes?",
+                id="message",
+            ),
+            Button("Overwrite", variant="warning", id="overwrite"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#overwrite")
+    def on_overwrite(self) -> None:
+        self.dismiss(
+            OverwriteConfirmModalResult(is_cancelled=False, should_overwrite=True)
+        )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(
+            OverwriteConfirmModalResult(is_cancelled=True, should_overwrite=None)
+        )
+
+
+@dataclass
+class DiscardAndReloadModalResult:
+    """
+    The result of the Discard and Reload modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # Whether to reload the file. None if cancelled.
+    should_reload: bool | None
+
+
+class DiscardAndReloadModalScreen(ModalScreen[DiscardAndReloadModalResult]):
+    """Confirm discarding unsaved changes and reloading from disk."""
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Unsaved changes", id="title"),
+            Label(
+                "You have unsaved changes. Discard and reload from disk?",
+                id="message",
+            ),
+            Button("Discard & Reload", variant="warning", id="reload"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#reload")
+    def on_reload(self) -> None:
+        self.dismiss(
+            DiscardAndReloadModalResult(is_cancelled=False, should_reload=True)
+        )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(DiscardAndReloadModalResult(is_cancelled=True, should_reload=None))
+
+
+@dataclass
 class ChangeEncodingModalResult:
     """
     The result of the Change Encoding modal dialog.

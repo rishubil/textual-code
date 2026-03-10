@@ -474,6 +474,11 @@ class TextualCode(App):
             "Change the file encoding (UTF-8, UTF-8 BOM, UTF-16, Latin-1)",
             self.action_change_encoding_cmd,
         )
+        yield SystemCommand(
+            "Reload file",
+            "Reload the current file from disk",
+            self.action_reload_file_cmd,
+        )
 
     def action_goto_line_cmd(self) -> None:
         """
@@ -542,6 +547,14 @@ class TextualCode(App):
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
             self.call_next(code_editor.action_change_encoding)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_reload_file_cmd(self) -> None:
+        """Reload current file via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.action_reload_file)
         else:
             self.notify("No file open.", severity="error")
 
