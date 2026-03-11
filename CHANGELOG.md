@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Expand supported file encodings: auto-detection now uses `charset-normalizer` for reliable detection of CJK (GBK, Shift-JIS, EUC-JP, EUC-KR, Big5, GB18030), Cyrillic, Greek, and other non-Latin encodings; UTF-32 BOM detection added; Change Encoding modal now lists 40+ encodings grouped by script/region
+- Allow free-form indentation size input: Change Indentation modal replaces the fixed 2/4/8 selector with a text input accepting any positive integer; modal pre-populates current values; invalid input (zero, negative, or non-integer) shows an error notification and keeps the modal open
+- Show keyboard shortcut hints in command palette: commands with keybindings now display their shortcut in the description (e.g. "Save the current file (Ctrl+S)"), consistent with existing conventions for multi-cursor commands
 - Add "Toggle split orientation" feature: switch between horizontal (side-by-side) and vertical (top-and-bottom) split layout via command palette; toggling adds/removes the `split-vertical` CSS class on the split container
 - Add "Find in Workspace" feature (Ctrl+Shift+F): search all text files in the workspace from a Search panel in the sidebar; supports plain text and regex; results show file, line number, and line content; clicking a result opens the file and moves the cursor to the matched line; also accessible via command palette
 - Add "Move tab to other split" feature (Ctrl+Alt+\): move the active tab to the opposite split panel (left→right or right→left); auto-creates the right split if not open; unsaved content is preserved; also accessible via command palette

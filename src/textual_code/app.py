@@ -802,14 +802,20 @@ class TextualCode(App):
     def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
         yield from super().get_system_commands(screen)
         yield SystemCommand(
-            "Toggle sidebar", "Show or hide the sidebar", self.action_toggle_sidebar
+            "Toggle sidebar",
+            "Show or hide the sidebar (Ctrl+B)",
+            self.action_toggle_sidebar,
         )
         yield SystemCommand(
             "Reload explorer", "Reload the explorer", self.action_reload_explorer
         )
-        yield SystemCommand("Save file", "Save the current file", self.action_save_file)
         yield SystemCommand(
-            "Save all files", "Save all open files", self.action_save_all_files
+            "Save file", "Save the current file (Ctrl+S)", self.action_save_file
+        )
+        yield SystemCommand(
+            "Save all files",
+            "Save all open files (Ctrl+Shift+S)",
+            self.action_save_all_files,
         )
         yield SystemCommand(
             "Save file as",
@@ -817,13 +823,15 @@ class TextualCode(App):
             self.action_save_file_as,
         )
         yield SystemCommand(
-            "New file", "Open empty code editor", self.action_new_editor
+            "New file", "Open empty code editor (Ctrl+N)", self.action_new_editor
         )
         yield SystemCommand(
-            "Close file", "Close the current file", self.action_close_file
+            "Close file", "Close the current file (Ctrl+W)", self.action_close_file
         )
         yield SystemCommand(
-            "Close all files", "Close all open files", self.action_close_all_files
+            "Close all files",
+            "Close all open files (Ctrl+Shift+W)",
+            self.action_close_all_files,
         )
         yield SystemCommand(
             "Delete file", "Delete the current file", self.action_delete_file
@@ -846,7 +854,7 @@ class TextualCode(App):
         yield SystemCommand("Open folder", "Quit the app", self.action_quit)
         yield SystemCommand(
             "Goto line",
-            "Go to a specific line and column",
+            "Go to a specific line and column (Ctrl+G)",
             self.action_goto_line_cmd,
         )
         yield SystemCommand(
@@ -856,12 +864,12 @@ class TextualCode(App):
         )
         yield SystemCommand(
             "Find",
-            "Find text in the current file",
+            "Find text in the current file (Ctrl+F)",
             self.action_find_cmd,
         )
         yield SystemCommand(
             "Replace",
-            "Find and replace text in the current file",
+            "Find and replace text in the current file (Ctrl+H)",
             self.action_replace_cmd,
         )
         yield SystemCommand(
@@ -911,7 +919,7 @@ class TextualCode(App):
         )
         yield SystemCommand(
             "Select all occurrences",
-            "Select all occurrences of the current selection or word",
+            "Select all occurrences of the current selection or word (Ctrl+Shift+L)",
             self.action_select_all_occurrences_cmd,
         )
         yield SystemCommand(
@@ -926,17 +934,17 @@ class TextualCode(App):
         )
         yield SystemCommand(
             "Close split",
-            "Close the right split panel",
+            "Close the right split panel (Ctrl+Shift+\\)",
             self.action_close_split_cmd,
         )
         yield SystemCommand(
             "Focus left split",
-            "Move focus to the left split panel",
+            "Move focus to the left split panel (Ctrl+/)",
             self.action_focus_left_split_cmd,
         )
         yield SystemCommand(
             "Focus right split",
-            "Move focus to the right split panel",
+            "Move focus to the right split panel (Ctrl+Shift+/)",
             self.action_focus_right_split_cmd,
         )
         yield SystemCommand(
@@ -1040,7 +1048,14 @@ class TextualCode(App):
                     }
                 )
 
-        self.call_next(lambda: self.push_screen(ChangeIndentModalScreen(), do_change))
+        self.call_next(
+            lambda: self.push_screen(
+                ChangeIndentModalScreen(
+                    self.default_indent_type, self.default_indent_size
+                ),
+                do_change,
+            )
+        )
 
     def action_set_default_line_ending(self) -> None:
         """Set the default line ending for new files and save to user config."""

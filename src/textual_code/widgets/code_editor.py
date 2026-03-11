@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from uuid import uuid4
 
+from charset_normalizer import detect as _cn_detect
 from textual import on
 from textual.app import ComposeResult
 from textual.events import Mount
@@ -329,15 +330,64 @@ def _indent_display(indent_type: str, indent_size: int) -> str:
 
 
 _ENCODING_DISPLAY: dict[str, str] = {
+    # Unicode
     "utf-8": "UTF-8",
     "utf-8-sig": "UTF-8 BOM",
     "utf-16": "UTF-16",
-    "latin-1": "Latin-1",
+    "utf-16-le": "UTF-16 LE",
+    "utf-16-be": "UTF-16 BE",
+    "utf-32": "UTF-32",
+    "utf-32-le": "UTF-32 LE",
+    "utf-32-be": "UTF-32 BE",
+    # Western European
+    "latin-1": "Latin-1 (ISO-8859-1)",
+    "cp1252": "Windows-1252 (Western)",
+    "iso-8859-15": "ISO-8859-15 (Western)",
+    # Central/Eastern European
+    "cp1250": "Windows-1250 (Central European)",
+    "iso-8859-2": "ISO-8859-2 (Central European)",
+    "cp1257": "Windows-1257 (Baltic)",
+    "iso-8859-13": "ISO-8859-13 (Baltic)",
+    # Cyrillic
+    "cp1251": "Windows-1251 (Cyrillic)",
+    "iso-8859-5": "ISO-8859-5 (Cyrillic)",
+    "koi8-r": "KOI8-R (Russian)",
+    "koi8-u": "KOI8-U (Ukrainian)",
+    # Greek
+    "cp1253": "Windows-1253 (Greek)",
+    "iso-8859-7": "ISO-8859-7 (Greek)",
+    # Turkish
+    "cp1254": "Windows-1254 (Turkish)",
+    "iso-8859-9": "ISO-8859-9 (Turkish)",
+    # Hebrew
+    "cp1255": "Windows-1255 (Hebrew)",
+    # Arabic
+    "cp1256": "Windows-1256 (Arabic)",
+    # Vietnamese
+    "cp1258": "Windows-1258 (Vietnamese)",
+    # Japanese
+    "shift_jis": "Shift-JIS (Japanese)",
+    "euc_jp": "EUC-JP (Japanese)",
+    # Chinese Simplified
+    "gbk": "GBK (Chinese Simplified)",
+    "gb18030": "GB18030 (Chinese Simplified)",
+    # Chinese Traditional
+    "big5": "Big5 (Chinese Traditional)",
+    # Korean
+    "euc_kr": "EUC-KR (Korean)",
+    # ASCII
+    "ascii": "ASCII",
 }
 
 
 def _detect_encoding(raw_bytes: bytes) -> str:
-    """Detect file encoding from raw bytes using BOM inspection with UTF-8 fallback."""
+    """Detect file encoding from raw bytes using BOM inspection then charset-normalizer.
+
+    Falls back to latin-1 for short or ambiguous byte sequences.
+    """
+    # UTF-32 BOM must be checked before UTF-16 (shares prefix bytes)
+    if raw_bytes.startswith((b"\xff\xfe\x00\x00", b"\x00\x00\xfe\xff")):
+        return "utf-32"
     if raw_bytes.startswith(b"\xef\xbb\xbf"):
         return "utf-8-sig"
     if raw_bytes.startswith((b"\xff\xfe", b"\xfe\xff")):
@@ -346,7 +396,16 @@ def _detect_encoding(raw_bytes: bytes) -> str:
         raw_bytes.decode("utf-8")
         return "utf-8"
     except UnicodeDecodeError:
-        return "latin-1"
+        pass
+    # Use charset-normalizer for non-UTF-8 content.
+    # Requires enough bytes for reliable detection (short sequences are ambiguous).
+    if len(raw_bytes) >= 100:
+        result = _cn_detect(raw_bytes)
+        encoding = result.get("encoding")
+        confidence = result.get("confidence") or 0.0
+        if encoding and confidence > 0.7:
+            return encoding.lower()
+    return "latin-1"
 
 
 _LINE_ENDING_WARNING = (
@@ -1311,7 +1370,9 @@ class CodeEditor(Static):
             self.indent_type = result.indent_type
             self.indent_size = result.indent_size
 
-        self.app.push_screen(ChangeIndentModalScreen(), do_change)
+        self.app.push_screen(
+            ChangeIndentModalScreen(self.indent_type, self.indent_size), do_change
+        )
 
     def action_change_line_ending(self) -> None:
         """

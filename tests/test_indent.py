@@ -106,7 +106,7 @@ class _IndentTestApp(App):
 
 async def test_change_indent_modal_apply_spaces():
     """Apply Spaces 4 → text is converted to space indentation."""
-    from textual.widgets import Select
+    from textual.widgets import Input, Select
 
     app = _IndentTestApp(text="\thello\n\tworld")
     async with app.run_test() as pilot:
@@ -117,7 +117,7 @@ async def test_change_indent_modal_apply_spaces():
         await pilot.pause()
 
         app.screen.query_one("#indent_type", Select).value = "spaces"
-        app.screen.query_one("#indent_size", Select).value = 4
+        app.screen.query_one("#indent_size", Input).value = "4"
         await pilot.click("#apply")
         await pilot.pause()
 
@@ -129,7 +129,7 @@ async def test_change_indent_modal_apply_spaces():
 
 async def test_change_indent_modal_apply_tabs():
     """Apply Tabs → text is converted to tab indentation."""
-    from textual.widgets import Select
+    from textual.widgets import Input, Select
 
     app = _IndentTestApp(text="    hello\n    world")
     async with app.run_test() as pilot:
@@ -140,7 +140,7 @@ async def test_change_indent_modal_apply_tabs():
         await pilot.pause()
 
         app.screen.query_one("#indent_type", Select).value = "tabs"
-        app.screen.query_one("#indent_size", Select).value = 4
+        app.screen.query_one("#indent_size", Input).value = "4"
         await pilot.click("#apply")
         await pilot.pause()
 
@@ -171,7 +171,7 @@ async def test_change_indent_cancel_no_change():
 
 async def test_change_indent_updates_textarea_settings():
     """After Apply, TextArea's indent_type and indent_width are updated."""
-    from textual.widgets import Select, TextArea
+    from textual.widgets import Input, Select, TextArea
 
     app = _IndentTestApp(text="\thello")
     async with app.run_test() as pilot:
@@ -182,7 +182,7 @@ async def test_change_indent_updates_textarea_settings():
         await pilot.pause()
 
         app.screen.query_one("#indent_type", Select).value = "spaces"
-        app.screen.query_one("#indent_size", Select).value = 2
+        app.screen.query_one("#indent_size", Input).value = "2"
         await pilot.click("#apply")
         await pilot.pause()
 
@@ -212,7 +212,7 @@ async def test_footer_shows_default_indent():
 
 async def test_footer_shows_tabs_after_change():
     """After applying Tabs → #indent_btn label == 'Tabs'."""
-    from textual.widgets import Button, Select
+    from textual.widgets import Button, Input, Select
 
     app = _IndentTestApp(text="    hello\n    world")
     async with app.run_test() as pilot:
@@ -220,7 +220,7 @@ async def test_footer_shows_tabs_after_change():
         app.code_editor.action_change_indent()
         await pilot.pause()
         app.screen.query_one("#indent_type", Select).value = "tabs"
-        app.screen.query_one("#indent_size", Select).value = 4
+        app.screen.query_one("#indent_size", Input).value = "4"
         await pilot.click("#apply")
         await pilot.pause()
         btn = app.screen_stack[0].query_one("#indent_btn", Button)
@@ -230,7 +230,7 @@ async def test_footer_shows_tabs_after_change():
 
 async def test_footer_shows_2_spaces_after_change():
     """After applying 2 Spaces → #indent_btn label == '2 Spaces'."""
-    from textual.widgets import Button, Select
+    from textual.widgets import Button, Input, Select
 
     app = _IndentTestApp()
     async with app.run_test() as pilot:
@@ -238,7 +238,7 @@ async def test_footer_shows_2_spaces_after_change():
         app.code_editor.action_change_indent()
         await pilot.pause()
         app.screen.query_one("#indent_type", Select).value = "spaces"
-        app.screen.query_one("#indent_size", Select).value = 2
+        app.screen.query_one("#indent_size", Input).value = "2"
         await pilot.click("#apply")
         await pilot.pause()
         btn = app.screen_stack[0].query_one("#indent_btn", Button)
@@ -260,7 +260,7 @@ async def test_indent_button_opens_modal():
 
 async def test_change_indent_updates_editor_reactives():
     """After applying indent change, editor indent_type and indent_size are updated."""
-    from textual.widgets import Select
+    from textual.widgets import Input, Select
 
     app = _IndentTestApp(text="\thello")
     async with app.run_test() as pilot:
@@ -268,12 +268,129 @@ async def test_change_indent_updates_editor_reactives():
         app.code_editor.action_change_indent()
         await pilot.pause()
         app.screen.query_one("#indent_type", Select).value = "spaces"
-        app.screen.query_one("#indent_size", Select).value = 2
+        app.screen.query_one("#indent_size", Input).value = "2"
         await pilot.click("#apply")
         await pilot.pause()
         ce = app.screen_stack[0].query_one(CodeEditor)
     assert ce.indent_type == "spaces"
     assert ce.indent_size == 2
+
+
+async def test_change_indent_custom_size_3():
+    """Custom indent size 3 → text indented by 3 spaces."""
+    from textual.widgets import Input, Select
+
+    app = _IndentTestApp(text="\thello\n\tworld")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_indent()
+        await pilot.pause()
+        app.screen.query_one("#indent_type", Select).value = "spaces"
+        app.screen.query_one("#indent_size", Input).value = "3"
+        await pilot.click("#apply")
+        await pilot.pause()
+        final_text = app.screen_stack[0].query_one(CodeEditor).text
+
+    assert "   hello" in final_text  # 3 spaces
+    assert "   world" in final_text
+
+
+async def test_change_indent_custom_size_6():
+    """Custom indent size 6 → text indented by 6 spaces."""
+    from textual.widgets import Input, Select
+
+    app = _IndentTestApp(text="\thello")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_indent()
+        await pilot.pause()
+        app.screen.query_one("#indent_type", Select).value = "spaces"
+        app.screen.query_one("#indent_size", Input).value = "6"
+        await pilot.click("#apply")
+        await pilot.pause()
+        final_text = app.screen_stack[0].query_one(CodeEditor).text
+
+    assert "      hello" in final_text  # 6 spaces
+
+
+async def test_change_indent_invalid_size_zero():
+    """Input '0' for size → modal stays open (rejected)."""
+    from textual.widgets import Input, Select
+
+    from textual_code.modals import ChangeIndentModalScreen
+
+    app = _IndentTestApp(text="\thello")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_indent()
+        await pilot.pause()
+        app.screen.query_one("#indent_type", Select).value = "spaces"
+        app.screen.query_one("#indent_size", Input).value = "0"
+        await pilot.click("#apply")
+        await pilot.pause()
+        # Modal should still be open because input is invalid
+        assert isinstance(app.screen, ChangeIndentModalScreen)
+
+
+async def test_change_indent_invalid_size_negative():
+    """Input '-1' for size → modal stays open (rejected)."""
+    from textual.widgets import Input, Select
+
+    from textual_code.modals import ChangeIndentModalScreen
+
+    app = _IndentTestApp(text="\thello")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_indent()
+        await pilot.pause()
+        app.screen.query_one("#indent_type", Select).value = "spaces"
+        app.screen.query_one("#indent_size", Input).value = "-1"
+        await pilot.click("#apply")
+        await pilot.pause()
+        assert isinstance(app.screen, ChangeIndentModalScreen)
+
+
+async def test_change_indent_invalid_size_text():
+    """Input 'abc' for size → modal stays open (rejected)."""
+    from textual.widgets import Input, Select
+
+    from textual_code.modals import ChangeIndentModalScreen
+
+    app = _IndentTestApp(text="\thello")
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_indent()
+        await pilot.pause()
+        app.screen.query_one("#indent_type", Select).value = "spaces"
+        app.screen.query_one("#indent_size", Input).value = "abc"
+        await pilot.click("#apply")
+        await pilot.pause()
+        assert isinstance(app.screen, ChangeIndentModalScreen)
+
+
+async def test_change_indent_modal_prepopulates_current_values():
+    """ChangeIndentModalScreen pre-fills current indent type and size."""
+    from textual.widgets import Input, Select
+
+    app = _IndentTestApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Apply custom 3-space indent first
+        app.code_editor.action_change_indent()
+        await pilot.pause()
+        app.screen.query_one("#indent_type", Select).value = "spaces"
+        app.screen.query_one("#indent_size", Input).value = "3"
+        await pilot.click("#apply")
+        await pilot.pause()
+
+        # Open modal again and check pre-populated values
+        app.screen_stack[0].query_one(CodeEditor).action_change_indent()
+        await pilot.pause()
+        indent_type = app.screen.query_one("#indent_type", Select).value
+        indent_size_val = app.screen.query_one("#indent_size", Input).value
+
+    assert indent_type == "spaces"
+    assert indent_size_val == "3"
 
 
 async def test_change_indent_cmd_no_editor_notifies(workspace: Path):

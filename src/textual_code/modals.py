@@ -383,17 +383,26 @@ class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
     Modal dialog for changing indentation style and size.
     """
 
+    def __init__(
+        self,
+        current_indent_type: str = "spaces",
+        current_indent_size: int = 4,
+    ) -> None:
+        super().__init__()
+        self._current_indent_type = current_indent_type
+        self._current_indent_size = current_indent_size
+
     def compose(self) -> ComposeResult:
         yield Grid(
             Label("Change Indentation", id="title"),
             Select(
                 options=[("Spaces", "spaces"), ("Tabs", "tabs")],
-                value="spaces",
+                value=self._current_indent_type,
                 id="indent_type",
             ),
-            Select(
-                options=[("2", 2), ("4", 4), ("8", 8)],
-                value=4,
+            Input(
+                value=str(self._current_indent_size),
+                placeholder="e.g. 4",
                 id="indent_size",
             ),
             Button("Apply", variant="primary", id="apply"),
@@ -403,8 +412,16 @@ class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
 
     @on(Button.Pressed, "#apply")
     def on_apply(self) -> None:
+        raw = self.query_one("#indent_size", Input).value.strip()
+        try:
+            indent_size = int(raw)
+        except ValueError:
+            self.notify("Indent size must be a positive integer.", severity="error")
+            return
+        if indent_size <= 0:
+            self.notify("Indent size must be greater than 0.", severity="error")
+            return
         indent_type = str(self.query_one("#indent_type", Select).value)
-        indent_size = int(self.query_one("#indent_size", Select).value)
         self.dismiss(
             ChangeIndentModalResult(
                 is_cancelled=False,
@@ -656,10 +673,53 @@ class ChangeEncodingModalScreen(ModalScreen[ChangeEncodingModalResult]):
             Label("Change Encoding", id="title"),
             Select(
                 options=[
+                    # Unicode
                     ("UTF-8", "utf-8"),
                     ("UTF-8 BOM", "utf-8-sig"),
                     ("UTF-16", "utf-16"),
-                    ("Latin-1", "latin-1"),
+                    ("UTF-16 LE", "utf-16-le"),
+                    ("UTF-16 BE", "utf-16-be"),
+                    ("UTF-32", "utf-32"),
+                    ("UTF-32 LE", "utf-32-le"),
+                    ("UTF-32 BE", "utf-32-be"),
+                    # Western European
+                    ("Latin-1 (ISO-8859-1)", "latin-1"),
+                    ("Windows-1252 (Western)", "cp1252"),
+                    ("ISO-8859-15 (Western)", "iso-8859-15"),
+                    # Central/Eastern European
+                    ("Windows-1250 (Central European)", "cp1250"),
+                    ("ISO-8859-2 (Central European)", "iso-8859-2"),
+                    ("Windows-1257 (Baltic)", "cp1257"),
+                    ("ISO-8859-13 (Baltic)", "iso-8859-13"),
+                    # Cyrillic
+                    ("Windows-1251 (Cyrillic)", "cp1251"),
+                    ("ISO-8859-5 (Cyrillic)", "iso-8859-5"),
+                    ("KOI8-R (Russian)", "koi8-r"),
+                    ("KOI8-U (Ukrainian)", "koi8-u"),
+                    # Greek
+                    ("Windows-1253 (Greek)", "cp1253"),
+                    ("ISO-8859-7 (Greek)", "iso-8859-7"),
+                    # Turkish
+                    ("Windows-1254 (Turkish)", "cp1254"),
+                    ("ISO-8859-9 (Turkish)", "iso-8859-9"),
+                    # Hebrew
+                    ("Windows-1255 (Hebrew)", "cp1255"),
+                    # Arabic
+                    ("Windows-1256 (Arabic)", "cp1256"),
+                    # Vietnamese
+                    ("Windows-1258 (Vietnamese)", "cp1258"),
+                    # Japanese
+                    ("Shift-JIS (Japanese)", "shift_jis"),
+                    ("EUC-JP (Japanese)", "euc_jp"),
+                    # Chinese Simplified
+                    ("GBK (Chinese Simplified)", "gbk"),
+                    ("GB18030 (Chinese Simplified)", "gb18030"),
+                    # Chinese Traditional
+                    ("Big5 (Chinese Traditional)", "big5"),
+                    # Korean
+                    ("EUC-KR (Korean)", "euc_kr"),
+                    # ASCII
+                    ("ASCII", "ascii"),
                 ],
                 value=self._current_encoding,
                 id="encoding",
