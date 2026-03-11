@@ -126,7 +126,7 @@ uv run textual run --dev textual_code:main
   - [x] Plain Search
   - [x] Regex search
   - [x] Replace all
-  - [ ] Select all occurrences
+  - [x] Select all occurrences
   - [x] In the current file
   - [ ] In all files (sidebar panel)
 - [ ] Markdown preview

@@ -203,3 +203,38 @@ called explicitly after mutating `_extra_cursors` to trigger a re-render.
 (primary + extra).  When `cursor_count > 1`, the cursor button label becomes
 `"Ln X, Col Y [N]"` to signal multi-cursor mode.  It resets to `1` when
 `CursorsChanged` fires with an empty extra-cursor list.
+
+---
+
+## Select All Occurrences (`Ctrl+Shift+L`)
+
+Selects every occurrence of the current selection (or the word under the cursor
+if nothing is selected) within the open file.
+
+### Key binding and command palette
+
+| Action | Key | Command palette |
+|---|---|---|
+| Select all occurrences | `Ctrl+Shift+L` | "Select all occurrences" |
+
+### Behaviour
+
+1. **Query resolution** — `CodeEditor._get_query_text()` returns:
+   - the selected text when `selection.start != selection.end`
+   - the word under the cursor (via `_get_word_at_location`) otherwise
+   - an empty string if the cursor sits on whitespace (no-op)
+2. **Search** — `re.finditer(re.escape(query), text)`: plain-text,
+   case-sensitive, no wrap-around.
+3. **Result application**:
+   - 0 matches — `notify("'query' not found", severity="warning")`
+   - 1 match — primary `TextArea.selection` set to match span, no extra cursors
+   - N matches — primary selection = first match; extra cursors added at the
+     *start* offset of each remaining match; `notify("N occurrences selected")`
+
+### Helpers
+
+| Helper | Location | Purpose |
+|---|---|---|
+| `_get_word_at_location(text, row, col)` | `code_editor.py` module level | Returns the `\w+` token containing `(row, col)`, or `""` |
+| `_text_offset_to_location(text, offset)` | `code_editor.py` module level | Converts flat char offset to `(row, col)` |
+| `CodeEditor._get_query_text()` | `CodeEditor` method | Resolves selection or word-under-cursor |

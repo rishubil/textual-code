@@ -251,6 +251,24 @@ def _find_next(
         return -1, -1
 
 
+def _get_word_at_location(text: str, row: int, col: int) -> str:
+    """Return the word under (row, col) using \\w+ boundaries.
+
+    Returns an empty string if the character at (row, col) is not a word
+    character or if the coordinates are out of range.
+    """
+    lines = text.split("\n")
+    if row >= len(lines):
+        return ""
+    line = lines[row]
+    if col >= len(line):
+        return ""
+    for m in re.finditer(r"\w+", line):
+        if m.start() <= col < m.end():
+            return m.group()
+    return ""
+
+
 def _convert_indentation(text: str, to_type: str, to_size: int) -> str:
     """Convert the leading indentation of each line to the target type and size.
 
@@ -1298,6 +1316,50 @@ class CodeEditor(Static):
         row, col = self.editor.cursor_location
         if row > 0:
             self.editor.add_cursor((row - 1, col))
+
+    def _get_query_text(self) -> str:
+        """Return selected text, or word under cursor if no selection."""
+        sel = self.editor.selection
+        if sel.start != sel.end:
+            return self.editor.selected_text
+        row, col = self.editor.cursor_location
+        return _get_word_at_location(self.text, row, col)
+
+    def action_select_all_occurrences(self) -> None:
+        """Select all occurrences of the current selection or word under cursor.
+
+        Sets the primary selection to the first match and adds extra cursors at
+        the start of each subsequent match. Uses plain-text (re.escape) search,
+        case-sensitive.
+        """
+        from textual.widgets.text_area import Selection
+
+        query = self._get_query_text()
+        if not query:
+            return
+
+        text = self.text
+        matches = list(re.finditer(re.escape(query), text))
+
+        self.editor.clear_extra_cursors()
+
+        if not matches:
+            self.notify(f"'{query}' not found", severity="warning")
+            return
+
+        first = matches[0]
+        self.editor.selection = Selection(
+            start=_text_offset_to_location(text, first.start()),
+            end=_text_offset_to_location(text, first.end()),
+        )
+
+        if len(matches) == 1:
+            return
+
+        for m in matches[1:]:
+            self.editor.add_cursor(_text_offset_to_location(text, m.start()))
+
+        self.notify(f"{len(matches)} occurrences selected")
 
     @property
     def editor(self) -> MultiCursorTextArea:
