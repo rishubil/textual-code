@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add "Move tab to other split" feature (Ctrl+Alt+\): move the active tab to the opposite split panel (left→right or right→left); auto-creates the right split if not open; unsaved content is preserved; also accessible via command palette
 - Add feature to open file or folder from command arguments
 - Add feature to open a specific file from the command palette
 - Add feature to create a new file or directory

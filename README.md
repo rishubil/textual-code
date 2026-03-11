@@ -129,22 +129,22 @@ uv run textual run --dev textual_code:main
   - [x] Select all occurrences
   - [x] In the current file
   - [ ] In all files (sidebar panel)
-- [ ] Markdown preview
-  - [ ] Show the markdown preview
-  - [ ] Live preview
-- [ ] Split view
-  - [ ] Split the view horizontally
+- [x] Markdown preview
+  - [x] Show the markdown preview
+  - [x] Live preview
+- [x] Split view
+  - [x] Split the view horizontally
   - [ ] Split the view vertically
-  - [ ] Close the split view
+  - [x] Close the split view
   - [ ] Resize the split view
     - [ ] Resize the split view by dragging the border
     - [ ] Resize the split view from the command palette (set the size of current split view)
       - [ ] Absolute size
       - [ ] Relative size (+/-)
       - [ ] Percentage size
-  - [ ] Move the focus to the split view
-  - [ ] Move tabs between split views
-    - [ ] Move tabs from the command palette
+  - [x] Move the focus to the split view
+  - [x] Move tabs between split views
+    - [x] Move tabs from the command palette
     - [ ] Move tabs by dragging the tab
       - [ ] Move tabs between split views by dragging the tab to the other split view
       - [ ] Split the view and move the tab to the new split view by dragging the tab to the edge of the other split view

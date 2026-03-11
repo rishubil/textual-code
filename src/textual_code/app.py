@@ -146,6 +146,12 @@ class MainView(Static):
             "Toggle preview",
             show=False,
         ),
+        Binding(
+            "ctrl+alt+backslash",
+            "move_tab_to_other_split",
+            "Move tab to other split",
+            show=False,
+        ),
     ]
 
     def __init__(self, *args, **kwargs) -> None:
@@ -524,6 +530,45 @@ class MainView(Static):
         if self._split_visible:
             self._set_active_split("right")
 
+    async def action_move_tab_to_other_split(self) -> None:
+        """Move the current tab to the other split panel."""
+        editor = self.get_active_code_editor()
+        if editor is None:
+            return
+
+        source_split = self._active_split
+        other_split = "right" if source_split == "left" else "left"
+        source_pane_id = editor.pane_id
+        path = editor.path
+        text = editor.text
+        initial_text = editor.initial_text
+        has_unsaved = text != initial_text
+
+        # Show right split if it doesn't exist yet
+        if other_split == "right" and not self._split_visible:
+            self._split_visible = True
+            self.right_tabbed_content.display = True
+
+        # Open in destination split first (before closing source, to avoid
+        # _auto_close_split_if_empty resetting _split_visible while right is empty)
+        self._active_split = other_split
+        new_pane_id = await self.open_code_editor_pane(path)
+
+        # Restore unsaved content if the editor had unsaved changes
+        if has_unsaved:
+            tc = self.query_one(f"#split_{other_split}", TabbedContent)
+            pane = tc.get_pane(new_pane_id)
+            new_editor = pane.query_one(CodeEditor)
+            new_editor.replace_editor_text(text)
+
+        # Close the source pane now that the destination is ready
+        await self.action_close_code_editor(source_pane_id)
+
+        # Focus destination
+        tc = self.query_one(f"#split_{other_split}", TabbedContent)
+        tc.active = new_pane_id
+        self._set_active_split(other_split)
+
     # ── Event handlers ────────────────────────────────────────────────────────
 
     @on(TabbedContent.TabActivated)
@@ -824,10 +869,19 @@ class TextualCode(App):
             "Show/hide the markdown preview panel (Ctrl+Shift+M)",
             self.action_toggle_markdown_preview_cmd,
         )
+        yield SystemCommand(
+            "Move tab to other split",
+            "Move the current tab to the other split panel (Ctrl+Alt+\\)",
+            self.action_move_tab_to_other_split_cmd,
+        )
 
     def action_toggle_markdown_preview_cmd(self) -> None:
         """Toggle markdown preview from command palette."""
         self.call_next(self.main_view.action_toggle_markdown_preview)
+
+    def action_move_tab_to_other_split_cmd(self) -> None:
+        """Move current tab to the other split via command palette."""
+        self.call_next(self.main_view.action_move_tab_to_other_split)
 
     def action_set_default_indentation(self) -> None:
         """Set the default indentation for new files and save to user config."""

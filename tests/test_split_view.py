@@ -388,3 +388,98 @@ async def test_split_right_cmd_no_file(workspace: Path):
         # Should not raise
         app.action_split_right_cmd()
         await pilot.pause()
+
+
+# ── Group G — Move Tab to Other Split ───────────────────────────────────────────
+
+
+def test_ctrl_alt_backslash_binding_registered():
+    """ctrl+alt+backslash binding is in MainView.BINDINGS."""
+    from textual_code.app import MainView
+
+    keys = [b.key for b in MainView.BINDINGS]
+    assert "ctrl+alt+backslash" in keys
+
+
+async def test_move_tab_left_to_right(workspace: Path, py_file: Path):
+    """Moving a tab from left split places it in the right split."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert py_file in app.main_view._opened_files["left"]
+        assert py_file not in app.main_view._opened_files["right"]
+
+        await app.main_view.action_move_tab_to_other_split()
+        await pilot.pause()
+
+        # File is now in right split and removed from left split
+        assert py_file in app.main_view._opened_files["right"]
+        assert py_file not in app.main_view._opened_files["left"]
+
+
+async def test_move_tab_right_to_left(workspace: Path, py_file: Path):
+    """Moving a tab from right split places it in the left split."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # First open a split and move to right
+        await app.main_view.action_split_right()
+        await pilot.pause()
+        assert app.main_view._active_split == "right"
+        assert py_file in app.main_view._opened_files["right"]
+
+        # Now move back to left
+        await app.main_view.action_move_tab_to_other_split()
+        await pilot.pause()
+
+        assert py_file in app.main_view._opened_files["left"]
+        assert py_file not in app.main_view._opened_files["right"]
+
+
+async def test_move_tab_creates_right_split(workspace: Path, py_file: Path):
+    """Moving a tab to the right auto-creates the right split if not open."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.main_view._split_visible is False
+
+        await app.main_view.action_move_tab_to_other_split()
+        await pilot.pause()
+
+        assert app.main_view._split_visible is True
+        assert app.main_view.right_tabbed_content.display is True
+
+
+async def test_move_tab_transfers_unsaved_content(workspace: Path, py_file: Path):
+    """Unsaved content is preserved when a tab is moved to the other split."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        # Edit the file without saving
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.replace_editor_text("unsaved content here")
+        await pilot.pause()
+        assert editor.text == "unsaved content here"
+
+        await app.main_view.action_move_tab_to_other_split()
+        await pilot.pause()
+
+        # The destination editor should have the unsaved content
+        new_editor = app.main_view._get_active_code_editor_in_split("right")
+        assert new_editor is not None
+        assert new_editor.text == "unsaved content here"
+
+
+async def test_move_tab_no_op_without_editor(workspace: Path):
+    """action_move_tab_to_other_split is a no-op when no editor is open."""
+    app = make_app(workspace, open_file=None)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Should not raise — no editor open
+        await app.main_view.action_move_tab_to_other_split()
+        await pilot.pause()
+        # State unchanged
+        assert app.main_view._active_split == "left"
+        assert app.main_view._split_visible is False
