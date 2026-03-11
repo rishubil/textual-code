@@ -647,6 +647,7 @@ class CodeEditor(Static):
         self.set_reactive(CodeEditor.pane_id, pane_id)
         self.set_reactive(CodeEditor.path, path)
         self._file_mtime: float | None = None
+        self._external_change_pending: bool = False
         self._syntax_theme: str = default_syntax_theme
 
         # if a path is provided, load the file content
@@ -848,14 +849,19 @@ class CodeEditor(Static):
         if current_mtime == self._file_mtime:
             return
         if self.text != self.initial_text:
-            self.notify(
-                "File changed externally. Reload to apply changes.", severity="warning"
-            )
+            if not self._external_change_pending:
+                self._external_change_pending = True
+                self.notify(
+                    "File changed externally. Reload to apply changes.",
+                    severity="warning",
+                    timeout=0,
+                )
         else:
             self._reload_file()
 
     def _reload_file(self) -> None:
         """Reload file content from disk, resetting unsaved state."""
+        self._external_change_pending = False
         if self.path is None:
             return
         try:
@@ -898,6 +904,7 @@ class CodeEditor(Static):
 
     def _write_to_disk(self) -> None:
         """Write current text to disk and update mtime. Requires self.path is set."""
+        self._external_change_pending = False
         try:
             content = _convert_line_ending(self.text, self.line_ending)
             self.path.write_bytes(content.encode(self.encoding))

@@ -4,6 +4,7 @@ from collections import defaultdict
 
 from rich.text import Text
 from textual import events
+from textual.binding import Binding
 from textual.message import Message
 from textual.widgets import TextArea
 
@@ -47,6 +48,10 @@ class MultiCursorTextArea(TextArea):
     trigger a watch).  The widget posts a ``CursorsChanged`` message whenever
     the extra-cursor set changes.
     """
+
+    BINDINGS = [
+        Binding("ctrl+shift+z", "redo", "Redo", show=False),
+    ]
 
     # ── inner message ─────────────────────────────────────────────────────────
 

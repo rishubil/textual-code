@@ -222,3 +222,47 @@ def test_snapshot_markdown_preview_open(snap_compare, snapshot_workspace: Path):
         await pilot.pause()
 
     assert snap_compare(app, run_before=open_preview, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_overwrite_confirm_modal(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """OverwriteConfirmModalScreen shown when saving over an externally changed file."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def trigger_overwrite_modal(pilot):
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.action_focus()
+        editor.text = "editor changes\n"
+        await pilot.pause()
+        # Simulate external change by shifting mtime tracker
+        editor._file_mtime -= 1.0
+        editor.action_save()
+        await pilot.pause()
+
+    assert snap_compare(
+        app, run_before=trigger_overwrite_modal, terminal_size=TERMINAL_SIZE
+    )
+
+
+def test_snapshot_discard_and_reload_modal(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """DiscardAndReloadModalScreen shown when reloading with unsaved changes."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def trigger_reload_modal(pilot):
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.action_focus()
+        editor.text = "unsaved changes\n"
+        await pilot.pause()
+        editor.action_reload_file()
+        await pilot.pause()
+
+    assert snap_compare(
+        app, run_before=trigger_reload_modal, terminal_size=TERMINAL_SIZE
+    )

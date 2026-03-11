@@ -436,3 +436,110 @@ async def test_auto_reload_preserves_cursor_position(
         await pilot.pause()
 
         assert editor.editor.cursor_location == (3, 2)
+
+
+# ── Group G: external-change toast deduplication ──────────────────────────────
+
+
+async def test_toast_shown_once_on_first_poll(workspace: Path, sample_py_file: Path):
+    """G-01: External change + unsaved → first poll shows notify, flag set."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # Make unsaved change and simulate external file change
+        editor.text = "unsaved\n"
+        await pilot.pause()
+        sample_py_file.write_text("external\n")
+        editor._file_mtime -= 1.0
+
+        assert not editor._external_change_pending
+        editor._poll_file_change()
+        await pilot.pause()
+
+        assert editor._external_change_pending
+
+
+async def test_toast_not_repeated_on_subsequent_polls(
+    workspace: Path, sample_py_file: Path
+):
+    """G-02: External change + unsaved → poll 3 times → flag still True (no repeat)."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.text = "unsaved\n"
+        await pilot.pause()
+        sample_py_file.write_text("external\n")
+        editor._file_mtime -= 1.0
+
+        editor._poll_file_change()
+        await pilot.pause()
+        assert editor._external_change_pending
+
+        # Poll two more times — flag stays True, no repeated notify
+        editor._poll_file_change()
+        await pilot.pause()
+        editor._poll_file_change()
+        await pilot.pause()
+
+        assert editor._external_change_pending
+
+
+async def test_flag_cleared_after_reload(workspace: Path, sample_py_file: Path):
+    """G-03: After reload, _external_change_pending is False; new change can notify."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.text = "unsaved\n"
+        await pilot.pause()
+        sample_py_file.write_text("external\n")
+        editor._file_mtime -= 1.0
+
+        editor._poll_file_change()
+        await pilot.pause()
+        assert editor._external_change_pending
+
+        # Reload clears the flag
+        editor._reload_file()
+        await pilot.pause()
+        assert not editor._external_change_pending
+
+        # Another external change can trigger a new notification
+        sample_py_file.write_text("external2\n")
+        editor._file_mtime -= 1.0
+        editor.text = "unsaved2\n"
+        await pilot.pause()
+        editor._poll_file_change()
+        await pilot.pause()
+        assert editor._external_change_pending
+
+
+async def test_flag_cleared_after_save(workspace: Path, sample_py_file: Path):
+    """G-04: After save, _external_change_pending is False; new change can notify."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.text = "unsaved\n"
+        await pilot.pause()
+        sample_py_file.write_text("external\n")
+        editor._file_mtime -= 1.0
+
+        editor._poll_file_change()
+        await pilot.pause()
+        assert editor._external_change_pending
+
+        # Save clears the flag
+        editor._write_to_disk()
+        await pilot.pause()
+        assert not editor._external_change_pending

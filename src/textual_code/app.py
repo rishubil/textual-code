@@ -167,9 +167,9 @@ class MainView(Static):
 
     BINDINGS = [
         Binding("ctrl+s", "save", "Save"),
-        Binding("ctrl+shift+s", "save_all", "Save all"),
+        Binding("ctrl+shift+s", "save_all", "Save all", show=False),
         Binding("ctrl+w", "close", "Close tab", priority=True),
-        Binding("ctrl+shift+w", "close_all", "Close all", priority=True),
+        Binding("ctrl+shift+w", "close_all", "Close all", priority=True, show=False),
         Binding("ctrl+g", "goto_line", "Goto line"),
         Binding("ctrl+f", "find", "Find", priority=True),
         Binding("ctrl+h", "replace", "Replace", priority=True),
