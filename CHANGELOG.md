@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add sidebar drag resize: drag the right border of the sidebar to resize it; width is clamped between `SIDEBAR_MIN_WIDTH` (5) and `screen_width - 5`; existing modal resize flow is unchanged
 - Ctrl+C with no selection copies the current line including its newline (VS Code behaviour); Ctrl+X with no selection cuts the current line; Ctrl+C with a selection copies the selected text as before
 - Replace Find/Replace modals with an inline find/replace bar (VS Code style): bar docks to the top of the editor, stays open while editing, supports sequential Next clicks without reopening, and shows a replace row in replace mode; regex support retained
 - Expand supported file encodings: auto-detection now uses `charset-normalizer` for reliable detection of CJK (GBK, Shift-JIS, EUC-JP, EUC-KR, Big5, GB18030), Cyrillic, Greek, and other non-Latin encodings; UTF-32 BOM detection added; Change Encoding modal now lists 40+ encodings grouped by script/region

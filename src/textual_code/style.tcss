@@ -3,6 +3,16 @@ Sidebar {
     width: 20;
 }
 
+SidebarResizeHandle {
+    dock: right;
+    width: 1;
+    background: $surface;
+}
+
+SidebarResizeHandle:hover {
+    background: $primary-darken-2;
+}
+
 FindReplaceBar {
     dock: top;
     display: none;

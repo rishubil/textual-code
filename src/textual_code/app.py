@@ -45,7 +45,7 @@ from textual_code.modals import (
 from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.explorer import Explorer
 from textual_code.widgets.markdown_preview import MarkdownPreviewPane
-from textual_code.widgets.sidebar import Sidebar
+from textual_code.widgets.sidebar import SIDEBAR_MIN_WIDTH, Sidebar
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
 
@@ -87,7 +87,7 @@ def _parse_sidebar_resize(
         except ValueError:
             return None
         result = current_width + delta
-        if result < 5 or result > max_width:
+        if result < SIDEBAR_MIN_WIDTH or result > max_width:
             return None
         return result
 
@@ -96,7 +96,7 @@ def _parse_sidebar_resize(
         result = int(value)
     except ValueError:
         return None
-    if result < 5 or result > max_width:
+    if result < SIDEBAR_MIN_WIDTH or result > max_width:
         return None
     return result
 
