@@ -23,6 +23,12 @@ uv run textual run --dev textual_code:main -- [path]
 # Lint and format (also runs automatically via pre-commit)
 uv run ruff check --fix src/
 uv run ruff format src/
+
+# Run unit/integration tests in parallel (fast, ~1 min)
+uv run pytest tests/ -n auto -m "not serial"
+
+# Run snapshot tests separately (serial, slower)
+uv run pytest tests/ -m serial
 ```
 
 ## Architecture

@@ -16,7 +16,11 @@ Compare on subsequent runs:
 
 from pathlib import Path
 
+import pytest
+
 from tests.conftest import make_app
+
+pytestmark = pytest.mark.serial
 
 TERMINAL_SIZE = (120, 40)
 
