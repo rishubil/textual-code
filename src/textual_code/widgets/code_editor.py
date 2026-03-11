@@ -613,7 +613,17 @@ class CodeEditor(Static):
         """
         return f"pane-code-editor-{uuid4().hex}"
 
-    def __init__(self, pane_id: str, path: Path | None, *args, **kwargs) -> None:
+    def __init__(
+        self,
+        pane_id: str,
+        path: Path | None,
+        *args,
+        default_indent_type: str = "spaces",
+        default_indent_size: int = 4,
+        default_line_ending: str = "lf",
+        default_encoding: str = "utf-8",
+        **kwargs,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.set_reactive(CodeEditor.pane_id, pane_id)
         self.set_reactive(CodeEditor.path, path)
@@ -674,6 +684,12 @@ class CodeEditor(Static):
             ec_eol = ec.get("end_of_line")
             if ec_eol and ec_eol != "unset" and ec_eol in ("lf", "crlf", "cr"):
                 self.set_reactive(CodeEditor.line_ending, ec_eol)
+        else:
+            # Apply app-level defaults for new untitled files
+            self.set_reactive(CodeEditor.indent_type, default_indent_type)
+            self.set_reactive(CodeEditor.indent_size, default_indent_size)
+            self.set_reactive(CodeEditor.line_ending, default_line_ending)
+            self.set_reactive(CodeEditor.encoding, default_encoding)
 
     def compose(self) -> ComposeResult:
         yield MultiCursorTextArea.code_editor(

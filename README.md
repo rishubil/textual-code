@@ -162,10 +162,10 @@ uv run textual run --dev textual_code:main
     - [ ] UI
     - [ ] Syntax highlighting
   - [ ] Shortcuts
-  - [ ] Editor
-    - [ ] default indentation size and style
-    - [ ] default line ending
-    - [ ] default encoding
+  - [x] Editor
+    - [x] default indentation size and style
+    - [x] default line ending
+    - [x] default encoding
 - [x] Etc
   - [x] Support EditorConfig
 - [x] Release

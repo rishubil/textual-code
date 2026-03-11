@@ -22,7 +22,14 @@ from textual_code.commands import (
     create_delete_path_command_provider,
     create_open_file_command_provider,
 )
+from textual_code.config import load_editor_settings, save_user_editor_settings
 from textual_code.modals import (
+    ChangeEncodingModalResult,
+    ChangeEncodingModalScreen,
+    ChangeIndentModalResult,
+    ChangeIndentModalScreen,
+    ChangeLineEndingModalResult,
+    ChangeLineEndingModalScreen,
     DeleteFileModalResult,
     DeleteFileModalScreen,
     SidebarResizeModalResult,
@@ -212,7 +219,14 @@ class MainView(Static):
         # create a new code editor pane
         pane = TabPane(
             "...",  # temporary title, will be updated later
-            CodeEditor(pane_id=pane_id, path=path),
+            CodeEditor(
+                pane_id=pane_id,
+                path=path,
+                default_indent_type=getattr(self.app, "default_indent_type", "spaces"),
+                default_indent_size=getattr(self.app, "default_indent_size", 4),
+                default_line_ending=getattr(self.app, "default_line_ending", "lf"),
+                default_encoding=getattr(self.app, "default_encoding", "utf-8"),
+            ),
             id=pane_id,
         )
         if path is not None:
@@ -457,6 +471,13 @@ class TextualCode(App):
         # if provided, the file will be opened after the app is ready
         self.with_open_file = with_open_file
 
+        # load editor defaults from config files
+        settings = load_editor_settings(workspace_path)
+        self.default_indent_type: str = str(settings["indent_type"])
+        self.default_indent_size: int = int(settings["indent_size"])
+        self.default_line_ending: str = str(settings["line_ending"])
+        self.default_encoding: str = str(settings["encoding"])
+
     def compose(self) -> ComposeResult:
         yield Sidebar(workspace_path=self.workspace_path)
         yield MainView()
@@ -579,6 +600,91 @@ class TextualCode(App):
             "Select all occurrences",
             "Select all occurrences of the current selection or word",
             self.action_select_all_occurrences_cmd,
+        )
+        yield SystemCommand(
+            "Set default indentation",
+            "Set the default indentation for new files",
+            self.action_set_default_indentation,
+        )
+        yield SystemCommand(
+            "Set default line ending",
+            "Set the default line ending for new files",
+            self.action_set_default_line_ending,
+        )
+        yield SystemCommand(
+            "Set default encoding",
+            "Set the default encoding for new files",
+            self.action_set_default_encoding,
+        )
+
+    def action_set_default_indentation(self) -> None:
+        """Set the default indentation for new files and save to user config."""
+
+        def do_change(result: ChangeIndentModalResult | None) -> None:
+            if result and not result.is_cancelled:
+                self.default_indent_type = (
+                    result.indent_type or self.default_indent_type
+                )
+                self.default_indent_size = (
+                    result.indent_size or self.default_indent_size
+                )
+                save_user_editor_settings(
+                    {
+                        "indent_type": self.default_indent_type,
+                        "indent_size": self.default_indent_size,
+                        "line_ending": self.default_line_ending,
+                        "encoding": self.default_encoding,
+                    }
+                )
+
+        self.call_next(lambda: self.push_screen(ChangeIndentModalScreen(), do_change))
+
+    def action_set_default_line_ending(self) -> None:
+        """Set the default line ending for new files and save to user config."""
+
+        def do_change(result: ChangeLineEndingModalResult | None) -> None:
+            if result and not result.is_cancelled:
+                self.default_line_ending = (
+                    result.line_ending or self.default_line_ending
+                )
+                save_user_editor_settings(
+                    {
+                        "indent_type": self.default_indent_type,
+                        "indent_size": self.default_indent_size,
+                        "line_ending": self.default_line_ending,
+                        "encoding": self.default_encoding,
+                    }
+                )
+
+        self.call_next(
+            lambda: self.push_screen(
+                ChangeLineEndingModalScreen(
+                    current_line_ending=self.default_line_ending
+                ),
+                do_change,
+            )
+        )
+
+    def action_set_default_encoding(self) -> None:
+        """Set the default encoding for new files and save to user config."""
+
+        def do_change(result: ChangeEncodingModalResult | None) -> None:
+            if result and not result.is_cancelled:
+                self.default_encoding = result.encoding or self.default_encoding
+                save_user_editor_settings(
+                    {
+                        "indent_type": self.default_indent_type,
+                        "indent_size": self.default_indent_size,
+                        "line_ending": self.default_line_ending,
+                        "encoding": self.default_encoding,
+                    }
+                )
+
+        self.call_next(
+            lambda: self.push_screen(
+                ChangeEncodingModalScreen(current_encoding=self.default_encoding),
+                do_change,
+            )
         )
 
     def action_add_cursor_below_cmd(self) -> None:

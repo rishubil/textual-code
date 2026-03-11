@@ -55,6 +55,7 @@ TextualCode (App) — app.py
 - `widgets/multi_cursor_text_area.py` — `MultiCursorTextArea(TextArea)` subclass; manages extra cursors, intercepts key events, renders additional cursor positions
 - `modals.py` — modal dialog screens (SaveAs, UnsavedChange, Delete confirmations)
 - `commands.py` — command palette providers, created via factory functions that close over workspace path
+- `config.py` — editor defaults: `load_editor_settings()` (merges hardcoded < user < project TOML), `save_user_editor_settings()`; user config at `$XDG_CONFIG_HOME/textual-code/settings.toml`, project config at `{workspace}/.textual-code.toml`
 - `style.tcss` — all UI styling (Textual CSS)
 
 **Communication patterns**:

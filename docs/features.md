@@ -256,3 +256,41 @@ if nothing is selected) within the open file.
 | `_get_word_at_location(text, row, col)` | `code_editor.py` module level | Returns the `\w+` token containing `(row, col)`, or `""` |
 | `_text_offset_to_location(text, offset)` | `code_editor.py` module level | Converts flat char offset to `(row, col)` |
 | `CodeEditor._get_query_text()` | `CodeEditor` method | Resolves selection or word-under-cursor |
+
+---
+
+## Editor Defaults with Config File Persistence
+
+New (untitled) files use application-level defaults for indentation, line
+ending, and encoding.  Existing files continue to use auto-detection and
+EditorConfig (unchanged).
+
+### Config files
+
+| Priority | Location | Purpose |
+|---|---|---|
+| 1 (lowest) | hardcoded in `config.py` | fallback defaults |
+| 2 | `$XDG_CONFIG_HOME/textual-code/settings.toml` (Linux/macOS) or `%APPDATA%\textual-code\settings.toml` (Windows) | user-level config |
+| 3 (highest) | `{workspace}/.textual-code.toml` | project-level override |
+
+Both files use the `[editor]` TOML section:
+
+```toml
+[editor]
+indent_type = "spaces"   # "spaces" or "tabs"
+indent_size = 4          # 2, 4, or 8
+line_ending = "lf"       # "lf", "crlf", or "cr"
+encoding = "utf-8"       # "utf-8", "utf-8-sig", "utf-16", "latin-1", etc.
+```
+
+### Implementation
+
+| Component | File | Detail |
+|---|---|---|
+| `config.py` | `src/textual_code/config.py` | `load_editor_settings()`, `save_user_editor_settings()` |
+| App defaults | `app.py` `TextualCode.__init__` | loads settings on startup; stores as `default_*` attributes |
+| CodeEditor | `widgets/code_editor.py` `CodeEditor.__init__` | accepts `default_*` kwargs; applies them when `path is None` |
+| `open_code_editor_pane` | `app.py` `MainView` | passes app `default_*` attrs to each new `CodeEditor` |
+| Actions | `app.py` `TextualCode` | `action_set_default_indentation`, `action_set_default_line_ending`, `action_set_default_encoding` — open the existing change modals and persist on apply |
+| Command palette | `app.py` `get_system_commands` | "Set default indentation/line ending/encoding" entries |
+

@@ -36,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add Multiple Cursors support: add extra cursors with `Ctrl+Alt+Down` / `Ctrl+Alt+Up`; type, backspace, and delete simultaneously at all cursor positions; press `Escape` or any movement key to return to single-cursor mode; active cursor count shown in footer as `Ln X, Col Y [N]`; also available via command palette ("Add cursor below" / "Add cursor above")
 - Add Select All Occurrences feature (`Ctrl+Shift+L`): selects every occurrence of the current selection (or word under cursor) in the file using plain-text, case-sensitive search; sets primary selection to the first match and adds extra cursors at the start of each remaining match; also available via command palette ("Select all occurrences")
 - Add more language detection: new file extensions (`mjs`, `cjs` → JavaScript; `svg`, `xhtml` → XML; `bash` → Bash) and filename-based detection for dotfiles (`.bashrc`, `.bash_profile`, `.bash_logout` → Bash); filename lookup takes priority over extension
+- Add editor defaults with config file persistence: default indentation style/size, line ending, and encoding for new (untitled) files; settings stored in `$XDG_CONFIG_HOME/textual-code/settings.toml` (user-level) with optional project-level override in `{workspace}/.textual-code.toml`; "Set default indentation/line ending/encoding" commands available in the command palette; priority order: project config > user config > hardcoded defaults
 
 ## [0.0.2] - 2025-01-07
 
