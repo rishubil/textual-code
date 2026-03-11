@@ -116,6 +116,13 @@ class MainView(Static):
             show=False,
             priority=True,
         ),
+        Binding(
+            "ctrl+d",
+            "add_next_occurrence",
+            "Add next occurrence",
+            show=False,
+            priority=True,
+        ),
     ]
 
     def __init__(self, *args, **kwargs) -> None:
@@ -366,6 +373,12 @@ class MainView(Static):
         if code_editor is not None:
             code_editor.action_select_all_occurrences()
 
+    def action_add_next_occurrence(self) -> None:
+        """Add a cursor at the next occurrence of the current selection or word."""
+        code_editor = self.get_active_code_editor()
+        if code_editor is not None:
+            code_editor.action_select_next_occurrence()
+
     def action_close_all(self) -> None:
         """Close all open code editors, prompting for unsaved changes."""
         editors: list[CodeEditor] = []
@@ -602,6 +615,11 @@ class TextualCode(App):
             self.action_select_all_occurrences_cmd,
         )
         yield SystemCommand(
+            "Add next occurrence",
+            "Add a cursor at the next occurrence of the selection or word (Ctrl+D)",
+            self.action_add_next_occurrence_cmd,
+        )
+        yield SystemCommand(
             "Set default indentation",
             "Set the default indentation for new files",
             self.action_set_default_indentation,
@@ -708,6 +726,14 @@ class TextualCode(App):
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
             self.call_next(code_editor.action_select_all_occurrences)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_add_next_occurrence_cmd(self) -> None:
+        """Add next occurrence via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.action_select_next_occurrence)
         else:
             self.notify("No file open.", severity="error")
 

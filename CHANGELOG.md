@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add Select All Occurrences feature (`Ctrl+Shift+L`): selects every occurrence of the current selection (or word under cursor) in the file using plain-text, case-sensitive search; sets primary selection to the first match and adds extra cursors at the start of each remaining match; also available via command palette ("Select all occurrences")
 - Add more language detection: new file extensions (`mjs`, `cjs` → JavaScript; `svg`, `xhtml` → XML; `bash` → Bash) and filename-based detection for dotfiles (`.bashrc`, `.bash_profile`, `.bash_logout` → Bash); filename lookup takes priority over extension
 - Add editor defaults with config file persistence: default indentation style/size, line ending, and encoding for new (untitled) files; settings stored in `$XDG_CONFIG_HOME/textual-code/settings.toml` (user-level) with optional project-level override in `{workspace}/.textual-code.toml`; "Set default indentation/line ending/encoding" commands available in the command palette; priority order: project config > user config > hardcoded defaults
+- Add Add Next Occurrence feature (`Ctrl+D`, VS Code style): selects the word under cursor on first press (no selection); each subsequent press adds a cursor at the next occurrence of the current selection using plain-text, case-sensitive, wrap-around search; shows "All occurrences already selected" notification when all matches are already covered; also available via command palette ("Add next occurrence")
 
 ## [0.0.2] - 2025-01-07
 

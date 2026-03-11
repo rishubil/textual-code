@@ -226,6 +226,14 @@ def _text_offset_to_location(text: str, offset: int) -> tuple[int, int]:
     return (row, col)
 
 
+def _location_to_text_offset(text: str, location: tuple[int, int]) -> int:
+    """Convert a (row, col) location to a character offset in text."""
+    row, col = location
+    lines = text.split("\n")
+    offset = sum(len(lines[i]) + 1 for i in range(min(row, len(lines))))
+    return offset + col
+
+
 def _find_next(
     text: str, query: str, cursor_offset: int, use_regex: bool = False
 ) -> tuple[int, int]:
@@ -1397,6 +1405,55 @@ class CodeEditor(Static):
             self.editor.add_cursor(_text_offset_to_location(text, m.start()))
 
         self.notify(f"{len(matches)} occurrences selected")
+
+    def action_select_next_occurrence(self) -> None:
+        """Add a cursor at the next occurrence (VS Code Ctrl+D style)."""
+        from textual.widgets.text_area import Selection
+
+        text = self.text
+        sel = self.editor.selection
+
+        # Case 1: No selection — select word under cursor
+        if sel.start == sel.end:
+            row, col = self.editor.cursor_location
+            query = _get_word_at_location(text, row, col)
+            if not query:
+                return
+            # Find the match containing the cursor
+            line_offset = _location_to_text_offset(text, (row, 0))
+            for m in re.finditer(re.escape(query), text):
+                if m.start() <= line_offset + col < m.end():
+                    self.editor.selection = Selection(
+                        start=_text_offset_to_location(text, m.start()),
+                        end=_text_offset_to_location(text, m.end()),
+                    )
+                    return
+            return
+
+        # Case 2: Selection exists — find next occurrence
+        query = self.editor.selected_text
+        if not query:
+            return
+
+        # Search starts after the last cursor
+        if self.editor.extra_cursors:
+            last_loc = self.editor.extra_cursors[-1]
+            search_from = _location_to_text_offset(text, last_loc) + len(query)
+        else:
+            search_from = _location_to_text_offset(text, sel.end)
+
+        start, end = _find_next(text, query, search_from)
+        if start == -1:
+            return  # No occurrences at all
+
+        new_loc = _text_offset_to_location(text, start)
+
+        # Check if we've wrapped around to the primary selection (all selected)
+        if new_loc == sel.start:
+            self.notify("All occurrences already selected", severity="information")
+            return
+
+        self.editor.add_cursor(new_loc)
 
     @property
     def editor(self) -> MultiCursorTextArea:
