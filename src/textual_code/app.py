@@ -35,6 +35,8 @@ from textual_code.modals import (
     DeleteFileModalScreen,
     SidebarResizeModalResult,
     SidebarResizeModalScreen,
+    SplitResizeModalResult,
+    SplitResizeModalScreen,
     UnsavedChangeQuitModalResult,
     UnsavedChangeQuitModalScreen,
 )
@@ -92,6 +94,62 @@ def _parse_sidebar_resize(
     except ValueError:
         return None
     if result < 5 or result > max_width:
+        return None
+    return result
+
+
+def _parse_split_resize(
+    value: str, current_width: int, total_width: int
+) -> int | str | None:
+    """
+    Parse a split view resize expression for the left panel.
+
+    Formats:
+      "50"   → absolute 50 cells
+      "+10"  → current + 10
+      "-5"   → current - 5
+      "40%"  → percentage string "40%"
+
+    Returns:
+      int   → absolute cell width (10 ≤ result ≤ total_width - 10)
+      str   → percentage string like "40%" (10% – 90%)
+      None  → invalid or out-of-range input
+    """
+    value = value.strip()
+    if not value:
+        return None
+
+    # Percentage
+    if value.endswith("%"):
+        try:
+            pct = int(value[:-1])
+        except ValueError:
+            return None
+        if pct < 10 or pct > 90:
+            return None
+        return f"{pct}%"
+
+    # Relative
+    if value.startswith(("+", "-")):
+        try:
+            delta = int(value)
+        except ValueError:
+            return None
+        result = current_width + delta
+        min_width = 10
+        max_width = total_width - 10
+        if result < min_width or result > max_width:
+            return None
+        return result
+
+    # Absolute
+    try:
+        result = int(value)
+    except ValueError:
+        return None
+    min_width = 10
+    max_width = total_width - 10
+    if result < min_width or result > max_width:
         return None
     return result
 
@@ -810,6 +868,11 @@ class TextualCode(App):
             self.action_resize_sidebar_cmd,
         )
         yield SystemCommand(
+            "Resize split",
+            "Set the left split panel width (e.g. 50, +10, -5, 40%)",
+            self.action_resize_split_cmd,
+        )
+        yield SystemCommand(
             "Add cursor below",
             "Add an extra cursor one line below (Ctrl+Alt+Down)",
             self.action_add_cursor_below_cmd,
@@ -1098,6 +1161,31 @@ class TextualCode(App):
             self.sidebar.styles.width = parsed
 
         self.call_next(lambda: self.push_screen(SidebarResizeModalScreen(), on_result))
+
+    def action_resize_split_cmd(self) -> None:
+        """Open the Resize Split modal via command palette."""
+        if not self.main_view._split_visible:
+            self.notify("No split view open.", severity="error")
+            return
+
+        def on_result(result: SplitResizeModalResult | None) -> None:
+            if result is None or result.is_cancelled:
+                return
+            split_left = self.main_view.query_one("#split_left")
+            split_container = self.main_view.query_one("#split_container")
+            current_width = split_left.size.width
+            total_width = split_container.size.width
+            parsed = _parse_split_resize(result.value or "", current_width, total_width)
+            if parsed is None:
+                self.notify(
+                    f"Invalid split width: {result.value!r}. "
+                    "Use a number (50), +/-offset (+10), or percent (40%).",
+                    severity="error",
+                )
+                return
+            split_left.styles.width = parsed
+
+        self.call_next(lambda: self.push_screen(SplitResizeModalScreen(), on_result))
 
     def action_save_all_files(self) -> None:
         """Save all open files."""

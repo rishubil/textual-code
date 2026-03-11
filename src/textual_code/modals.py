@@ -590,6 +590,47 @@ class SidebarResizeModalScreen(ModalScreen[SidebarResizeModalResult]):
 
 
 @dataclass
+class SplitResizeModalResult:
+    """
+    The result of the Split Resize modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The raw user input string, or None if cancelled.
+    value: str | None
+
+
+class SplitResizeModalScreen(ModalScreen[SplitResizeModalResult]):
+    """
+    Modal dialog for resizing the split view left panel.
+    Accepts: absolute ("50"), relative ("+10" or "-5"), or percentage ("40%").
+    """
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Resize Split", id="title"),
+            Input(placeholder="e.g. 50  or  +10  or  40%", id="value"),
+            Button("Resize", variant="primary", id="submit"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Input.Submitted, "#value")
+    @on(Button.Pressed, "#submit")
+    def on_submit(self) -> None:
+        self.dismiss(
+            SplitResizeModalResult(
+                is_cancelled=False, value=self.query_one(Input).value
+            )
+        )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(SplitResizeModalResult(is_cancelled=True, value=None))
+
+
+@dataclass
 class ChangeEncodingModalResult:
     """
     The result of the Change Encoding modal dialog.

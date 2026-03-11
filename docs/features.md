@@ -259,6 +259,48 @@ if nothing is selected) within the open file.
 
 ---
 
+## Split View Resize: command palette sets left panel width, right takes remainder
+
+Resizes the left split panel via the command palette "Resize split" command.
+Only available when the right split panel is visible (`_split_visible is True`).
+
+### Accepted input formats
+
+| Input | Effect |
+|-------|--------|
+| `50` | Set left panel to 50 cells (absolute) |
+| `+10` | Widen left panel by 10 cells (relative) |
+| `-5` | Narrow left panel by 5 cells (relative) |
+| `40%` | Set left panel to 40% of the split container width (percentage) |
+
+### Constraints
+
+| Dimension | Limit | Reason |
+|-----------|-------|--------|
+| Absolute min | 10 cells | Each panel must be usable |
+| Absolute max | `total_width - 10` | Leave at least 10 cells for right panel |
+| Percentage range | 10% – 90% | Same usability minimum |
+
+### Why right panel always takes remainder
+
+`#split_right` keeps `width: 1fr` in TCSS. Once `#split_left.styles.width` is
+set to a fixed or percentage value, the right panel automatically fills the
+remaining space — no explicit right-panel update needed.
+
+### No-op when split is not open
+
+If `_split_visible is False`, the command shows a `notify(..., severity="error")`
+and returns without pushing the modal. This avoids confusion about resizing a
+panel that isn't visible.
+
+### Parse function
+
+`_parse_split_resize(value, current_width, total_width) -> int | str | None`
+in `app.py`. Returns `int` for absolute, `str` like `"40%"` for percentage,
+`None` for invalid input.
+
+---
+
 ## Editor Defaults with Config File Persistence
 
 New (untitled) files use application-level defaults for indentation, line

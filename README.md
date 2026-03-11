@@ -138,10 +138,10 @@ uv run textual run --dev textual_code:main
   - [x] Close the split view
   - [ ] Resize the split view
     - [ ] Resize the split view by dragging the border
-    - [ ] Resize the split view from the command palette (set the size of current split view)
-      - [ ] Absolute size
-      - [ ] Relative size (+/-)
-      - [ ] Percentage size
+    - [x] Resize the split view from the command palette (set the size of current split view)
+      - [x] Absolute size
+      - [x] Relative size (+/-)
+      - [x] Percentage size
   - [x] Move the focus to the split view
   - [x] Move tabs between split views
     - [x] Move tabs from the command palette

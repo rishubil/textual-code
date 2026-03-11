@@ -455,6 +455,38 @@ SidebarResizeModalScreen Button {
     width: 100%;
 }
 
+SplitResizeModalScreen {
+    align: center middle;
+}
+
+SplitResizeModalScreen #dialog {
+    grid-size: 2 3;
+    grid-gutter: 1 2;
+    grid-rows: 1fr 3 3;
+    padding: 0 1;
+    max-width: 60;
+    max-height: 11;
+    border: thick $background 80%;
+    background: $surface;
+}
+
+SplitResizeModalScreen #title {
+    column-span: 2;
+    height: 1fr;
+    width: 1fr;
+    content-align: center middle;
+}
+
+SplitResizeModalScreen #value {
+    column-span: 2;
+    height: 1fr;
+    width: 1fr;
+}
+
+SplitResizeModalScreen Button {
+    width: 100%;
+}
+
 ChangeEncodingModalScreen {
     align: center middle;
 }
