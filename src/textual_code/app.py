@@ -658,6 +658,11 @@ class MainView(Static):
         if left_editor is event.code_editor:
             await self._update_markdown_preview(left_editor)
 
+    def action_toggle_split_vertical(self) -> None:
+        """Toggle between horizontal and vertical split orientation."""
+        container = self.query_one("#split_container")
+        container.toggle_class("split-vertical")
+
     async def action_toggle_markdown_preview(self) -> None:
         """Toggle the markdown preview panel."""
         preview = self.query_one(MarkdownPreviewPane)
@@ -956,6 +961,11 @@ class TextualCode(App):
             "Search all files in the workspace (Ctrl+Shift+F)",
             self.action_find_in_workspace_cmd,
         )
+        yield SystemCommand(
+            "Toggle split orientation",
+            "Switch between horizontal and vertical split layout",
+            self.action_toggle_split_vertical_cmd,
+        )
 
     def action_find_in_workspace(self) -> None:
         """Open workspace search panel (Ctrl+Shift+F)."""
@@ -1088,6 +1098,10 @@ class TextualCode(App):
             self.call_next(code_editor.action_select_next_occurrence)
         else:
             self.notify("No file open.", severity="error")
+
+    def action_toggle_split_vertical_cmd(self) -> None:
+        """Toggle split orientation via command palette."""
+        self.call_next(self.main_view.action_toggle_split_vertical)
 
     def action_split_right_cmd(self) -> None:
         """Split editor right via command palette."""

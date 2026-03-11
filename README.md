@@ -134,7 +134,7 @@ uv run textual run --dev textual_code:main
   - [x] Live preview
 - [x] Split view
   - [x] Split the view horizontally
-  - [ ] Split the view vertically
+  - [x] Split the view vertically
   - [x] Close the split view
   - [ ] Resize the split view
     - [ ] Resize the split view by dragging the border

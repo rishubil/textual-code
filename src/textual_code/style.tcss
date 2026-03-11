@@ -562,6 +562,18 @@ WorkspaceSearchPane #ws-results {
     border-left: tall $primary-darken-2;
 }
 
+/* Vertical split orientation */
+#split_container.split-vertical {
+    layout: vertical;
+}
+
+#split_container.split-vertical #split_right {
+    height: 1fr;
+    width: 100%;
+    border-left: none;
+    border-top: tall $primary-darken-2;
+}
+
 #markdown_preview {
     width: 1fr;
     display: none;
