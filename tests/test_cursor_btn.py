@@ -144,3 +144,24 @@ async def test_cursor_btn_click_cancel_no_change(workspace, multiline_file):
         await pilot.pause()
 
         assert editor.editor.cursor_location == original_location
+
+
+# ── Group E: col 10+ truncation regression ───────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_cursor_btn_col_10_label_visible(workspace):
+    """T-09: cursor_btn label must not be clipped when col >= 10."""
+    # Create a file with a line that is at least 10 characters long
+    long_line_file = workspace / "long_line.txt"
+    long_line_file.write_text("0123456789abcdef\n")
+    app = make_app(workspace, open_file=long_line_file)
+    async with app.run_test(size=(120, 30)) as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        editor.editor.cursor_location = (0, 9)  # col 9 → "Ln 1, Col 10"
+        await pilot.pause()
+        btn = editor.footer.cursor_button
+        assert str(btn.label) == "Ln 1, Col 10"
+        # Button must be wide enough to show the full label without clipping
+        assert btn.size.width >= 15  # 13 chars + 2 padding = 15

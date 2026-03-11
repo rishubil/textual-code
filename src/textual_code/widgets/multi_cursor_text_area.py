@@ -87,6 +87,7 @@ class MultiCursorTextArea(TextArea):
         """
         if location != self.cursor_location and location not in self._extra_cursors:
             self._extra_cursors = self._extra_cursors + [location]
+            self._line_cache.clear()
             self.refresh()
             self.post_message(self.CursorsChanged(self))
 
@@ -94,6 +95,7 @@ class MultiCursorTextArea(TextArea):
         """Remove all extra cursors."""
         if self._extra_cursors:
             self._extra_cursors = []
+            self._line_cache.clear()
             self.refresh()
             self.post_message(self.CursorsChanged(self))
 
