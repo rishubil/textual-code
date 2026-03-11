@@ -50,9 +50,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add syntax highlighting theme selection: choose from built-in themes (`monokai`, `dracula`, `github_light`, `vscode_dark`, `css`) via command palette ("Change syntax highlighting theme"); applies immediately to all open editors; persisted in `$XDG_CONFIG_HOME/textual-code/settings.toml` as `syntax_theme`; new editors inherit the saved default; default theme is `monokai`
 - Add `Ctrl+Shift+Z` as a Redo keybinding (in addition to the existing `Ctrl+Y`)
 - Add Word Wrap toggle: toggle soft word wrap for the active file via command palette ("Toggle word wrap"); set default word wrap for new files via command palette ("Set default word wrap"); persisted in `$XDG_CONFIG_HOME/textual-code/settings.toml` as `word_wrap`; default is `false`
-
-### Added
-
 - Add `--workspace` / `-w` CLI option to `tc`: override the sidebar root directory independently of the target file path, useful for monorepos where the file lives in a subdirectory but the sidebar should be rooted at the project root; exits with code 1 if the given path is not an existing directory
 
 ### Fixed

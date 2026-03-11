@@ -4,7 +4,6 @@
 .devcontainer/.claude.json
 .devcontainer/.claude.json.backup
 .devcontainer/qmd-cache/
-.devcontainer/qmd-config/
 .devcontainer/data
 .devcontainer/uv
 
@@ -31,3 +30,4 @@ docs/libs/
 # --- gitignore end ---
 
 dist/
+.devcontainer/qmd-config/

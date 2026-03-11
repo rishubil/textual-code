@@ -1,0 +1,7 @@
+collections:
+  docs:
+    path: /project/docs
+    pattern: "**/*.md"
+  root:
+    path: /project
+    pattern: "*.md"
