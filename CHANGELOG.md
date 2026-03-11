@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Ctrl+C with no selection copies the current line including its newline (VS Code behaviour); Ctrl+X with no selection cuts the current line; Ctrl+C with a selection copies the selected text as before
 - Replace Find/Replace modals with an inline find/replace bar (VS Code style): bar docks to the top of the editor, stays open while editing, supports sequential Next clicks without reopening, and shows a replace row in replace mode; regex support retained
 - Expand supported file encodings: auto-detection now uses `charset-normalizer` for reliable detection of CJK (GBK, Shift-JIS, EUC-JP, EUC-KR, Big5, GB18030), Cyrillic, Greek, and other non-Latin encodings; UTF-32 BOM detection added; Change Encoding modal now lists 40+ encodings grouped by script/region
 - Allow free-form indentation size input: Change Indentation modal replaces the fixed 2/4/8 selector with a text input accepting any positive integer; modal pre-populates current values; invalid input (zero, negative, or non-integer) shows an error notification and keeps the modal open

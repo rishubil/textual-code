@@ -107,7 +107,11 @@ def test_snapshot_unsaved_marker(
         # unsaved-marker (*) in the tab title, not the editor's visual content.
         # Direct assignment is stable because it does not move the TextArea cursor.
         editor.text = "modified content\n"
-        await pilot.pause()
+        # Reactive chain: watch_text → update_title → watch_title →
+        # TitleChanged message → on_code_editor_title_changed → tab label update.
+        # Each reactive watcher is deferred via call_later, so the chain spans
+        # several event-loop cycles.  A real-time pause lets everything settle.
+        await pilot.pause(0.2)
 
     assert snap_compare(app, run_before=modify_text, terminal_size=TERMINAL_SIZE)
 

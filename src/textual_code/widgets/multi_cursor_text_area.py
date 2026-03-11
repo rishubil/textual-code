@@ -111,6 +111,19 @@ class MultiCursorTextArea(TextArea):
                     line.stylize(cursor_style, col, col + 1)
         return line
 
+    # ── copy / cut overrides ──────────────────────────────────────────────────
+
+    def action_copy(self) -> None:
+        """Copy selection; copy current line if nothing selected (VS Code)."""
+        selected = self.selected_text
+        if selected:
+            self.app.copy_to_clipboard(selected)
+        else:
+            row, _ = self.cursor_location
+            lines = self.text.split("\n")
+            line = lines[row] if row < len(lines) else ""
+            self.app.copy_to_clipboard(line + "\n")
+
     # ── key handling ──────────────────────────────────────────────────────────
 
     def on_key(self, event: events.Key) -> None:
