@@ -342,3 +342,97 @@ async def test_save_overwrite_cancelled_does_not_write(
         await pilot.pause()
 
         assert sample_py_file.read_text() == original_disk_content
+
+
+# ── Group F: cursor position preservation on reload ───────────────────────────
+
+
+async def test_reload_preserves_cursor_position(workspace: Path, multiline_file: Path):
+    """F-01: _reload_file() restores cursor position when file content unchanged."""
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # Set cursor to row 4, col 3
+        editor.editor.cursor_location = (4, 3)
+        await pilot.pause()
+
+        # Reload with same content
+        editor._reload_file()
+        await pilot.pause()
+
+        assert editor.editor.cursor_location == (4, 3)
+
+
+async def test_reload_clamps_cursor_row_when_file_shrinks(
+    workspace: Path, multiline_file: Path
+):
+    """F-02: _reload_file() clamps cursor row when file shrinks."""
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # Set cursor to row 8 (9th line of 10-line file)
+        editor.editor.cursor_location = (8, 0)
+        await pilot.pause()
+
+        # Replace file with only 3 lines
+        multiline_file.write_text("line1\nline2\nline3\n")
+        editor._reload_file()
+        await pilot.pause()
+
+        row, _col = editor.editor.cursor_location
+        # "line1\nline2\nline3\n" → document has 4 lines (including trailing empty line)
+        # row 8 gets clamped to max valid row = 3
+        assert row == 3
+
+
+async def test_reload_clamps_cursor_col_when_line_shrinks(
+    workspace: Path, sample_py_file: Path
+):
+    """F-03: _reload_file() clamps cursor col when line becomes shorter."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # sample_py_file: "print('hello')\n" — line length 14 chars
+        editor.editor.cursor_location = (0, 12)
+        await pilot.pause()
+
+        # Replace with shorter content
+        sample_py_file.write_text("hi\n")
+        editor._reload_file()
+        await pilot.pause()
+
+        _row, col = editor.editor.cursor_location
+        assert col == 2  # clamped to len("hi")
+
+
+async def test_auto_reload_preserves_cursor_position(
+    workspace: Path, multiline_file: Path
+):
+    """F-04: _poll_file_change() auto-reload also preserves cursor position."""
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # Set cursor to (3, 2)
+        editor.editor.cursor_location = (3, 2)
+        await pilot.pause()
+
+        # Simulate external file change (same content, just bump mtime)
+        multiline_file.write_text(multiline_file.read_text())
+        editor._file_mtime -= 1.0
+
+        editor._poll_file_change()
+        await pilot.pause()
+
+        assert editor.editor.cursor_location == (3, 2)
