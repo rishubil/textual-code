@@ -136,3 +136,70 @@ It delegates to `code_editor.action_reload_file`, which:
 
 - Shows `DiscardAndReloadModalScreen` when there are unsaved changes
 - Calls `_reload_file` directly when the editor is clean
+
+---
+
+## Multiple Cursors: MultiCursorTextArea subclass, extra_cursors list
+
+### Why subclassing TextArea instead of intercepting in CodeEditor
+
+Key events reach `TextArea._on_key` (the widget's internal handler) before they
+bubble up to the parent widget.  By the time a `CodeEditor.on_key` could react
+the text has already been mutated.  Subclassing allows overriding `on_key` which
+runs *before* `_on_key`, so `event.prevent_default()` successfully suppresses
+the built-in insertion.
+
+### Extra-cursor state: plain list, not reactive
+
+`_extra_cursors: list[tuple[int, int]]` is a plain Python attribute.  If it were
+a Textual `reactive`, list-mutation operations (`.append`) would not trigger
+`watch_*` because Textual compares by identity.  Every state change instead calls
+`post_message(CursorsChanged(...))` and `refresh()` explicitly.
+
+### Key event routing when extra cursors are active
+
+| Key category | Action |
+|---|---|
+| Escape | `prevent_default` + `stop` → `clear_extra_cursors()` |
+| Movement (arrows, home, end, …) | `clear_extra_cursors()`, then TextArea moves normally |
+| Printable char / backspace / delete | `prevent_default` + `stop` → `_apply_to_all_cursors` |
+| Enter, tab, and anything else | `clear_extra_cursors()`, TextArea handles |
+
+Enter and row-merge cases (backspace at col 0, delete at EOL) are not handled
+in MVP — extra cursors are cleared and the base TextArea processes the key.
+
+### Column-position maths after multi-cursor edits
+
+Processing edits right-to-left within each row keeps earlier indices valid.
+After all edits the new column for cursor `(row, col)` is:
+
+| Operation | new_col formula |
+|---|---|
+| Insert char | `col + 1 + num_cursors_on_same_row_with_col' < col` |
+| Backspace | `col - 1 - num_cursors_on_same_row_with_col' < col` |
+| Delete | `col - num_cursors_on_same_row_with_col' < col` |
+
+The extra shift accounts for edits performed by other cursors that sit to the
+left, which displace this cursor further.
+
+### Visual rendering: get_line override
+
+`get_line(line_index)` is called by `TextArea._render_line`.  The override
+applies `self._theme.cursor_style` to the extra-cursor positions in the
+`rich.Text` object returned by the base implementation.  `refresh()` must be
+called explicitly after mutating `_extra_cursors` to trigger a re-render.
+
+### Key bindings and commands
+
+| Action | Key | Command palette |
+|---|---|---|
+| Add cursor below | `Ctrl+Alt+Down` | "Add cursor below" |
+| Add cursor above | `Ctrl+Alt+Up` | "Add cursor above" |
+| Clear all extra cursors | `Escape` | — |
+
+### Footer cursor count indicator
+
+`CodeEditorFooter.cursor_count: reactive[int]` tracks the total cursor count
+(primary + extra).  When `cursor_count > 1`, the cursor button label becomes
+`"Ln X, Col Y [N]"` to signal multi-cursor mode.  It resets to `1` when
+`CursorsChanged` fires with an empty extra-cursor list.

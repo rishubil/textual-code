@@ -100,6 +100,8 @@ class MainView(Static):
         Binding("ctrl+g", "goto_line", "Goto line"),
         Binding("ctrl+f", "find", "Find", priority=True),
         Binding("ctrl+h", "replace", "Replace", priority=True),
+        Binding("ctrl+alt+down", "add_cursor_below", "Add cursor below", show=False),
+        Binding("ctrl+alt+up", "add_cursor_above", "Add cursor above", show=False),
     ]
 
     def __init__(self, *args, **kwargs) -> None:
@@ -325,6 +327,18 @@ class MainView(Static):
         if code_editor is not None:
             code_editor.action_replace()
 
+    def action_add_cursor_below(self) -> None:
+        """Add an extra cursor one line below the primary cursor."""
+        code_editor = self.get_active_code_editor()
+        if code_editor is not None:
+            code_editor.action_add_cursor_below()
+
+    def action_add_cursor_above(self) -> None:
+        """Add an extra cursor one line above the primary cursor."""
+        code_editor = self.get_active_code_editor()
+        if code_editor is not None:
+            code_editor.action_add_cursor_above()
+
     def action_close_all(self) -> None:
         """Close all open code editors, prompting for unsaved changes."""
         editors: list[CodeEditor] = []
@@ -538,6 +552,32 @@ class TextualCode(App):
             "Set the sidebar width (e.g. 30, +5, -3, 30%)",
             self.action_resize_sidebar_cmd,
         )
+        yield SystemCommand(
+            "Add cursor below",
+            "Add an extra cursor one line below (Ctrl+Alt+Down)",
+            self.action_add_cursor_below_cmd,
+        )
+        yield SystemCommand(
+            "Add cursor above",
+            "Add an extra cursor one line above (Ctrl+Alt+Up)",
+            self.action_add_cursor_above_cmd,
+        )
+
+    def action_add_cursor_below_cmd(self) -> None:
+        """Add cursor below via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.action_add_cursor_below)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_add_cursor_above_cmd(self) -> None:
+        """Add cursor above via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.action_add_cursor_above)
+        else:
+            self.notify("No file open.", severity="error")
 
     def action_goto_line_cmd(self) -> None:
         """

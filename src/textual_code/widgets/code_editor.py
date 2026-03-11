@@ -38,6 +38,7 @@ from textual_code.modals import (
     UnsavedChangeModalResult,
     UnsavedChangeModalScreen,
 )
+from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
 
 
 def _editorconfig_glob_to_pattern(glob: str) -> re.Pattern:
@@ -339,6 +340,8 @@ class CodeEditorFooter(Static):
     language: reactive[str | None] = reactive(None, init=False)
     # the cursor location (row, col) — zero-based internally, displayed 1-based
     cursor_location: reactive[tuple[int, int]] = reactive((0, 0), init=False)
+    # total cursor count (1 = single cursor, >1 = multi-cursor active)
+    cursor_count: reactive[int] = reactive(1, init=False)
     # the line ending style
     line_ending: reactive[str] = reactive("lf", init=False)
     # the file encoding
@@ -409,7 +412,17 @@ class CodeEditorFooter(Static):
 
     def watch_cursor_location(self, location: tuple[int, int]) -> None:
         row, col = location
-        self.cursor_button.label = f"Ln {row + 1}, Col {col + 1}"
+        self._update_cursor_button()
+
+    def watch_cursor_count(self, count: int) -> None:
+        self._update_cursor_button()
+
+    def _update_cursor_button(self) -> None:
+        row, col = self.cursor_location
+        label = f"Ln {row + 1}, Col {col + 1}"
+        if self.cursor_count > 1:
+            label += f" [{self.cursor_count}]"
+        self.cursor_button.label = label
 
     def watch_line_ending(self, line_ending: str) -> None:
         self.line_ending_button.label = line_ending.upper()
@@ -633,7 +646,7 @@ class CodeEditor(Static):
                 self.set_reactive(CodeEditor.line_ending, ec_eol)
 
     def compose(self) -> ComposeResult:
-        yield TextArea.code_editor(
+        yield MultiCursorTextArea.code_editor(
             text=self.initial_text,
             language=self.language,
         )
@@ -1267,9 +1280,28 @@ class CodeEditor(Static):
         # update the cursor position in the footer
         self.footer.cursor_location = event.selection.end
 
+    @on(MultiCursorTextArea.CursorsChanged)
+    def on_cursors_changed(self, event: MultiCursorTextArea.CursorsChanged):
+        event.stop()
+        # update the multi-cursor count shown in the footer
+        count = 1 + len(event.text_area.extra_cursors)
+        self.footer.cursor_count = count
+
+    def action_add_cursor_below(self) -> None:
+        """Add an extra cursor one line below the primary cursor."""
+        row, col = self.editor.cursor_location
+        if row < self.editor.document.line_count - 1:
+            self.editor.add_cursor((row + 1, col))
+
+    def action_add_cursor_above(self) -> None:
+        """Add an extra cursor one line above the primary cursor."""
+        row, col = self.editor.cursor_location
+        if row > 0:
+            self.editor.add_cursor((row - 1, col))
+
     @property
-    def editor(self) -> TextArea:
-        return self.query_one(TextArea)
+    def editor(self) -> MultiCursorTextArea:
+        return self.query_one(MultiCursorTextArea)
 
     @property
     def footer(self) -> CodeEditorFooter:

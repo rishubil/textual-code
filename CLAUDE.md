@@ -38,7 +38,7 @@ TextualCode (App) — app.py
 │   └── TabbedContent
 │       └── TabPane(s)
 │           └── CodeEditor — widgets/code_editor.py
-│               ├── TextArea (syntax-highlighted editor)
+│               ├── MultiCursorTextArea — widgets/multi_cursor_text_area.py
 │               └── CodeEditorFooter (file path + language display)
 └── Footer (key bindings)
 ```
@@ -46,6 +46,7 @@ TextualCode (App) — app.py
 **Key files**:
 - `app.py` — `TextualCode` (App) and `MainView` (tab manager); all file operation logic lives here
 - `widgets/code_editor.py` — `CodeEditor` widget; owns file read/write/delete, tracks unsaved state via reactive properties
+- `widgets/multi_cursor_text_area.py` — `MultiCursorTextArea(TextArea)` subclass; manages extra cursors, intercepts key events, renders additional cursor positions
 - `modals.py` — modal dialog screens (SaveAs, UnsavedChange, Delete confirmations)
 - `commands.py` — command palette providers, created via factory functions that close over workspace path
 - `style.tcss` — all UI styling (Textual CSS)
