@@ -4,14 +4,22 @@ import tomllib
 from pathlib import Path
 
 # Keys that can appear in [editor] section
-EDITOR_KEYS = {"indent_type", "indent_size", "line_ending", "encoding", "syntax_theme"}
+EDITOR_KEYS = {
+    "indent_type",
+    "indent_size",
+    "line_ending",
+    "encoding",
+    "syntax_theme",
+    "word_wrap",
+}
 
-DEFAULT_EDITOR_SETTINGS: dict[str, str | int] = {
+DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "indent_type": "spaces",
     "indent_size": 4,
     "line_ending": "lf",
     "encoding": "utf-8",
     "syntax_theme": "monokai",
+    "word_wrap": False,
 }
 
 
@@ -59,7 +67,7 @@ def load_editor_settings(
 
 
 def save_user_editor_settings(
-    settings: dict[str, str | int],
+    settings: dict[str, str | int | bool],
     config_path: Path | None = None,
 ) -> None:
     """Persist [editor] settings to the user config file."""
@@ -69,7 +77,9 @@ def save_user_editor_settings(
     lines = ["[editor]"]
     for key in sorted(settings):
         value = settings[key]
-        if isinstance(value, str):
+        if isinstance(value, bool):
+            lines.append(f"{key} = {str(value).lower()}")
+        elif isinstance(value, str):
             lines.append(f'{key} = "{value}"')
         else:
             lines.append(f"{key} = {value}")

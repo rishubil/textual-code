@@ -46,6 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add Resize Split command in command palette: set the left split panel width using absolute cells (`50`), relative offset (`+10`, `-5`), or percentage (`40%`); enforces min 10 / max total-10 cells, 10%–90% for percentages; right panel fills remaining space automatically; shows error when no split is open
 - Add syntax highlighting theme selection: choose from built-in themes (`monokai`, `dracula`, `github_light`, `vscode_dark`, `css`) via command palette ("Change syntax highlighting theme"); applies immediately to all open editors; persisted in `$XDG_CONFIG_HOME/textual-code/settings.toml` as `syntax_theme`; new editors inherit the saved default; default theme is `monokai`
 - Add `Ctrl+Shift+Z` as a Redo keybinding (in addition to the existing `Ctrl+Y`)
+- Add Word Wrap toggle: toggle soft word wrap for the active file via command palette ("Toggle word wrap"); set default word wrap for new files via command palette ("Set default word wrap"); persisted in `$XDG_CONFIG_HOME/textual-code/settings.toml` as `word_wrap`; default is `false`
 
 ### Fixed
 

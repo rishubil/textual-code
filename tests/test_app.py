@@ -219,6 +219,7 @@ async def test_close_all_files_via_app_action(workspace: Path, sample_py_file: P
 
         app.action_close_all_files()
         await pilot.pause()
+        await pilot.pause()  # call_next + post_message chain needs two cycles
         assert len(app.main_view.opened_pane_ids) == 0
 
 

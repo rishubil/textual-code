@@ -520,6 +520,8 @@ class CodeEditor(Static):
     indent_type: reactive[str] = reactive("spaces", init=False)
     # the indentation size (2, 4, or 8)
     indent_size: reactive[int] = reactive(4, init=False)
+    # whether word wrap is enabled
+    word_wrap: reactive[bool] = reactive(False, init=False)
 
     # mapping of file extensions to language names
     LANGUAGE_EXTENSIONS = {
@@ -642,6 +644,7 @@ class CodeEditor(Static):
         default_line_ending: str = "lf",
         default_encoding: str = "utf-8",
         default_syntax_theme: str = "monokai",
+        default_word_wrap: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -712,6 +715,7 @@ class CodeEditor(Static):
             self.set_reactive(CodeEditor.indent_size, default_indent_size)
             self.set_reactive(CodeEditor.line_ending, default_line_ending)
             self.set_reactive(CodeEditor.encoding, default_encoding)
+            self.set_reactive(CodeEditor.word_wrap, default_word_wrap)
 
     def compose(self) -> ComposeResult:
         yield MultiCursorTextArea.code_editor(
@@ -831,6 +835,13 @@ class CodeEditor(Static):
 
     def watch_indent_size(self, indent_size: int) -> None:
         self.footer.indent_size = indent_size
+
+    def watch_word_wrap(self, value: bool) -> None:
+        self.editor.soft_wrap = value
+
+    def action_toggle_word_wrap(self) -> None:
+        """Toggle word wrap for the current file."""
+        self.word_wrap = not self.word_wrap
 
     def _notify_non_lf_if_needed(self) -> None:
         if self.line_ending != "lf":

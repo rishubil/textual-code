@@ -404,6 +404,7 @@ class MainView(Static):
                 default_syntax_theme=getattr(
                     self.app, "default_syntax_theme", "monokai"
                 ),
+                default_word_wrap=getattr(self.app, "default_word_wrap", False),
             ),
             id=pane_id,
         )
@@ -783,6 +784,7 @@ class TextualCode(App):
         self.default_line_ending: str = str(settings["line_ending"])
         self.default_encoding: str = str(settings["encoding"])
         self.default_syntax_theme: str = str(settings.get("syntax_theme", "monokai"))
+        self.default_word_wrap: bool = bool(settings.get("word_wrap", False))
 
     def compose(self) -> ComposeResult:
         yield Sidebar(workspace_path=self.workspace_path)
@@ -977,6 +979,16 @@ class TextualCode(App):
             "Switch between horizontal and vertical split layout",
             self.action_toggle_split_vertical_cmd,
         )
+        yield SystemCommand(
+            "Toggle word wrap",
+            "Toggle word wrap for the active file",
+            self._toggle_word_wrap_cmd,
+        )
+        yield SystemCommand(
+            "Set default word wrap",
+            "Toggle default word wrap for new files",
+            self.action_set_default_word_wrap,
+        )
 
     def action_find_in_workspace(self) -> None:
         """Open workspace search panel (Ctrl+Shift+F)."""
@@ -1138,6 +1150,28 @@ class TextualCode(App):
     def action_toggle_split_vertical_cmd(self) -> None:
         """Toggle split orientation via command palette."""
         self.call_next(self.main_view.action_toggle_split_vertical)
+
+    def _toggle_word_wrap_cmd(self) -> None:
+        """Toggle word wrap for the active file via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.action_toggle_word_wrap)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_set_default_word_wrap(self) -> None:
+        """Toggle default word wrap for new files and save to user config."""
+        self.default_word_wrap = not self.default_word_wrap
+        save_user_editor_settings(
+            {
+                "indent_type": self.default_indent_type,
+                "indent_size": self.default_indent_size,
+                "line_ending": self.default_line_ending,
+                "encoding": self.default_encoding,
+                "syntax_theme": self.default_syntax_theme,
+                "word_wrap": self.default_word_wrap,
+            }
+        )
 
     def action_split_right_cmd(self) -> None:
         """Split editor right via command palette."""
