@@ -77,24 +77,13 @@ TextualCode (App) — app.py
 
 ## Textual Official Documentation
 
-When Textual framework behaviour (API, Widget, Screen, Worker, reactive, etc.) is uncertain, **always check the official docs via WebFetch**.
+When Textual framework behaviour (API, Widget, Screen, Worker, reactive, etc.) is uncertain, **always search the local docs before implementing**.
 
-- **Docs domain**: `textual.textualize.io` (WebFetch permitted)
-- Key references:
-  - `https://textual.textualize.io/api/app/` — App · screen_stack · query_one behaviour
-  - `https://textual.textualize.io/guide/screens/` — ModalScreen · push_screen · dismiss · screen_stack
-  - `https://textual.textualize.io/guide/events/` — Message · on_* handlers · post_message · @on decorator
-  - `https://textual.textualize.io/guide/reactivity/` — reactive · watch_* trigger conditions · equate
-  - `https://textual.textualize.io/guide/workers/` — Worker · @work(exclusive=True) · AwaitComplete
-  - `https://textual.textualize.io/guide/testing/` — pilot.pause() · run_test() · testing caveats
-  - `https://textual.textualize.io/guide/input/` — BINDINGS · Binding · priority · action_*
-  - `https://textual.textualize.io/guide/command_palette/` — CommandPalette · Provider · SystemCommand
-  - `https://textual.textualize.io/guide/styles/` — TCSS styles · colours · layout
-  - `https://textual.textualize.io/widgets/tabbed_content/` — TabbedContent · TabPane · active
-  - `https://textual.textualize.io/widgets/directory_tree/` — DirectoryTree · reload() · Worker caveats
-  - `https://textual.textualize.io/widgets/text_area/` — TextArea · replace() · Changed event
+- **Local docs**: `docs/libs/textual/` (MkDocs format, mirrored from textual.textualize.io)
+- **How to search**: use the `qmd` skill (`Skill(skill="qmd")`) to search the local docs
+- Key topics: App · ModalScreen · push_screen · dismiss · Message · on_* · reactive · watch_* · Worker · @work · BINDINGS · Binding · action_* · CommandPalette · Provider · TCSS · TabbedContent · TabPane · DirectoryTree · TextArea
 
-**No guessing**: if behaviour is unclear, check the docs before implementing.
+**No guessing**: if behaviour is unclear, search the local docs first.
 
 ## Language Convention
 
