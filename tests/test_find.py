@@ -2,12 +2,12 @@
 Find (Ctrl+F) feature tests — plain search in the current file.
 
 Behaviour spec:
-- Ctrl+F opens FindModalScreen
+- Ctrl+F opens FindReplaceBar in find mode
 - Submitting a query selects the first occurrence at/after the cursor
 - If no match exists after the cursor, wraps around to the first match in the
   file
 - If no match at all, a notification is shown and the cursor does not move
-- Cancelling the modal leaves the cursor unchanged
+- Closing the bar leaves the cursor unchanged
 - Search is case-sensitive
 - Empty query does nothing
 - Works on untitled (unsaved) files
@@ -22,8 +22,8 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import make_app
-from textual_code.modals import FindModalScreen
 from textual_code.widgets.code_editor import _text_offset_to_location
+from textual_code.widgets.find_replace_bar import FindReplaceBar
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
@@ -36,16 +36,20 @@ def search_file(workspace: Path) -> Path:
     return f
 
 
-# ── Ctrl+F opens modal ────────────────────────────────────────────────────────
+# ── Ctrl+F opens bar ──────────────────────────────────────────────────────────
 
 
-async def test_ctrl_f_opens_find_modal(workspace: Path, search_file: Path):
+async def test_ctrl_f_opens_find_bar(workspace: Path, search_file: Path):
     app = make_app(workspace, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
         await pilot.press("ctrl+f")
         await pilot.pause()
-        assert isinstance(app.screen, FindModalScreen)
+        bar = editor.query_one(FindReplaceBar)
+        assert bar.display
+        assert not bar.replace_mode
 
 
 # ── find selects text ─────────────────────────────────────────────────────────
@@ -62,10 +66,10 @@ async def test_find_selects_first_match_from_start(workspace: Path, search_file:
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -91,10 +95,10 @@ async def test_find_from_cursor_finds_next_occurrence(
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -118,10 +122,10 @@ async def test_find_wraps_around_to_beginning(workspace: Path, search_file: Path
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -143,17 +147,17 @@ async def test_find_no_match_does_not_change_cursor(workspace: Path, search_file
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("z", "z", "z", "n", "o", "t", "f", "o", "u", "n", "d")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         assert editor.editor.cursor_location == original_location
 
 
 async def test_find_cancel_keeps_cursor(workspace: Path, search_file: Path):
-    """Cancelling the find modal leaves the cursor unchanged."""
+    """Closing the find bar leaves the cursor unchanged."""
     app = make_app(workspace, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -167,7 +171,7 @@ async def test_find_cancel_keeps_cursor(workspace: Path, search_file: Path):
 
         editor.action_find()
         await pilot.pause()
-        await pilot.click("#cancel")
+        await pilot.click("#close_btn")
         await pilot.pause()
 
         assert editor.editor.cursor_location == original_location
@@ -186,7 +190,7 @@ async def test_find_empty_query_does_nothing(workspace: Path, search_file: Path)
         editor.action_find()
         await pilot.pause()
         # Submit with empty input
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         assert editor.editor.cursor_location == original_location
@@ -205,10 +209,10 @@ async def test_find_multiline_match(workspace: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("r", "e", "t", "u", "r", "n")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -272,10 +276,10 @@ async def test_find_is_case_sensitive_no_match(workspace: Path, search_file: Pat
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("H", "e", "l", "l", "o")  # capital H
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         assert editor.editor.cursor_location == original_location
@@ -294,10 +298,10 @@ async def test_find_is_case_sensitive_exact_match(workspace: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("H", "e", "l", "l", "o")  # capital H
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -327,10 +331,10 @@ async def test_find_cursor_inside_match_skips_to_next(
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -354,10 +358,10 @@ async def test_find_single_char_query(workspace: Path, search_file: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -380,11 +384,11 @@ async def test_find_multiword_query(workspace: Path, search_file: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         for ch in "hello world":
             await pilot.press(ch)
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -408,11 +412,11 @@ async def test_find_match_at_end_of_file(workspace: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         for ch in "find me":
             await pilot.press(ch)
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -437,10 +441,10 @@ async def test_find_in_single_line_file(workspace: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("d", "e", "f")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -465,10 +469,10 @@ async def test_find_wrap_in_single_line_file(workspace: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("a", "b", "c")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -493,11 +497,11 @@ async def test_find_file_without_trailing_newline(workspace: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         for ch in "second":
             await pilot.press(ch)
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -511,7 +515,7 @@ async def test_find_file_without_trailing_newline(workspace: Path):
 async def test_find_sequential_opens_finds_next_each_time(
     workspace: Path, search_file: Path
 ):
-    """Re-opening the modal after a find progresses to the next occurrence."""
+    """Clicking Next multiple times progresses through occurrences."""
     # search_file: "hello world\nhello textual\nfoo bar\n"
     # Two 'hello': (0,0)–(0,5) and (1,0)–(1,5)
     app = make_app(workspace, open_file=search_file)
@@ -520,27 +524,21 @@ async def test_find_sequential_opens_finds_next_each_time(
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
-        # First find: finds 'hello' at (0, 0)
+        # Open bar and type query
         editor.action_find()
         await pilot.pause()
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
-        await pilot.click("#find")
-        await pilot.pause()
 
+        # First click: finds 'hello' at (0, 0)
+        await pilot.click("#next_match")
+        await pilot.pause()
         assert editor.editor.selection.start == (0, 0)
 
-        # After selection, cursor_location == selection.end == (0, 5)
-        # Second find: searches from offset 5 onwards → finds (1, 0)
-        editor.action_find()
+        # Second click: searches from end of selection (0,5) → finds (1, 0)
+        await pilot.click("#next_match")
         await pilot.pause()
-        input_widget = app.screen.query_one("#query")
-        await pilot.click(input_widget)
-        await pilot.press("h", "e", "l", "l", "o")
-        await pilot.click("#find")
-        await pilot.pause()
-
         assert editor.editor.selection.start == (1, 0)
         assert editor.editor.selection.end == (1, 5)
 
@@ -571,10 +569,10 @@ async def test_find_works_on_untitled_file(workspace: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("w", "o", "r", "l", "d")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -595,7 +593,7 @@ async def test_find_enter_key_submits(workspace: Path, search_file: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("f", "o", "o")
         await pilot.press("enter")  # submit via Enter, not button click
@@ -610,25 +608,27 @@ async def test_find_enter_key_submits(workspace: Path, search_file: Path):
 # ── No active editor ──────────────────────────────────────────────────────────
 
 
-async def test_ctrl_f_with_no_open_file_opens_no_modal(workspace: Path):
-    """Ctrl+F when no file is open does not open a FindModalScreen."""
+async def test_ctrl_f_with_no_open_file_opens_no_bar(workspace: Path):
+    """Ctrl+F when no file is open does not open a FindReplaceBar."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
-        # No file opened — TabbedContent is empty
+        # No file opened — no CodeEditor, so no FindReplaceBar visible
         await pilot.press("ctrl+f")
         await pilot.pause()
-        assert not isinstance(app.screen, FindModalScreen)
+        editor = app.main_view.get_active_code_editor()
+        assert editor is None
 
 
-async def test_find_cmd_with_no_open_file_opens_no_modal(workspace: Path):
-    """action_find_cmd when no file is open does not open a FindModalScreen."""
+async def test_find_cmd_with_no_open_file_does_nothing(workspace: Path):
+    """action_find_cmd when no file is open does not crash."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.action_find_cmd()
         await pilot.pause()
-        assert not isinstance(app.screen, FindModalScreen)
+        editor = app.main_view.get_active_code_editor()
+        assert editor is None
 
 
 # ── Whole-file match ──────────────────────────────────────────────────────────
@@ -648,11 +648,11 @@ async def test_find_entire_file_content_as_query(workspace: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         for ch in content:
             await pilot.press(ch)
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection

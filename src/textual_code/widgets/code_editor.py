@@ -27,19 +27,16 @@ from textual_code.modals import (
     DeleteFileModalScreen,
     DiscardAndReloadModalResult,
     DiscardAndReloadModalScreen,
-    FindModalResult,
-    FindModalScreen,
     GotoLineModalResult,
     GotoLineModalScreen,
     OverwriteConfirmModalResult,
     OverwriteConfirmModalScreen,
-    ReplaceModalResult,
-    ReplaceModalScreen,
     SaveAsModalResult,
     SaveAsModalScreen,
     UnsavedChangeModalResult,
     UnsavedChangeModalScreen,
 )
+from textual_code.widgets.find_replace_bar import FindReplaceBar
 from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
 
 
@@ -712,6 +709,8 @@ class CodeEditor(Static):
         self._file_mtime: float | None = None
         self._external_change_notification: Notification | None = None
         self._syntax_theme: str = default_syntax_theme
+        # tracks the end offset of the last successful find for sequential search
+        self._find_offset: int | None = None
 
         # if a path is provided, load the file content
         if path is not None:
@@ -777,6 +776,7 @@ class CodeEditor(Static):
             self.set_reactive(CodeEditor.word_wrap, default_word_wrap)
 
     def compose(self) -> ComposeResult:
+        yield FindReplaceBar()
         yield MultiCursorTextArea.code_editor(
             text=self.initial_text,
             language=self.language,
@@ -1190,146 +1190,151 @@ class CodeEditor(Static):
         self.action_goto_line()
 
     def action_find(self) -> None:
-        """
-        Open the Find modal and select the first match in the current file.
+        """Show the inline find bar in find mode."""
+        self._find_offset = None
+        self.query_one(FindReplaceBar).show_find()
 
-        Searches from the current cursor position forward. If no match is
-        found after the cursor, wraps around to the beginning of the file.
-        """
+    def action_replace(self) -> None:
+        """Show the inline find/replace bar in replace mode."""
+        self._find_offset = None
+        self.query_one(FindReplaceBar).show_replace()
 
-        def do_find(result: FindModalResult | None) -> None:
-            if result is None or result.is_cancelled or not result.query:
-                return
+    def on_find_replace_bar_find_next(self, event: FindReplaceBar.FindNext) -> None:
+        if not event.query:
+            return
 
-            query = result.query
-            text = self.text
+        from textual.widgets.text_area import Selection
 
-            # Convert cursor position to a character offset
+        query = event.query
+        text = self.text
+
+        # Use tracked offset for sequential finds; fall back to cursor position
+        if self._find_offset is not None:
+            cursor_offset = self._find_offset
+        else:
             cursor_row, cursor_col = self.editor.cursor_location
             lines = text.split("\n")
             cursor_offset = (
                 sum(len(lines[i]) + 1 for i in range(cursor_row)) + cursor_col
             )
 
-            use_regex = result.use_regex
+        try:
+            start_idx, end_idx = _find_next(text, query, cursor_offset, event.use_regex)
+        except re.error as e:
+            self.notify(f"Invalid regex: {e}", severity="error")
+            return
+
+        if start_idx == -1:
+            self._find_offset = None
+            self.notify(f"'{query}' not found", severity="warning")
+            return
+
+        self._find_offset = end_idx
+        self.editor.selection = Selection(
+            start=_text_offset_to_location(text, start_idx),
+            end=_text_offset_to_location(text, end_idx),
+        )
+
+    def on_find_replace_bar_replace_all(self, event: FindReplaceBar.ReplaceAll) -> None:
+        if not event.query:
+            return
+
+        find_query = event.query
+        replacement = event.replacement
+        use_regex = event.use_regex
+        try:
+            if use_regex:
+                count = len(re.findall(find_query, self.text))
+                if count == 0:
+                    self.notify(f"'{find_query}' not found", severity="warning")
+                    return
+                new_text = re.sub(find_query, replacement, self.text)
+            else:
+                count = self.text.count(find_query)
+                if count == 0:
+                    self.notify(f"'{find_query}' not found", severity="warning")
+                    return
+                new_text = self.text.replace(find_query, replacement)
+        except re.error as e:
+            self.notify(f"Invalid regex: {e}", severity="error")
+            return
+        self.replace_editor_text(new_text)
+        self.notify(f"Replaced {count} occurrence(s)", severity="information")
+
+    def on_find_replace_bar_replace_current(
+        self, event: FindReplaceBar.ReplaceCurrent
+    ) -> None:
+        if not event.query:
+            return
+
+        from textual.widgets.text_area import Selection
+
+        find_query = event.query
+        replacement = event.replacement
+        use_regex = event.use_regex
+
+        sel = self.editor.selection
+        text = self.text
+        lines = text.split("\n")
+        start_offset = (
+            sum(len(lines[i]) + 1 for i in range(sel.start[0])) + sel.start[1]
+        )
+        end_offset = sum(len(lines[i]) + 1 for i in range(sel.end[0])) + sel.end[1]
+        selected_text = text[start_offset:end_offset]
+
+        try:
+            if not use_regex:
+                match_found = selected_text == find_query
+            else:
+                match_found = bool(re.fullmatch(find_query, selected_text))
+        except re.error as e:
+            self.notify(f"Invalid regex: {e}", severity="error")
+            return
+
+        if match_found:
+            if use_regex:
+                rep = re.sub(find_query, replacement, selected_text)
+            else:
+                rep = replacement
+            new_text = text[:start_offset] + rep + text[end_offset:]
+            search_from = start_offset + len(rep)
             try:
-                start_idx, end_idx = _find_next(text, query, cursor_offset, use_regex)
+                start_idx, end_idx = _find_next(
+                    new_text, find_query, search_from, use_regex
+                )
+            except re.error:
+                start_idx = -1
+                end_idx = -1
+            self.replace_editor_text(new_text)
+            if start_idx != -1:
+                self.editor.selection = Selection(
+                    start=_text_offset_to_location(new_text, start_idx),
+                    end=_text_offset_to_location(new_text, end_idx),
+                )
+        else:
+            cursor_row, cursor_col = self.editor.cursor_location
+            lines = text.split("\n")
+            cursor_offset = (
+                sum(len(lines[i]) + 1 for i in range(cursor_row)) + cursor_col
+            )
+            try:
+                start_idx, end_idx = _find_next(
+                    text, find_query, cursor_offset, use_regex
+                )
             except re.error as e:
                 self.notify(f"Invalid regex: {e}", severity="error")
                 return
-
             if start_idx == -1:
-                self.notify(f"'{query}' not found", severity="warning")
+                self.notify(f"'{find_query}' not found", severity="warning")
                 return
-
-            from textual.widgets.text_area import Selection
-
             self.editor.selection = Selection(
                 start=_text_offset_to_location(text, start_idx),
                 end=_text_offset_to_location(text, end_idx),
             )
 
-        self.app.push_screen(FindModalScreen(), do_find)
-
-    def action_replace(self) -> None:
-        """
-        Open the Replace modal and replace occurrences in the current file.
-        """
-
-        def do_replace(result: ReplaceModalResult | None) -> None:
-            if result is None or result.is_cancelled or not result.find_query:
-                return
-
-            from textual.widgets.text_area import Selection
-
-            find_query = result.find_query
-            replace_text = result.replace_text or ""
-
-            if result.action == "replace_all":
-                use_regex = result.use_regex
-                try:
-                    if use_regex:
-                        count = len(re.findall(find_query, self.text))
-                        if count == 0:
-                            self.notify(f"'{find_query}' not found", severity="warning")
-                            return
-                        new_text = re.sub(find_query, replace_text, self.text)
-                    else:
-                        count = self.text.count(find_query)
-                        if count == 0:
-                            self.notify(f"'{find_query}' not found", severity="warning")
-                            return
-                        new_text = self.text.replace(find_query, replace_text)
-                except re.error as e:
-                    self.notify(f"Invalid regex: {e}", severity="error")
-                    return
-                self.replace_editor_text(new_text)
-                self.notify(f"Replaced {count} occurrence(s)", severity="information")
-                return
-
-            # Replace (single): if current selection matches, replace then find next
-            sel = self.editor.selection
-            text = self.text
-            lines = text.split("\n")
-            start_offset = (
-                sum(len(lines[i]) + 1 for i in range(sel.start[0])) + sel.start[1]
-            )
-            end_offset = sum(len(lines[i]) + 1 for i in range(sel.end[0])) + sel.end[1]
-            selected_text = text[start_offset:end_offset]
-
-            use_regex = result.use_regex
-            try:
-                if not use_regex:
-                    match_found = selected_text == find_query
-                else:
-                    match_found = bool(re.fullmatch(find_query, selected_text))
-            except re.error as e:
-                self.notify(f"Invalid regex: {e}", severity="error")
-                return
-
-            if match_found:
-                if use_regex:
-                    replacement = re.sub(find_query, replace_text, selected_text)
-                else:
-                    replacement = replace_text
-                new_text = text[:start_offset] + replacement + text[end_offset:]
-                search_from = start_offset + len(replacement)
-                try:
-                    start_idx, end_idx = _find_next(
-                        new_text, find_query, search_from, use_regex
-                    )
-                except re.error:
-                    start_idx = -1
-                    end_idx = -1
-                self.replace_editor_text(new_text)
-                if start_idx != -1:
-                    self.editor.selection = Selection(
-                        start=_text_offset_to_location(new_text, start_idx),
-                        end=_text_offset_to_location(new_text, end_idx),
-                    )
-            else:
-                # Selection doesn't match — just find next occurrence
-                cursor_row, cursor_col = self.editor.cursor_location
-                lines = text.split("\n")
-                cursor_offset = (
-                    sum(len(lines[i]) + 1 for i in range(cursor_row)) + cursor_col
-                )
-                try:
-                    start_idx, end_idx = _find_next(
-                        text, find_query, cursor_offset, use_regex
-                    )
-                except re.error as e:
-                    self.notify(f"Invalid regex: {e}", severity="error")
-                    return
-                if start_idx == -1:
-                    self.notify(f"'{find_query}' not found", severity="warning")
-                    return
-                self.editor.selection = Selection(
-                    start=_text_offset_to_location(text, start_idx),
-                    end=_text_offset_to_location(text, end_idx),
-                )
-
-        self.app.push_screen(ReplaceModalScreen(), do_replace)
+    def on_find_replace_bar_closed(self, event: FindReplaceBar.Closed) -> None:
+        self._find_offset = None
+        self.editor.focus()
 
     def action_change_language(self) -> None:
         """

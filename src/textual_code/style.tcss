@@ -3,6 +3,45 @@ Sidebar {
     width: 20;
 }
 
+FindReplaceBar {
+    dock: top;
+    display: none;
+    height: auto;
+    background: $surface;
+    padding: 0 1;
+    layout: vertical;
+}
+
+FindReplaceBar #find_row {
+    height: 3;
+    layout: horizontal;
+}
+
+FindReplaceBar #replace_row {
+    height: 3;
+    layout: horizontal;
+    display: none;
+}
+
+FindReplaceBar #find_input {
+    width: 1fr;
+}
+
+FindReplaceBar #replace_input {
+    width: 1fr;
+}
+
+FindReplaceBar #next_match,
+FindReplaceBar #replace_btn,
+FindReplaceBar #replace_all_btn {
+    width: auto;
+    min-width: 10;
+}
+
+FindReplaceBar #close_btn {
+    width: 5;
+}
+
 CodeEditorFooter {
     dock: bottom;
     height: 1;

@@ -98,13 +98,13 @@ async def test_regex_find_matches_dot_pattern(workspace: Path, regex_file: Path)
 
         from textual.widgets import Checkbox
 
-        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", ".", "l", "o")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -127,13 +127,13 @@ async def test_regex_find_no_match_shows_warning(workspace: Path, regex_file: Pa
 
         from textual.widgets import Checkbox
 
-        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("x", "y", "z", ".", "+")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         assert editor.editor.cursor_location == original_location
@@ -156,13 +156,13 @@ async def test_regex_find_wrap_around(workspace: Path, regex_file: Path):
 
         from textual.widgets import Checkbox
 
-        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -186,14 +186,14 @@ async def test_invalid_regex_find_shows_error(workspace: Path, regex_file: Path)
 
         from textual.widgets import Checkbox
 
-        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         # "[unclosed" → re.error
         await pilot.press("[")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         # no crash + cursor unchanged
@@ -218,14 +218,14 @@ async def test_regex_find_case_insensitive_inline(workspace: Path, regex_file: P
 
         from textual.widgets import Checkbox
 
-        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
 
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         for ch in "(?i)hello":
             await pilot.press(ch)
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -246,10 +246,10 @@ async def test_plain_find_regression(workspace: Path, regex_file: Path):
         await pilot.pause()
 
         # do not check use_regex
-        input_widget = app.screen.query_one("#query")
+        input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
-        await pilot.click("#find")
+        await pilot.click("#next_match")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -273,14 +273,14 @@ async def test_regex_replace_all_basic(workspace: Path, regex_file: Path):
 
         from textual.widgets import Checkbox
 
-        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
 
-        await pilot.click("#find_query")
+        await pilot.click("#find_input")
         await pilot.press("\\", "d", "+")
-        await pilot.click("#replace_text")
+        await pilot.click("#replace_input")
         await pilot.press("[", "N", "U", "M", "]")
-        await pilot.click("#replace_all")
+        await pilot.click("#replace_all_btn")
         await pilot.pause()
 
         # "foo123 bar456" → "foo[NUM] bar[NUM]"
@@ -304,16 +304,16 @@ async def test_regex_replace_all_capture_group(workspace: Path):
 
         from textual.widgets import Checkbox
 
-        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
 
-        await pilot.click("#find_query")
+        await pilot.click("#find_input")
         # pattern: (\w+)
         await pilot.press("(", "\\", "w", "+", ")")
-        await pilot.click("#replace_text")
+        await pilot.click("#replace_input")
         # replacement: [\1]
         await pilot.press("[", "\\", "1", "]")
-        await pilot.click("#replace_all")
+        await pilot.click("#replace_all_btn")
         await pilot.pause()
 
         assert "[hello]" in editor.text
@@ -334,14 +334,14 @@ async def test_invalid_regex_replace_all_error(workspace: Path, regex_file: Path
 
         from textual.widgets import Checkbox
 
-        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
 
-        await pilot.click("#find_query")
+        await pilot.click("#find_input")
         await pilot.press("[")
-        await pilot.click("#replace_text")
+        await pilot.click("#replace_input")
         await pilot.press("x")
-        await pilot.click("#replace_all")
+        await pilot.click("#replace_all_btn")
         await pilot.pause()
 
         # text unchanged
@@ -372,14 +372,14 @@ async def test_regex_replace_single_match_replaces(workspace: Path):
 
         from textual.widgets import Checkbox
 
-        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
 
-        await pilot.click("#find_query")
+        await pilot.click("#find_input")
         await pilot.press("f", "o", "o", "\\", "d", "+")
-        await pilot.click("#replace_text")
+        await pilot.click("#replace_input")
         await pilot.press("X")
-        await pilot.click("#replace")
+        await pilot.click("#replace_btn")
         await pilot.pause()
 
         # foo123 → X, then foo456 is selected
@@ -403,14 +403,14 @@ async def test_regex_replace_single_no_match_finds(workspace: Path):
 
         from textual.widgets import Checkbox
 
-        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
 
-        await pilot.click("#find_query")
+        await pilot.click("#find_input")
         await pilot.press("f", "o", "o", "\\", "d", "+")
-        await pilot.click("#replace_text")
+        await pilot.click("#replace_input")
         await pilot.press("X")
-        await pilot.click("#replace")
+        await pilot.click("#replace_btn")
         await pilot.pause()
 
         sel = editor.editor.selection
@@ -435,14 +435,14 @@ async def test_invalid_regex_replace_single_error(workspace: Path, regex_file: P
 
         from textual.widgets import Checkbox
 
-        checkbox = app.screen.query_one("#use_regex", Checkbox)
+        checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
 
-        await pilot.click("#find_query")
+        await pilot.click("#find_input")
         await pilot.press("[")
-        await pilot.click("#replace_text")
+        await pilot.click("#replace_input")
         await pilot.press("x")
-        await pilot.click("#replace")
+        await pilot.click("#replace_btn")
         await pilot.pause()
 
         # text unchanged
