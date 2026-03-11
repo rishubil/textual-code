@@ -40,12 +40,14 @@ uv run pytest tests/ -m serial
 TextualCode (App) — app.py
 ├── Sidebar — widgets/sidebar.py
 │   └── Explorer — widgets/explorer.py (wraps DirectoryTree)
-├── MainView — app.py (manages tab state)
-│   └── TabbedContent
-│       └── TabPane(s)
-│           └── CodeEditor — widgets/code_editor.py
-│               ├── MultiCursorTextArea — widgets/multi_cursor_text_area.py
-│               └── CodeEditorFooter (file path + language display)
+├── MainView — app.py (manages split view + tab state)
+│   └── Horizontal (id="split_container")
+│       ├── TabbedContent (id="split_left")   ← always visible
+│       │   └── TabPane(s) → CodeEditor — widgets/code_editor.py
+│       │       ├── MultiCursorTextArea — widgets/multi_cursor_text_area.py
+│       │       └── CodeEditorFooter (file path + language display)
+│       └── TabbedContent (id="split_right")  ← hidden until Ctrl+\
+│           └── TabPane(s) → CodeEditor (same structure)
 └── Footer (key bindings)
 ```
 
@@ -97,4 +99,4 @@ All code comments, docstrings, and documentation (including files in `docs/`) mu
 - Python 3.12+ required; type hints used throughout
 - Keyboard bindings defined as class-level `BINDINGS` lists on App/widget classes
 - Language detection from file extension via `LANGUAGE_EXTENSIONS` dict in `code_editor.py`
-- `MainView` tracks open panes in `_panes: dict[str, str]` (pane_id → file path)
+- `MainView` tracks open panes per-split: `_pane_ids: dict[str, set[str]]` and `_opened_files: dict[str, dict[Path, str]]` keyed by `"left"` / `"right"`; `tabbed_content` property returns the active split's `TabbedContent`, so all existing methods route automatically

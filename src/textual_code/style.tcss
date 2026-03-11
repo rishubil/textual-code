@@ -486,3 +486,18 @@ ChangeEncodingModalScreen #encoding {
 ChangeEncodingModalScreen Button {
     width: 100%;
 }
+
+/* Split view layout */
+#split_container {
+    layout: horizontal;
+}
+
+#split_left {
+    width: 1fr;
+}
+
+#split_right {
+    width: 1fr;
+    display: none;
+    border-left: tall $primary-darken-2;
+}

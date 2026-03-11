@@ -185,3 +185,23 @@ def test_snapshot_delete_modal(
         await pilot.pause()
 
     assert snap_compare(app, run_before=open_delete, terminal_size=TERMINAL_SIZE)
+
+
+# ── Split view ────────────────────────────────────────────────────────────────
+
+
+def test_snapshot_split_view_open(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """App with the right split panel open showing the same file."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def open_split(pilot):
+        await pilot.pause()
+        await app.main_view.action_split_right()
+        editor = app.main_view._get_active_code_editor_in_split("right")
+        if editor is not None:
+            editor.action_focus()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=open_split, terminal_size=TERMINAL_SIZE)

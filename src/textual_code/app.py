@@ -7,6 +7,7 @@ from textual import on
 from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding
 from textual.command import CommandPalette
+from textual.containers import Horizontal
 from textual.events import Ready
 from textual.message import Message
 from textual.screen import Screen
@@ -97,6 +98,9 @@ def _parse_sidebar_resize(
 class MainView(Static):
     """
     Main view of the app with a tabbed content for code editors.
+
+    Supports horizontal split view: a left and right TabbedContent side by side.
+    The right panel is hidden until a split is opened.
     """
 
     BINDINGS = [
@@ -123,92 +127,178 @@ class MainView(Static):
             show=False,
             priority=True,
         ),
+        Binding(
+            "ctrl+backslash",
+            "split_right",
+            "Split editor right",
+            show=False,
+        ),
+        Binding(
+            "ctrl+shift+backslash",
+            "close_split",
+            "Close split",
+            show=False,
+        ),
     ]
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        # a set of opened pane ids
-        self.opened_pane_ids: set[str] = set()
-        # a dict of opened file paths with their pane_id
-        self.opened_files: dict[Path, str] = {}
+        # Per-split pane tracking: {"left": set(), "right": set()}
+        self._pane_ids: dict[str, set[str]] = {"left": set(), "right": set()}
+        # Per-split file tracking: {"left": {path: pane_id}, "right": {path: pane_id}}
+        self._opened_files: dict[str, dict[Path, str]] = {
+            "left": {},
+            "right": {},
+        }
+        # Which split currently has focus
+        self._active_split: str = "left"
+        # Whether the right split panel is visible
+        self._split_visible: bool = False
 
     def compose(self) -> ComposeResult:
-        yield TabbedContent()
+        with Horizontal(id="split_container"):
+            yield TabbedContent(id="split_left")
+            yield TabbedContent(id="split_right")
+
+    # ── Properties ────────────────────────────────────────────────────────────
+
+    @property
+    def opened_pane_ids(self) -> set[str]:
+        """All open pane IDs across both splits (read-only union)."""
+        return self._pane_ids["left"] | self._pane_ids["right"]
+
+    @property
+    def _active_pane_ids(self) -> set[str]:
+        """Mutable set for the active split's pane IDs."""
+        return self._pane_ids[self._active_split]
+
+    @property
+    def opened_files(self) -> dict[Path, str]:
+        """Open files in the active split (mutable — mutations affect active split)."""
+        return self._opened_files[self._active_split]
+
+    @property
+    def tabbed_content(self) -> TabbedContent:
+        """The active split's TabbedContent."""
+        return self.query_one(f"#split_{self._active_split}", TabbedContent)
+
+    @property
+    def left_tabbed_content(self) -> TabbedContent:
+        return self.query_one("#split_left", TabbedContent)
+
+    @property
+    def right_tabbed_content(self) -> TabbedContent:
+        return self.query_one("#split_right", TabbedContent)
+
+    # ── Split helpers ─────────────────────────────────────────────────────────
+
+    def _split_of_pane(self, pane_id: str) -> str | None:
+        """Return 'left' or 'right' for the split that owns pane_id, or None."""
+        if pane_id in self._pane_ids["left"]:
+            return "left"
+        if pane_id in self._pane_ids["right"]:
+            return "right"
+        return None
+
+    def _tc_for_pane(self, pane_id: str) -> TabbedContent | None:
+        """Return the TabbedContent that owns pane_id, or None."""
+        split = self._split_of_pane(pane_id)
+        if split is None:
+            return None
+        return self.query_one(f"#split_{split}", TabbedContent)
+
+    def _get_active_code_editor_in_split(self, split: str) -> "CodeEditor | None":
+        """Return the active CodeEditor in the given split, or None."""
+        tc = self.query_one(f"#split_{split}", TabbedContent)
+        active_id = tc.active
+        if not active_id:
+            return None
+        pane = tc.get_pane(active_id)
+        return pane.query_one(CodeEditor)
+
+    def _set_active_split(self, split: str) -> None:
+        """Switch focus to the given split and focus its active editor."""
+        self._active_split = split
+        editor = self._get_active_code_editor_in_split(split)
+        if editor:
+            editor.editor.focus()
+        else:
+            self.query_one(f"#split_{split}", TabbedContent).focus()
+
+    def _auto_close_split_if_empty(self) -> None:
+        """Hide the right split and reset state if it has no open panes."""
+        if self._split_visible and not self._pane_ids["right"]:
+            self._split_visible = False
+            self.right_tabbed_content.display = False
+            self._active_split = "left"
+            editor = self._get_active_code_editor_in_split("left")
+            if editor:
+                editor.editor.focus()
+
+    # ── Pane management ───────────────────────────────────────────────────────
 
     def is_opened_pane(self, pane_id: str) -> bool:
-        """
-        Check if a pane is already opened by its pane_id.
-        """
+        """Check if a pane is already opened by its pane_id."""
         return pane_id in self.opened_pane_ids
 
     def pane_id_from_path(self, path: Path) -> str | None:
-        """
-        Get the pane_id of a file path if it is already opened.
-
-        Returns None if the file is not opened.
-        """
-        return self.opened_files.get(path, None)
+        """Get the pane_id for a path in the active split, or None."""
+        return self._opened_files[self._active_split].get(path, None)
 
     async def open_new_pane(self, pane_id: str, pane: TabPane) -> bool:
         """
-        Open a new pane if it is not already opened.
+        Open a new pane in the active split if not already opened.
 
         Returns True if a new pane was opened.
-
-        If the pane is already opened, it will not be opened again and return False.
         """
         if self.is_opened_pane(pane_id):
             return False
-        self.opened_pane_ids.add(pane_id)
+        self._active_pane_ids.add(pane_id)
         await self.tabbed_content.add_pane(pane)
         return True
 
     async def close_pane(self, pane_id: str) -> bool:
         """
-        Close a pane by its pane_id.
+        Close a pane by its pane_id (routes to the correct split).
 
         Returns True if the pane was closed.
-
-        If the pane is not opened, it will not be closed and return False.
         """
-        if not self.is_opened_pane(pane_id):
+        split = self._split_of_pane(pane_id)
+        if split is None:
             return False
-        await self.tabbed_content.remove_pane(pane_id)
-        self.opened_pane_ids.remove(pane_id)
+        tc = self.query_one(f"#split_{split}", TabbedContent)
+        await tc.remove_pane(pane_id)
+        self._pane_ids[split].discard(pane_id)
         return True
 
     def focus_pane(self, pane_id: str) -> bool:
         """
-        Focus a pane by its pane_id.
+        Focus a pane by its pane_id (routes to the correct split).
 
         Returns True if the pane was focused.
         """
-
-        if not self.is_opened_pane(pane_id):
+        split = self._split_of_pane(pane_id)
+        if split is None:
             return False
-
-        # if the pane is not active, activate it first
-        if self.tabbed_content.active != pane_id:
-            self.tabbed_content.active = pane_id
-
-        self.tabbed_content.get_pane(pane_id).focus()
+        tc = self.query_one(f"#split_{split}", TabbedContent)
+        if tc.active != pane_id:
+            tc.active = pane_id
+        tc.get_pane(pane_id).focus()
+        self._active_split = split
         return True
 
     async def open_code_editor_pane(self, path: Path | None = None) -> str:
         """
-        Open a new code editor pane.
+        Open a new code editor pane in the active split.
 
-        Returns the pane_id of the new pane.
+        Returns the pane_id of the new or existing pane.
 
         If a path is provided, open the file in the code editor.
         Otherwise, open a new empty code editor.
 
-        If the pane is already opened, it will not be opened again.
-        However, if the opened pane is not focused, it will be focused.
+        If the file is already open in the active split, focus it instead.
         """
-
-        # get the pane_id for the file path, or generate a new one
         if path is None:
             pane_id = CodeEditor.generate_pane_id()
         else:
@@ -218,12 +308,13 @@ class MainView(Static):
             else:
                 pane_id = existing_pane_id
 
-        if self.is_opened_pane(pane_id):
-            # if the pane is already opened, focus it
+        if (
+            self.is_opened_pane(pane_id)
+            and self._split_of_pane(pane_id) == self._active_split
+        ):
             self.focus_pane(pane_id)
             return pane_id
 
-        # create a new code editor pane
         pane = TabPane(
             "...",  # temporary title, will be updated later
             CodeEditor(
@@ -237,28 +328,21 @@ class MainView(Static):
             id=pane_id,
         )
         if path is not None:
-            self.opened_files[path] = pane_id
+            self._opened_files[self._active_split][path] = pane_id
         await self.open_new_pane(pane_id, pane)
         return pane_id
 
-    def get_active_code_editor(self) -> CodeEditor | None:
-        """
-        Get the active code editor widget.
-
-        Returns None if no code editor is active.
-        """
-        active_pane_id = self.tabbed_content.active
-        if not active_pane_id:
-            return None
-        active_pane = self.tabbed_content.get_pane(active_pane_id)
-        return active_pane.query_one(CodeEditor)
+    def get_active_code_editor(self) -> "CodeEditor | None":
+        """Get the active code editor in the active split."""
+        return self._get_active_code_editor_in_split(self._active_split)
 
     def has_unsaved_pane(self) -> bool:
-        """
-        Check if there is any unsaved code editor pane.
-        """
+        """Check if there is any unsaved code editor pane across all splits."""
         for pane_id in list(self.opened_pane_ids):
-            pane = self.tabbed_content.get_pane(pane_id)
+            tc = self._tc_for_pane(pane_id)
+            if tc is None:
+                continue
+            pane = tc.get_pane(pane_id)
             code_editor = pane.query_one(CodeEditor)
             if code_editor.text != code_editor.initial_text:
                 return True
@@ -277,24 +361,25 @@ class MainView(Static):
             focus: If True, focus the code editor after opening.
         """
         pane_id = await self.open_code_editor_pane(path)
-        self.tabbed_content.active = pane_id
+        split = self._split_of_pane(pane_id) or self._active_split
+        tc = self.query_one(f"#split_{split}", TabbedContent)
+        tc.active = pane_id
         if focus:
-            editor = self.tabbed_content.get_pane(pane_id).query_one(CodeEditor)
+            editor = tc.get_pane(pane_id).query_one(CodeEditor)
             editor.action_focus()
 
     async def action_close_code_editor(self, pane_id: str) -> None:
-        """
-        Close a code editor pane by its pane_id.
-        """
+        """Close a code editor pane by its pane_id."""
+        split = self._split_of_pane(pane_id)
         await self.close_pane(pane_id)
-
-        # remove the file from the opened_files dict
-        self.opened_files = {k: v for k, v in self.opened_files.items() if v != pane_id}
+        if split:
+            self._opened_files[split] = {
+                k: v for k, v in self._opened_files[split].items() if v != pane_id
+            }
+        self._auto_close_split_if_empty()
 
     def action_save(self):
-        """
-        Save file in the active code editor.
-        """
+        """Save file in the active code editor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_save()
@@ -303,7 +388,10 @@ class MainView(Static):
         """Save all open code editors with unsaved changes."""
         editors = []
         for pane_id in list(self.opened_pane_ids):
-            pane = self.tabbed_content.get_pane(pane_id)
+            tc = self._tc_for_pane(pane_id)
+            if tc is None:
+                continue
+            pane = tc.get_pane(pane_id)
             code_editor = pane.query_one(CodeEditor)
             if code_editor.text != code_editor.initial_text:
                 editors.append(code_editor)
@@ -311,7 +399,7 @@ class MainView(Static):
         editors.sort(key=lambda e: e.path is None)
         self._save_next(editors)
 
-    def _save_next(self, editors: list[CodeEditor]) -> None:
+    def _save_next(self, editors: list["CodeEditor"]) -> None:
         if not editors:
             return
         editor = editors[0]
@@ -320,37 +408,32 @@ class MainView(Static):
             editor.action_save()
             self._save_next(remaining)
         else:
-            self.tabbed_content.active = editor.pane_id
+            split = self._split_of_pane(editor.pane_id) or self._active_split
+            tc = self.query_one(f"#split_{split}", TabbedContent)
+            tc.active = editor.pane_id
+            self._active_split = split
             editor.action_save_as(on_complete=lambda: self._save_next(remaining))
 
     def action_close(self):
-        """
-        Close the active code editor.
-        """
+        """Close the active code editor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_close()
 
     def action_goto_line(self) -> None:
-        """
-        Open the Goto Line modal for the active code editor.
-        """
+        """Open the Goto Line modal for the active code editor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_goto_line()
 
     def action_find(self) -> None:
-        """
-        Open the Find modal for the active code editor.
-        """
+        """Open the Find modal for the active code editor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_find()
 
     def action_replace(self) -> None:
-        """
-        Open the Replace modal for the active code editor.
-        """
+        """Open the Replace modal for the active code editor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_replace()
@@ -380,14 +463,17 @@ class MainView(Static):
             code_editor.action_select_next_occurrence()
 
     def action_close_all(self) -> None:
-        """Close all open code editors, prompting for unsaved changes."""
+        """Close all open code editors across all splits."""
         editors: list[CodeEditor] = []
         for pane_id in list(self.opened_pane_ids):
-            pane = self.tabbed_content.get_pane(pane_id)
+            tc = self._tc_for_pane(pane_id)
+            if tc is None:
+                continue
+            pane = tc.get_pane(pane_id)
             editors.append(pane.query_one(CodeEditor))
         self._close_next(editors)
 
-    def _close_next(self, editors: list[CodeEditor]) -> None:
+    def _close_next(self, editors: list["CodeEditor"]) -> None:
         if not editors:
             return
         editor = editors[0]
@@ -396,34 +482,75 @@ class MainView(Static):
             on_complete=lambda closed: self._close_next(remaining) if closed else None
         )
 
+    # ── Split actions ─────────────────────────────────────────────────────────
+
+    async def action_split_right(self) -> None:
+        """Open the current file (or a new editor) in the right split."""
+        if not self._split_visible:
+            self._split_visible = True
+            self.right_tabbed_content.display = True
+        # Capture current file from the left split before switching
+        left_editor = self._get_active_code_editor_in_split("left")
+        path = left_editor.path if left_editor else None
+        self._active_split = "right"
+        await self.open_code_editor_pane(path)
+
+    async def action_close_split(self) -> None:
+        """Close all tabs in the right split and hide the right panel."""
+        if not self._split_visible:
+            return
+        for pane_id in list(self._pane_ids["right"]):
+            tc = self.right_tabbed_content
+            pane = tc.get_pane(pane_id)
+            editor = pane.query_one(CodeEditor)
+            editor.action_close()
+
+    def action_focus_left_split(self) -> None:
+        """Move keyboard focus to the left split."""
+        self._set_active_split("left")
+
+    def action_focus_right_split(self) -> None:
+        """Move keyboard focus to the right split (no-op if not open)."""
+        if self._split_visible:
+            self._set_active_split("right")
+
+    # ── Event handlers ────────────────────────────────────────────────────────
+
+    @on(TabbedContent.TabActivated)
+    def on_tabbed_content_tab_activated(
+        self, event: TabbedContent.TabActivated
+    ) -> None:
+        # Track which split has focus when a tab is activated
+        if event.control.id == "split_left":
+            self._active_split = "left"
+        elif event.control.id == "split_right":
+            self._active_split = "right"
+
     @on(CodeEditor.TitleChanged)
     def on_code_editor_title_changed(self, event: CodeEditor.TitleChanged):
-        # update the tab label when the title of the code editor changes
+        # Update the tab label when the title of the code editor changes
         if self.is_opened_pane(event.control.pane_id):
-            self.tabbed_content.get_tab(
-                event.control.pane_id
-            ).label = event.control.title
+            tc = self._tc_for_pane(event.control.pane_id)
+            if tc is not None:
+                tc.get_tab(event.control.pane_id).label = event.control.title
 
     @on(CodeEditor.SavedAs)
     def on_code_editor_saved_as(self, event: CodeEditor.SavedAs):
-        # update the opened_files dict when a file is saved as new file
+        # Update the file tracking when a file is saved as a new path
         if event.control.path is None:
             raise ValueError("CodeEditor.SavedAs event must have a path")
-        self.opened_files[event.control.path] = event.control.pane_id
+        split = self._split_of_pane(event.control.pane_id) or self._active_split
+        self._opened_files[split][event.control.path] = event.control.pane_id
 
     @on(CodeEditor.Closed)
     async def on_code_editor_closed(self, event: CodeEditor.Closed):
-        # close the code editor pane when the code editor is closed
+        # Close the pane when the code editor signals it should close
         await self.action_close_code_editor(event.control.pane_id)
 
     @on(CodeEditor.Deleted)
     async def on_code_editor_deleted(self, event: CodeEditor.Deleted):
-        # close the code editor pane when the file is deleted
+        # Close the pane when the underlying file is deleted
         await self.action_close_code_editor(event.control.pane_id)
-
-    @property
-    def tabbed_content(self) -> TabbedContent:
-        return self.query_one(TabbedContent)
 
 
 class TextualCode(App):
@@ -620,6 +747,26 @@ class TextualCode(App):
             self.action_add_next_occurrence_cmd,
         )
         yield SystemCommand(
+            "Split editor right",
+            "Open current file in right split panel (Ctrl+\\)",
+            self.action_split_right_cmd,
+        )
+        yield SystemCommand(
+            "Close split",
+            "Close the right split panel",
+            self.action_close_split_cmd,
+        )
+        yield SystemCommand(
+            "Focus left split",
+            "Move focus to the left split panel",
+            self.action_focus_left_split_cmd,
+        )
+        yield SystemCommand(
+            "Focus right split",
+            "Move focus to the right split panel",
+            self.action_focus_right_split_cmd,
+        )
+        yield SystemCommand(
             "Set default indentation",
             "Set the default indentation for new files",
             self.action_set_default_indentation,
@@ -736,6 +883,22 @@ class TextualCode(App):
             self.call_next(code_editor.action_select_next_occurrence)
         else:
             self.notify("No file open.", severity="error")
+
+    def action_split_right_cmd(self) -> None:
+        """Split editor right via command palette."""
+        self.call_next(self.main_view.action_split_right)
+
+    def action_close_split_cmd(self) -> None:
+        """Close split via command palette."""
+        self.call_next(self.main_view.action_close_split)
+
+    def action_focus_left_split_cmd(self) -> None:
+        """Focus left split via command palette."""
+        self.main_view.action_focus_left_split()
+
+    def action_focus_right_split_cmd(self) -> None:
+        """Focus right split via command palette."""
+        self.main_view.action_focus_right_split()
 
     def action_goto_line_cmd(self) -> None:
         """
