@@ -97,9 +97,10 @@ copy_files_to_worktree() {
     local dst="$2"
 
     local items=(
-        ".claude/settings.local.json"
-        ".env"
+        ".claude"
         ".devcontainer/qmd-cache"
+        ".env.local"
+        ".env"
         "CLAUDE.local.md"
     )
 
