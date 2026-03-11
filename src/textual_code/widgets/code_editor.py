@@ -9,6 +9,7 @@ from textual import on
 from textual.app import ComposeResult
 from textual.events import Mount
 from textual.message import Message
+from textual.notifications import Notification, Notify
 from textual.reactive import reactive
 from textual.widgets import Button, Label, Static, TextArea
 
@@ -647,7 +648,7 @@ class CodeEditor(Static):
         self.set_reactive(CodeEditor.pane_id, pane_id)
         self.set_reactive(CodeEditor.path, path)
         self._file_mtime: float | None = None
-        self._external_change_pending: bool = False
+        self._external_change_notification: Notification | None = None
         self._syntax_theme: str = default_syntax_theme
 
         # if a path is provided, load the file content
@@ -849,19 +850,26 @@ class CodeEditor(Static):
         if current_mtime == self._file_mtime:
             return
         if self.text != self.initial_text:
-            if not self._external_change_pending:
-                self._external_change_pending = True
-                self.notify(
+            if self._external_change_notification is None:
+                notification = Notification(
                     "File changed externally. Reload to apply changes.",
                     severity="warning",
-                    timeout=0,
+                    timeout=float("inf"),
                 )
+                self._external_change_notification = notification
+                self.app.post_message(Notify(notification))
         else:
             self._reload_file()
 
+    def _dismiss_external_change_notification(self) -> None:
+        """Dismiss the external-change toast if one is currently displayed."""
+        if self._external_change_notification is not None:
+            self.app._unnotify(self._external_change_notification)
+            self._external_change_notification = None
+
     def _reload_file(self) -> None:
         """Reload file content from disk, resetting unsaved state."""
-        self._external_change_pending = False
+        self._dismiss_external_change_notification()
         if self.path is None:
             return
         try:
@@ -904,7 +912,7 @@ class CodeEditor(Static):
 
     def _write_to_disk(self) -> None:
         """Write current text to disk and update mtime. Requires self.path is set."""
-        self._external_change_pending = False
+        self._dismiss_external_change_notification()
         try:
             content = _convert_line_ending(self.text, self.line_ending)
             self.path.write_bytes(content.encode(self.encoding))

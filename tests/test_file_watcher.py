@@ -438,11 +438,11 @@ async def test_auto_reload_preserves_cursor_position(
         assert editor.editor.cursor_location == (3, 2)
 
 
-# ── Group G: external-change toast deduplication ──────────────────────────────
+# ── Group G: external-change toast lifecycle ──────────────────────────────────
 
 
 async def test_toast_shown_once_on_first_poll(workspace: Path, sample_py_file: Path):
-    """G-01: External change + unsaved → first poll shows notify, flag set."""
+    """G-01: External change + unsaved → first poll sets notification reference."""
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -455,17 +455,17 @@ async def test_toast_shown_once_on_first_poll(workspace: Path, sample_py_file: P
         sample_py_file.write_text("external\n")
         editor._file_mtime -= 1.0
 
-        assert not editor._external_change_pending
+        assert editor._external_change_notification is None
         editor._poll_file_change()
         await pilot.pause()
 
-        assert editor._external_change_pending
+        assert editor._external_change_notification is not None
 
 
 async def test_toast_not_repeated_on_subsequent_polls(
     workspace: Path, sample_py_file: Path
 ):
-    """G-02: External change + unsaved → poll 3 times → flag still True (no repeat)."""
+    """G-02: External change + unsaved → poll 3 times → same notification reference."""
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -479,19 +479,20 @@ async def test_toast_not_repeated_on_subsequent_polls(
 
         editor._poll_file_change()
         await pilot.pause()
-        assert editor._external_change_pending
+        first_notification = editor._external_change_notification
+        assert first_notification is not None
 
-        # Poll two more times — flag stays True, no repeated notify
+        # Poll two more times — same notification object, no new one created
         editor._poll_file_change()
         await pilot.pause()
         editor._poll_file_change()
         await pilot.pause()
 
-        assert editor._external_change_pending
+        assert editor._external_change_notification is first_notification
 
 
-async def test_flag_cleared_after_reload(workspace: Path, sample_py_file: Path):
-    """G-03: After reload, _external_change_pending is False; new change can notify."""
+async def test_notification_cleared_after_reload(workspace: Path, sample_py_file: Path):
+    """G-03: After reload, notification is None and removed from app._notifications."""
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -505,12 +506,14 @@ async def test_flag_cleared_after_reload(workspace: Path, sample_py_file: Path):
 
         editor._poll_file_change()
         await pilot.pause()
-        assert editor._external_change_pending
+        notification = editor._external_change_notification
+        assert notification is not None
 
-        # Reload clears the flag
+        # Reload dismisses the notification
         editor._reload_file()
         await pilot.pause()
-        assert not editor._external_change_pending
+        assert editor._external_change_notification is None
+        assert notification not in app._notifications
 
         # Another external change can trigger a new notification
         sample_py_file.write_text("external2\n")
@@ -519,11 +522,11 @@ async def test_flag_cleared_after_reload(workspace: Path, sample_py_file: Path):
         await pilot.pause()
         editor._poll_file_change()
         await pilot.pause()
-        assert editor._external_change_pending
+        assert editor._external_change_notification is not None
 
 
-async def test_flag_cleared_after_save(workspace: Path, sample_py_file: Path):
-    """G-04: After save, _external_change_pending is False; new change can notify."""
+async def test_notification_cleared_after_save(workspace: Path, sample_py_file: Path):
+    """G-04: After save, notification is None and removed from app._notifications."""
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -537,9 +540,85 @@ async def test_flag_cleared_after_save(workspace: Path, sample_py_file: Path):
 
         editor._poll_file_change()
         await pilot.pause()
-        assert editor._external_change_pending
+        notification = editor._external_change_notification
+        assert notification is not None
 
-        # Save clears the flag
+        # Save dismisses the notification
         editor._write_to_disk()
         await pilot.pause()
-        assert not editor._external_change_pending
+        assert editor._external_change_notification is None
+        assert notification not in app._notifications
+
+
+async def test_new_notification_after_reload_then_change(
+    workspace: Path, sample_py_file: Path
+):
+    """G-05: After reload clears notification, new external change shows new one."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # First cycle: external change + unsaved → notification shown
+        editor.text = "unsaved\n"
+        await pilot.pause()
+        sample_py_file.write_text("external\n")
+        editor._file_mtime -= 1.0
+        editor._poll_file_change()
+        await pilot.pause()
+        first_notification = editor._external_change_notification
+        assert first_notification is not None
+
+        # Reload clears it
+        editor._reload_file()
+        await pilot.pause()
+        assert editor._external_change_notification is None
+
+        # Second cycle: new external change → new notification (different object)
+        sample_py_file.write_text("external2\n")
+        editor._file_mtime -= 1.0
+        editor.text = "unsaved2\n"
+        await pilot.pause()
+        editor._poll_file_change()
+        await pilot.pause()
+        second_notification = editor._external_change_notification
+        assert second_notification is not None
+        assert second_notification is not first_notification
+
+
+async def test_new_notification_after_save_then_change(
+    workspace: Path, sample_py_file: Path
+):
+    """G-06: After save clears notification, new external change shows new one."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # First cycle: external change + unsaved → notification shown
+        editor.text = "unsaved\n"
+        await pilot.pause()
+        sample_py_file.write_text("external\n")
+        editor._file_mtime -= 1.0
+        editor._poll_file_change()
+        await pilot.pause()
+        first_notification = editor._external_change_notification
+        assert first_notification is not None
+
+        # Save clears it
+        editor._write_to_disk()
+        await pilot.pause()
+        assert editor._external_change_notification is None
+
+        # Second cycle: new external change → new notification (different object)
+        sample_py_file.write_text("external2\n")
+        editor._file_mtime -= 1.0
+        editor.text = "unsaved2\n"
+        await pilot.pause()
+        editor._poll_file_change()
+        await pilot.pause()
+        second_notification = editor._external_change_notification
+        assert second_notification is not None
+        assert second_notification is not first_notification

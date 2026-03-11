@@ -49,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix external file change notification repeating every 2 seconds: notification is now shown once and persists until the user dismisses it; flag resets after saving or reloading
+- Fix external file change notification repeating every 2 seconds: notification is now shown once and persists until dismissed; automatically dismissed when the conflict is resolved by saving or reloading the file
 - Fix `OverwriteConfirmModalScreen` and `DiscardAndReloadModalScreen` rendering full-screen due to missing CSS; both modals now display as compact centred dialogs matching the style of other modals
 - Hide "Save all" and "Close all" from the footer key bindings bar to reduce clutter (`Ctrl+Shift+S` / `Ctrl+Shift+W` still work)
 
