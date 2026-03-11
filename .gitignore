@@ -24,3 +24,6 @@ snapshot_report.html
 # Environment
 .env
 .env.local
+
+# Downloaded library docs
+docs/libs/

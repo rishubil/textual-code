@@ -25,6 +25,9 @@ snapshot_report.html
 .env
 .env.local
 
+# Downloaded library docs
+docs/libs/
+
 # --- gitignore end ---
 
 dist/
