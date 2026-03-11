@@ -1,5 +1,23 @@
 # Features
 
+## Language Detection: LANGUAGE_FILENAMES checked before LANGUAGE_EXTENSIONS
+
+`CodeEditor.load_language_from_path` checks in this order:
+
+1. **Full filename** (`path.name`) against `LANGUAGE_FILENAMES` — for dotfiles with no extension (e.g. `.bashrc`)
+2. **File extension** (`path.suffix.lstrip(".")`) against `LANGUAGE_EXTENSIONS`
+
+### Why filename takes priority
+
+Dotfiles like `.bashrc` have no extension, so extension lookup would always return `None`.
+Filename lookup must run first to catch these files before the extension fallback.
+
+### Adding new mappings
+
+- Same file format, new extension → add to `LANGUAGE_EXTENSIONS`
+- Exact filename (dotfile or config file with no extension) → add to `LANGUAGE_FILENAMES`
+- Do not add "close enough" language mappings (e.g. TypeScript → JavaScript); only identical formats
+
 ## Cursor Button: clickable footer position opens GotoLineModalScreen
 
 The cursor position (`#cursor_btn`) in `CodeEditorFooter` is a `Button` rather than a plain `Label`,

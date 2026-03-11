@@ -529,9 +529,21 @@ class CodeEditor(Static):
         "regex": "regex",
         "sql": "sql",
         "js": "javascript",
+        "mjs": "javascript",
+        "cjs": "javascript",
         "java": "java",
         "sh": "bash",
+        "bash": "bash",
         "go": "go",
+        "svg": "xml",
+        "xhtml": "xml",
+    }
+
+    # mapping of exact file names to language names (checked before extension)
+    LANGUAGE_FILENAMES = {
+        ".bashrc": "bash",
+        ".bash_profile": "bash",
+        ".bash_logout": "bash",
     }
 
     @dataclass
@@ -705,11 +717,17 @@ class CodeEditor(Static):
 
     def load_language_from_path(self, path: Path | None) -> None:
         """
-        Update the language of the editor based on the file extension.
+        Update the language of the editor based on the file name or extension.
         """
         if path is None:
             self.language = None
             return
+        # Check full filename first (for files like .bashrc with no extension)
+        filename = path.name
+        if filename in self.LANGUAGE_FILENAMES:
+            self.language = self.LANGUAGE_FILENAMES[filename]
+            return
+        # Fall back to extension
         extension = path.suffix.lstrip(".")
         self.language = self.LANGUAGE_EXTENSIONS.get(extension, None)
 
@@ -1193,7 +1211,10 @@ class CodeEditor(Static):
         """
         Open the Change Language modal and update the syntax highlighting language.
         """
-        languages = sorted(set(self.LANGUAGE_EXTENSIONS.values()))
+        languages = sorted(
+            set(self.LANGUAGE_EXTENSIONS.values())
+            | set(self.LANGUAGE_FILENAMES.values())
+        )
 
         def do_change(result: ChangeLanguageModalResult | None) -> None:
             if result is None or result.is_cancelled:
