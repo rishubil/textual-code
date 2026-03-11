@@ -325,3 +325,544 @@ async def test_footer_hides_cursor_count_after_escape(
         await pilot.pause()
 
         assert "[" not in str(editor.footer.cursor_button.label)
+
+
+# ── Fixtures ──────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def five_line_file(workspace: Path) -> Path:
+    f = workspace / "five.txt"
+    f.write_text("line0\nline1\nline2\nline3\nline4\n")
+    return f
+
+
+# ── Integration: Enter (line splits) ─────────────────────────────────────────
+
+
+async def test_enter_splits_two_different_rows(workspace: Path, two_line_file: Path):
+    """Enter with cursors on different rows splits both lines."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right", "right", "right")  # move to col 3
+        await pilot.pause()
+        ta.add_cursor((1, 3))
+        await pilot.pause()
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        lines = ta.text.split("\n")
+        # Original "Hello world" → "Hel" + "\n" + "lo world"
+        assert lines[0] == "Hel"
+        assert lines[1] == "lo world"
+        # Original "Foo bar" → "Foo" + "\n" + " bar"
+        assert lines[2] == "Foo"
+        assert lines[3] == " bar"
+
+
+async def test_enter_splits_same_row_two_cursors(workspace: Path, two_line_file: Path):
+    """Enter with two cursors on the same row splits into three pieces."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right", "right")  # col 2
+        await pilot.pause()
+        ta.add_cursor((0, 5))
+        await pilot.pause()
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        lines = ta.text.split("\n")
+        # "Hello world" split at col 2 and col 5 → "He", "llo", " world"
+        assert lines[0] == "He"
+        assert lines[1] == "llo"
+        assert lines[2] == " world"
+
+
+async def test_enter_splits_same_row_three_cursors(
+    workspace: Path, two_line_file: Path
+):
+    """Enter with three cursors on the same row produces four pieces."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right", "right")  # col 2
+        await pilot.pause()
+        ta.add_cursor((0, 5))
+        ta.add_cursor((0, 8))
+        await pilot.pause()
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        lines = ta.text.split("\n")
+        # "Hello world" → "He", "llo", " wo", "rld"
+        assert lines[0] == "He"
+        assert lines[1] == "llo"
+        assert lines[2] == " wo"
+        assert lines[3] == "rld"
+
+
+async def test_enter_at_col_0(workspace: Path, two_line_file: Path):
+    """Enter at col 0 inserts a blank line before the current line."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        ta.add_cursor((1, 0))
+        await pilot.pause()
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        lines = ta.text.split("\n")
+        assert lines[0] == ""
+        assert lines[1] == "Hello world"
+        assert lines[2] == ""
+        assert lines[3] == "Foo bar"
+
+
+async def test_enter_at_eol(workspace: Path, two_line_file: Path):
+    """Enter at EOL inserts a blank line after the current line."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("end")  # move to EOL of line 0
+        await pilot.pause()
+        ta.add_cursor((1, 7))  # EOL of "Foo bar"
+        await pilot.pause()
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        lines = ta.text.split("\n")
+        assert lines[0] == "Hello world"
+        assert lines[1] == ""
+        assert lines[2] == "Foo bar"
+        assert lines[3] == ""
+
+
+async def test_enter_primary_position_correct(workspace: Path, two_line_file: Path):
+    """Primary cursor ends at (row+1, 0) after Enter."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right", "right", "right")  # col 3
+        await pilot.pause()
+        ta.add_cursor((1, 3))
+        await pilot.pause()
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert ta.cursor_location == (1, 0)
+
+
+async def test_enter_extra_cursor_positions_correct(
+    workspace: Path, two_line_file: Path
+):
+    """Extra cursors end at (row+2, 0) (shifted by primary's newline) after Enter."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right", "right", "right")  # col 3
+        await pilot.pause()
+        ta.add_cursor((1, 3))
+        await pilot.pause()
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert (3, 0) in ta.extra_cursors
+
+
+async def test_enter_three_different_rows(workspace: Path, five_line_file: Path):
+    """3 cursors on 3 different rows — all split correctly."""
+    app = make_app(workspace, open_file=five_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right", "right")  # (0, 2)
+        await pilot.pause()
+        ta.add_cursor((1, 2))
+        ta.add_cursor((2, 2))
+        await pilot.pause()
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        lines = ta.text.split("\n")
+        # Each "lineN" split at col 2 → "li" + "neN"
+        assert lines[0] == "li"
+        assert lines[1] == "ne0"
+        assert lines[2] == "li"
+        assert lines[3] == "ne1"
+        assert lines[4] == "li"
+        assert lines[5] == "ne2"
+
+
+async def test_enter_consecutive_rows(workspace: Path, five_line_file: Path):
+    """Cursors on consecutive rows split correctly with row_offset tracking."""
+    app = make_app(workspace, open_file=five_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("down")  # row 1
+        await pilot.pause()
+        await pilot.press("right", "right")  # (1, 2)
+        await pilot.pause()
+        ta.add_cursor((2, 2))
+        await pilot.pause()
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        lines = ta.text.split("\n")
+        assert lines[0] == "line0"
+        assert lines[1] == "li"
+        assert lines[2] == "ne1"
+        assert lines[3] == "li"
+        assert lines[4] == "ne2"
+
+
+async def test_enter_single_cursor_not_intercepted(
+    workspace: Path, two_line_file: Path
+):
+    """With no extra cursors, Enter behaves normally (inserts newline via TextArea)."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right", "right")  # col 2
+        await pilot.pause()
+
+        original_line_count = ta.text.count("\n")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert ta.text.count("\n") == original_line_count + 1
+
+
+# ── Integration: Backspace at col 0 (line merge) ──────────────────────────────
+
+
+async def test_backspace_col0_two_cursors_merges(workspace: Path, five_line_file: Path):
+    """Backspace at col 0 with 2 cursors merges both lines with the ones above."""
+    app = make_app(workspace, open_file=five_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        ta.cursor_location = (1, 0)
+        await pilot.pause()
+        ta.add_cursor((2, 0))
+        await pilot.pause()
+
+        await pilot.press("backspace")
+        await pilot.pause()
+
+        assert "line0line1" in ta.text
+        assert "line1line2" in ta.text or "line0line1line2" in ta.text
+
+
+async def test_backspace_col0_document_content(workspace: Path, five_line_file: Path):
+    """Verify exact merged document content after backspace at col 0."""
+    app = make_app(workspace, open_file=five_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        ta.cursor_location = (1, 0)
+        await pilot.pause()
+        ta.add_cursor((3, 0))
+        await pilot.pause()
+
+        await pilot.press("backspace")
+        await pilot.pause()
+
+        lines = ta.text.split("\n")
+        # (1,0) merges row1 into row0 → "line0line1"; then (3,0) actual_row=2
+        # merges row3("line3") into row2("line2") → "line2line3"
+        assert lines[0] == "line0line1"
+        assert lines[1] == "line2line3"
+        assert lines[2] == "line4"
+
+
+async def test_backspace_col0_row0_stays(workspace: Path, two_line_file: Path):
+    """Backspace at (0,0) is a no-op (can't merge above row 0)."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        ta.add_cursor((1, 0))
+        await pilot.pause()
+
+        await pilot.press("backspace")
+        await pilot.pause()
+
+        # Row 0 cursor is no-op; row 1 cursor merges with row 0
+        assert ta.cursor_location[0] == 0
+
+
+async def test_backspace_col0_mixed_clears_cursors(
+    workspace: Path, five_line_file: Path
+):
+    """Mixed cursors (some at col 0, some not): clears extra cursors and delegates."""
+    app = make_app(workspace, open_file=five_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        ta.cursor_location = (1, 0)
+        await pilot.pause()
+        ta.add_cursor((0, 3))  # not at col 0
+        await pilot.pause()
+
+        await pilot.press("backspace")
+        await pilot.pause()
+
+        # Extra cursors cleared, primary handled by TextArea
+        assert ta.extra_cursors == []
+
+
+async def test_backspace_col0_primary_position(workspace: Path, five_line_file: Path):
+    """Primary cursor ends at (prev_row, prev_len) after merge."""
+    app = make_app(workspace, open_file=five_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        ta.cursor_location = (2, 0)
+        await pilot.pause()
+        ta.add_cursor((3, 0))
+        await pilot.pause()
+
+        await pilot.press("backspace")
+        await pilot.pause()
+
+        # Primary (2,0) → merges with row 1 ("line1"), ends at (1, 5)
+        assert ta.cursor_location == (1, 5)
+
+
+async def test_backspace_col0_extra_positions(workspace: Path, five_line_file: Path):
+    """Extra cursor ends at correct position after merge."""
+    app = make_app(workspace, open_file=five_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        ta.cursor_location = (2, 0)
+        await pilot.pause()
+        ta.add_cursor((3, 0))
+        await pilot.pause()
+
+        await pilot.press("backspace")
+        await pilot.pause()
+
+        # Extra (3,0): actual_row=3-1=2 (after primary merged row 2→1),
+        # prev_len = len("line1line2") = 10, ends at (1, 10)
+        assert (1, 10) in ta.extra_cursors
+
+
+# ── Integration: Delete at EOL (line merge) ───────────────────────────────────
+
+
+async def test_delete_eol_two_cursors_merges(workspace: Path, five_line_file: Path):
+    """Delete at EOL with 2 cursors merges both lines with the ones below."""
+    app = make_app(workspace, open_file=five_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        ta.cursor_location = (0, 5)  # EOL of "line0"
+        await pilot.pause()
+        ta.add_cursor((1, 5))  # EOL of "line1"
+        await pilot.pause()
+
+        await pilot.press("delete")
+        await pilot.pause()
+
+        assert "line0line1" in ta.text
+        assert "line1line2" in ta.text or "line0line1line2" in ta.text
+
+
+async def test_delete_eol_document_content(workspace: Path, five_line_file: Path):
+    """Verify exact merged document after delete at EOL."""
+    app = make_app(workspace, open_file=five_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        ta.cursor_location = (0, 5)  # EOL of "line0"
+        await pilot.pause()
+        ta.add_cursor((2, 5))  # EOL of "line2"
+        await pilot.pause()
+
+        await pilot.press("delete")
+        await pilot.pause()
+
+        lines = ta.text.split("\n")
+        assert lines[0] == "line0line1"
+        assert lines[1] == "line2line3"
+        assert lines[2] == "line4"
+
+
+async def test_delete_eol_last_line_stays(workspace: Path, two_line_file: Path):
+    """Delete at EOL of the last line is a no-op."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        # Move to last content line, EOL
+        await pilot.press("ctrl+end")
+        await pilot.pause()
+
+        ta.add_cursor((0, 11))  # EOL of "Hello world"
+        await pilot.pause()
+
+        await pilot.press("delete")
+        await pilot.pause()
+
+        # Last-line cursor is no-op; the other cursor merges
+        assert ta.extra_cursors == []
+
+
+async def test_delete_eol_mixed_clears_cursors(workspace: Path, five_line_file: Path):
+    """Mixed cursors (some at EOL, some not): clears extra cursors and delegates."""
+    app = make_app(workspace, open_file=five_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        ta.cursor_location = (0, 5)  # EOL of "line0"
+        await pilot.pause()
+        ta.add_cursor((1, 2))  # not at EOL
+        await pilot.pause()
+
+        await pilot.press("delete")
+        await pilot.pause()
+
+        assert ta.extra_cursors == []
+
+
+async def test_delete_eol_cursor_positions(workspace: Path, five_line_file: Path):
+    """Cursor stays at EOL position (which is now mid-merged-line)."""
+    app = make_app(workspace, open_file=five_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        ta.cursor_location = (0, 5)  # EOL of "line0"
+        await pilot.pause()
+        ta.add_cursor((1, 5))  # EOL of "line1"
+        await pilot.pause()
+
+        await pilot.press("delete")
+        await pilot.pause()
+
+        # Primary stays at (0, 5) — same position in merged line
+        assert ta.cursor_location == (0, 5)
+        # Extra: actual_row=1-1=0, eol_col=len("line0line1")=10 → (0, 10)
+        assert (0, 10) in ta.extra_cursors
+
+
+# ── Regression ────────────────────────────────────────────────────────────────
+
+
+async def test_enter_regression_single_cursor(workspace: Path, two_line_file: Path):
+    """Single cursor Enter still inserts a newline normally."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home", "right", "right")
+        await pilot.pause()
+        line_count_before = ta.document.line_count
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert ta.document.line_count == line_count_before + 1
+
+
+async def test_backspace_col0_regression_single_cursor(
+    workspace: Path, two_line_file: Path
+):
+    """Single cursor backspace at col 0 still merges with previous line normally."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home", "down")
+        await pilot.pause()
+        assert ta.cursor_location == (1, 0)
+        line_count_before = ta.document.line_count
+
+        await pilot.press("backspace")
+        await pilot.pause()
+
+        assert ta.document.line_count == line_count_before - 1
+
+
+async def test_delete_eol_regression_single_cursor(
+    workspace: Path, two_line_file: Path
+):
+    """Single cursor delete at EOL still merges with next line normally."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        await pilot.press("ctrl+home", "end")
+        await pilot.pause()
+        line_count_before = ta.document.line_count
+
+        await pilot.press("delete")
+        await pilot.pause()
+
+        assert ta.document.line_count == line_count_before - 1

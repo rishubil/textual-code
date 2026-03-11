@@ -109,7 +109,7 @@ uv run textual run --dev textual_code:main
   - [x] Ask to confirm before deleting
 - [ ] Edit file
   - [x] Basic text editing
-  - [ ] Multiple cursors
+  - [x] Multiple cursors
   - [ ] Code completion
   - [ ] Syntax highlighting
     - [x] Detect the language from the file extension

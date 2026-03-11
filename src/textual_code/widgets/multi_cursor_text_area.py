@@ -123,13 +123,13 @@ class MultiCursorTextArea(TextArea):
             self.clear_extra_cursors()
             return
 
-        if _is_editing_key(event):
+        if _is_editing_key(event) or event.key == "enter":
             # Handle ourselves; suppress TextArea's default behaviour.
             event.prevent_default()
             event.stop()
             self._apply_to_all_cursors(event)
         else:
-            # Complex keys (enter, tab, …): clear extra cursors and delegate.
+            # Complex keys (tab, …): clear extra cursors and delegate.
             self.clear_extra_cursors()
 
     # ── multi-cursor editing ──────────────────────────────────────────────────
@@ -152,24 +152,137 @@ class MultiCursorTextArea(TextArea):
         key = event.key
         char = event.character
 
-        if char is not None and char.isprintable():
+        if key == "enter":
+            self._do_enter(all_cursors, primary, extra)
+
+        elif char is not None and char.isprintable():
             self._do_insert(lines, all_cursors, primary, extra, char)
 
         elif key == "backspace":
-            # Abort if any cursor is at the start of a line (row-merge edge case).
-            if any(c == 0 for _, c in all_cursors):
+            if all(c == 0 for _, c in all_cursors):
+                self._do_backspace_line_merge(all_cursors, primary, extra)
+            elif any(c == 0 for _, c in all_cursors):
+                # Mixed: some at col 0, some not — clear and delegate.
                 self.clear_extra_cursors()
-                return
-            self._do_backspace(lines, all_cursors, primary, extra)
+            else:
+                self._do_backspace(lines, all_cursors, primary, extra)
 
         elif key == "delete":
-            # Abort if any cursor is at the end of its line (row-merge edge case).
-            if any(r >= len(lines) or c >= len(lines[r]) for r, c in all_cursors):
+            all_at_eol = all(
+                r >= len(lines) or c >= len(lines[r]) for r, c in all_cursors
+            )
+            any_at_eol = any(
+                r >= len(lines) or c >= len(lines[r]) for r, c in all_cursors
+            )
+            if all_at_eol:
+                self._do_delete_line_merge(all_cursors, primary, extra)
+            elif any_at_eol:
+                # Mixed: some at EOL, some not — clear and delegate.
                 self.clear_extra_cursors()
-                return
-            self._do_delete(lines, all_cursors, primary, extra)
+            else:
+                self._do_delete(lines, all_cursors, primary, extra)
 
     # ── per-operation helpers ─────────────────────────────────────────────────
+
+    def _do_enter(
+        self,
+        all_cursors: list[tuple[int, int]],
+        primary: tuple[int, int],
+        extra: list[tuple[int, int]],
+    ) -> None:
+        """Insert a newline at every cursor position.
+
+        Cursors are processed top-to-bottom, left-to-right.  A running
+        ``row_offset`` tracks how many rows have been added so far so that
+        indices into the (now-mutated) document stay correct.  Within a single
+        original row, ``accumulated_col_shift`` tracks how much the column of
+        each predecessor has consumed (text to the left of us was moved to the
+        new line above, so our effective column shrinks by that amount).
+        """
+        sorted_cursors = sorted(all_cursors)
+        new_positions: dict[tuple[int, int], tuple[int, int]] = {}
+        last_orig_row = -1
+        accumulated_col_shift = 0
+
+        for row_offset, (orig_row, orig_col) in enumerate(sorted_cursors):
+            if orig_row != last_orig_row:
+                last_orig_row = orig_row
+                accumulated_col_shift = 0
+
+            actual_row = orig_row + row_offset
+            actual_col = orig_col - accumulated_col_shift
+
+            self.replace("\n", (actual_row, actual_col), (actual_row, actual_col))
+
+            accumulated_col_shift = orig_col
+            new_positions[(orig_row, orig_col)] = (actual_row + 1, 0)
+
+        self.cursor_location = new_positions[primary]
+        self._extra_cursors = [new_positions[ec] for ec in extra]
+        self.refresh()
+
+    def _do_backspace_line_merge(
+        self,
+        all_cursors: list[tuple[int, int]],
+        primary: tuple[int, int],
+        extra: list[tuple[int, int]],
+    ) -> None:
+        """Merge each cursor's line with the line above (backspace at col 0).
+
+        All cursors must be at column 0.  Cursors on row 0 are left in place.
+        Each merge removes one row, so ``actual_row = row - i`` where ``i`` is
+        the number of merges already performed above this cursor.
+        """
+        sorted_cursors = sorted(all_cursors)
+        new_positions: dict[tuple[int, int], tuple[int, int]] = {}
+
+        for i, (row, col) in enumerate(sorted_cursors):
+            actual_row = row - i
+            if actual_row == 0:
+                new_positions[(row, col)] = (0, 0)
+                continue
+
+            current_lines = self.text.split("\n")
+            prev_len = len(current_lines[actual_row - 1])
+            self.replace("", (actual_row - 1, prev_len), (actual_row, 0))
+            new_positions[(row, col)] = (actual_row - 1, prev_len)
+
+        self.cursor_location = new_positions[primary]
+        self._extra_cursors = [new_positions[ec] for ec in extra]
+        self.refresh()
+
+    def _do_delete_line_merge(
+        self,
+        all_cursors: list[tuple[int, int]],
+        primary: tuple[int, int],
+        extra: list[tuple[int, int]],
+    ) -> None:
+        """Merge each cursor's line with the line below (delete at EOL).
+
+        All cursors must be at end-of-line.  Cursors on the last line are
+        left in place (no next line to merge).  Each merge removes one row,
+        so ``actual_row = row - i``.
+        """
+        sorted_cursors = sorted(all_cursors)
+        new_positions: dict[tuple[int, int], tuple[int, int]] = {}
+
+        for i, (row, col) in enumerate(sorted_cursors):
+            actual_row = row - i
+            current_lines = self.text.split("\n")
+            eol_col = (
+                len(current_lines[actual_row]) if actual_row < len(current_lines) else 0
+            )
+
+            if actual_row >= len(current_lines) - 1:
+                new_positions[(row, col)] = (actual_row, eol_col)
+                continue
+
+            self.replace("", (actual_row, eol_col), (actual_row + 1, 0))
+            new_positions[(row, col)] = (actual_row, eol_col)
+
+        self.cursor_location = new_positions[primary]
+        self._extra_cursors = [new_positions[ec] for ec in extra]
+        self.refresh()
 
     def _do_insert(
         self,
