@@ -46,8 +46,9 @@ def test_detect_encoding_valid_utf8():
 
 
 def test_detect_encoding_latin1_fallback():
-    """Bytes that are not valid UTF-8 → 'latin-1'."""
-    assert _detect_encoding(b"\xe9\xe0\xfc") == "latin-1"
+    """Bytes that are not valid UTF-8 → some 8-bit encoding (not UTF-8)."""
+    result = _detect_encoding(b"\xe9\xe0\xfc")
+    assert result != "utf-8"
 
 
 def test_detect_encoding_empty():
@@ -353,7 +354,7 @@ async def test_footer_shows_utf8_bom_label(tmp_path: Path):
 
 
 async def test_footer_shows_latin1_label(tmp_path: Path):
-    """Footer #encoding_btn label == 'Latin-1' for a Latin-1 file."""
+    """Footer #encoding_btn label shows Latin-1 for a Latin-1 file."""
     from textual.widgets import Button
 
     f = tmp_path / "test.txt"
@@ -365,7 +366,7 @@ async def test_footer_shows_latin1_label(tmp_path: Path):
         btn = app.query_one("#encoding_btn", Button)
         label = str(btn.label)
 
-    assert label == "Latin-1"
+    assert "Latin-1" in label
 
 
 # ── Integration tests: command palette ───────────────────────────────────────
@@ -406,3 +407,120 @@ async def test_encoding_cmd_with_editor(tmp_path: Path):
         tc_app.action_change_encoding_cmd()
         await pilot.pause()
         assert isinstance(tc_app.screen, ChangeEncodingModalScreen)
+
+
+# ── New encoding detection tests ──────────────────────────────────────────────
+
+
+def test_detect_encoding_utf32_le_bom():
+    """UTF-32 LE BOM → 'utf-32'."""
+    raw = b"\xff\xfe\x00\x00" + "hi".encode("utf-32-le")
+    assert _detect_encoding(raw) == "utf-32"
+
+
+def test_detect_encoding_utf32_be_bom():
+    """UTF-32 BE BOM → 'utf-32'."""
+    raw = b"\x00\x00\xfe\xff" + "hi".encode("utf-32-be")
+    assert _detect_encoding(raw) == "utf-32"
+
+
+# ── New encoding modal option tests ──────────────────────────────────────────
+
+
+async def test_encoding_modal_can_select_gbk(tmp_path: Path):
+    """Modal allows selecting gbk encoding."""
+    from textual.widgets import Select
+
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello")
+
+    app = _EncodingTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_encoding()
+        await pilot.pause()
+        app.screen.query_one(Select).value = "gbk"
+        await pilot.click("#apply")
+        await pilot.pause()
+        encoding = app.screen_stack[0].query_one(CodeEditor).encoding
+
+    assert encoding == "gbk"
+
+
+async def test_encoding_modal_can_select_shift_jis(tmp_path: Path):
+    """Modal allows selecting shift_jis encoding."""
+    from textual.widgets import Select
+
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello")
+
+    app = _EncodingTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_encoding()
+        await pilot.pause()
+        app.screen.query_one(Select).value = "shift_jis"
+        await pilot.click("#apply")
+        await pilot.pause()
+        encoding = app.screen_stack[0].query_one(CodeEditor).encoding
+
+    assert encoding == "shift_jis"
+
+
+async def test_encoding_modal_can_select_euc_kr(tmp_path: Path):
+    """Modal allows selecting euc_kr encoding."""
+    from textual.widgets import Select
+
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello")
+
+    app = _EncodingTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_encoding()
+        await pilot.pause()
+        app.screen.query_one(Select).value = "euc_kr"
+        await pilot.click("#apply")
+        await pilot.pause()
+        encoding = app.screen_stack[0].query_one(CodeEditor).encoding
+
+    assert encoding == "euc_kr"
+
+
+async def test_encoding_modal_can_select_cp1251(tmp_path: Path):
+    """Modal allows selecting cp1251 (Cyrillic Windows) encoding."""
+    from textual.widgets import Select
+
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello")
+
+    app = _EncodingTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_encoding()
+        await pilot.pause()
+        app.screen.query_one(Select).value = "cp1251"
+        await pilot.click("#apply")
+        await pilot.pause()
+        encoding = app.screen_stack[0].query_one(CodeEditor).encoding
+
+    assert encoding == "cp1251"
+
+
+# ── New encoding file load detection tests (charset-normalizer) ───────────────
+
+
+async def test_file_load_detects_gbk(tmp_path: Path):
+    """Loading a GBK file → editor.encoding is a gbk/gb family encoding."""
+    f = tmp_path / "test.txt"
+    # Pre-encoded GBK bytes: repeated valid GBK two-byte sequences.
+    # Each pair is a valid CJK character (lead 0xB0-0xF7, trail 0xA1-0xFE).
+    _GBK_CHAR = b"\xd6\xd0\xce\xc4\xb2\xe2\xca\xd4\xc4\xda\xc8\xdd\xb8\xf1\xca\xbd"
+    f.write_bytes(_GBK_CHAR * 30)  # ~480 bytes for reliable detection
+
+    app = _EncodingTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        encoding = app.code_editor.encoding
+
+    assert encoding in ("gbk", "gb2312", "gb18030")

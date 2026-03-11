@@ -20,6 +20,7 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "charset-normalizer>=3.0.0",
     "textual[syntax]>=1.0.0",
     "typer>=0.15.1",
 ]

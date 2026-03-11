@@ -97,14 +97,13 @@ Keys and values are normalized to lowercase.
 |-------------------|---------------------|
 | `indent_style=space` | `indent_type="spaces"` |
 | `indent_style=tab` | `indent_type="tabs"` |
-| `indent_size=N` (N ∈ {2,4,8}) | `indent_size=N` |
+| `indent_size=N` (any positive integer) | `indent_size=N` |
 | `indent_size=tab` or `indent_style=tab` without `indent_size` | uses `tab_width` value |
 | `charset=utf-8-bom` | `encoding="utf-8-sig"` |
 | `charset=latin1` | `encoding="latin-1"` |
 | `charset=utf-16be/le` | `encoding="utf-16"` |
 | `end_of_line=lf/crlf/cr` | `line_ending=...` |
 | any property `=unset` | ignored (auto-detect retained) |
-| `indent_size` not in (2,4,8) | ignored |
 
 `trim_trailing_whitespace` and `insert_final_newline` are parsed but not applied (feature unsupported by the editor).
 
@@ -335,4 +334,82 @@ encoding = "utf-8"       # "utf-8", "utf-8-sig", "utf-16", "latin-1", etc.
 | `open_code_editor_pane` | `app.py` `MainView` | passes app `default_*` attrs to each new `CodeEditor` |
 | Actions | `app.py` `TextualCode` | `action_set_default_indentation`, `action_set_default_line_ending`, `action_set_default_encoding` — open the existing change modals and persist on apply |
 | Command palette | `app.py` `get_system_commands` | "Set default indentation/line ending/encoding" entries |
+
+---
+
+## Encoding: charset-normalizer for non-UTF-8 detection, expanded encoding list
+
+### Why charset-normalizer was added
+
+BOM inspection + UTF-8 decode only detected 4 encodings (UTF-8, UTF-8 BOM, UTF-16, Latin-1).
+Multi-byte CJK/Cyrillic/etc. files were silently decoded as Latin-1 (mojibake).
+`charset-normalizer` (the same library used by `requests`) provides statistical
+detection for 40+ encodings without GPL restrictions.
+
+### Detection strategy in `_detect_encoding`
+
+1. **UTF-32 BOM** checked first — `\xff\xfe\x00\x00` shares prefix with UTF-16 LE BOM;
+   order matters: UTF-32 must win
+2. **UTF-8 BOM** (`\xef\xbb\xbf`) → `"utf-8-sig"`
+3. **UTF-16 BOM** (`\xff\xfe` or `\xfe\xff`) → `"utf-16"`
+4. **UTF-8 decode** attempt → `"utf-8"` if successful
+5. **charset-normalizer** — only for payloads ≥ 100 bytes and confidence > 0.7;
+   short/ambiguous sequences fall back to `"latin-1"` (unreliable for < 100 bytes)
+6. **Fallback** → `"latin-1"`
+
+### Supported encodings in Change Encoding modal
+
+Unicode, Western European, Central/Eastern European, Cyrillic, Greek, Turkish,
+Hebrew, Arabic, Vietnamese, Japanese (Shift-JIS/EUC-JP), Chinese Simplified (GBK/GB18030),
+Chinese Traditional (Big5), Korean (EUC-KR), ASCII — 40+ options total.
+Codec names match Python `codecs` module names (e.g. `"shift_jis"`, `"gbk"`, `"euc_kr"`).
+
+---
+
+## Indentation Size: free-form integer input, pre-populated from current value
+
+### Why Select → Input
+
+The old `Select` offered only 2/4/8 choices. Many projects use 3-space (Python style
+guides), 6-space, or other non-standard sizes. Switching to `Input` removes the
+fixed-option restriction with no loss — any positive integer is accepted.
+
+### Validation in `ChangeIndentModalScreen.on_apply`
+
+- Non-integer input → notify error, modal stays open
+- Size ≤ 0 → notify error, modal stays open
+- Valid size → dismiss with `ChangeIndentModalResult`
+
+### Pre-population
+
+`ChangeIndentModalScreen.__init__` accepts `current_indent_type` and `current_indent_size`.
+Callers (`CodeEditor.action_change_indent` and `TextualCode.action_set_default_indentation`)
+pass current values so the modal opens pre-filled.
+
+---
+
+## Command Palette: keyboard shortcut hints in SystemCommand descriptions
+
+### Convention
+
+Shortcut hints appended to the `help` argument of `SystemCommand` as `"(Ctrl+X)"`.
+This follows the existing convention already used for commands like "Add cursor below".
+
+### Commands with shortcuts added
+
+| Command title | Shortcut shown |
+|---|---|
+| Toggle sidebar | Ctrl+B |
+| Save file | Ctrl+S |
+| Save all files | Ctrl+Shift+S |
+| New file | Ctrl+N |
+| Close file | Ctrl+W |
+| Close all files | Ctrl+Shift+W |
+| Goto line | Ctrl+G |
+| Find | Ctrl+F |
+| Replace | Ctrl+H |
+| Select all occurrences | Ctrl+Shift+L |
+| Close split | Ctrl+Shift+\\ |
+| Focus left split | Ctrl+/ |
+| Focus right split | Ctrl+Shift+/ |
 

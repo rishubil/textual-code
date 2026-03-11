@@ -680,25 +680,25 @@ async def test_change_indent_modal_has_type_select():
         assert select is not None
 
 
-async def test_change_indent_modal_has_size_select():
-    """ChangeIndentModalScreen has an #indent_size Select."""
-    from textual.widgets import Select
+async def test_change_indent_modal_has_size_input():
+    """ChangeIndentModalScreen has an #indent_size Input (free-form integer)."""
+    from textual.widgets import Input
 
     app = _ChangeIndentApp()
     async with app.run_test() as pilot:
         await pilot.pause()
-        select = app.screen.query_one("#indent_size", Select)
-        assert select is not None
+        inp = app.screen.query_one("#indent_size", Input)
+        assert inp is not None
 
 
 async def test_change_indent_modal_apply_returns_spaces_4():
     """Clicking Apply → indent_type='spaces', indent_size=4, is_cancelled=False."""
-    from textual.widgets import Select
+    from textual.widgets import Input, Select
 
     app = _ChangeIndentApp()
     async with app.run_test() as pilot:
         app.screen.query_one("#indent_type", Select).value = "spaces"
-        app.screen.query_one("#indent_size", Select).value = 4
+        app.screen.query_one("#indent_size", Input).value = "4"
         await pilot.click("#apply")
         await pilot.pause()
 
@@ -710,12 +710,12 @@ async def test_change_indent_modal_apply_returns_spaces_4():
 
 async def test_change_indent_modal_apply_returns_tabs():
     """Clicking Apply (tabs) → indent_type='tabs', is_cancelled=False."""
-    from textual.widgets import Select
+    from textual.widgets import Input, Select
 
     app = _ChangeIndentApp()
     async with app.run_test() as pilot:
         app.screen.query_one("#indent_type", Select).value = "tabs"
-        app.screen.query_one("#indent_size", Select).value = 2
+        app.screen.query_one("#indent_size", Input).value = "2"
         await pilot.click("#apply")
         await pilot.pause()
 
