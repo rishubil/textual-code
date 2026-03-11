@@ -677,3 +677,48 @@ class ChangeEncodingModalScreen(ModalScreen[ChangeEncodingModalResult]):
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
         self.dismiss(ChangeEncodingModalResult(is_cancelled=True, encoding=None))
+
+
+AVAILABLE_SYNTAX_THEMES = ["monokai", "dracula", "github_light", "vscode_dark", "css"]
+
+
+@dataclass
+class ChangeSyntaxThemeModalResult:
+    """
+    The result of the Change Syntax Theme modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The selected theme, or None if cancelled.
+    theme: str | None
+
+
+class ChangeSyntaxThemeModalScreen(ModalScreen[ChangeSyntaxThemeModalResult]):
+    """
+    Modal dialog for selecting the syntax highlighting theme.
+    """
+
+    def __init__(self, current_theme: str = "monokai") -> None:
+        super().__init__()
+        self._current_theme = current_theme
+
+    def compose(self) -> ComposeResult:
+        options = [(t, t) for t in AVAILABLE_SYNTAX_THEMES]
+        yield Grid(
+            Label("Syntax Highlighting Theme", id="title"),
+            Select(options=options, value=self._current_theme, id="theme"),
+            Button("Apply", variant="primary", id="apply"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#apply")
+    def on_apply(self) -> None:
+        value = self.query_one(Select).value
+        theme = str(value) if value is not Select.BLANK else self._current_theme
+        self.dismiss(ChangeSyntaxThemeModalResult(is_cancelled=False, theme=theme))
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(ChangeSyntaxThemeModalResult(is_cancelled=True, theme=None))

@@ -4,13 +4,14 @@ import tomllib
 from pathlib import Path
 
 # Keys that can appear in [editor] section
-EDITOR_KEYS = {"indent_type", "indent_size", "line_ending", "encoding"}
+EDITOR_KEYS = {"indent_type", "indent_size", "line_ending", "encoding", "syntax_theme"}
 
 DEFAULT_EDITOR_SETTINGS: dict[str, str | int] = {
     "indent_type": "spaces",
     "indent_size": 4,
     "line_ending": "lf",
     "encoding": "utf-8",
+    "syntax_theme": "monokai",
 }
 
 

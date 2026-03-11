@@ -31,6 +31,8 @@ from textual_code.modals import (
     ChangeIndentModalScreen,
     ChangeLineEndingModalResult,
     ChangeLineEndingModalScreen,
+    ChangeSyntaxThemeModalResult,
+    ChangeSyntaxThemeModalScreen,
     DeleteFileModalResult,
     DeleteFileModalScreen,
     SidebarResizeModalResult,
@@ -399,6 +401,9 @@ class MainView(Static):
                 default_indent_size=getattr(self.app, "default_indent_size", 4),
                 default_line_ending=getattr(self.app, "default_line_ending", "lf"),
                 default_encoding=getattr(self.app, "default_encoding", "utf-8"),
+                default_syntax_theme=getattr(
+                    self.app, "default_syntax_theme", "monokai"
+                ),
             ),
             id=pane_id,
         )
@@ -777,6 +782,7 @@ class TextualCode(App):
         self.default_indent_size: int = int(settings["indent_size"])
         self.default_line_ending: str = str(settings["line_ending"])
         self.default_encoding: str = str(settings["encoding"])
+        self.default_syntax_theme: str = str(settings.get("syntax_theme", "monokai"))
 
     def compose(self) -> ComposeResult:
         yield Sidebar(workspace_path=self.workspace_path)
@@ -947,6 +953,11 @@ class TextualCode(App):
             self.action_set_default_encoding,
         )
         yield SystemCommand(
+            "Change syntax highlighting theme",
+            "Select the syntax highlighting theme for the editor",
+            self.action_set_syntax_theme,
+        )
+        yield SystemCommand(
             "Toggle markdown preview",
             "Show/hide the markdown preview panel (Ctrl+Shift+M)",
             self.action_toggle_markdown_preview_cmd,
@@ -1063,6 +1074,31 @@ class TextualCode(App):
         self.call_next(
             lambda: self.push_screen(
                 ChangeEncodingModalScreen(current_encoding=self.default_encoding),
+                do_change,
+            )
+        )
+
+    def action_set_syntax_theme(self) -> None:
+        """Set the syntax highlighting theme and apply it to all open editors."""
+
+        def do_change(result: ChangeSyntaxThemeModalResult | None) -> None:
+            if result and not result.is_cancelled and result.theme:
+                self.default_syntax_theme = result.theme
+                for editor in self.query(CodeEditor):
+                    editor.syntax_theme = result.theme
+                save_user_editor_settings(
+                    {
+                        "indent_type": self.default_indent_type,
+                        "indent_size": self.default_indent_size,
+                        "line_ending": self.default_line_ending,
+                        "encoding": self.default_encoding,
+                        "syntax_theme": self.default_syntax_theme,
+                    }
+                )
+
+        self.call_next(
+            lambda: self.push_screen(
+                ChangeSyntaxThemeModalScreen(current_theme=self.default_syntax_theme),
                 do_change,
             )
         )

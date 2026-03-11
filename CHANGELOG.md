@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add horizontal Split View feature: open current file side-by-side in a right panel (`Ctrl+\`); close the right panel (`Ctrl+Shift+\`); right panel auto-closes when its last tab is closed; split actions also available via command palette ("Split editor right", "Close split", "Focus left/right split")
 - Add Markdown Preview feature (`Ctrl+Shift+M`): toggle a live preview panel that renders the active left-split Markdown file (`.md`, `.markdown`, `.mkd`) in real time; updates on every keystroke; shows a placeholder when no Markdown file is open; compatible with Split View; also available via command palette ("Toggle markdown preview")
 - Add Resize Split command in command palette: set the left split panel width using absolute cells (`50`), relative offset (`+10`, `-5`), or percentage (`40%`); enforces min 10 / max total-10 cells, 10%–90% for percentages; right panel fills remaining space automatically; shows error when no split is open
+- Add syntax highlighting theme selection: choose from built-in themes (`monokai`, `dracula`, `github_light`, `vscode_dark`, `css`) via command palette ("Change syntax highlighting theme"); applies immediately to all open editors; persisted in `$XDG_CONFIG_HOME/textual-code/settings.toml` as `syntax_theme`; new editors inherit the saved default; default theme is `monokai`
 
 ## [0.0.2] - 2025-01-07
 

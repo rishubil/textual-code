@@ -640,12 +640,14 @@ class CodeEditor(Static):
         default_indent_size: int = 4,
         default_line_ending: str = "lf",
         default_encoding: str = "utf-8",
+        default_syntax_theme: str = "monokai",
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.set_reactive(CodeEditor.pane_id, pane_id)
         self.set_reactive(CodeEditor.path, path)
         self._file_mtime: float | None = None
+        self._syntax_theme: str = default_syntax_theme
 
         # if a path is provided, load the file content
         if path is not None:
@@ -729,6 +731,8 @@ class CodeEditor(Static):
         self.update_title()
         # update the language of the editor
         self.load_language_from_path(self.path)
+        # apply syntax highlighting theme
+        self.editor.theme = self._syntax_theme
         # warn if the file has non-LF line endings
         self._notify_non_lf_if_needed()
         # poll for external file changes every 2 seconds
@@ -1473,3 +1477,14 @@ class CodeEditor(Static):
     @property
     def footer(self) -> CodeEditorFooter:
         return self.query_one(CodeEditorFooter)
+
+    @property
+    def syntax_theme(self) -> str:
+        """Return the current syntax highlighting theme."""
+        return self._syntax_theme
+
+    @syntax_theme.setter
+    def syntax_theme(self, theme: str) -> None:
+        """Set the syntax highlighting theme and update the editor."""
+        self._syntax_theme = theme
+        self.editor.theme = theme
