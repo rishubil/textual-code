@@ -866,3 +866,38 @@ async def test_delete_eol_regression_single_cursor(
         await pilot.pause()
 
         assert ta.document.line_count == line_count_before - 1
+
+
+# ── Group: extra cursor line cache invalidation ───────────────────────────────
+
+
+async def test_add_cursor_clears_line_cache(workspace: Path, two_line_file: Path):
+    """add_cursor() must clear _line_cache so get_line() is called on next render."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        # Trigger a render to populate the cache first
+        ta.refresh()
+        await pilot.pause()
+        # add_cursor() must immediately clear the cache (before next render)
+        ta.add_cursor((1, 0))
+        assert len(ta._line_cache) == 0  # verified immediately, before next render
+
+
+async def test_clear_extra_cursors_clears_line_cache(
+    workspace: Path, two_line_file: Path
+):
+    """clear_extra_cursors() must clear _line_cache so stale highlights vanish."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        ta.add_cursor((1, 0))
+        await pilot.pause()
+        # Populate the cache again after add_cursor
+        ta.refresh()
+        await pilot.pause()
+        # clear_extra_cursors() must immediately clear the cache (before next render)
+        ta.clear_extra_cursors()
+        assert len(ta._line_cache) == 0  # verified immediately, before next render

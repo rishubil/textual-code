@@ -48,9 +48,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `Ctrl+Shift+Z` as a Redo keybinding (in addition to the existing `Ctrl+Y`)
 - Add Word Wrap toggle: toggle soft word wrap for the active file via command palette ("Toggle word wrap"); set default word wrap for new files via command palette ("Set default word wrap"); persisted in `$XDG_CONFIG_HOME/textual-code/settings.toml` as `word_wrap`; default is `false`
 
+### Added
+
+- Add `--workspace` / `-w` CLI option to `tc`: override the sidebar root directory independently of the target file path, useful for monorepos where the file lives in a subdirectory but the sidebar should be rooted at the project root; exits with code 1 if the given path is not an existing directory
+
 ### Fixed
 
-- Fix external file change notification repeating every 2 seconds: notification is now shown once and persists until dismissed; automatically dismissed when the conflict is resolved by saving or reloading the file
+- Fix extra cursors not rendering immediately after `Ctrl+D` / `Ctrl+Alt+Down` / `Ctrl+Alt+Up` until the next text edit: `add_cursor()` and `clear_extra_cursors()` now clear `_line_cache` so the cursor highlight is painted in the very next frame
+- Fix cursor position button (`Ln X, Col Y`) being clipped when the column number reaches 10 or more: `#cursor_btn` now has `min-width: 20` in TCSS, reserving enough space for `Ln 9999, Col 9999`
+- Fix external file change notification repeating every 2 seconds: notification is now shown once and persists until the user dismisses it; flag resets after saving or reloading
 - Fix `OverwriteConfirmModalScreen` and `DiscardAndReloadModalScreen` rendering full-screen due to missing CSS; both modals now display as compact centred dialogs matching the style of other modals
 - Hide "Save all" and "Close all" from the footer key bindings bar to reduce clutter (`Ctrl+Shift+S` / `Ctrl+Shift+W` still work)
 

@@ -17,6 +17,15 @@ def typer_main(
             show_default="working directory",
         ),
     ] = None,
+    workspace: Annotated[
+        Path | None,
+        typer.Option(
+            "--workspace",
+            "-w",
+            help="Override workspace directory (sidebar root). "
+            "Defaults to the target file's parent or target directory.",
+        ),
+    ] = None,
 ):
     """
     Run Textual Code with the given target path.
@@ -48,6 +57,13 @@ def typer_main(
     else:
         err_console.print(f"Error: {target_path} is not a directory or a file.")
         raise typer.Exit(code=1)
+
+    if workspace is not None:
+        workspace = workspace.resolve()
+        if not workspace.is_dir():
+            err_console.print(f"Error: --workspace {workspace} is not a directory.")
+            raise typer.Exit(code=1)
+        workspace_path = workspace
 
     app = TextualCode(workspace_path=workspace_path, with_open_file=with_open_file)
     app.run()

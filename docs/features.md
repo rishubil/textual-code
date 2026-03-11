@@ -47,6 +47,14 @@ self.cursor_button.label = f"Ln {row + 1}, Col {col + 1}"
 
 This differs from `Label.update(text)`.
 
+### Why min-width: 20 on cursor_btn
+
+`Button.label` changes trigger `refresh(repaint=True, layout=False)` by default — the grid
+column width is fixed at the width from the initial render (`"Ln 1, Col 1"` ≈ 14 cells).
+When the label grows to `"Ln 1, Col 10"` (13 chars + 2 padding = 15 cells) the button is
+clipped. Setting `min-width: 20` in TCSS reserves enough space for `"Ln 9999, Col 9999"`
+(17 chars + 2 padding = 19) and prevents truncation for any realistic cursor position.
+
 ## EditorConfig: .editorconfig file discovery, glob matching, property override
 
 ### Why stdlib-only, no editorconfig PyPI package
@@ -223,6 +231,35 @@ called explicitly after mutating `_extra_cursors` to trigger a re-render.
 `CursorsChanged` fires with an empty extra-cursor list.
 
 ---
+
+## CLI --workspace Option
+
+Overrides the sidebar root directory independently of the target file path.
+
+```bash
+tc path/to/file.py --workspace /project/root
+tc path/to/file.py -w /project/root
+```
+
+### Why a separate option
+
+When working in a monorepo, you may want to open a single file while keeping the
+sidebar rooted at the repo root (several levels above the file's parent).  Without
+`--workspace`, the sidebar always shows the file's immediate parent directory.
+
+### Behaviour
+
+| Case | Result |
+|------|--------|
+| `--workspace` not provided | workspace = file parent (or target dir) — unchanged |
+| `--workspace /some/dir` | workspace = `/some/dir` |
+| `--workspace /no/such/dir` | prints error, exits with code 1 |
+
+### Implementation
+
+`typer_main()` in `src/textual_code/__init__.py` accepts an optional `--workspace / -w`
+`typer.Option`.  After the normal `workspace_path` derivation, if `workspace` is not
+`None` its resolved path replaces `workspace_path`.
 
 ## Select All Occurrences (`Ctrl+Shift+L`)
 
