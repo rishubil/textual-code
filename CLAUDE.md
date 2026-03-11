@@ -1,79 +1,38 @@
-# CLAUDE.md
+# Agent Instructions
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+**CRITICAL RULES:**
+- Put the truth and the correct answer above all else. Feel free to criticize user's opinion, and do not use false empathy with the user. Keep a dry and realistic perspective.
+- Use qmd to check documentation on every task to maintain consistency
+- **Always run Python with `uv`**: never call `python` or `pip` directly; always use `uv run python`, `uv run pytest`, `uv run ruff`, etc.
+- Use WebFetch proactively. Always check the latest development docs and search for anything unclear.
+- All code comments, docstrings, and documentation (including files in `docs/`) must be written in **English**.
 
-## Project Overview
+## Task Start Rules
 
-**Textual Code** is a TUI-based code editor written in Python, designed as a lightweight vi/nano/Emacs alternative for quick edits on remote servers. It uses the [Textual](https://textual.textualize.io/) framework.
+**Always check documentation before exploring code (Grep/Glob/Read):**
 
-## Commands
+1. **Check docs**: search relevant documentation with qmd
+2. Only explore code for information not found in the docs
 
-**Package manager**: `uv`
+**Never skip content just because you recognize the title** — you must read the content to give accurate answers
 
-```bash
-# Run the app in dev mode (with hot reload + devtools)
-uv run textual run --dev textual_code:main
+## Test Strategy: Red-Green TDD
 
-# Open the Textual devtools console (run in a separate terminal first)
-uv run textual console
+**Before starting work, check and run existing tests:**
 
-# Run with a specific file or directory
-uv run textual run --dev textual_code:main -- [path]
+1. **Find test files**: use Glob/Grep to find test files related to the code you are modifying
+2. **Run existing tests**: run tests before starting work to understand the current state (pass/fail)
+3. **Establish a baseline**: know which tests pass before your changes so you can detect regressions
 
-# Lint and format (also runs automatically via pre-commit)
-uv run ruff check --fix src/
-uv run ruff format src/
+**Apply Red-Green TDD to modification tasks:**
 
-# Run unit/integration tests in parallel (fast, ~1 min)
-uv run pytest tests/ -n auto -m "not serial"
+- **Red**: first write or identify a test that verifies the behaviour to be changed (failing state)
+- **Green**: implement the minimum code needed to make the test pass
+- **Verify**: confirm that all pre-existing tests still pass
 
-# Run snapshot tests separately (serial, slower)
-uv run pytest tests/ -m serial
-```
-
-## Architecture
-
-**Entry point**: `src/textual_code/__init__.py` — typer-based CLI that parses args and launches the Textual app.
-
-**Component hierarchy**:
-```
-TextualCode (App) — app.py
-├── Sidebar — widgets/sidebar.py
-│   ├── TabbedContent
-│   │   ├── TabPane("Explorer", id="explorer_pane") → Explorer — widgets/explorer.py (wraps DirectoryTree)
-│   │   └── TabPane("Search", id="search_pane") → WorkspaceSearchPane — widgets/workspace_search.py
-├── MainView — app.py (manages split view + tab state)
-│   └── Horizontal (id="split_container")
-│       ├── TabbedContent (id="split_left")   ← always visible
-│       │   └── TabPane(s) → CodeEditor — widgets/code_editor.py
-│       │       ├── MultiCursorTextArea — widgets/multi_cursor_text_area.py
-│       │       └── CodeEditorFooter (file path + language display)
-│       ├── TabbedContent (id="split_right")  ← hidden until Ctrl+\
-│       │   └── TabPane(s) → CodeEditor (same structure)
-│       └── MarkdownPreviewPane (id="markdown_preview")  ← hidden until Ctrl+Shift+M
-└── Footer (key bindings)
-```
-
-**Key files**:
-- `app.py` — `TextualCode` (App) and `MainView` (tab manager); all file operation logic lives here
-- `widgets/code_editor.py` — `CodeEditor` widget; owns file read/write/delete, tracks unsaved state via reactive properties
-- `widgets/multi_cursor_text_area.py` — `MultiCursorTextArea(TextArea)` subclass; manages extra cursors, intercepts key events, renders additional cursor positions
-- `widgets/markdown_preview.py` — `MarkdownPreviewPane` widget; renders live Markdown preview; `update_for(text, path)` method; shows placeholder for non-Markdown files
-- `modals.py` — modal dialog screens (SaveAs, UnsavedChange, Delete confirmations)
-- `commands.py` — command palette providers, created via factory functions that close over workspace path
-- `config.py` — editor defaults: `load_editor_settings()` (merges hardcoded < user < project TOML), `save_user_editor_settings()`; user config at `$XDG_CONFIG_HOME/textual-code/settings.toml`, project config at `{workspace}/.textual-code.toml`
-- `search.py` — pure workspace search logic: `WorkspaceSearchResult` dataclass, `search_workspace(path, query, use_regex)` skips binary/hidden files
-- `widgets/workspace_search.py` — `WorkspaceSearchPane` widget; sidebar Search tab; posts `OpenFileAtLineRequested` on result selection
-- `style.tcss` — all UI styling (Textual CSS)
-
-**Communication patterns**:
-- Child → Parent: custom Textual `Message` subclasses (e.g., `CodeEditor.Saved`, `CodeEditor.Closed`, `OpenFileRequested`)
-- App reacts to these in `on_*` handlers in `app.py`
-- State in `CodeEditor` is managed with Textual `reactive` properties; `watch_*` methods respond to changes
-
-**Adding new commands**: create a factory function in `commands.py` returning a `Provider` subclass, then register it in `TextualCode.COMMANDS` in `app.py`.
-
-**Adding new modals**: subclass `ModalScreen[ResultType]` in `modals.py`, define a result dataclass, call `self.dismiss(result)` on completion.
+**When modifying code with no tests:**
+- Add tests before modifying if possible
+- If adding tests is out of scope, state it explicitly: "This change has no tests"
 
 ## Textual Official Documentation
 
@@ -85,13 +44,6 @@ When Textual framework behaviour (API, Widget, Screen, Worker, reactive, etc.) i
 
 **No guessing**: if behaviour is unclear, search the local docs first.
 
-## Language Convention
+---
 
-All code comments, docstrings, and documentation (including files in `docs/`) must be written in **English**.
-
-## Key Conventions
-
-- Python 3.12+ required; type hints used throughout
-- Keyboard bindings defined as class-level `BINDINGS` lists on App/widget classes
-- Language detection from file extension via `LANGUAGE_EXTENSIONS` dict in `code_editor.py`
-- `MainView` tracks open panes per-split: `_pane_ids: dict[str, set[str]]` and `_opened_files: dict[str, dict[Path, str]]` keyed by `"left"` / `"right"`; `tabbed_content` property returns the active split's `TabbedContent`, so all existing methods route automatically
+See @README.md for project overview

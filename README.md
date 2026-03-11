@@ -57,117 +57,63 @@ textual-code
 
 (You need to use devcontainer to run the code)
 
-To open the textual console, run the following command:
+To run the development version directly:
 
 ```bash
-uv run textual console
+uv run textual-code
 ```
 
-Then, you can run the following command to run the code:
+To run with the Textual dev console (shows logs and events), open two terminals:
 
 ```bash
+# Terminal 1: start the console
+uv run textual console
+
+# Terminal 2: run the app in dev mode
 uv run textual run --dev textual_code:main
+```
+
+### Running Tests
+
+Run all tests:
+
+```bash
+uv run pytest
+```
+
+Run a specific test file:
+
+```bash
+uv run pytest tests/test_code_editor.py
+```
+
+Run snapshot tests:
+
+```bash
+# Generate / update snapshots
+uv run pytest tests/test_snapshots.py --snapshot-update
+
+# Verify snapshots
+uv run pytest tests/test_snapshots.py
 ```
 
 ## TODO
 
-- [x] Explore files
-  - [x] Show the files in the sidebar
-  - [x] Open a specific folder from command arguments
-- [x] Create
-  - [x] Create a new file from the sidebar
-  - [x] Create a new file from the command palette
-  - [x] Create a new folder from the sidebar
-  - [x] Create a new folder from the command palette
-- [x] Open file
-  - [x] Open a specific file from the sidebar
-  - [x] Open files to tabs
-  - [x] Open new file from the command palette
-  - [x] Open new file from shortcut
-  - [x] Open a specific file from command arguments
-  - [x] Open a specific file from the command palette
-  - [x] Open new file from command arguments
-- [x] Save file
-  - [x] Save the current file
-  - [x] Save as the current file
-  - [x] Save the current file from shortcut
-  - [x] Save the current file from the command palette
-  - [x] Save all files
-- [x] Close file
-  - [x] Close the current file
-  - [x] Close the current file from shortcut
-  - [x] Close the current file from the command palette
-  - [x] Ask to save the file before closing
-  - [x] Close all files
-- [x] Delete
-  - [x] Delete the current file
-  - [x] Delete the current file from the command palette
-  - [x] Delete a specific file from the sidebar
-  - [x] Delete a specific file from the command palette
-  - [x] Delete a specific folder from the sidebar
-  - [x] Delete a specific folder from the command palette
-  - [x] Ask to confirm before deleting
 - [ ] Edit file
-  - [x] Basic text editing
-  - [x] Multiple cursors
   - [ ] Code completion
   - [ ] Syntax highlighting
-    - [x] Detect the language from the file extension
-    - [x] Change the language
-    - [x] Add more languages
-  - [x] Change Indentation size and style
-    - [x] show in the footer bar (clickable to change)
-  - [x] Change line ending
-  - [x] Change encoding
-  - [x] Show line and column numbers
-    - [x] show in the footer bar (clickable to goto line and column)
-  - [x] Goto line and column
 - [ ] Search and replace
-  - [x] Plain Search
-  - [x] Regex search
-  - [x] Replace all
-  - [x] Select all occurrences
-  - [x] In the current file
-  - [x] In all files (sidebar panel, Ctrl+Shift+F)
-- [x] Markdown preview
-  - [x] Show the markdown preview
-  - [x] Live preview
-- [x] Split view
-  - [x] Split the view horizontally
-  - [x] Split the view vertically
-  - [x] Close the split view
+- [ ] Split view
   - [ ] Resize the split view
     - [ ] Resize the split view by dragging the border
-    - [x] Resize the split view from the command palette (set the size of current split view)
-      - [x] Absolute size
-      - [x] Relative size (+/-)
-      - [x] Percentage size
-  - [x] Move the focus to the split view
-  - [x] Move tabs between split views
-    - [x] Move tabs from the command palette
-    - [ ] Move tabs by dragging the tab
-      - [ ] Move tabs between split views by dragging the tab to the other split view
-      - [ ] Split the view and move the tab to the new split view by dragging the tab to the edge of the other split view
+  - [ ] Move tabs by dragging the tab
+    - [ ] Move tabs between split views by dragging the tab to the other split view
+    - [ ] Split the view and move the tab to the new split view by dragging the tab to the edge of the other split view
 - [ ] Sidebar
-  - [x] Show the sidebar
-  - [x] Hide the sidebar
   - [ ] Resize the sidebar
     - [ ] Resize the sidebar by dragging the border
-    - [x] Resize the sidebar from the command palette (set the width of the sidebar)
-      - [x] Absolute size
-      - [x] Relative size (+/-)
-      - [x] Percentage size
 - [ ] Setting
   - [ ] Themes
     - [ ] UI
     - [ ] Syntax highlighting
   - [ ] Shortcuts
-  - [x] Editor
-    - [x] default indentation size and style
-    - [x] default line ending
-    - [x] default encoding
-- [x] Etc
-  - [x] Support EditorConfig
-- [x] Release
-  - [x] Package the project
-  - [x] Make the project available on PyPI
