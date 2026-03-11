@@ -46,8 +46,9 @@ TextualCode (App) — app.py
 │       │   └── TabPane(s) → CodeEditor — widgets/code_editor.py
 │       │       ├── MultiCursorTextArea — widgets/multi_cursor_text_area.py
 │       │       └── CodeEditorFooter (file path + language display)
-│       └── TabbedContent (id="split_right")  ← hidden until Ctrl+\
-│           └── TabPane(s) → CodeEditor (same structure)
+│       ├── TabbedContent (id="split_right")  ← hidden until Ctrl+\
+│       │   └── TabPane(s) → CodeEditor (same structure)
+│       └── MarkdownPreviewPane (id="markdown_preview")  ← hidden until Ctrl+Shift+M
 └── Footer (key bindings)
 ```
 
@@ -55,6 +56,7 @@ TextualCode (App) — app.py
 - `app.py` — `TextualCode` (App) and `MainView` (tab manager); all file operation logic lives here
 - `widgets/code_editor.py` — `CodeEditor` widget; owns file read/write/delete, tracks unsaved state via reactive properties
 - `widgets/multi_cursor_text_area.py` — `MultiCursorTextArea(TextArea)` subclass; manages extra cursors, intercepts key events, renders additional cursor positions
+- `widgets/markdown_preview.py` — `MarkdownPreviewPane` widget; renders live Markdown preview; `update_for(text, path)` method; shows placeholder for non-Markdown files
 - `modals.py` — modal dialog screens (SaveAs, UnsavedChange, Delete confirmations)
 - `commands.py` — command palette providers, created via factory functions that close over workspace path
 - `config.py` — editor defaults: `load_editor_settings()` (merges hardcoded < user < project TOML), `save_user_editor_settings()`; user config at `$XDG_CONFIG_HOME/textual-code/settings.toml`, project config at `{workspace}/.textual-code.toml`

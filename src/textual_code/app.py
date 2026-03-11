@@ -40,6 +40,7 @@ from textual_code.modals import (
 )
 from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.explorer import Explorer
+from textual_code.widgets.markdown_preview import MarkdownPreviewPane
 from textual_code.widgets.sidebar import Sidebar
 
 
@@ -139,6 +140,12 @@ class MainView(Static):
             "Close split",
             show=False,
         ),
+        Binding(
+            "ctrl+shift+m",
+            "toggle_markdown_preview",
+            "Toggle preview",
+            show=False,
+        ),
     ]
 
     def __init__(self, *args, **kwargs) -> None:
@@ -155,11 +162,14 @@ class MainView(Static):
         self._active_split: str = "left"
         # Whether the right split panel is visible
         self._split_visible: bool = False
+        # Whether the markdown preview panel is visible
+        self._preview_visible: bool = False
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="split_container"):
             yield TabbedContent(id="split_left")
             yield TabbedContent(id="split_right")
+            yield MarkdownPreviewPane(id="markdown_preview")
 
     # ── Properties ────────────────────────────────────────────────────────────
 
@@ -517,14 +527,42 @@ class MainView(Static):
     # ── Event handlers ────────────────────────────────────────────────────────
 
     @on(TabbedContent.TabActivated)
-    def on_tabbed_content_tab_activated(
+    async def on_tabbed_content_tab_activated(
         self, event: TabbedContent.TabActivated
     ) -> None:
         # Track which split has focus when a tab is activated
         if event.control.id == "split_left":
             self._active_split = "left"
+            if self._preview_visible:
+                editor = self._get_active_code_editor_in_split("left")
+                await self._update_markdown_preview(editor)
         elif event.control.id == "split_right":
             self._active_split = "right"
+
+    @on(CodeEditor.TextChanged)
+    async def on_code_editor_text_changed(self, event: CodeEditor.TextChanged) -> None:
+        if not self._preview_visible:
+            return
+        left_editor = self._get_active_code_editor_in_split("left")
+        if left_editor is event.code_editor:
+            await self._update_markdown_preview(left_editor)
+
+    async def action_toggle_markdown_preview(self) -> None:
+        """Toggle the markdown preview panel."""
+        preview = self.query_one(MarkdownPreviewPane)
+        self._preview_visible = not self._preview_visible
+        preview.display = self._preview_visible
+        if self._preview_visible:
+            editor = self._get_active_code_editor_in_split("left")
+            await self._update_markdown_preview(editor)
+
+    async def _update_markdown_preview(self, editor: "CodeEditor | None") -> None:
+        """Push current editor content to the preview panel."""
+        preview = self.query_one(MarkdownPreviewPane)
+        if editor is None:
+            await preview.update_for(text="", path=None)
+        else:
+            await preview.update_for(text=editor.text, path=editor.path)
 
     @on(CodeEditor.TitleChanged)
     def on_code_editor_title_changed(self, event: CodeEditor.TitleChanged):
@@ -781,6 +819,15 @@ class TextualCode(App):
             "Set the default encoding for new files",
             self.action_set_default_encoding,
         )
+        yield SystemCommand(
+            "Toggle markdown preview",
+            "Show/hide the markdown preview panel (Ctrl+Shift+M)",
+            self.action_toggle_markdown_preview_cmd,
+        )
+
+    def action_toggle_markdown_preview_cmd(self) -> None:
+        """Toggle markdown preview from command palette."""
+        self.call_next(self.main_view.action_toggle_markdown_preview)
 
     def action_set_default_indentation(self) -> None:
         """Set the default indentation for new files and save to user config."""

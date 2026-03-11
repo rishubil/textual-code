@@ -614,6 +614,16 @@ class CodeEditor(Static):
         def control(self) -> "CodeEditor":
             return self.code_editor
 
+    @dataclass
+    class TextChanged(Message):
+        """Posted when the editor's text content changes."""
+
+        code_editor: "CodeEditor"
+
+        @property
+        def control(self) -> "CodeEditor":
+            return self.code_editor
+
     @classmethod
     def generate_pane_id(cls) -> str:
         """
@@ -778,6 +788,7 @@ class CodeEditor(Static):
     def watch_text(self, text: str) -> None:
         # update the title, as the text has changed
         self.update_title()
+        self.post_message(self.TextChanged(self))
 
     def watch_initial_text(self, initial_text: str) -> None:
         # update the title, as the initial text has changed
