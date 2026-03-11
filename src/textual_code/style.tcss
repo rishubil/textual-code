@@ -519,6 +519,34 @@ ChangeEncodingModalScreen Button {
     width: 100%;
 }
 
+/* Workspace search panel */
+WorkspaceSearchPane {
+    height: 1fr;
+    layout: vertical;
+}
+
+WorkspaceSearchPane #ws-search-bar {
+    height: auto;
+}
+
+WorkspaceSearchPane #ws-query {
+    width: 1fr;
+}
+
+WorkspaceSearchPane #ws-regex {
+    width: auto;
+    height: 3;
+}
+
+WorkspaceSearchPane #ws-search {
+    width: auto;
+    height: 3;
+}
+
+WorkspaceSearchPane #ws-results {
+    height: 1fr;
+}
+
 /* Split view layout */
 #split_container {
     layout: horizontal;

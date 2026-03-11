@@ -128,7 +128,7 @@ uv run textual run --dev textual_code:main
   - [x] Replace all
   - [x] Select all occurrences
   - [x] In the current file
-  - [ ] In all files (sidebar panel)
+  - [x] In all files (sidebar panel, Ctrl+Shift+F)
 - [x] Markdown preview
   - [x] Show the markdown preview
   - [x] Live preview

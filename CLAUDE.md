@@ -39,7 +39,9 @@ uv run pytest tests/ -m serial
 ```
 TextualCode (App) — app.py
 ├── Sidebar — widgets/sidebar.py
-│   └── Explorer — widgets/explorer.py (wraps DirectoryTree)
+│   ├── TabbedContent
+│   │   ├── TabPane("Explorer", id="explorer_pane") → Explorer — widgets/explorer.py (wraps DirectoryTree)
+│   │   └── TabPane("Search", id="search_pane") → WorkspaceSearchPane — widgets/workspace_search.py
 ├── MainView — app.py (manages split view + tab state)
 │   └── Horizontal (id="split_container")
 │       ├── TabbedContent (id="split_left")   ← always visible
@@ -60,6 +62,8 @@ TextualCode (App) — app.py
 - `modals.py` — modal dialog screens (SaveAs, UnsavedChange, Delete confirmations)
 - `commands.py` — command palette providers, created via factory functions that close over workspace path
 - `config.py` — editor defaults: `load_editor_settings()` (merges hardcoded < user < project TOML), `save_user_editor_settings()`; user config at `$XDG_CONFIG_HOME/textual-code/settings.toml`, project config at `{workspace}/.textual-code.toml`
+- `search.py` — pure workspace search logic: `WorkspaceSearchResult` dataclass, `search_workspace(path, query, use_regex)` skips binary/hidden files
+- `widgets/workspace_search.py` — `WorkspaceSearchPane` widget; sidebar Search tab; posts `OpenFileAtLineRequested` on result selection
 - `style.tcss` — all UI styling (Textual CSS)
 
 **Communication patterns**:

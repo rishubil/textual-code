@@ -4,6 +4,7 @@ from textual.app import ComposeResult
 from textual.widgets import Static, TabbedContent, TabPane
 
 from textual_code.widgets.explorer import Explorer
+from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
 
 class Sidebar(Static):
@@ -18,8 +19,11 @@ class Sidebar(Static):
         self.workspace_path = workspace_path
 
     def compose(self) -> ComposeResult:
-        with TabbedContent(), TabPane("Explorer"):
-            yield Explorer(workspace_path=self.workspace_path)
+        with TabbedContent():
+            with TabPane("Explorer", id="explorer_pane"):
+                yield Explorer(workspace_path=self.workspace_path)
+            with TabPane("Search", id="search_pane"):
+                yield WorkspaceSearchPane(id="workspace_search")
 
     @property
     def tabbed_content(self) -> TabbedContent:
@@ -32,3 +36,11 @@ class Sidebar(Static):
     @property
     def explorer(self) -> Explorer:
         return self.query_one(Explorer)
+
+    @property
+    def search_pane(self) -> TabPane:
+        return self.query_one("#search_pane", TabPane)
+
+    @property
+    def workspace_search(self) -> WorkspaceSearchPane:
+        return self.query_one(WorkspaceSearchPane)

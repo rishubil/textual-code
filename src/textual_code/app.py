@@ -44,6 +44,7 @@ from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.explorer import Explorer
 from textual_code.widgets.markdown_preview import MarkdownPreviewPane
 from textual_code.widgets.sidebar import Sidebar
+from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
 
 def _parse_sidebar_resize(
@@ -579,6 +580,13 @@ class MainView(Static):
             editor = pane.query_one(CodeEditor)
             editor.action_close()
 
+    def action_find_in_workspace(self) -> None:
+        """Open the workspace search panel in the sidebar."""
+        sidebar = self.app.sidebar
+        sidebar.display = True
+        sidebar.tabbed_content.active = "search_pane"
+        sidebar.workspace_search.focus_query_input()
+
     def action_focus_left_split(self) -> None:
         """Move keyboard focus to the left split."""
         self._set_active_split("left")
@@ -739,6 +747,12 @@ class TextualCode(App):
     BINDINGS = [
         Binding("ctrl+n", "new_editor", "New file"),
         Binding("ctrl+b", "toggle_sidebar", "Toggle sidebar"),
+        Binding(
+            "ctrl+shift+f",
+            "find_in_workspace",
+            "Find in Workspace",
+            show=False,
+        ),
     ]
 
     def __init__(
@@ -937,6 +951,33 @@ class TextualCode(App):
             "Move the current tab to the other split panel (Ctrl+Alt+\\)",
             self.action_move_tab_to_other_split_cmd,
         )
+        yield SystemCommand(
+            "Find in Workspace",
+            "Search all files in the workspace (Ctrl+Shift+F)",
+            self.action_find_in_workspace_cmd,
+        )
+
+    def action_find_in_workspace(self) -> None:
+        """Open workspace search panel (Ctrl+Shift+F)."""
+        self.main_view.action_find_in_workspace()
+
+    def action_find_in_workspace_cmd(self) -> None:
+        """Open workspace search panel via command palette."""
+        self.call_next(self.action_find_in_workspace)
+
+    @on(WorkspaceSearchPane.OpenFileAtLineRequested)
+    async def on_open_file_at_line_requested(
+        self, event: WorkspaceSearchPane.OpenFileAtLineRequested
+    ) -> None:
+        """Open a file and jump to the requested line from a workspace search result."""
+        await self.main_view.action_open_code_editor(path=event.file_path, focus=True)
+        if event.line_number > 0:
+            editor = self.main_view.get_active_code_editor()
+            if editor is not None:
+                row = event.line_number - 1
+                line_count = len(editor.editor.document.lines)
+                if 0 <= row < line_count:
+                    editor.editor.cursor_location = (row, 0)
 
     def action_toggle_markdown_preview_cmd(self) -> None:
         """Toggle markdown preview from command palette."""
