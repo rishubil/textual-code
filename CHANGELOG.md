@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add workspace-wide Replace All: the sidebar Search panel now includes a "Replace with..." input and a "Replace All" button; replaces all occurrences of the search query across all text files in the workspace; supports plain text and regex; shows a status line with replacement count and files modified; skips binary, hidden, and non-UTF-8 files
 - Add split view drag resize: drag the handle between the two split panels to resize them; width/height is clamped between `SPLIT_MIN_SIZE` (10) and `container_size - 10`; supports both horizontal and vertical split orientations; handle is hidden when no split is open
 - Add sidebar drag resize: drag the right border of the sidebar to resize it; width is clamped between `SIDEBAR_MIN_WIDTH` (5) and `screen_width - 5`; existing modal resize flow is unchanged
 - Ctrl+C with no selection copies the current line including its newline (VS Code behaviour); Ctrl+X with no selection cuts the current line; Ctrl+C with a selection copies the selected text as before

@@ -658,6 +658,24 @@ WorkspaceSearchPane #ws-search {
     height: 3;
 }
 
+WorkspaceSearchPane #ws-replace-bar {
+    height: auto;
+}
+
+WorkspaceSearchPane #ws-replace {
+    width: 1fr;
+}
+
+WorkspaceSearchPane #ws-replace-all {
+    width: auto;
+    height: 3;
+}
+
+WorkspaceSearchPane #ws-replace-status {
+    height: 1;
+    color: $success;
+}
+
 WorkspaceSearchPane #ws-results {
     height: 1fr;
 }

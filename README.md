@@ -101,17 +101,20 @@ uv run pytest tests/test_snapshots.py
 
 - [ ] Edit file
   - [ ] Code completion
-  - [ ] Syntax highlighting
-- [ ] Search and replace
+  - [x] Syntax highlighting
+- [x] Search and replace
+  - [x] In-file find and replace (inline FindReplaceBar)
+  - [x] Workspace-wide search
+  - [x] Workspace-wide replace (Replace All)
 - [ ] Split view
-  - [ ] Resize the split view
+  - [x] Resize the split view
     - [x] Resize the split view by dragging the border
   - [ ] Move tabs by dragging the tab
     - [ ] Move tabs between split views by dragging the tab to the other split view
     - [ ] Split the view and move the tab to the new split view by dragging the tab to the edge of the other split view
-- [ ] Sidebar
-  - [ ] Resize the sidebar
-    - [ ] Resize the sidebar by dragging the border
+- [x] Sidebar
+  - [x] Resize the sidebar
+    - [x] Resize the sidebar by dragging the border
 - [ ] Setting
   - [ ] Themes
     - [ ] UI

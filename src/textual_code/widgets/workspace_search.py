@@ -8,7 +8,7 @@ from textual.containers import Horizontal
 from textual.message import Message
 from textual.widgets import Button, Checkbox, Input, Label, ListItem, ListView, Static
 
-from textual_code.search import search_workspace
+from textual_code.search import replace_workspace, search_workspace
 
 
 class WorkspaceSearchPane(Static):
@@ -26,6 +26,10 @@ class WorkspaceSearchPane(Static):
             yield Input(placeholder="Search workspace...", id="ws-query")
             yield Checkbox(".*", id="ws-regex")
             yield Button("Search", id="ws-search", variant="primary")
+        with Horizontal(id="ws-replace-bar"):
+            yield Input(placeholder="Replace with...", id="ws-replace")
+            yield Button("Replace All", id="ws-replace-all", variant="warning")
+        yield Label("", id="ws-replace-status")
         yield ListView(id="ws-results")
 
     # ── Internal state ─────────────────────────────────────────────────────────
@@ -68,9 +72,28 @@ class WorkspaceSearchPane(Static):
 
     # ── Event handlers ─────────────────────────────────────────────────────────
 
+    def _run_replace_all(self) -> None:
+        query = self.query_one("#ws-query", Input).value.strip()
+        replacement = self.query_one("#ws-replace", Input).value
+        use_regex = bool(self.query_one("#ws-regex", Checkbox).value)
+        status = self.query_one("#ws-replace-status", Label)
+
+        if not query:
+            return
+
+        workspace_path = getattr(self.app, "workspace_path", None)
+        if workspace_path is None:
+            return
+
+        result = replace_workspace(workspace_path, query, replacement, use_regex)
+        n, f = result.replacements_count, result.files_modified
+        status.update(f"Replaced {n} occurrence(s) in {f} file(s)")
+
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "ws-search":
             self._run_search()
+        elif event.button.id == "ws-replace-all":
+            self._run_replace_all()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         self._run_search()
