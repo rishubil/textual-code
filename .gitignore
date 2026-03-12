@@ -6,6 +6,7 @@
 .devcontainer/qmd-cache/
 .devcontainer/data
 .devcontainer/uv
+.devcontainer/local
 
 # Python
 __pycache__/
