@@ -736,6 +736,11 @@ WorkspaceSearchPane #ws-results {
     height: 1fr;
 }
 
+/* Draggable tab visual feedback */
+.tab.-dragging {
+    color: $accent;
+}
+
 /* Split view layout */
 #split_container {
     layout: horizontal;

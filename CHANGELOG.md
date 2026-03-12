@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add tab reordering by drag within the same split: drag a tab header left or right to reorder it; dragged tab is highlighted with accent color during drag; reordering preserves editor state (cursor position, content, etc.)
 - Add save level selection to editor default settings dialogs: each "Set default..." dialog (indentation, line ending, encoding, word wrap) now includes a "Save to" selector — User (`~/.config`) or Project (`.textual-code.toml`); project-level settings are applied on startup and take priority over user-level settings
 - Fix word wrap not applied on file open: word wrap setting is now correctly applied both to newly created files and to existing files opened at startup
 - Fix Tab key indentation: Tab now indents selected lines (or inserts spaces at cursor) and Shift+Tab dedents selected lines; multi-line selections are supported; consistent with VS Code behaviour

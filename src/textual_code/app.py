@@ -57,6 +57,7 @@ from textual_code.modals import (
     UnsavedChangeQuitModalScreen,
 )
 from textual_code.widgets.code_editor import CodeEditor
+from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 from textual_code.widgets.explorer import Explorer
 from textual_code.widgets.markdown_preview import MarkdownPreviewPane
 from textual_code.widgets.sidebar import SIDEBAR_MIN_WIDTH, Sidebar
@@ -249,9 +250,9 @@ class MainView(Static):
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="split_container"):
-            yield TabbedContent(id="split_left")
+            yield DraggableTabbedContent(id="split_left")
             yield SplitResizeHandle()
-            yield TabbedContent(id="split_right")
+            yield DraggableTabbedContent(id="split_right")
             yield MarkdownPreviewPane(id="markdown_preview")
 
     # ── Properties ────────────────────────────────────────────────────────────
