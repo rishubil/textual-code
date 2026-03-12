@@ -46,6 +46,7 @@ from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.explorer import Explorer
 from textual_code.widgets.markdown_preview import MarkdownPreviewPane
 from textual_code.widgets.sidebar import SIDEBAR_MIN_WIDTH, Sidebar
+from textual_code.widgets.split_resize_handle import SplitResizeHandle
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
 
@@ -235,6 +236,7 @@ class MainView(Static):
     def compose(self) -> ComposeResult:
         with Horizontal(id="split_container"):
             yield TabbedContent(id="split_left")
+            yield SplitResizeHandle()
             yield TabbedContent(id="split_right")
             yield MarkdownPreviewPane(id="markdown_preview")
 
@@ -308,6 +310,7 @@ class MainView(Static):
         if self._split_visible and not self._pane_ids["right"]:
             self._split_visible = False
             self.right_tabbed_content.display = False
+            self.query_one(SplitResizeHandle).display = False
             self._active_split = "left"
             editor = self._get_active_code_editor_in_split("left")
             if editor:
@@ -570,6 +573,7 @@ class MainView(Static):
         if not self._split_visible:
             self._split_visible = True
             self.right_tabbed_content.display = True
+            self.query_one(SplitResizeHandle).display = True
         # Capture current file from the left split before switching
         left_editor = self._get_active_code_editor_in_split("left")
         path = left_editor.path if left_editor else None
@@ -620,6 +624,7 @@ class MainView(Static):
         if other_split == "right" and not self._split_visible:
             self._split_visible = True
             self.right_tabbed_content.display = True
+            self.query_one(SplitResizeHandle).display = True
 
         # Open in destination split first (before closing source, to avoid
         # _auto_close_split_if_empty resetting _split_visible while right is empty)

@@ -671,10 +671,19 @@ WorkspaceSearchPane #ws-results {
     width: 1fr;
 }
 
+SplitResizeHandle {
+    width: 1;
+    background: $surface;
+    display: none;
+}
+
+SplitResizeHandle:hover {
+    background: $primary-darken-2;
+}
+
 #split_right {
     width: 1fr;
     display: none;
-    border-left: tall $primary-darken-2;
 }
 
 /* Vertical split orientation */
@@ -682,11 +691,14 @@ WorkspaceSearchPane #ws-results {
     layout: vertical;
 }
 
+#split_container.split-vertical SplitResizeHandle {
+    width: 100%;
+    height: 1;
+}
+
 #split_container.split-vertical #split_right {
     height: 1fr;
     width: 100%;
-    border-left: none;
-    border-top: tall $primary-darken-2;
 }
 
 #markdown_preview {

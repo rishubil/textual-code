@@ -295,7 +295,30 @@ if nothing is selected) within the open file.
 
 ---
 
-## Split View Resize: command palette sets left panel width, right takes remainder
+## Split View Resize: drag handle or command palette sets left panel width
+
+The split boundary can be resized in two ways:
+
+1. **Drag handle** — `SplitResizeHandle` widget between `#split_left` and `#split_right`
+2. **Command palette** — "Resize split" command (modal input)
+
+### SplitResizeHandle drag resize
+
+`SplitResizeHandle` (`widgets/split_resize_handle.py`) sits between the two
+`TabbedContent` panels in `MainView.compose()`.
+
+- **Visibility**: `display: none` by default; set to `True` when `action_split_right()`
+  opens the split, and back to `False` when `_auto_close_split_if_empty()` hides it.
+- **Drag mechanics**: `on_mouse_down` captures mouse; `on_mouse_move` calls
+  `resize_split_to(screen_x, screen_y)`; `on_mouse_up` releases mouse.
+- **Orientation**: horizontal split → adjusts `split_left.styles.width` based on
+  `screen_x - container.region.x`; vertical split (`split-vertical` class on
+  `#split_container`) → adjusts `split_left.styles.height` based on
+  `screen_y - container.region.y`.
+- **Clamping**: `SPLIT_MIN_SIZE = 10` (lower bound), `container_size - 10` (upper bound).
+- **Shared constant**: `SPLIT_MIN_SIZE` matches the hardcoded `10` in `_parse_split_resize()`.
+
+### Command palette resize
 
 Resizes the left split panel via the command palette "Resize split" command.
 Only available when the right split panel is visible (`_split_visible is True`).
