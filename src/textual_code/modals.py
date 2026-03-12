@@ -3,11 +3,13 @@ from pathlib import Path
 
 from textual import on
 from textual.app import ComposeResult
-from textual.containers import Grid
+from textual.containers import Grid, Vertical
+from textual.events import Key
 from textual.screen import ModalScreen
 from textual.widgets import (
     Button,
     Checkbox,
+    DataTable,
     Input,
     Label,
     Select,
@@ -824,3 +826,165 @@ class ChangeUIThemeModalScreen(ModalScreen[ChangeUIThemeModalResult]):
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
         self.dismiss(ChangeUIThemeModalResult(is_cancelled=True, theme=None))
+
+
+# ---------------------------------------------------------------------------
+# Keyboard shortcuts customization
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class RebindResult:
+    """Result returned by RebindKeyScreen."""
+
+    is_cancelled: bool
+    action_name: str | None
+    new_key: str | None
+
+
+class RebindKeyScreen(ModalScreen[RebindResult]):
+    """Modal that captures a single key press as a new binding for an action."""
+
+    DEFAULT_CSS = """
+    RebindKeyScreen #dialog {
+        grid-size: 2;
+        grid-gutter: 1 2;
+        grid-rows: 1 1 1 3;
+        padding: 0 1;
+        width: 60;
+        height: 14;
+        border: thick $background 80%;
+        background: $surface;
+    }
+    RebindKeyScreen #title {
+        column-span: 2;
+        height: 1fr;
+        width: 1fr;
+        content-align: center middle;
+        text-style: bold;
+    }
+    RebindKeyScreen #current_row {
+        column-span: 2;
+        height: 1fr;
+    }
+    RebindKeyScreen #captured_key {
+        column-span: 2;
+        height: 1fr;
+        content-align: center middle;
+        text-style: bold;
+    }
+    """
+
+    # Keys that are not capturable (reserved for UI control)
+    _SKIP_KEYS = frozenset({"escape", "enter", "tab", "shift+tab"})
+
+    def __init__(self, action_name: str, description: str, current_key: str) -> None:
+        super().__init__()
+        self._action = action_name
+        self._description = description
+        self._current_key = current_key
+        self._captured: str | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label(f"Rebind: {self._description}", id="title"),
+            Label(f"Current key: {self._current_key}", id="current_row"),
+            Label("Press new key combination...", id="captured_key"),
+            Button("Apply", variant="primary", id="apply", disabled=True),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    def on_key(self, event: Key) -> None:
+        if event.key == "escape":
+            self.dismiss(
+                RebindResult(is_cancelled=True, action_name=None, new_key=None)
+            )
+            event.stop()
+            return
+        if event.key in self._SKIP_KEYS:
+            return
+        self._captured = event.key
+        self.query_one("#captured_key", Label).update(event.key)
+        self.query_one("#apply", Button).disabled = False
+        event.stop()
+
+    @on(Button.Pressed, "#apply")
+    def on_apply(self) -> None:
+        if self._captured:
+            self.dismiss(
+                RebindResult(
+                    is_cancelled=False,
+                    action_name=self._action,
+                    new_key=self._captured,
+                )
+            )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(RebindResult(is_cancelled=True, action_name=None, new_key=None))
+
+
+class ShowShortcutsScreen(ModalScreen[None]):
+    """Modal that lists all keyboard shortcuts and allows rebinding."""
+
+    DEFAULT_CSS = """
+    ShowShortcutsScreen #dialog {
+        padding: 0 1;
+        width: 80;
+        height: 30;
+        border: thick $background 80%;
+        background: $surface;
+    }
+    ShowShortcutsScreen #title {
+        height: 1;
+        width: 1fr;
+        content-align: center middle;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    ShowShortcutsScreen #shortcuts_table {
+        height: 1fr;
+    }
+    ShowShortcutsScreen #close {
+        margin-top: 1;
+        width: 100%;
+    }
+    """
+
+    def __init__(self, rows: list[tuple[str, str, str, str]]) -> None:
+        super().__init__()
+        # rows: (key, description, context, action_name)
+        self._rows = rows
+
+    def compose(self) -> ComposeResult:
+        yield Vertical(
+            Label("Keyboard Shortcuts", id="title"),
+            DataTable(id="shortcuts_table", cursor_type="row"),
+            Button("Close", variant="default", id="close"),
+            id="dialog",
+        )
+
+    def on_mount(self) -> None:
+        table = self.query_one(DataTable)
+        table.add_columns("Key", "Description", "Context")
+        for key, desc, ctx, action in self._rows:
+            table.add_row(key, desc, ctx, key=action)
+
+    @on(DataTable.RowSelected)
+    def on_row_selected(self, event: DataTable.RowSelected) -> None:
+        action_name = str(event.row_key.value)
+        row = next(r for r in self._rows if r[3] == action_name)
+        current_key, desc, _ctx, _action = row
+        self.app.push_screen(
+            RebindKeyScreen(action_name, desc, current_key),
+            self._on_rebind,
+        )
+
+    def _on_rebind(self, result: RebindResult | None) -> None:
+        if result and not result.is_cancelled and result.action_name and result.new_key:
+            self.app.set_keybinding(result.action_name, result.new_key)  # type: ignore[attr-defined]
+
+    @on(Button.Pressed, "#close")
+    def on_close(self) -> None:
+        self.dismiss(None)

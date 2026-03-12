@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add keyboard shortcuts customization: view all key bindings via F1 or command palette ("Show keyboard shortcuts"); click any row to rebind it; custom bindings are saved to `~/.config/textual-code/keybindings.toml` and applied on next launch; Escape is not rebindable
 - Add UI theme selection: change the application UI theme at runtime via command palette ("Change UI theme"); choose from 20 Textual built-in themes (e.g. nord, gruvbox, dracula, tokyo-night, catppuccin-mocha); selected theme is persisted to user config and restored on next launch
 - Add workspace-wide Replace All: the sidebar Search panel now includes a "Replace with..." input and a "Replace All" button; replaces all occurrences of the search query across all text files in the workspace; supports plain text and regex; shows a status line with replacement count and files modified; skips binary, hidden, and non-UTF-8 files
 - Add split view drag resize: drag the handle between the two split panels to resize them; width/height is clamped between `SPLIT_MIN_SIZE` (10) and `container_size - 10`; supports both horizontal and vertical split orientations; handle is hidden when no split is open

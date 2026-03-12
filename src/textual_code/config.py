@@ -68,6 +68,40 @@ def load_editor_settings(
     return settings
 
 
+KEYBINDINGS_FILENAME = "keybindings.toml"
+
+
+def get_keybindings_path(config_path: Path | None = None) -> Path:
+    """Return the keybindings config path (same directory as settings.toml)."""
+    base = config_path or get_user_config_path()
+    return base.with_name(KEYBINDINGS_FILENAME)
+
+
+def load_keybindings(config_path: Path | None = None) -> dict[str, str]:
+    """Load custom keybindings. Returns {action_name: key_string}."""
+    path = config_path or get_keybindings_path()
+    if not path.exists():
+        return {}
+    try:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+        return {k: str(v) for k, v in data.get("bindings", {}).items()}
+    except (tomllib.TOMLDecodeError, PermissionError):
+        return {}
+
+
+def save_keybindings(
+    bindings: dict[str, str],
+    config_path: Path | None = None,
+) -> None:
+    """Persist custom keybindings to a TOML file."""
+    path = config_path or get_keybindings_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    escaped = {k: v.replace('"', '\\"') for k, v in bindings.items()}
+    lines = ["[bindings]"] + [f'{k} = "{v}"' for k, v in escaped.items()]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def save_user_editor_settings(
     settings: dict[str, str | int | bool],
     config_path: Path | None = None,

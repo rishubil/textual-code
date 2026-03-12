@@ -23,7 +23,13 @@ from textual_code.commands import (
     create_delete_path_command_provider,
     create_open_file_command_provider,
 )
-from textual_code.config import load_editor_settings, save_user_editor_settings
+from textual_code.config import (
+    get_keybindings_path,
+    load_editor_settings,
+    load_keybindings,
+    save_keybindings,
+    save_user_editor_settings,
+)
 from textual_code.modals import (
     ChangeEncodingModalResult,
     ChangeEncodingModalScreen,
@@ -37,6 +43,7 @@ from textual_code.modals import (
     ChangeUIThemeModalScreen,
     DeleteFileModalResult,
     DeleteFileModalScreen,
+    ShowShortcutsScreen,
     SidebarResizeModalResult,
     SidebarResizeModalScreen,
     SplitResizeModalResult,
@@ -771,6 +778,7 @@ class TextualCode(App):
             "Find in Workspace",
             show=False,
         ),
+        Binding("f1", "show_shortcuts", "Keyboard shortcuts", show=False),
     ]
 
     def __init__(
@@ -803,6 +811,11 @@ class TextualCode(App):
         self.default_ui_theme: str = str(settings.get("ui_theme", "textual-dark"))
         self.theme = self.default_ui_theme
 
+        # load and apply custom keybindings
+        kb_path = get_keybindings_path(user_config_path) if user_config_path else None
+        self._custom_keybindings: dict[str, str] = load_keybindings(kb_path)
+        _apply_custom_keybindings(self._custom_keybindings)
+
     def compose(self) -> ComposeResult:
         yield Sidebar(workspace_path=self.workspace_path)
         yield MainView()
@@ -818,6 +831,11 @@ class TextualCode(App):
 
     def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
         yield from super().get_system_commands(screen)
+        yield SystemCommand(
+            "Show keyboard shortcuts",
+            "View and change keyboard shortcuts (F1)",
+            self.action_show_shortcuts,
+        )
         yield SystemCommand(
             "Toggle sidebar",
             "Show or hide the sidebar (Ctrl+B)",
@@ -1688,6 +1706,33 @@ class TextualCode(App):
         # Use the base screen so this works even when a modal is active
         return self.screen_stack[0].query_one(MainView)
 
+    def action_show_shortcuts(self) -> None:
+        """Open the keyboard shortcuts panel."""
+        from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+        rows: list[tuple[str, str, str, str]] = []
+        for cls, ctx in [
+            (MainView, "Editor"),
+            (TextualCode, "App"),
+            (MultiCursorTextArea, "Text Area"),
+        ]:
+            for b in cls.BINDINGS:
+                if b.description:
+                    rows.append((b.key, b.description, ctx, b.action))
+        self.push_screen(ShowShortcutsScreen(rows))
+
+    def set_keybinding(self, action: str, new_key: str) -> None:
+        """Save a custom keybinding and apply it immediately."""
+        self._custom_keybindings[action] = new_key
+        kb_path = (
+            get_keybindings_path(self._user_config_path)
+            if self._user_config_path
+            else get_keybindings_path()
+        )
+        save_keybindings(self._custom_keybindings, kb_path)
+        _apply_custom_keybindings({action: new_key})
+        self.notify("Shortcut saved. Restart to apply changes.")
+
     @property
     def sidebar(self) -> Sidebar:
         # Use the base screen so this works even when a modal is active
@@ -1696,3 +1741,22 @@ class TextualCode(App):
     @property
     def footer(self) -> Footer:
         return self.query_one(Footer)
+
+
+def _apply_custom_keybindings(custom: dict[str, str]) -> None:
+    """Patch class-level BINDINGS lists with custom key mappings."""
+    from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+    for cls in (MainView, TextualCode, MultiCursorTextArea):
+        cls.BINDINGS = [
+            Binding(
+                custom[b.action],
+                b.action,
+                b.description,
+                show=b.show,
+                priority=b.priority,
+            )
+            if b.action in custom
+            else b
+            for b in cls.BINDINGS
+        ]

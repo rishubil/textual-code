@@ -91,3 +91,17 @@ def snapshot_json_file(snapshot_workspace: Path) -> Path:
 
 def make_app(workspace: Path, open_file: Path | None = None) -> TextualCode:
     return TextualCode(workspace_path=workspace, with_open_file=open_file)
+
+
+@pytest.fixture()
+def restore_bindings():
+    """Restore class-level BINDINGS after tests that patch them."""
+    from textual_code.app import MainView, TextualCode
+    from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+    backup = {
+        cls: list(cls.BINDINGS) for cls in (MainView, TextualCode, MultiCursorTextArea)
+    }
+    yield
+    for cls, bindings in backup.items():
+        cls.BINDINGS[:] = bindings

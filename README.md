@@ -115,8 +115,8 @@ uv run pytest tests/test_snapshots.py
 - [x] Sidebar
   - [x] Resize the sidebar
     - [x] Resize the sidebar by dragging the border
-- [ ] Setting
-  - [ ] Themes
-    - [ ] UI
-    - [ ] Syntax highlighting
-  - [ ] Shortcuts
+- [x] Setting
+  - [x] Themes
+    - [x] UI
+    - [x] Syntax highlighting
+  - [x] Shortcuts
