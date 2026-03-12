@@ -104,7 +104,7 @@ uv run pytest tests/test_code_editor.py
   - [x] Resize the split view
     - [x] Resize the split view by dragging the border
   - [ ] Move tabs by dragging the tab
-    - [ ] Move tabs between split views by dragging the tab to the other split view
+    - [x] Move tabs between split views by dragging the tab to the other split view
     - [ ] Split the view and move the tab to the new split view by dragging the tab to the edge of the other split view
 - [x] Sidebar
   - [x] Resize the sidebar

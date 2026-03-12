@@ -621,6 +621,55 @@ class MainView(Static):
         if self._split_visible:
             self._set_active_split("right")
 
+    async def _move_pane_to_split(
+        self, source_pane_id: str, dest_split: str
+    ) -> str | None:
+        """Move a pane to dest_split. Returns new_pane_id or None on failure.
+
+        If dest_split already has the same file open, focuses that pane and
+        closes the source — no duplicate tab is created.
+        """
+        source_split = self._split_of_pane(source_pane_id)
+        if source_split is None:
+            return None
+
+        tc_source = self.query_one(f"#split_{source_split}", TabbedContent)
+        pane = tc_source.get_pane(source_pane_id)
+        editor = pane.query_one(CodeEditor)
+        path = editor.path
+        text = editor.text
+        has_unsaved = text != editor.initial_text
+
+        # Show right split if not visible
+        if dest_split == "right" and not self._split_visible:
+            self._split_visible = True
+            self.right_tabbed_content.display = True
+            self.query_one(SplitResizeHandle).display = True
+
+        # Check for duplicate file in destination
+        if path is not None and path in self._opened_files[dest_split]:
+            existing_pane_id = self._opened_files[dest_split][path]
+            await self.action_close_code_editor(source_pane_id)
+            tc_dest = self.query_one(f"#split_{dest_split}", TabbedContent)
+            tc_dest.active = existing_pane_id
+            self._set_active_split(dest_split)
+            return existing_pane_id
+
+        # Open in destination split first (before closing source, to avoid
+        # _auto_close_split_if_empty resetting _split_visible while right is empty)
+        self._active_split = dest_split
+        new_pane_id = await self.open_code_editor_pane(path)
+
+        # Restore unsaved content if the editor had unsaved changes
+        if has_unsaved:
+            tc_dest = self.query_one(f"#split_{dest_split}", TabbedContent)
+            new_editor = tc_dest.get_pane(new_pane_id).query_one(CodeEditor)
+            new_editor.replace_editor_text(text)
+
+        # Close the source pane now that the destination is ready
+        await self.action_close_code_editor(source_pane_id)
+        return new_pane_id
+
     async def action_move_tab_to_other_split(self) -> None:
         """Move the current tab to the other split panel."""
         editor = self.get_active_code_editor()
@@ -629,34 +678,10 @@ class MainView(Static):
 
         source_split = self._active_split
         other_split = "right" if source_split == "left" else "left"
-        source_pane_id = editor.pane_id
-        path = editor.path
-        text = editor.text
-        initial_text = editor.initial_text
-        has_unsaved = text != initial_text
+        new_pane_id = await self._move_pane_to_split(editor.pane_id, other_split)
+        if new_pane_id is None:
+            return
 
-        # Show right split if it doesn't exist yet
-        if other_split == "right" and not self._split_visible:
-            self._split_visible = True
-            self.right_tabbed_content.display = True
-            self.query_one(SplitResizeHandle).display = True
-
-        # Open in destination split first (before closing source, to avoid
-        # _auto_close_split_if_empty resetting _split_visible while right is empty)
-        self._active_split = other_split
-        new_pane_id = await self.open_code_editor_pane(path)
-
-        # Restore unsaved content if the editor had unsaved changes
-        if has_unsaved:
-            tc = self.query_one(f"#split_{other_split}", TabbedContent)
-            pane = tc.get_pane(new_pane_id)
-            new_editor = pane.query_one(CodeEditor)
-            new_editor.replace_editor_text(text)
-
-        # Close the source pane now that the destination is ready
-        await self.action_close_code_editor(source_pane_id)
-
-        # Focus destination
         tc = self.query_one(f"#split_{other_split}", TabbedContent)
         tc.active = new_pane_id
         self._set_active_split(other_split)
@@ -675,6 +700,31 @@ class MainView(Static):
                 await self._update_markdown_preview(editor)
         elif event.control.id == "split_right":
             self._active_split = "right"
+
+    @on(DraggableTabbedContent.TabMovedToOtherSplit)
+    async def on_tab_moved_to_other_split(
+        self, event: DraggableTabbedContent.TabMovedToOtherSplit
+    ) -> None:
+        source_split = self._split_of_pane(event.source_pane_id)
+        if source_split is None:
+            return
+        dest_split = "right" if source_split == "left" else "left"
+
+        # Cross-split drag only fires when the dest ContentTab is visible,
+        # so no need to show the right split here.
+
+        new_pane_id = await self._move_pane_to_split(event.source_pane_id, dest_split)
+        if new_pane_id is None:
+            return
+
+        # Reorder the new pane relative to the drop target
+        dest_tc = self.query_one(f"#split_{dest_split}", DraggableTabbedContent)
+        dest_tc.reorder_tab(new_pane_id, event.target_pane_id, before=event.before)
+
+        tc = self.query_one(f"#split_{dest_split}", TabbedContent)
+        tc.active = new_pane_id
+        self._set_active_split(dest_split)
+        event.stop()
 
     @on(CodeEditor.TextChanged)
     async def on_code_editor_text_changed(self, event: CodeEditor.TextChanged) -> None:

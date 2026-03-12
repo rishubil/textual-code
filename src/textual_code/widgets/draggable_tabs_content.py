@@ -2,6 +2,7 @@
 # ContentTab, ContentTabs from textual.widgets._tabbed_content
 # ContentSwitcher from textual.widgets._content_switcher
 from textual import events
+from textual.message import Message
 from textual.widgets import TabbedContent
 from textual.widgets._content_switcher import ContentSwitcher  # internal
 from textual.widgets._tabbed_content import ContentTab, ContentTabs  # internal
@@ -11,6 +12,17 @@ DRAG_THRESHOLD = 3  # pixels (euclidean distance)
 
 class DraggableTabbedContent(TabbedContent):
     """TabbedContent subclass that supports tab reordering via mouse drag."""
+
+    class TabMovedToOtherSplit(Message):
+        """Posted when a tab is dropped onto a ContentTab in a different split."""
+
+        def __init__(
+            self, source_pane_id: str, target_pane_id: str, before: bool
+        ) -> None:
+            super().__init__()
+            self.source_pane_id = source_pane_id
+            self.target_pane_id = target_pane_id
+            self.before = before
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -69,18 +81,27 @@ class DraggableTabbedContent(TabbedContent):
         widget, region = self.screen.get_widget_at(event.screen_x, event.screen_y)
         self.release_mouse()
 
-        if (
-            not isinstance(widget, ContentTab)
-            or not widget.id
-            or widget not in self.query(ContentTab)
-        ):
-            return
-        target_id = ContentTab.sans_prefix(widget.id)
-        if not drag_id or target_id == drag_id:
+        if not isinstance(widget, ContentTab) or not widget.id:
             return
 
-        before = (event.screen_x - region.x) < region.width / 2
-        self.reorder_tab(drag_id, target_id, before=before)
+        if widget in self.query(ContentTab):
+            # Same-split reorder (existing logic)
+            target_id = ContentTab.sans_prefix(widget.id)
+            if drag_id and target_id != drag_id:
+                before = (event.screen_x - region.x) < region.width / 2
+                self.reorder_tab(drag_id, target_id, before=before)
+            return
+
+        # Cross-split: find sibling DraggableTabbedContent that owns this tab
+        if drag_id:
+            owner = next(
+                (a for a in widget.ancestors if isinstance(a, DraggableTabbedContent)),
+                None,
+            )
+            if owner is not None and owner is not self:
+                target_id = ContentTab.sans_prefix(widget.id)
+                before = (event.screen_x - region.x) < region.width / 2
+                self.post_message(self.TabMovedToOtherSplit(drag_id, target_id, before))
 
     def reorder_tab(self, pane_id: str, target_id: str, *, before: bool = True) -> None:
         """Reorder pane_id to be before/after target_id.
