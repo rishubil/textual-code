@@ -10,9 +10,11 @@ fi
 if [[ "${1-}" =~ ^-*h(elp)?$ ]]; then
     echo 'Usage: ./scripts/download-libs-docs.sh
 
-Downloads Textual framework documentation from GitHub into docs/libs/textual/,
-using the same version tag as the installed package.
-Requires: git (sparse checkout), uv
+Downloads Textual framework documentation, builds it with mkdocs-llmstxt,
+and saves the result as a single file at docs/libs/textual.md.
+
+Uses the same version tag as the installed package.
+Requires: git, uv
 
 '
     exit
@@ -20,9 +22,8 @@ fi
 
 cd "$(dirname "$0")/.."
 
-DEST_DIR="docs/libs/textual"
+DEST_FILE="docs/libs/textual.md"
 REPO_URL="https://github.com/Textualize/textual.git"
-SPARSE_PATH="docs"
 WORK_DIR="$(mktemp --directory)"
 
 cleanup() {
@@ -35,22 +36,105 @@ TEXTUAL_VERSION="$(uv run python -c "import textual; print(textual.__version__)"
 GIT_TAG="v${TEXTUAL_VERSION}"
 echo "Detected Textual version: ${TEXTUAL_VERSION} (tag: ${GIT_TAG})" >&2
 
-echo "Cloning Textual docs (sparse checkout, tag ${GIT_TAG})..." >&2
-
+echo "Cloning Textual repo (tag ${GIT_TAG})..." >&2
 git clone \
     --depth=1 \
-    --no-checkout \
-    --filter=blob:none \
     --branch "${GIT_TAG}" \
     "$REPO_URL" \
     "$WORK_DIR/repo"
 
-git -C "$WORK_DIR/repo" sparse-checkout set --no-cone "$SPARSE_PATH"
-git -C "$WORK_DIR/repo" checkout
+echo "Creating isolated venv..." >&2
+uv venv "$WORK_DIR/.venv"
 
-echo "Copying docs to $DEST_DIR..." >&2
-rm -rf "$DEST_DIR"
-mkdir -p "$(dirname "$DEST_DIR")"
-cp -r "$WORK_DIR/repo/$SPARSE_PATH" "$DEST_DIR"
+echo "Installing dependencies..." >&2
+uv pip install --python "$WORK_DIR/.venv/bin/python" \
+    "$WORK_DIR/repo" \
+    mkdocs \
+    mkdocs-material \
+    "mkdocstrings[python]" \
+    mkdocstrings-python \
+    pymdown-extensions \
+    mkdocs-autorefs \
+    mkdocs-exclude \
+    mkdocs-llmstxt
 
-echo "Done. Textual ${TEXTUAL_VERSION} docs saved to $DEST_DIR" >&2
+echo "Writing custom mkdocs-build.yml..." >&2
+cat > "$WORK_DIR/repo/mkdocs-build.yml" << 'EOF'
+INHERIT: mkdocs-nav.yml
+
+site_name: Textual
+site_url: http://localhost/
+docs_dir: docs
+
+theme:
+  name: material
+
+markdown_extensions:
+  - attr_list
+  - admonition
+  - def_list
+  - meta
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: textual
+          class: textual
+          format: !!python/name:textual._doc.format_svg
+        - name: rich
+          class: rich
+          format: !!python/name:textual._doc.rich
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.keys
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - md_in_html
+
+plugins:
+  - search:
+  - autorefs:
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths:
+            - src
+          options:
+            show_source: false
+            filters:
+              - "!^_"
+              - "^__init__$"
+  - llmstxt:
+      full_output: llms-full.txt
+      sections:
+        Textual:
+          - "**"
+  - exclude:
+      glob:
+        - "**/_template.md"
+        - "snippets/*"
+EOF
+
+echo "Building docs..." >&2
+cd "$WORK_DIR/repo"
+"$WORK_DIR/.venv/bin/mkdocs" build \
+    --config-file mkdocs-build.yml \
+    --site-dir "$WORK_DIR/site"
+cd - > /dev/null
+
+echo "Copying result to $DEST_FILE..." >&2
+if [[ ! -f "$WORK_DIR/site/llms-full.txt" ]]; then
+    echo "Error: llms-full.txt was not generated. Check mkdocs-llmstxt plugin config." >&2
+    exit 1
+fi
+mkdir -p "$(dirname "$DEST_FILE")"
+cp "$WORK_DIR/site/llms-full.txt" "$DEST_FILE"
+
+echo "Done. Textual ${TEXTUAL_VERSION} docs saved to $DEST_FILE" >&2
