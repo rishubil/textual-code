@@ -51,6 +51,8 @@ class MultiCursorTextArea(TextArea):
 
     BINDINGS = [
         Binding("ctrl+shift+z", "redo", "Redo", show=False),
+        Binding("tab", "indent_line", "Indent", show=False),
+        Binding("shift+tab", "dedent_line", "Dedent", show=False),
     ]
 
     # ── inner message ─────────────────────────────────────────────────────────
@@ -98,6 +100,71 @@ class MultiCursorTextArea(TextArea):
             self._line_cache.clear()
             self.refresh()
             self.post_message(self.CursorsChanged(self))
+
+    # ── indent / dedent ───────────────────────────────────────────────────────
+
+    def action_indent_line(self) -> None:
+        """VS Code style: add indent at start of selected lines, or at cursor."""
+        from textual.widgets.text_area import Selection
+
+        if self._extra_cursors:
+            return  # on_key else branch will clear extra cursors
+
+        indent = " " * self.indent_width
+        sel = self.selection
+        start_row, start_col = sel.start
+        end_row, end_col = sel.end
+
+        if end_row > start_row:
+            # Multi-line selection: indent each selected line
+            actual_end_row = end_row - 1 if end_col == 0 else end_row
+            lines = self.text.split("\n")
+            for row in range(start_row, actual_end_row + 1):
+                if row < len(lines):
+                    lines[row] = indent + lines[row]
+            self.replace("\n".join(lines), self.document.start, self.document.end)
+            new_start = (start_row, start_col + self.indent_width)
+            new_end = (end_row, end_col + self.indent_width if end_col > 0 else 0)
+            self.selection = Selection(start=new_start, end=new_end)
+        else:
+            # Single line or no selection: insert spaces at cursor
+            self.replace(indent, self.cursor_location, self.cursor_location)
+
+    def action_dedent_line(self) -> None:
+        """Remove up to tab_width leading spaces from each selected line."""
+        from textual.widgets.text_area import Selection
+
+        if self._extra_cursors:
+            return  # on_key else branch will clear extra cursors
+
+        n = self.indent_width
+        sel = self.selection
+        start_row, start_col = sel.start
+        end_row, end_col = sel.end
+        actual_end_row = (
+            end_row - 1 if (end_row > start_row and end_col == 0) else end_row
+        )
+
+        lines = self.text.split("\n")
+        removed: dict[int, int] = {}
+        for row in range(start_row, actual_end_row + 1):
+            if row < len(lines):
+                spaces = len(lines[row]) - len(lines[row].lstrip(" "))
+                remove = min(spaces, n)
+                lines[row] = lines[row][remove:]
+                removed[row] = remove
+
+        if not any(removed.values()):
+            return  # nothing to dedent
+
+        self.replace("\n".join(lines), self.document.start, self.document.end)
+
+        def adjust(row: int, col: int) -> int:
+            return max(0, col - removed.get(row, 0))
+
+        new_start = (start_row, adjust(start_row, start_col))
+        new_end = (end_row, adjust(end_row, end_col) if end_col > 0 else 0)
+        self.selection = Selection(start=new_start, end=new_end)
 
     # ── rendering ─────────────────────────────────────────────────────────────
 

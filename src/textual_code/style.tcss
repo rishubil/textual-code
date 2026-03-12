@@ -473,12 +473,12 @@ ChangeIndentModalScreen {
 }
 
 ChangeIndentModalScreen #dialog {
-    grid-size: 2 4;
+    grid-size: 2 5;
     grid-gutter: 1 2;
-    grid-rows: 1fr 3 3 3;
+    grid-rows: 1fr 3 3 3 3;
     padding: 0 1;
     max-width: 60;
-    max-height: 14;
+    max-height: 17;
     border: thick $background 80%;
     background: $surface;
 }
@@ -502,6 +502,12 @@ ChangeIndentModalScreen #indent_size {
     width: 1fr;
 }
 
+ChangeIndentModalScreen #save_level {
+    column-span: 2;
+    height: 1fr;
+    width: 1fr;
+}
+
 ChangeIndentModalScreen Button {
     width: 100%;
 }
@@ -511,12 +517,12 @@ ChangeLineEndingModalScreen {
 }
 
 ChangeLineEndingModalScreen #dialog {
-    grid-size: 2 3;
+    grid-size: 2 4;
     grid-gutter: 1 2;
-    grid-rows: 1fr 3 3;
+    grid-rows: 1fr 3 3 3;
     padding: 0 1;
     max-width: 60;
-    max-height: 11;
+    max-height: 14;
     border: thick $background 80%;
     background: $surface;
 }
@@ -529,6 +535,12 @@ ChangeLineEndingModalScreen #title {
 }
 
 ChangeLineEndingModalScreen #line_ending {
+    column-span: 2;
+    height: 1fr;
+    width: 1fr;
+}
+
+ChangeLineEndingModalScreen #save_level {
     column-span: 2;
     height: 1fr;
     width: 1fr;
@@ -607,12 +619,12 @@ ChangeEncodingModalScreen {
 }
 
 ChangeEncodingModalScreen #dialog {
-    grid-size: 2 3;
+    grid-size: 2 4;
     grid-gutter: 1 2;
-    grid-rows: 1fr 3 3;
+    grid-rows: 1fr 3 3 3;
     padding: 0 1;
     max-width: 60;
-    max-height: 11;
+    max-height: 14;
     border: thick $background 80%;
     background: $surface;
 }
@@ -630,7 +642,51 @@ ChangeEncodingModalScreen #encoding {
     width: 1fr;
 }
 
+ChangeEncodingModalScreen #save_level {
+    column-span: 2;
+    height: 1fr;
+    width: 1fr;
+}
+
 ChangeEncodingModalScreen Button {
+    width: 100%;
+}
+
+ChangeWordWrapModalScreen {
+    align: center middle;
+}
+
+ChangeWordWrapModalScreen #dialog {
+    grid-size: 2 4;
+    grid-gutter: 1 2;
+    grid-rows: 1fr 3 3 3;
+    padding: 0 1;
+    max-width: 60;
+    max-height: 14;
+    border: thick $background 80%;
+    background: $surface;
+}
+
+ChangeWordWrapModalScreen #title {
+    column-span: 2;
+    height: 1fr;
+    width: 1fr;
+    content-align: center middle;
+}
+
+ChangeWordWrapModalScreen #word_wrap {
+    column-span: 2;
+    height: 1fr;
+    width: 1fr;
+}
+
+ChangeWordWrapModalScreen #save_level {
+    column-span: 2;
+    height: 1fr;
+    width: 1fr;
+}
+
+ChangeWordWrapModalScreen Button {
     width: 100%;
 }
 

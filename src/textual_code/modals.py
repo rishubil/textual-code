@@ -378,6 +378,8 @@ class ChangeIndentModalResult:
     indent_type: str | None
     # The indentation size: 2, 4, or 8, or None if cancelled.
     indent_size: int | None
+    # The save level: "user" or "project".
+    save_level: str = "user"
 
 
 class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
@@ -407,6 +409,14 @@ class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
                 placeholder="e.g. 4",
                 id="indent_size",
             ),
+            Select(
+                options=[
+                    ("User (~/.config)", "user"),
+                    ("Project (.textual-code.toml)", "project"),
+                ],
+                value="user",
+                id="save_level",
+            ),
             Button("Apply", variant="primary", id="apply"),
             Button("Cancel", variant="default", id="cancel"),
             id="dialog",
@@ -424,11 +434,13 @@ class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
             self.notify("Indent size must be greater than 0.", severity="error")
             return
         indent_type = str(self.query_one("#indent_type", Select).value)
+        save_level = str(self.query_one("#save_level", Select).value)
         self.dismiss(
             ChangeIndentModalResult(
                 is_cancelled=False,
                 indent_type=indent_type,
                 indent_size=indent_size,
+                save_level=save_level,
             )
         )
 
@@ -451,6 +463,8 @@ class ChangeLineEndingModalResult:
     is_cancelled: bool
     # The selected line ending: "lf", "crlf", or "cr", or None if cancelled.
     line_ending: str | None
+    # The save level: "user" or "project".
+    save_level: str = "user"
 
 
 class ChangeLineEndingModalScreen(ModalScreen[ChangeLineEndingModalResult]):
@@ -474,6 +488,14 @@ class ChangeLineEndingModalScreen(ModalScreen[ChangeLineEndingModalResult]):
                 value=self._current_line_ending,
                 id="line_ending",
             ),
+            Select(
+                options=[
+                    ("User (~/.config)", "user"),
+                    ("Project (.textual-code.toml)", "project"),
+                ],
+                value="user",
+                id="save_level",
+            ),
             Button("Apply", variant="primary", id="apply"),
             Button("Cancel", variant="default", id="cancel"),
             id="dialog",
@@ -481,8 +503,13 @@ class ChangeLineEndingModalScreen(ModalScreen[ChangeLineEndingModalResult]):
 
     @on(Button.Pressed, "#apply")
     def on_apply(self) -> None:
-        value = str(self.query_one(Select).value)
-        self.dismiss(ChangeLineEndingModalResult(is_cancelled=False, line_ending=value))
+        value = str(self.query_one("#line_ending", Select).value)
+        save_level = str(self.query_one("#save_level", Select).value)
+        self.dismiss(
+            ChangeLineEndingModalResult(
+                is_cancelled=False, line_ending=value, save_level=save_level
+            )
+        )
 
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
@@ -659,6 +686,8 @@ class ChangeEncodingModalResult:
     is_cancelled: bool
     # The selected encoding, or None if cancelled.
     encoding: str | None
+    # The save level: "user" or "project".
+    save_level: str = "user"
 
 
 class ChangeEncodingModalScreen(ModalScreen[ChangeEncodingModalResult]):
@@ -726,6 +755,14 @@ class ChangeEncodingModalScreen(ModalScreen[ChangeEncodingModalResult]):
                 value=self._current_encoding,
                 id="encoding",
             ),
+            Select(
+                options=[
+                    ("User (~/.config)", "user"),
+                    ("Project (.textual-code.toml)", "project"),
+                ],
+                value="user",
+                id="save_level",
+            ),
             Button("Apply", variant="primary", id="apply"),
             Button("Cancel", variant="default", id="cancel"),
             id="dialog",
@@ -733,8 +770,13 @@ class ChangeEncodingModalScreen(ModalScreen[ChangeEncodingModalResult]):
 
     @on(Button.Pressed, "#apply")
     def on_apply(self) -> None:
-        value = str(self.query_one(Select).value)
-        self.dismiss(ChangeEncodingModalResult(is_cancelled=False, encoding=value))
+        value = str(self.query_one("#encoding", Select).value)
+        save_level = str(self.query_one("#save_level", Select).value)
+        self.dismiss(
+            ChangeEncodingModalResult(
+                is_cancelled=False, encoding=value, save_level=save_level
+            )
+        )
 
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
@@ -784,6 +826,66 @@ class ChangeSyntaxThemeModalScreen(ModalScreen[ChangeSyntaxThemeModalResult]):
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
         self.dismiss(ChangeSyntaxThemeModalResult(is_cancelled=True, theme=None))
+
+
+@dataclass
+class ChangeWordWrapModalResult:
+    """
+    The result of the Change Word Wrap modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The selected word wrap value, or None if cancelled.
+    word_wrap: bool | None
+    # The save level: "user" or "project".
+    save_level: str = "user"
+
+
+class ChangeWordWrapModalScreen(ModalScreen[ChangeWordWrapModalResult]):
+    """
+    Modal dialog for setting the default word wrap setting.
+    """
+
+    def __init__(self, current_word_wrap: bool = True) -> None:
+        super().__init__()
+        self._current_word_wrap = current_word_wrap
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Default Word Wrap", id="title"),
+            Select(
+                options=[("On", "on"), ("Off", "off")],
+                value="on" if self._current_word_wrap else "off",
+                id="word_wrap",
+            ),
+            Select(
+                options=[
+                    ("User (~/.config)", "user"),
+                    ("Project (.textual-code.toml)", "project"),
+                ],
+                value="user",
+                id="save_level",
+            ),
+            Button("Apply", variant="primary", id="apply"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#apply")
+    def on_apply(self) -> None:
+        value = self.query_one("#word_wrap", Select).value
+        word_wrap = value != "off"
+        save_level = str(self.query_one("#save_level", Select).value)
+        self.dismiss(
+            ChangeWordWrapModalResult(
+                is_cancelled=False, word_wrap=word_wrap, save_level=save_level
+            )
+        )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(ChangeWordWrapModalResult(is_cancelled=True, word_wrap=None))
 
 
 @dataclass
@@ -846,6 +948,9 @@ class RebindKeyScreen(ModalScreen[RebindResult]):
     """Modal that captures a single key press as a new binding for an action."""
 
     DEFAULT_CSS = """
+    RebindKeyScreen {
+        align: center middle;
+    }
     RebindKeyScreen #dialog {
         grid-size: 2;
         grid-gutter: 1 2;
@@ -929,6 +1034,9 @@ class ShowShortcutsScreen(ModalScreen[None]):
     """Modal that lists all keyboard shortcuts and allows rebinding."""
 
     DEFAULT_CSS = """
+    ShowShortcutsScreen {
+        align: center middle;
+    }
     ShowShortcutsScreen #dialog {
         padding: 0 1;
         width: 80;

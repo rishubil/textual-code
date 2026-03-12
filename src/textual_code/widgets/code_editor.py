@@ -767,6 +767,7 @@ class CodeEditor(Static):
             ec_eol = ec.get("end_of_line")
             if ec_eol and ec_eol != "unset" and ec_eol in ("lf", "crlf", "cr"):
                 self.set_reactive(CodeEditor.line_ending, ec_eol)
+            self.set_reactive(CodeEditor.word_wrap, default_word_wrap)
         else:
             # Apply app-level defaults for new untitled files
             self.set_reactive(CodeEditor.indent_type, default_indent_type)
@@ -780,6 +781,7 @@ class CodeEditor(Static):
         yield MultiCursorTextArea.code_editor(
             text=self.initial_text,
             language=self.language,
+            tab_behavior="focus",
         )
         yield CodeEditorFooter(
             path=self.path,
@@ -798,6 +800,8 @@ class CodeEditor(Static):
         self.load_language_from_path(self.path)
         # apply syntax highlighting theme
         self.editor.theme = self._syntax_theme
+        # apply word wrap (reactive init=False, so set manually)
+        self.editor.soft_wrap = self.word_wrap
         # warn if the file has non-LF line endings
         self._notify_non_lf_if_needed()
         # poll for external file changes every 2 seconds
@@ -1542,10 +1546,10 @@ class CodeEditor(Static):
         if not query:
             return
 
-        # Search starts after the last cursor
+        # Search starts after the last cursor (cursor is at end of match)
         if self.editor.extra_cursors:
             last_loc = self.editor.extra_cursors[-1]
-            search_from = _location_to_text_offset(text, last_loc) + len(query)
+            search_from = _location_to_text_offset(text, last_loc)
         else:
             search_from = _location_to_text_offset(text, sel.end)
 
@@ -1553,10 +1557,10 @@ class CodeEditor(Static):
         if start == -1:
             return  # No occurrences at all
 
-        new_loc = _text_offset_to_location(text, start)
+        new_loc = _text_offset_to_location(text, end)
 
         # Check if we've wrapped around to the primary selection (all selected)
-        if new_loc == sel.start:
+        if _text_offset_to_location(text, start) == sel.start:
             self.notify("All occurrences already selected", severity="information")
             return
 

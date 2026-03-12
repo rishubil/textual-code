@@ -145,3 +145,36 @@ async def test_d03_command_palette_has_toggle_word_wrap(workspace):
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
         assert any("word wrap" in t.lower() for t in titles)
+
+
+# ---------------------------------------------------------------------------
+# Group C (continued): on_mount and existing file
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_c04_existing_file_default_word_wrap_applied(workspace):
+    """Existing file with default_word_wrap=True: editor.editor.soft_wrap is True."""
+    f = workspace / "test.py"
+    f.write_text("hello\n")
+    app = make_app(workspace, open_file=f)
+    app.default_word_wrap = True
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.editor.soft_wrap is True
+
+
+@pytest.mark.asyncio
+async def test_c05_on_mount_applies_word_wrap_false(workspace):
+    """New file with default_word_wrap=False → editor.editor.soft_wrap is False."""
+    app = make_app(workspace)
+    app.default_word_wrap = False
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_code_editor()
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.editor.soft_wrap is False

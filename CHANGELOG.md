@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add save level selection to editor default settings dialogs: each "Set default..." dialog (indentation, line ending, encoding, word wrap) now includes a "Save to" selector — User (`~/.config`) or Project (`.textual-code.toml`); project-level settings are applied on startup and take priority over user-level settings
+- Fix word wrap not applied on file open: word wrap setting is now correctly applied both to newly created files and to existing files opened at startup
+- Fix Tab key indentation: Tab now indents selected lines (or inserts spaces at cursor) and Shift+Tab dedents selected lines; multi-line selections are supported; consistent with VS Code behaviour
+- Fix Ctrl+D (select next occurrence) placing extra cursor at start of match: cursor is now placed at the end of the matched word, consistent with VS Code behaviour
+- Fix F1 keyboard shortcuts dialog not centered on screen
 - Add "Copy relative path" and "Copy absolute path" commands: copy the active file's path to clipboard via command palette; relative path falls back to absolute when the file is outside the workspace
 - Add "Open user settings" and "Open project settings" commands: open the corresponding TOML config file directly in the editor via command palette; creates the file if it does not exist
 - Change word wrap default to `true`: new files now open with word wrap enabled by default

@@ -114,8 +114,8 @@ async def test_ctrl_d_with_selection_adds_cursor(workspace: Path, occ_file: Path
         editor.action_select_next_occurrence()
         await pilot.pause()
 
-        # Extra cursor added at start of second "foo" (line 1, col 0)
-        assert (1, 0) in editor.editor.extra_cursors
+        # Extra cursor added at end of second "foo" (line 1, col 3)
+        assert (1, 3) in editor.editor.extra_cursors
 
 
 async def test_ctrl_d_twice_adds_two_cursors(workspace: Path, three_occ_file: Path):
@@ -229,8 +229,8 @@ async def test_ctrl_d_binding(workspace: Path, occ_file: Path):
         await pilot.press("ctrl+d")
         await pilot.pause()
 
-        # Extra cursor added at second "foo"
-        assert (1, 0) in editor.editor.extra_cursors
+        # Extra cursor added at end of second "foo" (line 1, col 3)
+        assert (1, 3) in editor.editor.extra_cursors
 
 
 async def test_ctrl_d_cmd_no_file(workspace: Path):

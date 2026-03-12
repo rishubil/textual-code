@@ -102,14 +102,8 @@ def save_keybindings(
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def save_user_editor_settings(
-    settings: dict[str, str | int | bool],
-    config_path: Path | None = None,
-) -> None:
-    """Persist [editor] settings to the user config file."""
-    if config_path is None:
-        config_path = get_user_config_path()
-    config_path.parent.mkdir(parents=True, exist_ok=True)
+def _serialize_editor_settings(settings: dict[str, str | int | bool]) -> str:
+    """Serialize editor settings to TOML [editor] section string."""
     lines = ["[editor]"]
     for key in sorted(settings):
         value = settings[key]
@@ -119,4 +113,25 @@ def save_user_editor_settings(
             lines.append(f'{key} = "{value}"')
         else:
             lines.append(f"{key} = {value}")
-    config_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return "\n".join(lines) + "\n"
+
+
+def save_user_editor_settings(
+    settings: dict[str, str | int | bool],
+    config_path: Path | None = None,
+) -> None:
+    """Persist [editor] settings to the user config file."""
+    if config_path is None:
+        config_path = get_user_config_path()
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(_serialize_editor_settings(settings), encoding="utf-8")
+
+
+def save_project_editor_settings(
+    settings: dict[str, str | int | bool],
+    workspace_path: Path,
+) -> None:
+    """Persist [editor] settings to the project config file."""
+    config_path = get_project_config_path(workspace_path)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(_serialize_editor_settings(settings), encoding="utf-8")

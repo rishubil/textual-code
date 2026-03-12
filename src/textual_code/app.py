@@ -30,6 +30,7 @@ from textual_code.config import (
     load_editor_settings,
     load_keybindings,
     save_keybindings,
+    save_project_editor_settings,
     save_user_editor_settings,
 )
 from textual_code.modals import (
@@ -43,6 +44,8 @@ from textual_code.modals import (
     ChangeSyntaxThemeModalScreen,
     ChangeUIThemeModalResult,
     ChangeUIThemeModalScreen,
+    ChangeWordWrapModalResult,
+    ChangeWordWrapModalScreen,
     DeleteFileModalResult,
     DeleteFileModalScreen,
     ShowShortcutsScreen,
@@ -1091,7 +1094,7 @@ class TextualCode(App):
         self.call_next(self.main_view.action_move_tab_to_other_split)
 
     def action_set_default_indentation(self) -> None:
-        """Set the default indentation for new files and save to user config."""
+        """Set the default indentation for new files and save to config."""
 
         def do_change(result: ChangeIndentModalResult | None) -> None:
             if result and not result.is_cancelled:
@@ -1101,18 +1104,19 @@ class TextualCode(App):
                 self.default_indent_size = (
                     result.indent_size or self.default_indent_size
                 )
-                save_user_editor_settings(
-                    {
-                        "indent_type": self.default_indent_type,
-                        "indent_size": self.default_indent_size,
-                        "line_ending": self.default_line_ending,
-                        "encoding": self.default_encoding,
-                        "syntax_theme": self.default_syntax_theme,
-                        "word_wrap": self.default_word_wrap,
-                        "ui_theme": self.default_ui_theme,
-                    },
-                    self._user_config_path,
-                )
+                settings = {
+                    "indent_type": self.default_indent_type,
+                    "indent_size": self.default_indent_size,
+                    "line_ending": self.default_line_ending,
+                    "encoding": self.default_encoding,
+                    "syntax_theme": self.default_syntax_theme,
+                    "word_wrap": self.default_word_wrap,
+                    "ui_theme": self.default_ui_theme,
+                }
+                if result.save_level == "project":
+                    save_project_editor_settings(settings, self.workspace_path)
+                else:
+                    save_user_editor_settings(settings, self._user_config_path)
 
         self.call_next(
             lambda: self.push_screen(
@@ -1124,25 +1128,26 @@ class TextualCode(App):
         )
 
     def action_set_default_line_ending(self) -> None:
-        """Set the default line ending for new files and save to user config."""
+        """Set the default line ending for new files and save to config."""
 
         def do_change(result: ChangeLineEndingModalResult | None) -> None:
             if result and not result.is_cancelled:
                 self.default_line_ending = (
                     result.line_ending or self.default_line_ending
                 )
-                save_user_editor_settings(
-                    {
-                        "indent_type": self.default_indent_type,
-                        "indent_size": self.default_indent_size,
-                        "line_ending": self.default_line_ending,
-                        "encoding": self.default_encoding,
-                        "syntax_theme": self.default_syntax_theme,
-                        "word_wrap": self.default_word_wrap,
-                        "ui_theme": self.default_ui_theme,
-                    },
-                    self._user_config_path,
-                )
+                settings = {
+                    "indent_type": self.default_indent_type,
+                    "indent_size": self.default_indent_size,
+                    "line_ending": self.default_line_ending,
+                    "encoding": self.default_encoding,
+                    "syntax_theme": self.default_syntax_theme,
+                    "word_wrap": self.default_word_wrap,
+                    "ui_theme": self.default_ui_theme,
+                }
+                if result.save_level == "project":
+                    save_project_editor_settings(settings, self.workspace_path)
+                else:
+                    save_user_editor_settings(settings, self._user_config_path)
 
         self.call_next(
             lambda: self.push_screen(
@@ -1154,23 +1159,24 @@ class TextualCode(App):
         )
 
     def action_set_default_encoding(self) -> None:
-        """Set the default encoding for new files and save to user config."""
+        """Set the default encoding for new files and save to config."""
 
         def do_change(result: ChangeEncodingModalResult | None) -> None:
             if result and not result.is_cancelled:
                 self.default_encoding = result.encoding or self.default_encoding
-                save_user_editor_settings(
-                    {
-                        "indent_type": self.default_indent_type,
-                        "indent_size": self.default_indent_size,
-                        "line_ending": self.default_line_ending,
-                        "encoding": self.default_encoding,
-                        "syntax_theme": self.default_syntax_theme,
-                        "word_wrap": self.default_word_wrap,
-                        "ui_theme": self.default_ui_theme,
-                    },
-                    self._user_config_path,
-                )
+                settings = {
+                    "indent_type": self.default_indent_type,
+                    "indent_size": self.default_indent_size,
+                    "line_ending": self.default_line_ending,
+                    "encoding": self.default_encoding,
+                    "syntax_theme": self.default_syntax_theme,
+                    "word_wrap": self.default_word_wrap,
+                    "ui_theme": self.default_ui_theme,
+                }
+                if result.save_level == "project":
+                    save_project_editor_settings(settings, self.workspace_path)
+                else:
+                    save_user_editor_settings(settings, self._user_config_path)
 
         self.call_next(
             lambda: self.push_screen(
@@ -1252,19 +1258,30 @@ class TextualCode(App):
             self.notify("No file open.", severity="error")
 
     def action_set_default_word_wrap(self) -> None:
-        """Toggle default word wrap for new files and save to user config."""
-        self.default_word_wrap = not self.default_word_wrap
-        save_user_editor_settings(
-            {
-                "indent_type": self.default_indent_type,
-                "indent_size": self.default_indent_size,
-                "line_ending": self.default_line_ending,
-                "encoding": self.default_encoding,
-                "syntax_theme": self.default_syntax_theme,
-                "word_wrap": self.default_word_wrap,
-                "ui_theme": self.default_ui_theme,
-            },
-            self._user_config_path,
+        """Set default word wrap for new files and save to config."""
+
+        def do_change(result: ChangeWordWrapModalResult | None) -> None:
+            if result and not result.is_cancelled and result.word_wrap is not None:
+                self.default_word_wrap = result.word_wrap
+                settings = {
+                    "indent_type": self.default_indent_type,
+                    "indent_size": self.default_indent_size,
+                    "line_ending": self.default_line_ending,
+                    "encoding": self.default_encoding,
+                    "syntax_theme": self.default_syntax_theme,
+                    "word_wrap": self.default_word_wrap,
+                    "ui_theme": self.default_ui_theme,
+                }
+                if result.save_level == "project":
+                    save_project_editor_settings(settings, self.workspace_path)
+                else:
+                    save_user_editor_settings(settings, self._user_config_path)
+
+        self.call_next(
+            lambda: self.push_screen(
+                ChangeWordWrapModalScreen(current_word_wrap=self.default_word_wrap),
+                do_change,
+            )
         )
 
     @property

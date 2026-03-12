@@ -15,7 +15,9 @@ import pytest
 from textual_code.app import TextualCode
 from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
+    _serialize_editor_settings,
     load_editor_settings,
+    save_project_editor_settings,
     save_user_editor_settings,
 )
 
@@ -247,3 +249,49 @@ async def test_changing_defaults_only_affects_new_files(workspace):
 def test_action_exists(tmp_path, action):
     app = TextualCode(workspace_path=tmp_path, with_open_file=None)
     assert callable(getattr(app, action, None))
+
+
+# ---------------------------------------------------------------------------
+# Group 8: save_project_editor_settings
+# ---------------------------------------------------------------------------
+
+
+def test_save_project_editor_settings_writes_toml(tmp_path):
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    save_project_editor_settings({"indent_type": "tabs", "indent_size": 2}, ws)
+    config_path = ws / ".textual-code.toml"
+    assert config_path.exists()
+    content = config_path.read_text()
+    assert "[editor]" in content
+    assert 'indent_type = "tabs"' in content
+    assert "indent_size = 2" in content
+
+
+def test_serialize_editor_settings_bool_lowercase(tmp_path):
+    result = _serialize_editor_settings({"word_wrap": True, "word_wrap2": False})
+    assert "word_wrap = true" in result
+    assert "word_wrap2 = false" in result
+
+
+@pytest.mark.asyncio
+async def test_action_set_default_indentation_saves_to_project(workspace):
+    """Selecting 'Project' save level → .textual-code.toml is written."""
+    from textual.widgets import Input, Select
+
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_set_default_indentation()
+        await pilot.pause()
+
+        app.screen.query_one("#indent_type", Select).value = "tabs"
+        app.screen.query_one("#indent_size", Input).value = "2"
+        app.screen.query_one("#save_level", Select).value = "project"
+        await pilot.click("#apply")
+        await pilot.pause()
+
+    proj_cfg = workspace / ".textual-code.toml"
+    assert proj_cfg.exists()
+    content = proj_cfg.read_text()
+    assert 'indent_type = "tabs"' in content

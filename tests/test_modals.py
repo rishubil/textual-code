@@ -824,3 +824,20 @@ async def test_change_line_ending_modal_initial_value_is_current():
         await pilot.pause()
         select = app.screen.query_one("#line_ending", Select)
         assert select.value == "crlf"
+
+
+# ── RebindKeyScreen and ShowShortcutsScreen align CSS ─────────────────────────
+
+
+def test_rebind_screen_has_center_align():
+    """RebindKeyScreen DEFAULT_CSS must contain 'align: center middle'."""
+    from textual_code.modals import RebindKeyScreen
+
+    assert "align: center middle" in RebindKeyScreen.DEFAULT_CSS
+
+
+def test_show_shortcuts_screen_has_center_align():
+    """ShowShortcutsScreen DEFAULT_CSS must contain 'align: center middle'."""
+    from textual_code.modals import ShowShortcutsScreen
+
+    assert "align: center middle" in ShowShortcutsScreen.DEFAULT_CSS

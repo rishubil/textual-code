@@ -270,3 +270,15 @@ def test_snapshot_discard_and_reload_modal(
     assert snap_compare(
         app, run_before=trigger_reload_modal, terminal_size=TERMINAL_SIZE
     )
+
+
+def test_snapshot_show_shortcuts_screen(snap_compare, snapshot_workspace: Path):
+    """ShowShortcutsScreen (F1) is centered on screen."""
+    app = make_app(snapshot_workspace)
+
+    async def open_shortcuts(pilot):
+        await pilot.pause()
+        app.action_show_shortcuts()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=open_shortcuts, terminal_size=TERMINAL_SIZE)

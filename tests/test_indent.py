@@ -7,6 +7,7 @@ Integration tests: action_change_indent via ChangeIndentModalScreen
 
 from pathlib import Path
 
+import pytest
 from textual.app import App, ComposeResult
 
 from textual_code.widgets.code_editor import CodeEditor, _convert_indentation
@@ -412,3 +413,160 @@ async def test_change_indent_cmd_no_editor_notifies(workspace: Path):
         await pilot.pause()
 
     assert any("error" in n for n in notified)
+
+
+# ── Tab/Shift+Tab indent/dedent tests ─────────────────────────────────────────
+
+
+@pytest.fixture
+def tab_indent_file(tmp_path):
+    f = tmp_path / "tab_test.py"
+    f.write_text("def foo():\n    pass\n    return\n")
+    return f
+
+
+@pytest.mark.asyncio
+async def test_tab_no_selection_inserts_spaces(workspace: Path):
+    """Tab with no selection → inserts tab_width spaces at cursor position."""
+    from textual.widgets.text_area import Selection
+
+    from tests.conftest import make_app
+
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_code_editor()
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.editor.selection = Selection(start=(0, 0), end=(0, 0))
+        await pilot.pause()
+
+        await pilot.press("tab")
+        await pilot.pause()
+
+        assert editor.editor.text.startswith("    ")
+
+
+@pytest.mark.asyncio
+async def test_tab_multi_line_selection_indents_all(workspace: Path):
+    """Tab with multi-line selection: all selected lines get tab_width spaces added."""
+    from textual.widgets.text_area import Selection
+
+    from tests.conftest import make_app
+
+    f = workspace / "indent_test.py"
+    f.write_text("def foo():\n    pass\n    return\n")
+    app = make_app(workspace, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.editor.selection = Selection(start=(0, 0), end=(1, 4))
+        await pilot.pause()
+
+        await pilot.press("tab")
+        await pilot.pause()
+
+        lines = editor.editor.text.split("\n")
+        assert lines[0].startswith("    def foo():")
+        assert lines[1].startswith("        pass")
+
+
+@pytest.mark.asyncio
+async def test_tab_selection_end_col0_excludes_last_row(workspace: Path):
+    """Tab with selection ending at col 0 → last row excluded from indent."""
+    from textual.widgets.text_area import Selection
+
+    from tests.conftest import make_app
+
+    f = workspace / "indent_test2.py"
+    f.write_text("def foo():\n    pass\n    return\n")
+    app = make_app(workspace, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        original_lines = editor.editor.text.split("\n")
+        editor.editor.selection = Selection(start=(0, 0), end=(1, 0))
+        await pilot.pause()
+
+        await pilot.press("tab")
+        await pilot.pause()
+
+        lines = editor.editor.text.split("\n")
+        assert lines[0].startswith("    ")
+        assert lines[1] == original_lines[1]
+
+
+@pytest.mark.asyncio
+async def test_shift_tab_removes_leading_spaces(workspace: Path):
+    """Shift+Tab with single line → removes up to tab_width leading spaces."""
+    from textual.widgets.text_area import Selection
+
+    from tests.conftest import make_app
+
+    f = workspace / "indent_test3.py"
+    f.write_text("def foo():\n    pass\n    return\n")
+    app = make_app(workspace, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.editor.selection = Selection(start=(1, 4), end=(1, 4))
+        await pilot.pause()
+
+        await pilot.press("shift+tab")
+        await pilot.pause()
+
+        lines = editor.editor.text.split("\n")
+        assert lines[1] == "pass"
+
+
+@pytest.mark.asyncio
+async def test_shift_tab_multi_line_dedents_all(workspace: Path):
+    """Shift+Tab with multi-line selection → all selected lines dedented."""
+    from textual.widgets.text_area import Selection
+
+    from tests.conftest import make_app
+
+    f = workspace / "indent_test4.py"
+    f.write_text("def foo():\n    pass\n    return\n")
+    app = make_app(workspace, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.editor.selection = Selection(start=(1, 0), end=(2, 6))
+        await pilot.pause()
+
+        await pilot.press("shift+tab")
+        await pilot.pause()
+
+        lines = editor.editor.text.split("\n")
+        assert lines[1] == "pass"
+        assert lines[2] == "return"
+
+
+@pytest.mark.asyncio
+async def test_shift_tab_no_leading_spaces_noop(workspace: Path):
+    """Shift+Tab on a line with no leading spaces → no change."""
+    from textual.widgets.text_area import Selection
+
+    from tests.conftest import make_app
+
+    f = workspace / "indent_test5.py"
+    f.write_text("def foo():\n    pass\n    return\n")
+    app = make_app(workspace, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        original_text = editor.editor.text
+        editor.editor.selection = Selection(start=(0, 3), end=(0, 3))
+        await pilot.pause()
+
+        await pilot.press("shift+tab")
+        await pilot.pause()
+
+        assert editor.editor.text == original_text
