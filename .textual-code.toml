@@ -1,0 +1,6 @@
+[editor]
+indent_type = "spaces"
+indent_size = 4
+line_ending = "lf"
+encoding = "utf-8"
+word_wrap = true

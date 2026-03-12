@@ -89,8 +89,16 @@ def snapshot_json_file(snapshot_workspace: Path) -> Path:
     return f
 
 
-def make_app(workspace: Path, open_file: Path | None = None) -> TextualCode:
-    return TextualCode(workspace_path=workspace, with_open_file=open_file)
+def make_app(
+    workspace: Path,
+    open_file: Path | None = None,
+    user_config_path: Path | None = None,
+) -> TextualCode:
+    return TextualCode(
+        workspace_path=workspace,
+        with_open_file=open_file,
+        user_config_path=user_config_path,
+    )
 
 
 @pytest.fixture()

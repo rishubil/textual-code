@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add "Copy relative path" and "Copy absolute path" commands: copy the active file's path to clipboard via command palette; relative path falls back to absolute when the file is outside the workspace
+- Add "Open user settings" and "Open project settings" commands: open the corresponding TOML config file directly in the editor via command palette; creates the file if it does not exist
+- Change word wrap default to `true`: new files now open with word wrap enabled by default
+- Add settings guide documentation (`docs/settings-guide.md`): covers config file locations, settings priority, all editor keys, and keybindings customization
 - Add keyboard shortcuts customization: view all key bindings via F1 or command palette ("Show keyboard shortcuts"); click any row to rebind it; custom bindings are saved to `~/.config/textual-code/keybindings.toml` and applied on next launch; Escape is not rebindable
 - Add UI theme selection: change the application UI theme at runtime via command palette ("Change UI theme"); choose from 20 Textual built-in themes (e.g. nord, gruvbox, dracula, tokyo-night, catppuccin-mocha); selected theme is persisted to user config and restored on next launch
 - Add workspace-wide Replace All: the sidebar Search panel now includes a "Replace with..." input and a "Replace All" button; replaces all occurrences of the search query across all text files in the workspace; supports plain text and regex; shows a status line with replacement count and files modified; skips binary, hidden, and non-UTF-8 files

@@ -20,7 +20,7 @@ DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "line_ending": "lf",
     "encoding": "utf-8",
     "syntax_theme": "monokai",
-    "word_wrap": False,
+    "word_wrap": True,
     "ui_theme": "textual-dark",
 }
 

@@ -26,7 +26,7 @@ from .conftest import make_app
 
 
 def test_a01_default_editor_settings_has_word_wrap():
-    assert DEFAULT_EDITOR_SETTINGS["word_wrap"] is False
+    assert DEFAULT_EDITOR_SETTINGS["word_wrap"] is True
 
 
 def test_a02_load_editor_settings_returns_word_wrap_from_user_toml(tmp_path):
@@ -48,9 +48,9 @@ def test_a03_save_and_reload_word_wrap(tmp_path):
 # ---------------------------------------------------------------------------
 
 
-def test_b01_app_has_default_word_wrap_false(tmp_path):
+def test_b01_app_has_default_word_wrap_true(tmp_path):
     app = TextualCode(workspace_path=tmp_path, with_open_file=None)
-    assert app.default_word_wrap is False
+    assert app.default_word_wrap is True
 
 
 def test_b02_action_set_default_word_wrap_exists(tmp_path):
@@ -93,6 +93,9 @@ async def test_c03_word_wrap_true_sets_soft_wrap(workspace):
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
+        editor.word_wrap = False
+        await pilot.pause()
+        assert editor.editor.soft_wrap is False
         editor.word_wrap = True
         await pilot.pause()
         assert editor.editor.soft_wrap is True
@@ -125,13 +128,13 @@ async def test_d02_toggle_word_wrap_false_to_true_to_false(workspace):
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
-        assert editor.word_wrap is False
-        editor.action_toggle_word_wrap()
-        await pilot.pause()
         assert editor.word_wrap is True
         editor.action_toggle_word_wrap()
         await pilot.pause()
         assert editor.word_wrap is False
+        editor.action_toggle_word_wrap()
+        await pilot.pause()
+        assert editor.word_wrap is True
 
 
 @pytest.mark.asyncio

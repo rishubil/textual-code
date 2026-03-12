@@ -25,6 +25,8 @@ from textual_code.commands import (
 )
 from textual_code.config import (
     get_keybindings_path,
+    get_project_config_path,
+    get_user_config_path,
     load_editor_settings,
     load_keybindings,
     save_keybindings,
@@ -807,7 +809,7 @@ class TextualCode(App):
         self.default_line_ending: str = str(settings["line_ending"])
         self.default_encoding: str = str(settings["encoding"])
         self.default_syntax_theme: str = str(settings.get("syntax_theme", "monokai"))
-        self.default_word_wrap: bool = bool(settings.get("word_wrap", False))
+        self.default_word_wrap: bool = bool(settings.get("word_wrap", True))
         self.default_ui_theme: str = str(settings.get("ui_theme", "textual-dark"))
         self.theme = self.default_ui_theme
 
@@ -835,6 +837,16 @@ class TextualCode(App):
             "Show keyboard shortcuts",
             "View and change keyboard shortcuts (F1)",
             self.action_show_shortcuts,
+        )
+        yield SystemCommand(
+            "Open user settings",
+            "Open user settings file (~/.config/textual-code/settings.toml)",
+            self.action_open_user_settings,
+        )
+        yield SystemCommand(
+            "Open project settings",
+            "Open project settings file (.textual-code.toml in workspace root)",
+            self.action_open_project_settings,
         )
         yield SystemCommand(
             "Toggle sidebar",
@@ -870,6 +882,16 @@ class TextualCode(App):
         )
         yield SystemCommand(
             "Delete file", "Delete the current file", self.action_delete_file
+        )
+        yield SystemCommand(
+            "Copy relative path",
+            "Copy the relative file path to clipboard",
+            self.action_copy_relative_path,
+        )
+        yield SystemCommand(
+            "Copy absolute path",
+            "Copy the absolute file path to clipboard",
+            self.action_copy_absolute_path,
         )
         yield SystemCommand(
             "Open file",
@@ -1243,6 +1265,53 @@ class TextualCode(App):
                 "ui_theme": self.default_ui_theme,
             },
             self._user_config_path,
+        )
+
+    @property
+    def _resolved_user_config_path(self) -> Path:
+        """Return the effective user config path (custom or platform default)."""
+        return self._user_config_path or get_user_config_path()
+
+    def action_copy_relative_path(self) -> None:
+        """Copy the relative file path to clipboard."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is None or code_editor.path is None:
+            self.notify("No saved file open.", severity="error")
+            return
+        try:
+            rel = code_editor.path.relative_to(self.workspace_path)
+            self.copy_to_clipboard(rel.as_posix())
+            self.notify(f"Copied: {rel.as_posix()}")
+        except ValueError:
+            self.copy_to_clipboard(str(code_editor.path))
+            self.notify(f"Copied absolute path: {code_editor.path}")
+
+    def action_copy_absolute_path(self) -> None:
+        """Copy the absolute file path to clipboard."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is None or code_editor.path is None:
+            self.notify("No saved file open.", severity="error")
+            return
+        self.copy_to_clipboard(str(code_editor.path))
+        self.notify(f"Copied: {code_editor.path}")
+
+    def action_open_user_settings(self) -> None:
+        """Open user settings file in the editor."""
+        path = self._resolved_user_config_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            path.write_text("")
+        self.call_next(
+            partial(self.main_view.action_open_code_editor, path=path, focus=True)
+        )
+
+    def action_open_project_settings(self) -> None:
+        """Open project settings file in the editor."""
+        path = get_project_config_path(self.workspace_path)
+        if not path.exists():
+            path.write_text("")
+        self.call_next(
+            partial(self.main_view.action_open_code_editor, path=path, focus=True)
         )
 
     def action_set_ui_theme(self) -> None:
