@@ -675,6 +675,7 @@ SplitResizeHandle {
     width: 1;
     background: $surface;
     display: none;
+    pointer: ew-resize;
 }
 
 SplitResizeHandle:hover {
@@ -694,6 +695,7 @@ SplitResizeHandle:hover {
 #split_container.split-vertical SplitResizeHandle {
     width: 100%;
     height: 1;
+    pointer: ns-resize;
 }
 
 #split_container.split-vertical #split_right {

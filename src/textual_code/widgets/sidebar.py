@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from rich.align import Align
+from rich.text import Text
 from textual import events
 from textual.app import ComposeResult
 from textual.widget import Widget
@@ -17,6 +19,9 @@ class SidebarResizeHandle(Widget):
     def __init__(self) -> None:
         super().__init__()
         self._dragging = False
+
+    def render(self):
+        return Align.center(Text("│", style="dim"), vertical="middle")
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
         self._dragging = True

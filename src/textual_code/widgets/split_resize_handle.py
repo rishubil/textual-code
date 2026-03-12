@@ -1,3 +1,6 @@
+from rich.align import Align
+from rich.rule import Rule
+from rich.text import Text
 from textual import events
 from textual.widget import Widget
 
@@ -10,6 +13,15 @@ class SplitResizeHandle(Widget):
     def __init__(self) -> None:
         super().__init__()
         self._dragging = False
+
+    def render(self):
+        try:
+            is_vertical = "split-vertical" in self.parent.classes
+        except Exception:
+            is_vertical = False
+        if is_vertical:
+            return Rule(style="dim")
+        return Align.center(Text("│", style="dim"), vertical="middle")
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
         self._dragging = True

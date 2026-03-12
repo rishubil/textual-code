@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix `SidebarResizeHandle` and `SplitResizeHandle` showing class name as vertical text: added `render()` to both handles so they display `│` (dim, vertically centered) instead of the default Widget class-name output; also added `pointer: ew-resize` / `pointer: ns-resize` CSS for the appropriate resize cursor on hover
 - Fix extra cursors not rendering immediately after `Ctrl+D` / `Ctrl+Alt+Down` / `Ctrl+Alt+Up` until the next text edit: `add_cursor()` and `clear_extra_cursors()` now clear `_line_cache` so the cursor highlight is painted in the very next frame
 - Fix cursor position button (`Ln X, Col Y`) being clipped when the column number reaches 10 or more: `#cursor_btn` now has `min-width: 20` in TCSS, reserving enough space for `Ln 9999, Col 9999`
 - Fix external file change notification repeating every 2 seconds: notification is now shown once and persists until the user dismisses it; flag resets after saving or reloading
