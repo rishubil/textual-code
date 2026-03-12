@@ -33,6 +33,8 @@ from textual_code.modals import (
     ChangeLineEndingModalScreen,
     ChangeSyntaxThemeModalResult,
     ChangeSyntaxThemeModalScreen,
+    ChangeUIThemeModalResult,
+    ChangeUIThemeModalScreen,
     DeleteFileModalResult,
     DeleteFileModalScreen,
     SidebarResizeModalResult,
@@ -772,7 +774,12 @@ class TextualCode(App):
     ]
 
     def __init__(
-        self, workspace_path: Path, with_open_file: Path | None, *args, **kwargs
+        self,
+        workspace_path: Path,
+        with_open_file: Path | None,
+        *args,
+        user_config_path: Path | None = None,
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
 
@@ -781,15 +788,20 @@ class TextualCode(App):
         # the file path to open in the code editor
         # if provided, the file will be opened after the app is ready
         self.with_open_file = with_open_file
+        self._user_config_path = user_config_path
 
         # load editor defaults from config files
-        settings = load_editor_settings(workspace_path)
+        settings = load_editor_settings(
+            workspace_path, user_config_path=user_config_path
+        )
         self.default_indent_type: str = str(settings["indent_type"])
         self.default_indent_size: int = int(settings["indent_size"])
         self.default_line_ending: str = str(settings["line_ending"])
         self.default_encoding: str = str(settings["encoding"])
         self.default_syntax_theme: str = str(settings.get("syntax_theme", "monokai"))
         self.default_word_wrap: bool = bool(settings.get("word_wrap", False))
+        self.default_ui_theme: str = str(settings.get("ui_theme", "textual-dark"))
+        self.theme = self.default_ui_theme
 
     def compose(self) -> ComposeResult:
         yield Sidebar(workspace_path=self.workspace_path)
@@ -1002,6 +1014,11 @@ class TextualCode(App):
             "Toggle default word wrap for new files",
             self.action_set_default_word_wrap,
         )
+        yield SystemCommand(
+            "Change UI theme",
+            "Select the UI theme",
+            self.action_set_ui_theme,
+        )
 
     def action_find_in_workspace(self) -> None:
         """Open workspace search panel (Ctrl+Shift+F)."""
@@ -1050,7 +1067,11 @@ class TextualCode(App):
                         "indent_size": self.default_indent_size,
                         "line_ending": self.default_line_ending,
                         "encoding": self.default_encoding,
-                    }
+                        "syntax_theme": self.default_syntax_theme,
+                        "word_wrap": self.default_word_wrap,
+                        "ui_theme": self.default_ui_theme,
+                    },
+                    self._user_config_path,
                 )
 
         self.call_next(
@@ -1076,7 +1097,11 @@ class TextualCode(App):
                         "indent_size": self.default_indent_size,
                         "line_ending": self.default_line_ending,
                         "encoding": self.default_encoding,
-                    }
+                        "syntax_theme": self.default_syntax_theme,
+                        "word_wrap": self.default_word_wrap,
+                        "ui_theme": self.default_ui_theme,
+                    },
+                    self._user_config_path,
                 )
 
         self.call_next(
@@ -1100,7 +1125,11 @@ class TextualCode(App):
                         "indent_size": self.default_indent_size,
                         "line_ending": self.default_line_ending,
                         "encoding": self.default_encoding,
-                    }
+                        "syntax_theme": self.default_syntax_theme,
+                        "word_wrap": self.default_word_wrap,
+                        "ui_theme": self.default_ui_theme,
+                    },
+                    self._user_config_path,
                 )
 
         self.call_next(
@@ -1125,7 +1154,10 @@ class TextualCode(App):
                         "line_ending": self.default_line_ending,
                         "encoding": self.default_encoding,
                         "syntax_theme": self.default_syntax_theme,
-                    }
+                        "word_wrap": self.default_word_wrap,
+                        "ui_theme": self.default_ui_theme,
+                    },
+                    self._user_config_path,
                 )
 
         self.call_next(
@@ -1190,7 +1222,36 @@ class TextualCode(App):
                 "encoding": self.default_encoding,
                 "syntax_theme": self.default_syntax_theme,
                 "word_wrap": self.default_word_wrap,
-            }
+                "ui_theme": self.default_ui_theme,
+            },
+            self._user_config_path,
+        )
+
+    def action_set_ui_theme(self) -> None:
+        """Set the UI theme."""
+
+        def do_change(result: ChangeUIThemeModalResult | None) -> None:
+            if result and not result.is_cancelled and result.theme:
+                self.default_ui_theme = result.theme
+                self.theme = result.theme
+                save_user_editor_settings(
+                    {
+                        "indent_type": self.default_indent_type,
+                        "indent_size": self.default_indent_size,
+                        "line_ending": self.default_line_ending,
+                        "encoding": self.default_encoding,
+                        "syntax_theme": self.default_syntax_theme,
+                        "word_wrap": self.default_word_wrap,
+                        "ui_theme": self.default_ui_theme,
+                    },
+                    self._user_config_path,
+                )
+
+        self.call_next(
+            lambda: self.push_screen(
+                ChangeUIThemeModalScreen(current_theme=self.default_ui_theme),
+                do_change,
+            )
         )
 
     def action_split_right_cmd(self) -> None:

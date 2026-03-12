@@ -1,0 +1,174 @@
+"""
+Tests for UI theme selection.
+
+Covers:
+1. Default ui_theme in config settings
+2. App starts with default ui_theme attribute
+3. App loads ui_theme from config file
+4. action_set_ui_theme opens modal and applies/saves the theme
+5. Cancel leaves theme unchanged
+6. ChangeUIThemeModalScreen and ChangeUIThemeModalResult can be imported
+"""
+
+import pytest
+
+from textual_code.app import TextualCode
+from textual_code.config import (
+    DEFAULT_EDITOR_SETTINGS,
+    load_editor_settings,
+    save_user_editor_settings,
+)
+from textual_code.modals import (
+    ChangeUIThemeModalResult,
+    ChangeUIThemeModalScreen,
+)
+
+from .conftest import make_app
+
+# ---------------------------------------------------------------------------
+# Group 1: Import and basic structure
+# ---------------------------------------------------------------------------
+
+
+def test_modal_can_be_imported():
+    assert ChangeUIThemeModalScreen is not None
+    assert ChangeUIThemeModalResult is not None
+
+
+# ---------------------------------------------------------------------------
+# Group 2: Config
+# ---------------------------------------------------------------------------
+
+
+def test_default_ui_theme_in_config():
+    assert "ui_theme" in DEFAULT_EDITOR_SETTINGS
+    assert DEFAULT_EDITOR_SETTINGS["ui_theme"] == "textual-dark"
+
+
+def test_ui_theme_saved_and_reloaded(tmp_path):
+    cfg = tmp_path / "settings.toml"
+    save_user_editor_settings(
+        {
+            "indent_type": "spaces",
+            "indent_size": 4,
+            "line_ending": "lf",
+            "encoding": "utf-8",
+            "syntax_theme": "monokai",
+            "word_wrap": False,
+            "ui_theme": "nord",
+        },
+        cfg,
+    )
+    loaded = load_editor_settings(tmp_path / "ws", user_config_path=cfg)
+    assert loaded["ui_theme"] == "nord"
+
+
+# ---------------------------------------------------------------------------
+# Group 3: App default attribute
+# ---------------------------------------------------------------------------
+
+
+def test_app_has_default_ui_theme_attr(tmp_path):
+    app = TextualCode(workspace_path=tmp_path, with_open_file=None)
+    assert hasattr(app, "default_ui_theme")
+    assert app.default_ui_theme == "textual-dark"
+
+
+def test_action_set_ui_theme_exists(tmp_path):
+    app = TextualCode(workspace_path=tmp_path, with_open_file=None)
+    assert callable(getattr(app, "action_set_ui_theme", None))
+
+
+# ---------------------------------------------------------------------------
+# Group 4: App applies ui_theme on startup
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_app_applies_ui_theme_on_startup(workspace):
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.theme == "textual-dark"
+
+
+@pytest.mark.asyncio
+async def test_app_loads_ui_theme_from_config(workspace):
+    cfg = workspace / "settings.toml"
+    save_user_editor_settings(
+        {
+            "indent_type": "spaces",
+            "indent_size": 4,
+            "line_ending": "lf",
+            "encoding": "utf-8",
+            "syntax_theme": "monokai",
+            "word_wrap": False,
+            "ui_theme": "nord",
+        },
+        cfg,
+    )
+    app = TextualCode(
+        workspace_path=workspace, with_open_file=None, user_config_path=cfg
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.default_ui_theme == "nord"
+        assert app.theme == "nord"
+
+
+# ---------------------------------------------------------------------------
+# Group 5: action_set_ui_theme applies and saves
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_action_set_ui_theme_applies_and_saves(workspace):
+    cfg = workspace / "settings.toml"
+    app = TextualCode(
+        workspace_path=workspace, with_open_file=None, user_config_path=cfg
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_set_ui_theme()
+        await pilot.pause()
+        assert isinstance(app.screen, ChangeUIThemeModalScreen)
+        app.screen.dismiss(ChangeUIThemeModalResult(is_cancelled=False, theme="nord"))
+        await pilot.pause()
+        assert app.theme == "nord"
+        assert app.default_ui_theme == "nord"
+        loaded = load_editor_settings(workspace, user_config_path=cfg)
+        assert loaded["ui_theme"] == "nord"
+
+
+@pytest.mark.asyncio
+async def test_action_set_ui_theme_cancel_leaves_theme(workspace):
+    cfg = workspace / "settings.toml"
+    app = TextualCode(
+        workspace_path=workspace, with_open_file=None, user_config_path=cfg
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        original_theme = app.theme
+        app.action_set_ui_theme()
+        await pilot.pause()
+        assert isinstance(app.screen, ChangeUIThemeModalScreen)
+        app.screen.dismiss(ChangeUIThemeModalResult(is_cancelled=True, theme=None))
+        await pilot.pause()
+        assert app.theme == original_theme
+
+
+# ---------------------------------------------------------------------------
+# Group 6: Modal result dataclass
+# ---------------------------------------------------------------------------
+
+
+def test_modal_result_not_cancelled():
+    result = ChangeUIThemeModalResult(is_cancelled=False, theme="nord")
+    assert not result.is_cancelled
+    assert result.theme == "nord"
+
+
+def test_modal_result_cancelled():
+    result = ChangeUIThemeModalResult(is_cancelled=True, theme=None)
+    assert result.is_cancelled
+    assert result.theme is None

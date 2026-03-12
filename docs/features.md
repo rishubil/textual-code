@@ -378,11 +378,20 @@ Both files use the `[editor]` TOML section:
 
 ```toml
 [editor]
-indent_type = "spaces"   # "spaces" or "tabs"
-indent_size = 4          # 2, 4, or 8
-line_ending = "lf"       # "lf", "crlf", or "cr"
-encoding = "utf-8"       # "utf-8", "utf-8-sig", "utf-16", "latin-1", etc.
+indent_type = "spaces"    # "spaces" or "tabs"
+indent_size = 4           # any positive integer (commonly 2 or 4)
+line_ending = "lf"        # "lf", "crlf", or "cr"
+encoding = "utf-8"        # "utf-8", "utf-8-sig", "utf-16", "latin-1", etc.
+syntax_theme = "monokai"  # syntax highlighting theme (monokai, dracula, vscode_dark, github_light, css)
+word_wrap = false         # true or false
+ui_theme = "textual-dark" # UI theme name (see available themes below)
 ```
+
+Available UI themes (Textual built-ins):
+`textual-dark`, `textual-light`, `nord`, `gruvbox`, `catppuccin-mocha`, `dracula`,
+`tokyo-night`, `monokai`, `flexoki`, `catppuccin-latte`, `catppuccin-frappe`,
+`catppuccin-macchiato`, `solarized-light`, `solarized-dark`, `rose-pine`,
+`rose-pine-moon`, `rose-pine-dawn`, `atom-one-dark`, `atom-one-light`, `textual-ansi`
 
 ### Implementation
 
@@ -392,8 +401,8 @@ encoding = "utf-8"       # "utf-8", "utf-8-sig", "utf-16", "latin-1", etc.
 | App defaults | `app.py` `TextualCode.__init__` | loads settings on startup; stores as `default_*` attributes |
 | CodeEditor | `widgets/code_editor.py` `CodeEditor.__init__` | accepts `default_*` kwargs; applies them when `path is None` |
 | `open_code_editor_pane` | `app.py` `MainView` | passes app `default_*` attrs to each new `CodeEditor` |
-| Actions | `app.py` `TextualCode` | `action_set_default_indentation`, `action_set_default_line_ending`, `action_set_default_encoding` — open the existing change modals and persist on apply |
-| Command palette | `app.py` `get_system_commands` | "Set default indentation/line ending/encoding" entries |
+| Actions | `app.py` `TextualCode` | `action_set_default_indentation`, `action_set_default_line_ending`, `action_set_default_encoding`, `action_set_syntax_theme`, `action_set_default_word_wrap`, `action_set_ui_theme` — open the existing change modals and persist on apply |
+| Command palette | `app.py` `get_system_commands` | "Set default indentation/line ending/encoding", "Change syntax theme", "Set default word wrap", "Change UI theme" entries |
 
 ---
 

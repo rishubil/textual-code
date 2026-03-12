@@ -782,3 +782,45 @@ class ChangeSyntaxThemeModalScreen(ModalScreen[ChangeSyntaxThemeModalResult]):
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
         self.dismiss(ChangeSyntaxThemeModalResult(is_cancelled=True, theme=None))
+
+
+@dataclass
+class ChangeUIThemeModalResult:
+    """
+    The result of the Change UI Theme modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The selected theme, or None if cancelled.
+    theme: str | None
+
+
+class ChangeUIThemeModalScreen(ModalScreen[ChangeUIThemeModalResult]):
+    """
+    Modal dialog for selecting the UI theme.
+    """
+
+    def __init__(self, current_theme: str = "textual-dark") -> None:
+        super().__init__()
+        self._current_theme = current_theme
+
+    def compose(self) -> ComposeResult:
+        options = [(t, t) for t in sorted(self.app.available_themes.keys())]
+        yield Grid(
+            Label("UI Theme", id="title"),
+            Select(options=options, value=self._current_theme, id="theme"),
+            Button("Apply", variant="primary", id="apply"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#apply")
+    def on_apply(self) -> None:
+        value = self.query_one(Select).value
+        theme = str(value) if value is not Select.BLANK else self._current_theme
+        self.dismiss(ChangeUIThemeModalResult(is_cancelled=False, theme=theme))
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(ChangeUIThemeModalResult(is_cancelled=True, theme=None))

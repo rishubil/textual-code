@@ -11,6 +11,7 @@ EDITOR_KEYS = {
     "encoding",
     "syntax_theme",
     "word_wrap",
+    "ui_theme",
 }
 
 DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
@@ -20,6 +21,7 @@ DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "encoding": "utf-8",
     "syntax_theme": "monokai",
     "word_wrap": False,
+    "ui_theme": "textual-dark",
 }
 
 
