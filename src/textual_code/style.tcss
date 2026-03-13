@@ -741,6 +741,25 @@ WorkspaceSearchPane #ws-results {
     color: $accent;
 }
 
+/* Edge drop zone visual indicator */
+#split_left.-edge-hover {
+    border-right: outer $accent;
+}
+
+#split_right.-edge-hover {
+    border-left: outer $accent;
+}
+
+#split_container.split-vertical #split_left.-edge-hover {
+    border-bottom: outer $accent;
+    border-right: none;
+}
+
+#split_container.split-vertical #split_right.-edge-hover {
+    border-top: outer $accent;
+    border-left: none;
+}
+
 /* Split view layout */
 #split_container {
     layout: horizontal;

@@ -483,3 +483,55 @@ async def test_move_tab_no_op_without_editor(workspace: Path):
         # State unchanged
         assert app.main_view._active_split == "left"
         assert app.main_view._split_visible is False
+
+
+# ── Group H — Edge Drag Creates Split ───────────────────────────────────────────
+
+
+async def test_edge_drag_creates_right_split(workspace: Path, py_file: Path):
+    """Posting TabMovedToOtherSplit with target_pane_id=None creates the right split."""
+    from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.main_view._split_visible is False
+
+        left_tc = app.main_view.query_one("#split_left", DraggableTabbedContent)
+        pane_id = next(iter(app.main_view._pane_ids["left"]))
+        left_tc.post_message(
+            DraggableTabbedContent.TabMovedToOtherSplit(pane_id, None, False)
+        )
+        await pilot.pause()
+
+        assert app.main_view._split_visible is True
+        assert py_file in app.main_view._opened_files["right"]
+        assert py_file not in app.main_view._opened_files["left"]
+
+
+async def test_edge_drag_two_tabs_moves_one(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Edge drag with 2 tabs moves one tab; one remains in left split."""
+    from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Open second file in left split
+        await app.main_view.open_code_editor_pane(py_file2)
+        await pilot.pause()
+        assert len(app.main_view._pane_ids["left"]) == 2
+
+        left_tc = app.main_view.query_one("#split_left", DraggableTabbedContent)
+        pane_id = app.main_view._opened_files["left"][py_file]
+        left_tc.post_message(
+            DraggableTabbedContent.TabMovedToOtherSplit(pane_id, None, False)
+        )
+        await pilot.pause()
+
+        assert app.main_view._split_visible is True
+        # py_file moved to right
+        assert py_file in app.main_view._opened_files["right"]
+        # py_file2 still in left
+        assert py_file2 in app.main_view._opened_files["left"]
