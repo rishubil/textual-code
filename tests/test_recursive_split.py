@@ -318,3 +318,146 @@ async def test_split_down_then_right_has_nonzero_width(workspace, py_file):
             dtc = app.main_view.query_one(f"#{leaf.leaf_id}", DraggableTabbedContent)
             assert dtc.size.width > 0, f"{leaf.leaf_id} has zero width"
             assert dtc.size.height > 0, f"{leaf.leaf_id} has zero height"
+
+
+# ── Bug 1: _active_leaf_id and DOM focus out of sync after split ─────────────
+
+
+async def test_split_right_focuses_new_leaf(workspace, py_file):
+    """After split_right, _active_leaf_id and DOM focus should be on the new leaf."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 30)) as pilot:
+        await pilot.pause()
+
+        # Split right
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
+        new_leaf = leaves[1]
+
+        # _active_leaf_id should point to the new leaf
+        assert app.main_view._active_leaf_id == new_leaf.leaf_id
+
+        # The new leaf's editor should have DOM focus
+        editor = app.main_view._get_active_code_editor_in_leaf(new_leaf)
+        assert editor is not None
+        assert editor.editor.has_focus
+
+
+async def test_split_right_then_split_down_splits_new_leaf(workspace, py_file):
+    """split_right → split_down should split the RIGHT leaf (not the left)."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+
+        # Split right → 2 leaves
+        await app.main_view.action_split_right()
+        await pilot.pause()
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
+        right_leaf_id = leaves[1].leaf_id
+
+        # Split down (should split the right leaf, not the left)
+        await app.main_view.action_split_down()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 3
+
+        # The right leaf should have been split, so it's still present
+        # and the new leaf is its sibling
+        right_leaf_ids = {leaves[1].leaf_id, leaves[2].leaf_id}
+        assert right_leaf_id in right_leaf_ids, (
+            "Original right leaf should still exist after splitting it"
+        )
+
+
+# ── Bug 2: _auto_close_split_if_empty skipped the first (left) leaf ──────────
+
+
+async def test_close_first_leaf_collapses_to_single(workspace, py_file):
+    """2-way split: closing the first (left) leaf should collapse to 1 leaf."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 30)) as pilot:
+        await pilot.pause()
+
+        # Split right
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
+
+        # Close all panes in the first (left) leaf
+        first_leaf = leaves[0]
+        for pane_id in list(first_leaf.pane_ids):
+            await app.main_view.action_close_code_editor(
+                pane_id, auto_close_split=False
+            )
+        await app.main_view._auto_close_split_if_empty()
+        await pilot.pause()
+
+        # Should collapse to 1 leaf
+        remaining = all_leaves(app.main_view._split_root)
+        assert len(remaining) == 1
+
+
+async def test_close_middle_leaf_in_3way(workspace, py_file, py_file2, py_file3):
+    """3-way split: closing middle leaf keeps 2 leaves."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(180, 30)) as pilot:
+        await pilot.pause()
+
+        # Create 3-way split
+        await app.main_view.action_split_right()
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+        await app.main_view.action_split_right()
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=py_file3)
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 3
+
+        # Close middle leaf's pane
+        middle_leaf = leaves[1]
+        app.main_view._active_leaf_id = middle_leaf.leaf_id
+        for pane_id in list(middle_leaf.pane_ids):
+            await app.main_view.action_close_code_editor(
+                pane_id, auto_close_split=False
+            )
+        await app.main_view._auto_close_split_if_empty()
+        await pilot.pause()
+
+        remaining = all_leaves(app.main_view._split_root)
+        assert len(remaining) == 2
+
+
+async def test_close_empty_first_leaf_picks_nearest_active(workspace, py_file):
+    """When the active first leaf is closed, active moves to the nearest leaf."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 30)) as pilot:
+        await pilot.pause()
+
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        first_leaf = leaves[0]
+
+        # Focus the first leaf and close its panes
+        app.main_view._active_leaf_id = first_leaf.leaf_id
+        for pane_id in list(first_leaf.pane_ids):
+            await app.main_view.action_close_code_editor(
+                pane_id, auto_close_split=False
+            )
+        await app.main_view._auto_close_split_if_empty()
+        await pilot.pause()
+
+        remaining = all_leaves(app.main_view._split_root)
+        assert len(remaining) == 1
+        assert app.main_view._active_leaf_id == remaining[0].leaf_id

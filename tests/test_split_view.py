@@ -416,13 +416,22 @@ def test_ctrl_alt_backslash_binding_registered():
     assert "ctrl+alt+backslash" in keys
 
 
-async def test_move_tab_left_to_right(workspace: Path, py_file: Path):
+async def test_move_tab_left_to_right(workspace: Path, py_file: Path, py_file2: Path):
     """Moving a tab from left split places it in the right split."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
+        # Open a second file so left doesn't become empty after move
+        app.main_view._active_split = "left"
+        await app.main_view.action_open_code_editor(path=py_file2)
+        await pilot.pause()
         assert py_file in app.main_view._opened_files["left"]
-        assert py_file not in app.main_view._opened_files.get("right", {})
+
+        # Focus the py_file tab before moving
+        app.main_view._active_split = "left"
+        pane_id = app.main_view._opened_files["left"][py_file]
+        app.main_view.focus_pane(pane_id)
+        await pilot.pause()
 
         await app.main_view.action_move_tab_to_other_split()
         await pilot.pause()
@@ -451,12 +460,22 @@ async def test_move_tab_right_to_left(workspace: Path, py_file: Path):
         assert py_file not in app.main_view._opened_files.get("right", {})
 
 
-async def test_move_tab_creates_right_split(workspace: Path, py_file: Path):
+async def test_move_tab_creates_right_split(
+    workspace: Path, py_file: Path, py_file2: Path
+):
     """Moving a tab to the right auto-creates the right split if not open."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
+        # Open a second file so left doesn't become empty after move
+        await app.main_view.action_open_code_editor(path=py_file2)
+        await pilot.pause()
         assert app.main_view._split_visible is False
+
+        # Focus py_file tab before moving
+        pane_id = app.main_view._opened_files["left"][py_file]
+        app.main_view.focus_pane(pane_id)
+        await pilot.pause()
 
         await app.main_view.action_move_tab_to_other_split()
         await pilot.pause()
@@ -504,12 +523,17 @@ async def test_move_tab_no_op_without_editor(workspace: Path):
 # ── Group H — Edge Drag Creates Split ───────────────────────────────────────────
 
 
-async def test_edge_drag_creates_right_split(workspace: Path, py_file: Path):
+async def test_edge_drag_creates_right_split(
+    workspace: Path, py_file: Path, py_file2: Path
+):
     """Posting TabMovedToOtherSplit with target_pane_id=None creates the right split."""
     from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
+        await pilot.pause()
+        # Open a second file so left doesn't become empty after drag
+        await app.main_view.action_open_code_editor(path=py_file2)
         await pilot.pause()
         assert app.main_view._split_visible is False
 
@@ -517,7 +541,7 @@ async def test_edge_drag_creates_right_split(workspace: Path, py_file: Path):
         left_tc = app.main_view.query_one(
             f"#{leaves[0].leaf_id}", DraggableTabbedContent
         )
-        pane_id = next(iter(leaves[0].pane_ids))
+        pane_id = leaves[0].opened_files[py_file]
         left_tc.post_message(
             DraggableTabbedContent.TabMovedToOtherSplit(pane_id, None, False)
         )
@@ -570,11 +594,16 @@ async def test_descendant_focus_updates_active_split(workspace: Path, py_file: P
         await app.main_view.action_split_right()
         await pilot.pause()
 
-        # Manually set _active_split to "left"
-        app.main_view._active_split = "left"
+        leaves = all_leaves(app.main_view._split_root)
+
+        # Focus left editor first (to move DOM focus away from right)
+        left_editor = app.main_view._get_active_code_editor_in_leaf(leaves[0])
+        assert left_editor is not None
+        left_editor.editor.focus()
+        await pilot.pause()
+        assert app.main_view._active_split == "left"
 
         # Focus right editor content directly
-        leaves = all_leaves(app.main_view._split_root)
         right_editor = app.main_view._get_active_code_editor_in_leaf(leaves[1])
         assert right_editor is not None
         right_editor.editor.focus()
@@ -645,9 +674,16 @@ async def test_find_replace_bar_focus_keeps_active_split(
         await app.main_view.action_split_right()
         await pilot.pause()
 
-        # Simulate mismatch
-        app.main_view._active_split = "left"
         leaves = all_leaves(app.main_view._split_root)
+
+        # Focus left editor first (move DOM focus away from right)
+        left_editor = app.main_view._get_active_code_editor_in_leaf(leaves[0])
+        assert left_editor is not None
+        left_editor.editor.focus()
+        await pilot.pause()
+        assert app.main_view._active_split == "left"
+
+        # Focus right editor
         right_editor = app.main_view._get_active_code_editor_in_leaf(leaves[1])
         assert right_editor is not None
         right_editor.editor.focus()

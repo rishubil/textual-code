@@ -40,21 +40,26 @@ def py_file2(workspace: Path) -> Path:
 # ── Helper tests via _move_pane_to_split ─────────────────────────────────────
 
 
-async def test_drag_left_to_right_moves_pane(workspace: Path, py_file: Path):
+async def test_drag_left_to_right_moves_pane(
+    workspace: Path, py_file: Path, py_file2: Path
+):
     """Moving a pane from left to right appears in right _pane_ids."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         main = app.main_view
 
+        # Open a second file in left so it doesn't become empty after move
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
         # Open right split
         await main.action_split_right()
         await pilot.pause()
 
-        # There should be panes in both splits now
-        left_panes = list(main._pane_ids["left"])
-        assert left_panes, "Expected at least one pane in left split"
-        source_pane_id = left_panes[0]
+        # Focus left split to select source pane
+        main._active_split = "left"
+        source_pane_id = main._opened_files["left"][py_file]
 
         # Move source pane to right split
         new_pane_id = await main._move_pane_to_split(source_pane_id, "right")
@@ -165,13 +170,17 @@ async def test_drag_cross_split_closes_right_split_when_empty(
 
 
 async def test_drag_cross_split_duplicate_file_focuses_existing(
-    workspace: Path, py_file: Path
+    workspace: Path, py_file: Path, py_file2: Path
 ):
     """If the file is already open in the destination split, don't duplicate it."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         main = app.main_view
+
+        # Open a second file in left so it doesn't become empty after move
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
 
         # Open same file in right split too
         await main.action_split_right()

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix split focus and active leaf not synced after creating a new split: `_active_leaf_id` and DOM focus now both move to the newly created leaf immediately after splitting, so a second split (e.g. split right then split down) correctly splits the new leaf rather than the original one
+- Fix first (left) leaf not removed when emptied: `_auto_close_split_if_empty` previously skipped the first leaf, leaving an empty panel; all empty leaves are now collapsed regardless of position; when the active leaf is removed, focus moves to the nearest remaining leaf by index
+
 ### Added
 
 - Add recursive split system: replace the binary left/right split with unlimited nested horizontal/vertical splits using a tree data structure; split right (Ctrl+\\), split down, close split (Ctrl+Shift+\\), focus next/previous split; N-way splits flatten into siblings when direction matches; closing a split auto-collapses the parent; split resize handles work with any number of children

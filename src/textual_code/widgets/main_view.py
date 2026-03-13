@@ -259,18 +259,17 @@ class MainView(Static):
             self.query_one(f"#{leaf.leaf_id}", TabbedContent).focus()
 
     async def _auto_close_split_if_empty(self) -> None:
-        """Remove empty leaves from the tree (except the first/left leaf)."""
+        """Remove empty leaves from the tree."""
         if isinstance(self._split_root, LeafNode):
             return
 
-        # Find empty leaves (but not the first one, which is always kept)
         changed = True
         while changed:
             changed = False
             leaves = all_leaves(self._split_root)
             if len(leaves) <= 1:
                 break
-            for leaf in leaves[1:]:  # Skip the first (left) leaf
+            for idx, leaf in enumerate(leaves):
                 if not leaf.pane_ids:
                     new_root = remove_leaf(self._split_root, leaf.leaf_id)
                     if new_root is None:
@@ -280,7 +279,8 @@ class MainView(Static):
 
                     if self._active_leaf_id == leaf.leaf_id:
                         remaining = all_leaves(self._split_root)
-                        self._active_leaf_id = remaining[0].leaf_id
+                        nearest = min(idx, len(remaining) - 1)
+                        self._active_leaf_id = remaining[nearest].leaf_id
 
                     changed = True
                     break  # restart iteration since tree changed
@@ -340,12 +340,19 @@ class MainView(Static):
         """Get the pane_id for a path in the active leaf, or None."""
         return self._active_leaf.opened_files.get(path, None)
 
-    async def open_new_pane(self, pane_id: str, pane: TabPane) -> bool:
+    async def open_new_pane(
+        self, pane_id: str, pane: TabPane, *, leaf_id: str | None = None
+    ) -> bool:
+        target_leaf_id = leaf_id or self._active_leaf_id
         if self.is_opened_pane(pane_id):
             return False
-        self._active_pane_ids.add(pane_id)
-        self._pane_to_leaf[pane_id] = self._active_leaf_id
-        await self.tabbed_content.add_pane(pane)
+        leaf = find_leaf(self._split_root, target_leaf_id)
+        if leaf is None:
+            return False
+        leaf.pane_ids.add(pane_id)
+        self._pane_to_leaf[pane_id] = target_leaf_id
+        tc = self.query_one(f"#{target_leaf_id}", TabbedContent)
+        await tc.add_pane(pane)
         return True
 
     async def close_pane(self, pane_id: str) -> bool:
@@ -369,11 +376,17 @@ class MainView(Static):
         self._active_leaf_id = leaf.leaf_id
         return True
 
-    async def open_code_editor_pane(self, path: Path | None = None) -> str:
+    async def open_code_editor_pane(
+        self, path: Path | None = None, *, leaf_id: str | None = None
+    ) -> str:
+        target_leaf_id = leaf_id or self._active_leaf_id
+        target_leaf = find_leaf(self._split_root, target_leaf_id)
+        assert target_leaf is not None
+
         if path is None:
             pane_id = CodeEditor.generate_pane_id()
         else:
-            existing_pane_id = self.pane_id_from_path(path)
+            existing_pane_id = target_leaf.opened_files.get(path, None)
             if existing_pane_id is None:
                 pane_id = CodeEditor.generate_pane_id()
             else:
@@ -381,7 +394,7 @@ class MainView(Static):
 
         if (
             self.is_opened_pane(pane_id)
-            and self._pane_to_leaf.get(pane_id) == self._active_leaf_id
+            and self._pane_to_leaf.get(pane_id) == target_leaf_id
         ):
             self.focus_pane(pane_id)
             return pane_id
@@ -403,8 +416,8 @@ class MainView(Static):
             id=pane_id,
         )
         if path is not None:
-            self._active_leaf.opened_files[path] = pane_id
-        await self.open_new_pane(pane_id, pane)
+            target_leaf.opened_files[path] = pane_id
+        await self.open_new_pane(pane_id, pane, leaf_id=target_leaf_id)
         return pane_id
 
     def get_active_code_editor(self) -> CodeEditor | None:
@@ -567,8 +580,6 @@ class MainView(Static):
             )
             self._split_root = new_root
             await self._mount_new_split(new_leaf, direction)
-            self._active_leaf_id = new_leaf.leaf_id
-            await self.open_code_editor_pane(path)
         else:
             # Already split: create new leaf
             new_root, new_leaf = split_leaf(
@@ -577,8 +588,15 @@ class MainView(Static):
             old_root = self._split_root
             self._split_root = new_root
             await self._mount_new_split_in_existing(new_leaf, old_root)
-            self._active_leaf_id = new_leaf.leaf_id
-            await self.open_code_editor_pane(path)
+
+        # Open editor in the new leaf and focus it
+        self._active_leaf_id = new_leaf.leaf_id
+        pane_id = await self.open_code_editor_pane(path, leaf_id=new_leaf.leaf_id)
+        # Ensure DOM focus moves to the new leaf's editor
+        tc = self.query_one(f"#{new_leaf.leaf_id}", TabbedContent)
+        tc.active = pane_id
+        editor = tc.get_pane(pane_id).query_one(CodeEditor)
+        editor.editor.focus()
 
     async def _mount_new_split(self, new_leaf: LeafNode, direction: str) -> None:
         """Mount a new split when going from 1 leaf to 2 (first split)."""
