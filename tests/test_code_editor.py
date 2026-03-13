@@ -49,6 +49,26 @@ from textual_code.widgets.code_editor import CodeEditorFooter
         ("file.go", "go"),
         ("file.unknown", None),
         ("file", None),
+        # custom languages via tree-sitter-language-pack
+        ("Dockerfile", "dockerfile"),
+        ("file.dockerfile", "dockerfile"),
+        ("file.ts", "typescript"),
+        ("file.tsx", "tsx"),
+        ("file.c", "c"),
+        ("file.h", "c"),
+        ("file.cpp", "cpp"),
+        ("file.cc", "cpp"),
+        ("file.cxx", "cpp"),
+        ("file.hpp", "cpp"),
+        ("file.rb", "ruby"),
+        ("file.kt", "kotlin"),
+        ("file.kts", "kotlin"),
+        ("file.lua", "lua"),
+        ("file.php", "php"),
+        ("Makefile", "make"),
+        ("makefile", "make"),
+        ("GNUmakefile", "make"),
+        ("file.mk", "make"),
     ],
 )
 async def test_language_detection(
@@ -62,6 +82,18 @@ async def test_language_detection(
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.language == expected_lang
+
+
+async def test_custom_language_registered(workspace: Path):
+    """Opening a Dockerfile registers 'dockerfile' as an available language."""
+    f = workspace / "Dockerfile"
+    f.write_text("FROM ubuntu:22.04\nRUN apt-get update\n")
+    app = make_app(workspace, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert "dockerfile" in editor.editor.available_languages
 
 
 # ── Title reactive ────────────────────────────────────────────────────────────

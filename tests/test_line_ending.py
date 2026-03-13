@@ -345,3 +345,22 @@ async def test_open_lf_file_no_warning_toast(tmp_path: Path):
         await pilot.pause()
 
     assert not any("warning" in n for n in app.notified)
+
+
+# ── save_level visibility tests ───────────────────────────────────────────────
+
+
+async def test_footer_line_ending_modal_no_save_level(tmp_path: Path):
+    """action_change_line_ending (footer path) → modal has no #save_level widget."""
+    from textual_code.modals import ChangeLineEndingModalScreen
+
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello\nworld")
+    app = _LineEndingTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_line_ending()
+        await pilot.pause()
+
+        assert isinstance(app.screen, ChangeLineEndingModalScreen)
+        assert len(app.screen.query("#save_level")) == 0

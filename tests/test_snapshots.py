@@ -320,3 +320,68 @@ def test_snapshot_tab_reorder_active_indicator(
         await pilot.pause()
 
     assert snap_compare(app, run_before=reorder_tabs, terminal_size=TERMINAL_SIZE)
+
+
+# ── Custom language highlighting ───────────────────────────────────────────────
+
+
+def test_snapshot_dockerfile_highlighting(snap_compare, snapshot_workspace: Path):
+    """Dockerfile opened in editor shows syntax highlighting."""
+    dockerfile = snapshot_workspace / "Dockerfile"
+    dockerfile.write_text(
+        "FROM ubuntu:22.04\nRUN apt-get update && apt-get install -y python3\n"
+        'ENV APP_HOME=/app\nWORKDIR $APP_HOME\nCOPY . .\nCMD ["python3", "app.py"]\n'
+    )
+    app = make_app(snapshot_workspace, open_file=dockerfile)
+    assert snap_compare(app, run_before=_focus_editor(app), terminal_size=TERMINAL_SIZE)
+
+
+# ── Footer modal no-save-level ─────────────────────────────────────────────────
+
+
+def test_snapshot_footer_indent_modal_no_save_level(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """ChangeIndentModalScreen from footer (no save_level row)."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def open_modal(pilot):
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.action_change_indent()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=open_modal, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_footer_line_ending_modal_no_save_level(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """ChangeLineEndingModalScreen from footer (no save_level row)."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def open_modal(pilot):
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.action_change_line_ending()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=open_modal, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_footer_encoding_modal_no_save_level(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """ChangeEncodingModalScreen from footer (no save_level row)."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def open_modal(pilot):
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.action_change_encoding()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=open_modal, terminal_size=TERMINAL_SIZE)

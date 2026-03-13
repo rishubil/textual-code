@@ -512,6 +512,12 @@ ChangeIndentModalScreen Button {
     width: 100%;
 }
 
+ChangeIndentModalScreen.no-save-level #dialog {
+    grid-size: 2 4;
+    grid-rows: 1fr 3 3 3;
+    max-height: 14;
+}
+
 ChangeLineEndingModalScreen {
     align: center middle;
 }
@@ -548,6 +554,12 @@ ChangeLineEndingModalScreen #save_level {
 
 ChangeLineEndingModalScreen Button {
     width: 100%;
+}
+
+ChangeLineEndingModalScreen.no-save-level #dialog {
+    grid-size: 2 3;
+    grid-rows: 1fr 3 3;
+    max-height: 11;
 }
 
 SidebarResizeModalScreen {
@@ -650,6 +662,12 @@ ChangeEncodingModalScreen #save_level {
 
 ChangeEncodingModalScreen Button {
     width: 100%;
+}
+
+ChangeEncodingModalScreen.no-save-level #dialog {
+    grid-size: 2 3;
+    grid-rows: 1fr 3 3;
+    max-height: 11;
 }
 
 ChangeWordWrapModalScreen {

@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add syntax highlighting for 10 additional languages via `tree-sitter-language-pack`: Dockerfile, TypeScript (`.ts`), TSX (`.tsx`), C (`.c`, `.h`), C++ (`.cpp`, `.cc`, `.cxx`, `.hpp`), Ruby (`.rb`), Kotlin (`.kt`, `.kts`), Lua (`.lua`), PHP (`.php`), Makefile (`Makefile`, `makefile`, `GNUmakefile`, `.mk`, `.dockerfile`); highlight queries are bundled in `src/textual_code/grammars/`
+- Remove save-level selector from footer indentation/line-ending/encoding modals: the "Save to User/Project" dropdown now only appears in the "Set default…" dialogs invoked from the app menu, not in the per-file change dialogs opened via the footer buttons
+
 - Add double/triple click selection: double-clicking a word selects the full word (using `\w+` boundaries); triple-clicking a line selects the entire line; double/triple click also clears any active extra cursors
 - Add binary file detection: opening a binary file (null byte in first 8 KiB) now shows a "⚠  Binary file — not supported" notice tab instead of attempting to load it in the editor; the same file cannot be opened twice
 - Add explorer cursor sync: switching between editor tabs now moves the explorer cursor to the corresponding file, keeping the sidebar in sync with the active editor

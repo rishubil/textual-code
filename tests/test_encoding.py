@@ -542,3 +542,22 @@ async def test_file_load_detects_gbk(tmp_path: Path):
         encoding = app.code_editor.encoding
 
     assert encoding in ("gbk", "gb2312", "gb18030")
+
+
+# ── save_level visibility tests ───────────────────────────────────────────────
+
+
+async def test_footer_encoding_modal_no_save_level(tmp_path: Path):
+    """action_change_encoding (footer path) → modal has no #save_level widget."""
+    from textual_code.modals import ChangeEncodingModalScreen
+
+    f = tmp_path / "test.txt"
+    f.write_text("hello")
+    app = _EncodingTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_encoding()
+        await pilot.pause()
+
+        assert isinstance(app.screen, ChangeEncodingModalScreen)
+        assert len(app.screen.query("#save_level")) == 0

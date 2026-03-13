@@ -591,3 +591,20 @@ async def test_shift_tab_no_leading_spaces_noop(workspace: Path):
         await pilot.pause()
 
         assert editor.editor.text == original_text
+
+
+# ── save_level visibility tests ───────────────────────────────────────────────
+
+
+async def test_footer_indent_modal_no_save_level():
+    """action_change_indent (footer path) → modal has no #save_level widget."""
+    from textual_code.modals import ChangeIndentModalScreen
+
+    app = _IndentTestApp()
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_change_indent()
+        await pilot.pause()
+
+        assert isinstance(app.screen, ChangeIndentModalScreen)
+        assert len(app.screen.query("#save_level")) == 0

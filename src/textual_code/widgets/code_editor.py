@@ -1,4 +1,5 @@
 import contextlib
+import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -38,6 +39,53 @@ from textual_code.modals import (
 )
 from textual_code.widgets.find_replace_bar import FindReplaceBar
 from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+log = logging.getLogger(__name__)
+
+# Map custom language name -> highlight query string (loaded at import time)
+_CUSTOM_LANGUAGE_QUERIES: dict[str, str] = {}
+# Map custom language name -> tree-sitter Language object (loaded at import time)
+_CUSTOM_LANGUAGES: dict[str, object] = {}
+
+_CUSTOM_GRAMMAR_NAMES = [
+    "dockerfile",
+    "typescript",
+    "tsx",
+    "c",
+    "cpp",
+    "ruby",
+    "kotlin",
+    "lua",
+    "php",
+    "make",
+]
+
+_GRAMMARS_DIR = Path(__file__).parent.parent / "grammars"
+
+try:
+    from tree_sitter_language_pack import get_language as _get_ts_language
+
+    for _lang_name in _CUSTOM_GRAMMAR_NAMES:
+        try:
+            _scm_path = _GRAMMARS_DIR / f"{_lang_name}.scm"
+            _query = _scm_path.read_text(encoding="utf-8")
+            _lang_obj = _get_ts_language(_lang_name)
+            _CUSTOM_LANGUAGE_QUERIES[_lang_name] = _query
+            _CUSTOM_LANGUAGES[_lang_name] = _lang_obj
+        except Exception as _e:
+            log.warning("Failed to load custom language %s: %s", _lang_name, _e)
+except ImportError:
+    log.warning("tree-sitter-language-pack not available; custom languages disabled")
+
+
+def _apply_custom_languages(text_area: "MultiCursorTextArea") -> None:
+    """Register custom tree-sitter languages on the given TextArea instance."""
+    for lang_name, lang_obj in _CUSTOM_LANGUAGES.items():
+        query = _CUSTOM_LANGUAGE_QUERIES.get(lang_name, "")
+        try:
+            text_area.register_language(lang_name, lang_obj, query)
+        except Exception as e:
+            log.warning("Failed to register language %s: %s", lang_name, e)
 
 
 def _editorconfig_glob_to_pattern(glob: str) -> re.Pattern:
@@ -626,6 +674,22 @@ class CodeEditor(Static):
         "go": "go",
         "svg": "xml",
         "xhtml": "xml",
+        # custom languages via tree-sitter-language-pack
+        "dockerfile": "dockerfile",
+        "ts": "typescript",
+        "tsx": "tsx",
+        "c": "c",
+        "h": "c",
+        "cpp": "cpp",
+        "cc": "cpp",
+        "cxx": "cpp",
+        "hpp": "cpp",
+        "rb": "ruby",
+        "kt": "kotlin",
+        "kts": "kotlin",
+        "lua": "lua",
+        "php": "php",
+        "mk": "make",
     }
 
     # mapping of exact file names to language names (checked before extension)
@@ -633,6 +697,11 @@ class CodeEditor(Static):
         ".bashrc": "bash",
         ".bash_profile": "bash",
         ".bash_logout": "bash",
+        # custom languages via tree-sitter-language-pack
+        "Dockerfile": "dockerfile",
+        "Makefile": "make",
+        "makefile": "make",
+        "GNUmakefile": "make",
     }
 
     @dataclass
@@ -828,6 +897,8 @@ class CodeEditor(Static):
     def on_mount(self, event: Mount) -> None:
         # update the title of the editor
         self.update_title()
+        # register custom languages before detecting language from path
+        _apply_custom_languages(self.editor)
         # update the language of the editor
         self.load_language_from_path(self.path)
         # apply syntax highlighting theme
@@ -1403,7 +1474,10 @@ class CodeEditor(Static):
             self.indent_size = result.indent_size
 
         self.app.push_screen(
-            ChangeIndentModalScreen(self.indent_type, self.indent_size), do_change
+            ChangeIndentModalScreen(
+                self.indent_type, self.indent_size, show_save_level=False
+            ),
+            do_change,
         )
 
     def action_change_line_ending(self) -> None:
@@ -1418,7 +1492,9 @@ class CodeEditor(Static):
             self._notify_non_lf_if_needed()
 
         self.app.push_screen(
-            ChangeLineEndingModalScreen(current_line_ending=self.line_ending),
+            ChangeLineEndingModalScreen(
+                current_line_ending=self.line_ending, show_save_level=False
+            ),
             do_change,
         )
 
@@ -1433,7 +1509,9 @@ class CodeEditor(Static):
             self.encoding = result.encoding
 
         self.app.push_screen(
-            ChangeEncodingModalScreen(current_encoding=self.encoding),
+            ChangeEncodingModalScreen(
+                current_encoding=self.encoding, show_save_level=False
+            ),
             do_change,
         )
 

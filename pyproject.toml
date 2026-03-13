@@ -22,6 +22,7 @@ requires-python = ">=3.12"
 dependencies = [
     "charset-normalizer>=3.0.0",
     "textual[syntax]>=1.0.0",
+    "tree-sitter-language-pack>=0.13.0",
     "typer>=0.15.1",
 ]
 
@@ -35,6 +36,9 @@ textual-code = "textual_code:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+include = ["src/textual_code/grammars/*.scm"]
 
 [dependency-groups]
 dev = [

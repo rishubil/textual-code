@@ -391,13 +391,15 @@ class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
         self,
         current_indent_type: str = "spaces",
         current_indent_size: int = 4,
+        show_save_level: bool = True,
     ) -> None:
         super().__init__()
         self._current_indent_type = current_indent_type
         self._current_indent_size = current_indent_size
+        self._show_save_level = show_save_level
 
     def compose(self) -> ComposeResult:
-        yield Grid(
+        children = [
             Label("Change Indentation", id="title"),
             Select(
                 options=[("Spaces", "spaces"), ("Tabs", "tabs")],
@@ -409,18 +411,27 @@ class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
                 placeholder="e.g. 4",
                 id="indent_size",
             ),
-            Select(
-                options=[
-                    ("User (~/.config)", "user"),
-                    ("Project (.textual-code.toml)", "project"),
-                ],
-                value="user",
-                id="save_level",
-            ),
+        ]
+        if self._show_save_level:
+            children.append(
+                Select(
+                    options=[
+                        ("User (~/.config)", "user"),
+                        ("Project (.textual-code.toml)", "project"),
+                    ],
+                    value="user",
+                    id="save_level",
+                )
+            )
+        children += [
             Button("Apply", variant="primary", id="apply"),
             Button("Cancel", variant="default", id="cancel"),
-            id="dialog",
-        )
+        ]
+        yield Grid(*children, id="dialog")
+
+    def on_mount(self) -> None:
+        if not self._show_save_level:
+            self.add_class("no-save-level")
 
     @on(Button.Pressed, "#apply")
     def on_apply(self) -> None:
@@ -434,7 +445,12 @@ class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
             self.notify("Indent size must be greater than 0.", severity="error")
             return
         indent_type = str(self.query_one("#indent_type", Select).value)
-        save_level = str(self.query_one("#save_level", Select).value)
+        save_level_widgets = self.query("#save_level")
+        save_level = (
+            str(save_level_widgets.first(Select).value)
+            if save_level_widgets
+            else "user"
+        )
         self.dismiss(
             ChangeIndentModalResult(
                 is_cancelled=False,
@@ -472,12 +488,15 @@ class ChangeLineEndingModalScreen(ModalScreen[ChangeLineEndingModalResult]):
     Modal dialog for changing the line ending style.
     """
 
-    def __init__(self, current_line_ending: str = "lf") -> None:
+    def __init__(
+        self, current_line_ending: str = "lf", show_save_level: bool = True
+    ) -> None:
         super().__init__()
         self._current_line_ending = current_line_ending
+        self._show_save_level = show_save_level
 
     def compose(self) -> ComposeResult:
-        yield Grid(
+        children = [
             Label("Change Line Ending", id="title"),
             Select(
                 options=[
@@ -488,23 +507,37 @@ class ChangeLineEndingModalScreen(ModalScreen[ChangeLineEndingModalResult]):
                 value=self._current_line_ending,
                 id="line_ending",
             ),
-            Select(
-                options=[
-                    ("User (~/.config)", "user"),
-                    ("Project (.textual-code.toml)", "project"),
-                ],
-                value="user",
-                id="save_level",
-            ),
+        ]
+        if self._show_save_level:
+            children.append(
+                Select(
+                    options=[
+                        ("User (~/.config)", "user"),
+                        ("Project (.textual-code.toml)", "project"),
+                    ],
+                    value="user",
+                    id="save_level",
+                )
+            )
+        children += [
             Button("Apply", variant="primary", id="apply"),
             Button("Cancel", variant="default", id="cancel"),
-            id="dialog",
-        )
+        ]
+        yield Grid(*children, id="dialog")
+
+    def on_mount(self) -> None:
+        if not self._show_save_level:
+            self.add_class("no-save-level")
 
     @on(Button.Pressed, "#apply")
     def on_apply(self) -> None:
         value = str(self.query_one("#line_ending", Select).value)
-        save_level = str(self.query_one("#save_level", Select).value)
+        save_level_widgets = self.query("#save_level")
+        save_level = (
+            str(save_level_widgets.first(Select).value)
+            if save_level_widgets
+            else "user"
+        )
         self.dismiss(
             ChangeLineEndingModalResult(
                 is_cancelled=False, line_ending=value, save_level=save_level
@@ -695,12 +728,15 @@ class ChangeEncodingModalScreen(ModalScreen[ChangeEncodingModalResult]):
     Modal dialog for changing the file encoding.
     """
 
-    def __init__(self, current_encoding: str = "utf-8") -> None:
+    def __init__(
+        self, current_encoding: str = "utf-8", show_save_level: bool = True
+    ) -> None:
         super().__init__()
         self._current_encoding = current_encoding
+        self._show_save_level = show_save_level
 
     def compose(self) -> ComposeResult:
-        yield Grid(
+        children = [
             Label("Change Encoding", id="title"),
             Select(
                 options=[
@@ -755,23 +791,37 @@ class ChangeEncodingModalScreen(ModalScreen[ChangeEncodingModalResult]):
                 value=self._current_encoding,
                 id="encoding",
             ),
-            Select(
-                options=[
-                    ("User (~/.config)", "user"),
-                    ("Project (.textual-code.toml)", "project"),
-                ],
-                value="user",
-                id="save_level",
-            ),
+        ]
+        if self._show_save_level:
+            children.append(
+                Select(
+                    options=[
+                        ("User (~/.config)", "user"),
+                        ("Project (.textual-code.toml)", "project"),
+                    ],
+                    value="user",
+                    id="save_level",
+                )
+            )
+        children += [
             Button("Apply", variant="primary", id="apply"),
             Button("Cancel", variant="default", id="cancel"),
-            id="dialog",
-        )
+        ]
+        yield Grid(*children, id="dialog")
+
+    def on_mount(self) -> None:
+        if not self._show_save_level:
+            self.add_class("no-save-level")
 
     @on(Button.Pressed, "#apply")
     def on_apply(self) -> None:
         value = str(self.query_one("#encoding", Select).value)
-        save_level = str(self.query_one("#save_level", Select).value)
+        save_level_widgets = self.query("#save_level")
+        save_level = (
+            str(save_level_widgets.first(Select).value)
+            if save_level_widgets
+            else "user"
+        )
         self.dismiss(
             ChangeEncodingModalResult(
                 is_cancelled=False, encoding=value, save_level=save_level
