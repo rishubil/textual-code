@@ -1513,7 +1513,10 @@ class CodeEditor(Static):
             return
 
         for m in matches[1:]:
-            self.editor.add_cursor(_text_offset_to_location(text, m.start()))
+            self.editor.add_cursor(
+                _text_offset_to_location(text, m.end()),
+                anchor=_text_offset_to_location(text, m.start()),
+            )
 
         self.notify(f"{len(matches)} occurrences selected")
 

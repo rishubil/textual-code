@@ -166,8 +166,9 @@ async def test_select_all_occurrences_multiple_matches(workspace: Path, occ_file
         # Primary selection should be at (0,0)-(0,3)
         assert editor.editor.selection.start == (0, 0)
         assert editor.editor.selection.end == (0, 3)
-        # Extra cursor at start of second "foo" on line 1
-        assert (1, 0) in editor.editor.extra_cursors
+        # Extra cursor at end of second "foo" on line 1 (anchor at start)
+        assert (1, 3) in editor.editor.extra_cursors
+        assert editor.editor.extra_anchors == [(1, 0)]
 
 
 async def test_select_all_occurrences_single_match(
@@ -304,7 +305,9 @@ async def test_select_all_occurrences_multiline(
 
         # "hello" appears twice (line 0 and line 1)
         assert len(editor.editor.extra_cursors) == 1
-        assert (1, 0) in editor.editor.extra_cursors
+        # Cursor at end of match, anchor at start
+        assert (1, 5) in editor.editor.extra_cursors
+        assert editor.editor.extra_anchors == [(1, 0)]
 
 
 async def test_select_all_occurrences_regex_special_chars(
@@ -347,9 +350,9 @@ async def test_select_all_occurrences_word_under_cursor(
         editor.action_select_all_occurrences()
         await pilot.pause()
 
-        # "hello" appears on lines 0 and 1 → 1 extra cursor
+        # "hello" appears on lines 0 and 1 → 1 extra cursor at end of match
         assert len(editor.editor.extra_cursors) == 1
-        assert (1, 0) in editor.editor.extra_cursors
+        assert (1, 5) in editor.editor.extra_cursors
 
 
 async def test_ctrl_shift_l_triggers_select_all(workspace: Path, occ_file: Path):
@@ -370,7 +373,7 @@ async def test_ctrl_shift_l_triggers_select_all(workspace: Path, occ_file: Path)
 
         # Both "foo" occurrences should be selected
         assert editor.editor.selection.start == (0, 0)
-        assert (1, 0) in editor.editor.extra_cursors
+        assert (1, 3) in editor.editor.extra_cursors
 
 
 async def test_select_all_occurrences_cmd_no_file(workspace: Path):

@@ -197,6 +197,7 @@ async def test_escape_clears_extra_cursors(workspace: Path, two_line_file: Path)
 
 
 async def test_movement_key_clears_extra_cursors(workspace: Path, two_line_file: Path):
+    """Movement key now moves all cursors (not clears). Extra cursor moved to (1,1)."""
     app = make_app(workspace, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -206,7 +207,9 @@ async def test_movement_key_clears_extra_cursors(workspace: Path, two_line_file:
         await pilot.press("right")
         await pilot.pause()
 
-        assert ta.extra_cursors == []
+        # Cursor moved to (1,1), not cleared
+        assert ta.extra_cursors != []
+        assert ta.extra_cursors[0] == (1, 1)
 
 
 # ── Integration: multi-cursor typing ─────────────────────────────────────────
@@ -901,3 +904,371 @@ async def test_clear_extra_cursors_clears_line_cache(
         # clear_extra_cursors() must immediately clear the cache (before next render)
         ta.clear_extra_cursors()
         assert len(ta._line_cache) == 0  # verified immediately, before next render
+
+
+# ── NEW: Movement moves all cursors ──────────────────────────────────────────
+
+
+async def test_arrow_key_moves_all_cursors(workspace: Path, two_line_file: Path):
+    """Right arrow with extra cursor: both cursors move right."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        ta.add_cursor((1, 0))
+        await pilot.pause()
+
+        await pilot.press("right")
+        await pilot.pause()
+
+        assert ta.cursor_location == (0, 1)
+        assert ta.extra_cursors != []
+        assert ta.extra_cursors[0] == (1, 1)
+
+
+async def test_home_moves_all_cursors(workspace: Path, two_line_file: Path):
+    """Home key moves all cursors to col 0."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right", "right", "right")
+        await pilot.pause()
+        ta.add_cursor((1, 3))
+        await pilot.pause()
+
+        await pilot.press("home")
+        await pilot.pause()
+
+        assert ta.cursor_location == (0, 0)
+        assert (1, 0) in ta.extra_cursors
+
+
+async def test_ctrl_end_moves_all_cursors(workspace: Path, two_line_file: Path):
+    """Ctrl+End moves all cursors to last line."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        ta.add_cursor((1, 0))
+        await pilot.pause()
+
+        await pilot.press("ctrl+end")
+        await pilot.pause()
+
+        lines = ta.text.split("\n")
+        last_row = len(lines) - 1
+        assert ta.cursor_location[0] == last_row
+        # Extra cursor deduplicated (same position) → empty
+        assert ta.extra_cursors == []
+
+
+# ── NEW: Shift movement creates selections ────────────────────────────────────
+
+
+async def test_shift_left_creates_extra_selection(workspace: Path, two_line_file: Path):
+    """Shift+Left with extra cursor: extra cursor gets anchor != cursor."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right", "right")
+        await pilot.pause()
+        ta.add_cursor((1, 2))
+        await pilot.pause()
+
+        await pilot.press("shift+left")
+        await pilot.pause()
+
+        anchors = ta.extra_anchors
+        assert len(anchors) == 1
+        assert anchors[0] == (1, 2)
+        assert ta.extra_cursors[0] == (1, 1)
+
+
+async def test_ctrl_shift_right_creates_word_selection(
+    workspace: Path, two_line_file: Path
+):
+    """Ctrl+Shift+Right on extra cursor creates a word-level selection."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        ta.add_cursor((1, 0))
+        await pilot.pause()
+
+        await pilot.press("ctrl+shift+right")
+        await pilot.pause()
+
+        anchors = ta.extra_anchors
+        assert len(anchors) == 1
+        assert anchors[0] == (1, 0)
+        assert ta.extra_cursors[0][1] > 0
+
+
+async def test_ctrl_shift_left_creates_word_selection(
+    workspace: Path, two_line_file: Path
+):
+    """Ctrl+Shift+Left on extra cursor creates a word-level selection leftward."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right", "right", "right", "right", "right")
+        await pilot.pause()
+        ta.add_cursor((1, 5))
+        await pilot.pause()
+
+        await pilot.press("ctrl+shift+left")
+        await pilot.pause()
+
+        anchors = ta.extra_anchors
+        assert len(anchors) == 1
+        assert anchors[0] == (1, 5)
+        assert ta.extra_cursors[0][1] < 5
+
+
+# ── NEW: add_cursor with anchor ───────────────────────────────────────────────
+
+
+async def test_add_cursor_with_anchor(workspace: Path, two_line_file: Path):
+    """add_cursor(loc, anchor=a) stores the given anchor."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        ta.add_cursor((1, 3), anchor=(1, 0))
+        assert ta.extra_cursors == [(1, 3)]
+        assert ta.extra_anchors == [(1, 0)]
+
+
+async def test_extra_anchor_default_equals_cursor(workspace: Path, two_line_file: Path):
+    """add_cursor(loc) without anchor → anchor == cursor (collapsed)."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        ta.add_cursor((1, 2))
+        assert ta.extra_anchors == [(1, 2)]
+
+
+# ── NEW: Editing with selections ──────────────────────────────────────────────
+
+
+async def test_typing_with_selection_replaces(workspace: Path, two_line_file: Path):
+    """Type 'X' with selection on extra cursor replaces the selection."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        # Primary at (0,0) collapsed, extra selects "Foo" on line 1
+        ta.add_cursor((1, 3), anchor=(1, 0))
+        await pilot.pause()
+
+        await pilot.press("X")
+        await pilot.pause()
+
+        lines = ta.text.split("\n")
+        assert lines[0].startswith("X")
+        assert lines[1].startswith("X")
+
+
+async def test_backspace_with_selection_deletes(workspace: Path, two_line_file: Path):
+    """Backspace with selection on extra cursor deletes the selection."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right")
+        await pilot.pause()
+        # Primary at (0,1) collapsed, extra selects "Foo" on line 1
+        ta.add_cursor((1, 3), anchor=(1, 0))
+        await pilot.pause()
+
+        await pilot.press("backspace")
+        await pilot.pause()
+
+        assert " bar" in ta.text
+
+
+async def test_typing_with_overlapping_selections(workspace: Path, two_line_file: Path):
+    """Overlapping selections deduped — text replaced once per region."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        ta = editor.editor
+        from textual.widgets.text_area import Selection
+
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
+        ta.add_cursor((0, 5), anchor=(0, 1))
+        await pilot.pause()
+
+        original_line = ta.text.split("\n")[0]
+
+        await pilot.press("Z")
+        await pilot.pause()
+
+        line0 = ta.text.split("\n")[0]
+        assert len(line0) < len(original_line)
+
+
+# ── NEW: Deduplication after movement ────────────────────────────────────────
+
+
+async def test_movement_deduplicates_cursors(workspace: Path, two_line_file: Path):
+    """Home key: two cursors on same row both land at col 0 → deduplicated."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right", "right")
+        await pilot.pause()
+        ta.add_cursor((0, 3))
+        await pilot.pause()
+
+        await pilot.press("home")
+        await pilot.pause()
+
+        assert ta.extra_cursors == []
+
+
+async def test_movement_primary_extra_collision(workspace: Path, two_line_file: Path):
+    """No extra cursor equals primary cursor after movement."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        await pilot.press("right")
+        await pilot.pause()
+        ta.add_cursor((0, 0))
+        await pilot.pause()
+
+        await pilot.press("right")
+        await pilot.pause()
+
+        primary = ta.cursor_location
+        for ec in ta.extra_cursors:
+            assert ec != primary
+
+
+# ── NEW: Unit tests for _move_location ───────────────────────────────────────
+
+
+def test_move_location_left():
+    from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+    lines = ["hello", "world"]
+    assert MultiCursorTextArea._move_location(lines, 0, 3, "left") == (0, 2)
+    assert MultiCursorTextArea._move_location(lines, 0, 0, "left") == (0, 0)
+    assert MultiCursorTextArea._move_location(lines, 1, 0, "left") == (0, 5)
+
+
+def test_move_location_right():
+    from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+    lines = ["hello", "world"]
+    assert MultiCursorTextArea._move_location(lines, 0, 3, "right") == (0, 4)
+    assert MultiCursorTextArea._move_location(lines, 0, 5, "right") == (1, 0)
+    assert MultiCursorTextArea._move_location(lines, 1, 5, "right") == (1, 5)
+
+
+def test_move_location_ctrl_left():
+    from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+    lines = ["hello world"]
+    result = MultiCursorTextArea._move_location(lines, 0, 8, "ctrl+left")
+    assert result == (0, 6)
+
+
+def test_move_location_ctrl_right():
+    from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+    lines = ["hello world"]
+    result = MultiCursorTextArea._move_location(lines, 0, 0, "ctrl+right")
+    assert result[1] > 0
+    assert result[0] == 0
+
+
+# ── NEW: Unit tests for module-level helpers ──────────────────────────────────
+
+
+def test_build_offsets():
+    from textual_code.widgets.multi_cursor_text_area import _build_offsets
+
+    lines = ["abc", "de", "f"]
+    offsets = _build_offsets(lines)
+    assert offsets[0] == 0
+    assert offsets[1] == 4
+    assert offsets[2] == 7
+
+
+def test_offset_to_loc():
+    from textual_code.widgets.multi_cursor_text_area import (
+        _build_offsets,
+        _offset_to_loc,
+    )
+
+    lines = ["abc", "de", "f"]
+    offsets = _build_offsets(lines)
+    assert _offset_to_loc(0, lines, offsets) == (0, 0)
+    assert _offset_to_loc(2, lines, offsets) == (0, 2)
+    assert _offset_to_loc(4, lines, offsets) == (1, 0)
+    assert _offset_to_loc(6, lines, offsets) == (1, 2)
+
+
+def test_loc_to_offset():
+    from textual_code.widgets.multi_cursor_text_area import (
+        _build_offsets,
+        _loc_to_offset,
+    )
+
+    lines = ["abc", "de", "f"]
+    offsets = _build_offsets(lines)
+    assert _loc_to_offset(lines, 0, 0, offsets) == 0
+    assert _loc_to_offset(lines, 0, 2, offsets) == 2
+    assert _loc_to_offset(lines, 1, 0, offsets) == 4
+    assert _loc_to_offset(lines, 1, 2, offsets) == 6
+
+
+# ── UPDATE: movement moves cursors, not clears ────────────────────────────────
+
+
+async def test_movement_key_moves_not_clears(workspace: Path, two_line_file: Path):
+    """Movement key now moves all cursors instead of clearing them."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        ta.add_cursor((1, 0))
+        await pilot.pause()
+
+        await pilot.press("right")
+        await pilot.pause()
+
+        assert ta.extra_cursors != []
+        assert ta.extra_cursors[0] == (1, 1)

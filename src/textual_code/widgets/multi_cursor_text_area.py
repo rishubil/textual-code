@@ -1,5 +1,6 @@
 """MultiCursorTextArea — TextArea subclass with multiple simultaneous cursors."""
 
+import re
 from collections import defaultdict
 
 from rich.text import Text
@@ -7,6 +8,36 @@ from textual import events
 from textual.binding import Binding
 from textual.message import Message
 from textual.widgets import TextArea
+
+# ── Module-level helpers ───────────────────────────────────────────────────────
+
+_WORD_PATTERN = re.compile(r"(?<=\W)(?=\w)|(?<=\w)(?=\W)")
+
+
+def _build_offsets(lines: list[str]) -> list[int]:
+    """Build prefix sum of line lengths (including newline separator)."""
+    result = [0]
+    for line in lines:
+        result.append(result[-1] + len(line) + 1)
+    return result
+
+
+def _loc_to_offset(lines: list[str], row: int, col: int, offsets: list[int]) -> int:
+    """Convert (row, col) to flat text offset using pre-built prefix sum."""
+    return offsets[row] + col
+
+
+def _offset_to_loc(
+    offset: int, lines: list[str], offsets: list[int]
+) -> tuple[int, int]:
+    """Convert flat text offset to (row, col) using pre-built prefix sum."""
+    for r in range(len(lines) - 1, -1, -1):
+        if offsets[r] <= offset:
+            return (r, offset - offsets[r])
+    return (0, offset)
+
+
+# ── Key classification helpers ─────────────────────────────────────────────────
 
 
 def _is_editing_key(event: events.Key) -> bool:
@@ -37,6 +68,10 @@ def _is_movement_key(event: events.Key) -> bool:
         "shift+right",
         "shift+home",
         "shift+end",
+        "ctrl+shift+left",
+        "ctrl+shift+right",
+        "ctrl+shift+home",
+        "ctrl+shift+end",
     )
 
 
@@ -47,6 +82,10 @@ class MultiCursorTextArea(TextArea):
     Textual's reactive system does not interfere (list mutation would not
     trigger a watch).  The widget posts a ``CursorsChanged`` message whenever
     the extra-cursor set changes.
+
+    Each extra cursor has a parallel anchor in ``_extra_anchors``.  When
+    anchor == cursor the cursor is collapsed (no selection); otherwise the
+    selection spans [min(anchor,cursor), max(anchor,cursor)].
     """
 
     BINDINGS = [
@@ -73,6 +112,8 @@ class MultiCursorTextArea(TextArea):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._extra_cursors: list[tuple[int, int]] = []
+        self._extra_anchors: list[tuple[int, int]] = []
+        self._cached_selection_ranges: dict[int, list[tuple[int, int | None]]] = {}
 
     # ── public API ────────────────────────────────────────────────────────────
 
@@ -81,14 +122,25 @@ class MultiCursorTextArea(TextArea):
         """A copy of the extra-cursor list (read-only view)."""
         return list(self._extra_cursors)
 
-    def add_cursor(self, location: tuple[int, int]) -> None:
-        """Add an extra cursor at *location*.
+    @property
+    def extra_anchors(self) -> list[tuple[int, int]]:
+        """A copy of the extra-anchor list (read-only view)."""
+        return list(self._extra_anchors)
 
+    def add_cursor(
+        self, location: tuple[int, int], anchor: tuple[int, int] | None = None
+    ) -> None:
+        """Add an extra cursor at *location* with optional *anchor*.
+
+        If *anchor* is None, the cursor is collapsed (anchor == location).
         No-op if *location* equals the primary cursor position or is already
         present in the extra-cursor list.
         """
+        anchor = anchor if anchor is not None else location
         if location != self.cursor_location and location not in self._extra_cursors:
             self._extra_cursors = self._extra_cursors + [location]
+            self._extra_anchors = self._extra_anchors + [anchor]
+            self._recompute_selection_ranges()
             self._line_cache.clear()
             self.refresh()
             self.post_message(self.CursorsChanged(self))
@@ -97,18 +149,37 @@ class MultiCursorTextArea(TextArea):
         """Remove all extra cursors."""
         if self._extra_cursors:
             self._extra_cursors = []
+            self._extra_anchors = []
+            self._cached_selection_ranges = {}
             self._line_cache.clear()
             self.refresh()
             self.post_message(self.CursorsChanged(self))
+
+    # ── selection range cache ──────────────────────────────────────────────────
+
+    def _recompute_selection_ranges(self) -> None:
+        """Pre-compute selection ranges per line for O(1) get_line() lookup."""
+        result: dict[int, list[tuple[int, int | None]]] = {}
+        for (row, col), anchor in zip(
+            self._extra_cursors, self._extra_anchors, strict=True
+        ):
+            if anchor == (row, col):
+                continue
+            sel_start = min(anchor, (row, col))
+            sel_end = max(anchor, (row, col))
+            s_row, s_col = sel_start
+            e_row, e_col = sel_end
+            for line_idx in range(s_row, e_row + 1):
+                start = s_col if line_idx == s_row else 0
+                end: int | None = e_col if line_idx == e_row else None
+                result.setdefault(line_idx, []).append((start, end))
+        self._cached_selection_ranges = result
 
     # ── indent / dedent ───────────────────────────────────────────────────────
 
     def action_indent_line(self) -> None:
         """VS Code style: add indent at start of selected lines, or at cursor."""
         from textual.widgets.text_area import Selection
-
-        if self._extra_cursors:
-            return  # on_key else branch will clear extra cursors
 
         indent = " " * self.indent_width
         sel = self.selection
@@ -133,9 +204,6 @@ class MultiCursorTextArea(TextArea):
     def action_dedent_line(self) -> None:
         """Remove up to tab_width leading spaces from each selected line."""
         from textual.widgets.text_area import Selection
-
-        if self._extra_cursors:
-            return  # on_key else branch will clear extra cursors
 
         n = self.indent_width
         sel = self.selection
@@ -169,13 +237,26 @@ class MultiCursorTextArea(TextArea):
     # ── rendering ─────────────────────────────────────────────────────────────
 
     def get_line(self, line_index: int) -> Text:
-        """Render extra cursors by stylising their column positions."""
+        """Render extra cursors and their selections."""
         line = super().get_line(line_index)
         if self._extra_cursors and self._theme:
             cursor_style = self._theme.cursor_style
+            selection_style = self._theme.selection_style
+
+            # Render selection ranges (pre-computed for O(1) lookup)
+            if selection_style:
+                for start_col, end_col in self._cached_selection_ranges.get(
+                    line_index, []
+                ):
+                    end = end_col if end_col is not None else len(line.plain)
+                    if start_col < end:
+                        line.stylize(selection_style, start_col, end)
+
+            # Render cursor positions
             for row, col in self._extra_cursors:
                 if row == line_index and 0 <= col <= len(line.plain):
                     line.stylize(cursor_style, col, col + 1)
+
         return line
 
     # ── copy / cut overrides ──────────────────────────────────────────────────
@@ -191,6 +272,147 @@ class MultiCursorTextArea(TextArea):
             line = lines[row] if row < len(lines) else ""
             self.app.copy_to_clipboard(line + "\n")
 
+    # ── cursor movement ────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _move_location(
+        lines: list[str],
+        row: int,
+        col: int,
+        base_key: str,
+        page_height: int = 20,
+    ) -> tuple[int, int]:
+        """Compute new (row, col) after applying *base_key* movement."""
+        last_row = max(0, len(lines) - 1)
+
+        if base_key == "left":
+            if col > 0:
+                return (row, col - 1)
+            if row > 0:
+                return (row - 1, len(lines[row - 1]))
+            return (row, col)
+
+        elif base_key == "right":
+            line_len = len(lines[row]) if row < len(lines) else 0
+            if col < line_len:
+                return (row, col + 1)
+            if row < last_row:
+                return (row + 1, 0)
+            return (row, col)
+
+        elif base_key == "up":
+            if row > 0:
+                return (
+                    row - 1,
+                    min(col, len(lines[row - 1]) if row - 1 < len(lines) else 0),
+                )
+            return (row, col)
+
+        elif base_key == "down":
+            if row < last_row:
+                return (
+                    row + 1,
+                    min(col, len(lines[row + 1]) if row + 1 < len(lines) else 0),
+                )
+            return (row, col)
+
+        elif base_key == "home":
+            return (row, 0)
+
+        elif base_key == "end":
+            return (row, len(lines[row]) if row < len(lines) else 0)
+
+        elif base_key == "ctrl+home":
+            return (0, 0)
+
+        elif base_key == "ctrl+end":
+            last_col = len(lines[last_row]) if last_row < len(lines) else 0
+            return (last_row, last_col)
+
+        elif base_key == "ctrl+left":
+            if row > 0 and col == 0:
+                return (row - 1, len(lines[row - 1]))
+            line = lines[row][:col] if row < len(lines) else ""
+            matches = list(_WORD_PATTERN.finditer(line.rstrip()))
+            return (row, matches[-1].start() if matches else 0)
+
+        elif base_key == "ctrl+right":
+            line = lines[row] if row < len(lines) else ""
+            if row < last_row and col == len(line):
+                return (row + 1, 0)
+            search = line[col:]
+            strip_offset = len(search) - len(search.lstrip())
+            search = search.lstrip()
+            matches = list(_WORD_PATTERN.finditer(search))
+            return (
+                row,
+                col
+                + (matches[0].start() + strip_offset if matches else len(line) - col),
+            )
+
+        elif base_key == "pageup":
+            new_row = max(0, row - page_height)
+            return (
+                new_row,
+                min(col, len(lines[new_row]) if new_row < len(lines) else 0),
+            )
+
+        elif base_key == "pagedown":
+            new_row = min(last_row, row + page_height)
+            return (
+                new_row,
+                min(col, len(lines[new_row]) if new_row < len(lines) else 0),
+            )
+
+        return (row, col)
+
+    def _move_all_cursors(self, key: str) -> None:
+        """Move primary and all extra cursors according to *key*."""
+        from textual.widgets.text_area import Selection
+
+        is_shift = "shift+" in key
+        base_key = key.replace("shift+", "") if is_shift else key
+
+        lines = self.text.split("\n")
+        try:
+            page_height = max(1, self.scrollable_content_region.height)
+        except Exception:
+            page_height = 20
+
+        # Move primary cursor
+        primary = self.cursor_location
+        new_primary = self._move_location(lines, *primary, base_key, page_height)
+        if is_shift:
+            self.selection = Selection(self.selection.start, new_primary)
+        else:
+            self.selection = Selection(new_primary, new_primary)
+
+        # Move extra cursors
+        new_extras: list[tuple[int, int]] = []
+        new_anchors: list[tuple[int, int]] = []
+        for (row, col), anchor in zip(
+            self._extra_cursors, self._extra_anchors, strict=True
+        ):
+            new_pos = self._move_location(lines, row, col, base_key, page_height)
+            new_extras.append(new_pos)
+            new_anchors.append(anchor if is_shift else new_pos)
+
+        # Deduplicate: remove extras that collide with primary or each other
+        deduped_extras: list[tuple[int, int]] = []
+        deduped_anchors: list[tuple[int, int]] = []
+        seen = {new_primary}
+        for pos, anc in zip(new_extras, new_anchors, strict=True):
+            if pos not in seen:
+                seen.add(pos)
+                deduped_extras.append(pos)
+                deduped_anchors.append(anc)
+
+        self._extra_cursors = deduped_extras
+        self._extra_anchors = deduped_anchors
+        self._recompute_selection_ranges()
+        self._line_cache.clear()
+        self.refresh()
+
     # ── key handling ──────────────────────────────────────────────────────────
 
     def on_key(self, event: events.Key) -> None:
@@ -199,15 +421,15 @@ class MultiCursorTextArea(TextArea):
             return  # let TextArea handle everything normally
 
         if event.key == "escape":
-            # Clear extra cursors; consume the key so TextArea does not act on it.
             event.prevent_default()
             event.stop()
             self.clear_extra_cursors()
             return
 
         if _is_movement_key(event):
-            # Clear extra cursors; let TextArea still perform the movement.
-            self.clear_extra_cursors()
+            event.prevent_default()
+            event.stop()
+            self._move_all_cursors(event.key)
             return
 
         if _is_editing_key(event) or event.key == "enter":
@@ -215,27 +437,33 @@ class MultiCursorTextArea(TextArea):
             event.prevent_default()
             event.stop()
             self._apply_to_all_cursors(event)
-        else:
-            # Complex keys (tab, …): clear extra cursors and delegate.
-            self.clear_extra_cursors()
+
+        # tab/shift+tab fall through to action_indent_line / action_dedent_line
 
     # ── multi-cursor editing ──────────────────────────────────────────────────
 
     def _apply_to_all_cursors(self, event: events.Key) -> None:
         """Apply a simple edit to the primary cursor and all extra cursors.
 
-        Edits are applied right-to-left within each row so that earlier
-        insertions / deletions do not shift the indices of later ones.
-
-        For cases that would cause row merges / splits (e.g. backspace at
-        column 0, delete at end-of-line), extra cursors are cleared and the
-        key is delegated to the base TextArea.
+        Delegates to ``_apply_with_selections`` when any cursor has an active
+        selection; otherwise uses the existing per-operation helpers.
         """
         lines = self.text.split("\n")
         primary = self.cursor_location
+        primary_anchor = self.selection.start
         extra = list(self._extra_cursors)
-        all_cursors: list[tuple[int, int]] = [primary] + extra
+        extra_anchors = list(self._extra_anchors)
 
+        has_selections = (primary_anchor != primary) or any(
+            a != c for a, c in zip(extra_anchors, extra, strict=True)
+        )
+        if has_selections:
+            self._apply_with_selections(
+                event, primary, primary_anchor, extra, extra_anchors
+            )
+            return
+
+        all_cursors: list[tuple[int, int]] = [primary] + extra
         key = event.key
         char = event.character
 
@@ -269,6 +497,116 @@ class MultiCursorTextArea(TextArea):
             else:
                 self._do_delete(lines, all_cursors, primary, extra)
 
+    def _apply_with_selections(
+        self,
+        event: events.Key,
+        primary: tuple[int, int],
+        primary_anchor: tuple[int, int],
+        extra: list[tuple[int, int]],
+        extra_anchors: list[tuple[int, int]],
+    ) -> None:
+        """Replace each selection (or collapsed cursor) with the typed character."""
+        from textual.widgets.text_area import Selection
+
+        key = event.key
+        char = event.character
+
+        if char is not None and char.isprintable():
+            replacement = char
+        elif key == "enter":
+            replacement = "\n"
+        elif key in ("backspace", "delete"):
+            replacement = ""
+        else:
+            self.clear_extra_cursors()
+            return
+
+        text = self.text
+        lines = text.split("\n")
+        offsets = _build_offsets(lines)
+
+        def to_off(row: int, col: int) -> int:
+            return offsets[row] + col
+
+        all_cursors_and_anchors = [(primary_anchor, primary)] + list(
+            zip(extra_anchors, extra, strict=True)
+        )
+
+        ops: list[list[int]] = []
+        for anchor, cursor in all_cursors_and_anchors:
+            a_off = to_off(*anchor)
+            c_off = to_off(*cursor)
+            start_off = min(a_off, c_off)
+            end_off = max(a_off, c_off)
+            # For collapsed cursors, adjust for backspace/delete
+            if start_off == end_off:
+                if key == "backspace" and start_off > 0:
+                    start_off -= 1
+                elif key == "delete" and end_off < len(text):
+                    end_off += 1
+            ops.append([start_off, end_off])
+
+        # Track primary's start offset before sorting
+        p_a_off = to_off(*primary_anchor)
+        p_c_off = to_off(*primary)
+        primary_start = min(p_a_off, p_c_off)
+        if primary_anchor == primary and key == "backspace" and primary_start > 0:
+            primary_start -= 1
+
+        # Sort and deduplicate overlapping ranges
+        ops.sort()
+        deduped: list[list[int]] = []
+        for op in ops:
+            if deduped and op[0] < deduped[-1][1]:
+                deduped[-1][1] = max(deduped[-1][1], op[1])
+            else:
+                deduped.append(list(op))
+
+        # Build new text + track new cursor offsets
+        parts: list[str] = []
+        prev = 0
+        new_cursor_offsets: list[int] = []
+        accumulated = 0
+        repl_len = len(replacement)
+        for s, e in deduped:
+            parts.append(text[prev:s])
+            new_cursor_offsets.append(accumulated + (s - prev) + repl_len)
+            accumulated += (s - prev) + repl_len
+            parts.append(replacement)
+            prev = e
+        parts.append(text[prev:])
+        new_text = "".join(parts)
+
+        self.replace(new_text, self.document.start, self.document.end)
+
+        new_lines = new_text.split("\n")
+        new_offsets = _build_offsets(new_lines)
+        new_locs = [
+            _offset_to_loc(off, new_lines, new_offsets) for off in new_cursor_offsets
+        ]
+
+        if not new_locs:
+            return
+
+        # Find which deduped range corresponds to primary
+        primary_idx = 0
+        for i, (s, e) in enumerate(deduped):
+            if s <= primary_start <= e:
+                primary_idx = i
+                break
+
+        new_primary = (
+            new_locs[primary_idx] if primary_idx < len(new_locs) else new_locs[0]
+        )
+        self.selection = Selection(new_primary, new_primary)
+        self._extra_cursors = [
+            loc for i, loc in enumerate(new_locs) if i != primary_idx
+        ]
+        self._extra_anchors = list(self._extra_cursors)
+        self._recompute_selection_ranges()
+        self._line_cache.clear()
+        self.refresh()
+
     # ── per-operation helpers ─────────────────────────────────────────────────
 
     def _do_enter(
@@ -277,15 +615,7 @@ class MultiCursorTextArea(TextArea):
         primary: tuple[int, int],
         extra: list[tuple[int, int]],
     ) -> None:
-        """Insert a newline at every cursor position.
-
-        Cursors are processed top-to-bottom, left-to-right.  A running
-        ``row_offset`` tracks how many rows have been added so far so that
-        indices into the (now-mutated) document stay correct.  Within a single
-        original row, ``accumulated_col_shift`` tracks how much the column of
-        each predecessor has consumed (text to the left of us was moved to the
-        new line above, so our effective column shrinks by that amount).
-        """
+        """Insert a newline at every cursor position."""
         sorted_cursors = sorted(all_cursors)
         new_positions: dict[tuple[int, int], tuple[int, int]] = {}
         last_orig_row = -1
@@ -306,6 +636,8 @@ class MultiCursorTextArea(TextArea):
 
         self.cursor_location = new_positions[primary]
         self._extra_cursors = [new_positions[ec] for ec in extra]
+        self._extra_anchors = list(self._extra_cursors)
+        self._recompute_selection_ranges()
         self.refresh()
 
     def _do_backspace_line_merge(
@@ -314,12 +646,7 @@ class MultiCursorTextArea(TextArea):
         primary: tuple[int, int],
         extra: list[tuple[int, int]],
     ) -> None:
-        """Merge each cursor's line with the line above (backspace at col 0).
-
-        All cursors must be at column 0.  Cursors on row 0 are left in place.
-        Each merge removes one row, so ``actual_row = row - i`` where ``i`` is
-        the number of merges already performed above this cursor.
-        """
+        """Merge each cursor's line with the line above (backspace at col 0)."""
         sorted_cursors = sorted(all_cursors)
         new_positions: dict[tuple[int, int], tuple[int, int]] = {}
 
@@ -336,6 +663,8 @@ class MultiCursorTextArea(TextArea):
 
         self.cursor_location = new_positions[primary]
         self._extra_cursors = [new_positions[ec] for ec in extra]
+        self._extra_anchors = list(self._extra_cursors)
+        self._recompute_selection_ranges()
         self.refresh()
 
     def _do_delete_line_merge(
@@ -344,12 +673,7 @@ class MultiCursorTextArea(TextArea):
         primary: tuple[int, int],
         extra: list[tuple[int, int]],
     ) -> None:
-        """Merge each cursor's line with the line below (delete at EOL).
-
-        All cursors must be at end-of-line.  Cursors on the last line are
-        left in place (no next line to merge).  Each merge removes one row,
-        so ``actual_row = row - i``.
-        """
+        """Merge each cursor's line with the line below (delete at EOL)."""
         sorted_cursors = sorted(all_cursors)
         new_positions: dict[tuple[int, int], tuple[int, int]] = {}
 
@@ -369,6 +693,8 @@ class MultiCursorTextArea(TextArea):
 
         self.cursor_location = new_positions[primary]
         self._extra_cursors = [new_positions[ec] for ec in extra]
+        self._extra_anchors = list(self._extra_cursors)
+        self._recompute_selection_ranges()
         self.refresh()
 
     def _do_insert(
@@ -398,6 +724,8 @@ class MultiCursorTextArea(TextArea):
         new_pos = self._new_positions(all_cursors, "insert")
         self.cursor_location = new_pos[primary]
         self._extra_cursors = [new_pos[ec] for ec in extra]
+        self._extra_anchors = list(self._extra_cursors)
+        self._recompute_selection_ranges()
         self.refresh()
 
     def _do_backspace(
@@ -423,6 +751,8 @@ class MultiCursorTextArea(TextArea):
         new_pos = self._new_positions(all_cursors, "backspace")
         self.cursor_location = new_pos[primary]
         self._extra_cursors = [new_pos[ec] for ec in extra]
+        self._extra_anchors = list(self._extra_cursors)
+        self._recompute_selection_ranges()
         self.refresh()
 
     def _do_delete(
@@ -448,6 +778,8 @@ class MultiCursorTextArea(TextArea):
         new_pos = self._new_positions(all_cursors, "delete")
         self.cursor_location = new_pos[primary]
         self._extra_cursors = [new_pos[ec] for ec in extra]
+        self._extra_anchors = list(self._extra_cursors)
+        self._recompute_selection_ranges()
         self.refresh()
 
     # ── position maths ────────────────────────────────────────────────────────
@@ -457,25 +789,15 @@ class MultiCursorTextArea(TextArea):
         all_cursors: list[tuple[int, int]],
         op: str,
     ) -> dict[tuple[int, int], tuple[int, int]]:
-        """Compute the new (row, col) for every cursor after *op*.
-
-        Each cursor's column shift depends on how many *other* cursors on the
-        same row have a smaller column index (they edit to the left of it,
-        shifting its position further).
-
-        *op* is one of ``"insert"``, ``"backspace"``, or ``"delete"``.
-        """
+        """Compute the new (row, col) for every cursor after *op*."""
         result: dict[tuple[int, int], tuple[int, int]] = {}
         for row, col in all_cursors:
             num_smaller = sum(1 for r, c in all_cursors if r == row and c < col)
             if op == "insert":
-                # +1 own insert; +num_smaller for inserts to the left
                 new_col = col + 1 + num_smaller
             elif op == "backspace":
-                # -1 own delete; -num_smaller for deletes to the left
                 new_col = col - 1 - num_smaller
             elif op == "delete":
-                # cursor stays but shifts left for each delete to the left
                 new_col = col - num_smaller
             else:
                 new_col = col

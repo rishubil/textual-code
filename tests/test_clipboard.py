@@ -117,8 +117,8 @@ async def test_ctrl_x_no_selection_cuts_current_line(workspace: Path):
 # ── multi-cursor: ctrl+c clears extra cursors ─────────────────────────────────
 
 
-async def test_ctrl_c_with_multiple_cursors_clears_extra_cursors(workspace: Path):
-    """Ctrl+C while multi-cursor is active clears extra cursors."""
+async def test_ctrl_c_with_multiple_cursors_preserves_extra_cursors(workspace: Path):
+    """Ctrl+C while multi-cursor is active preserves extra cursors."""
     f = await _open_file(workspace, "line1\nline2\nline3\n")
     app = make_app(workspace, open_file=f)
     async with app.run_test() as pilot:
@@ -131,5 +131,5 @@ async def test_ctrl_c_with_multiple_cursors_clears_extra_cursors(workspace: Path
         assert len(ta.extra_cursors) == 2
         await pilot.press("ctrl+c")
         await pilot.pause()
-        # Extra cursors are cleared (multi-cursor copy is not supported)
-        assert ta.extra_cursors == []
+        # Extra cursors are preserved (copy does not clear multi-cursor state)
+        assert len(ta.extra_cursors) == 2
