@@ -37,6 +37,9 @@ textual-code = "textual_code:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+dev-mode-dirs = ["src"]
+
 [tool.hatch.build.targets.wheel]
 include = ["src/textual_code/grammars/*.scm"]
 
