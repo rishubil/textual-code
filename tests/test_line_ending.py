@@ -11,6 +11,7 @@ from textual.app import App, ComposeResult
 
 from textual_code.widgets.code_editor import (
     CodeEditor,
+    CodeEditorFooter,
     _convert_line_ending,
     _detect_line_ending,
 )
@@ -85,6 +86,17 @@ class _LineEndingTestApp(App):
     def compose(self) -> ComposeResult:
         pane_id = CodeEditor.generate_pane_id()
         yield CodeEditor(pane_id=pane_id, path=self._path)
+        yield CodeEditorFooter()
+
+    async def on_mount(self) -> None:
+        footer = self.query_one(CodeEditorFooter)
+        footer.line_ending = self.query_one(CodeEditor).line_ending
+
+    def on_code_editor_footer_state_changed(
+        self, event: CodeEditor.FooterStateChanged
+    ) -> None:
+        footer = self.query_one(CodeEditorFooter)
+        footer.line_ending = event.code_editor.line_ending
 
     @property
     def code_editor(self) -> CodeEditor:

@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import make_app
+from textual_code.widgets.code_editor import CodeEditorFooter
 from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -297,11 +298,10 @@ async def test_footer_shows_cursor_count_in_multicursor_mode(
     app = make_app(workspace, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        editor = app.main_view.get_active_code_editor()
-        ta = editor.editor
+        ta = app.main_view.get_active_code_editor().editor
 
         # Single cursor: no bracket suffix
-        cursor_btn = editor.footer.cursor_button
+        cursor_btn = app.query_one(CodeEditorFooter).cursor_button
         assert "[" not in str(cursor_btn.label)
 
         ta.add_cursor((1, 0))
@@ -317,17 +317,16 @@ async def test_footer_hides_cursor_count_after_escape(
     app = make_app(workspace, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        editor = app.main_view.get_active_code_editor()
-        ta = editor.editor
+        ta = app.main_view.get_active_code_editor().editor
 
         ta.add_cursor((1, 0))
         await pilot.pause()
-        assert "[2]" in str(editor.footer.cursor_button.label)
+        assert "[2]" in str(app.query_one(CodeEditorFooter).cursor_button.label)
 
         await pilot.press("escape")
         await pilot.pause()
 
-        assert "[" not in str(editor.footer.cursor_button.label)
+        assert "[" not in str(app.query_one(CodeEditorFooter).cursor_button.label)
 
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────

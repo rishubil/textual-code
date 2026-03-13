@@ -21,6 +21,7 @@ from textual_code.modals import (
     SaveAsModalScreen,
     UnsavedChangeModalScreen,
 )
+from textual_code.widgets.code_editor import CodeEditorFooter
 
 # ── Language detection ────────────────────────────────────────────────────────
 
@@ -307,9 +308,7 @@ async def test_footer_shows_file_path(workspace: Path, sample_py_file: Path):
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        editor = app.main_view.get_active_code_editor()
-        assert editor is not None
-        path_label = editor.footer.path_view
+        path_label = app.query_one(CodeEditorFooter).path_view
         assert str(sample_py_file) in str(path_label.content)
 
 
@@ -317,9 +316,7 @@ async def test_footer_shows_language(workspace: Path, sample_py_file: Path):
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        editor = app.main_view.get_active_code_editor()
-        assert editor is not None
-        lang_button = editor.footer.language_button
+        lang_button = app.query_one(CodeEditorFooter).language_button
         assert "python" in str(lang_button.label)
 
 
@@ -328,9 +325,7 @@ async def test_footer_plain_for_untitled(workspace: Path):
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
         await pilot.pause()
-        editor = app.main_view.get_active_code_editor()
-        assert editor is not None
-        lang_button = editor.footer.language_button
+        lang_button = app.query_one(CodeEditorFooter).language_button
         assert "plain" in str(lang_button.label)
 
 
@@ -342,9 +337,7 @@ async def test_footer_shows_cursor_position_initially(workspace: Path):
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
         await pilot.pause()
-        editor = app.main_view.get_active_code_editor()
-        assert editor is not None
-        cursor_btn = editor.footer.cursor_button
+        cursor_btn = app.query_one(CodeEditorFooter).cursor_button
         assert "Ln 1, Col 1" in str(cursor_btn.label)
 
 
@@ -362,7 +355,7 @@ async def test_footer_cursor_position_updates_on_move(
         editor.editor.cursor_location = (0, 5)
         await pilot.pause()
 
-        cursor_btn = editor.footer.cursor_button
+        cursor_btn = app.query_one(CodeEditorFooter).cursor_button
         assert "Ln 1, Col 6" in str(cursor_btn.label)
 
 
@@ -375,7 +368,7 @@ async def test_footer_shows_ln1_col1_on_file_open(
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
-        assert "Ln 1, Col 1" in str(editor.footer.cursor_button.label)
+        assert "Ln 1, Col 1" in str(app.query_one(CodeEditorFooter).cursor_button.label)
 
 
 async def test_footer_cursor_second_line(workspace: Path, multiline_file: Path):
@@ -389,7 +382,7 @@ async def test_footer_cursor_second_line(workspace: Path, multiline_file: Path):
         editor.editor.cursor_location = (1, 0)
         await pilot.pause()
 
-        assert "Ln 2, Col 1" in str(editor.footer.cursor_button.label)
+        assert "Ln 2, Col 1" in str(app.query_one(CodeEditorFooter).cursor_button.label)
 
 
 async def test_footer_cursor_end_of_line(workspace: Path, sample_py_file: Path):
@@ -404,7 +397,7 @@ async def test_footer_cursor_end_of_line(workspace: Path, sample_py_file: Path):
         editor.editor.cursor_location = (0, 14)
         await pilot.pause()
 
-        assert "Col 15" in str(editor.footer.cursor_button.label)
+        assert "Col 15" in str(app.query_one(CodeEditorFooter).cursor_button.label)
 
 
 async def test_footer_cursor_updates_after_goto_line(
@@ -426,8 +419,9 @@ async def test_footer_cursor_updates_after_goto_line(
         await pilot.click("#goto")
         await pilot.pause()
 
-        assert "Ln 7" in str(editor.footer.cursor_button.label)
-        assert "Col 1" in str(editor.footer.cursor_button.label)
+        footer = app.query_one(CodeEditorFooter)
+        assert "Ln 7" in str(footer.cursor_button.label)
+        assert "Col 1" in str(footer.cursor_button.label)
 
 
 async def test_footer_path_updates_on_tab_switch(
@@ -442,7 +436,8 @@ async def test_footer_path_updates_on_tab_switch(
 
         json_editor = app.main_view.get_active_code_editor()
         assert json_editor is not None
-        assert str(sample_json_file) in str(json_editor.footer.path_view.content)
+        footer = app.query_one(CodeEditorFooter)
+        assert str(sample_json_file) in str(footer.path_view.content)
 
         # Switch back to py tab
         py_pane_id = app.main_view.pane_id_from_path(sample_py_file)
@@ -450,9 +445,7 @@ async def test_footer_path_updates_on_tab_switch(
         app.main_view.focus_pane(py_pane_id)
         await pilot.pause()
 
-        py_editor = app.main_view.get_active_code_editor()
-        assert py_editor is not None
-        assert str(sample_py_file) in str(py_editor.footer.path_view.content)
+        assert str(sample_py_file) in str(footer.path_view.content)
 
 
 # ── Goto Line ─────────────────────────────────────────────────────────────────
@@ -769,4 +762,4 @@ async def test_change_language_updates_footer(workspace: Path, sample_py_file: P
         await pilot.click("#apply")
         await pilot.pause()
 
-        assert "rust" in str(editor.footer.language_button.label)
+        assert "rust" in str(app.query_one(CodeEditorFooter).language_button.label)

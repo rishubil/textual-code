@@ -11,6 +11,7 @@ from textual.app import App, ComposeResult
 
 from textual_code.widgets.code_editor import (
     CodeEditor,
+    CodeEditorFooter,
     _detect_encoding,
 )
 
@@ -69,6 +70,23 @@ class _EncodingTestApp(App):
     def compose(self) -> ComposeResult:
         pane_id = CodeEditor.generate_pane_id()
         yield CodeEditor(pane_id=pane_id, path=self._path)
+        yield CodeEditorFooter()
+
+    async def on_mount(self) -> None:
+        editor = self.query_one(CodeEditor)
+        footer = self.query_one(CodeEditorFooter)
+        footer.encoding = editor.encoding
+
+    def on_code_editor_footer_state_changed(
+        self, event: CodeEditor.FooterStateChanged
+    ) -> None:
+        footer = self.query_one(CodeEditorFooter)
+        footer.encoding = event.code_editor.encoding
+
+    def on_button_pressed(self, event) -> None:
+        if event.button.id == "encoding_btn":
+            event.stop()
+            self.query_one(CodeEditor).action_change_encoding()
 
     @property
     def code_editor(self) -> CodeEditor:

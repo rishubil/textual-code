@@ -16,6 +16,7 @@ from textual.widgets import Button
 
 from tests.conftest import make_app
 from textual_code.modals import GotoLineModalScreen
+from textual_code.widgets.code_editor import CodeEditorFooter
 
 # ── Group A: Widget structure ──────────────────────────────────────────────────
 
@@ -26,9 +27,7 @@ async def test_footer_has_cursor_btn_not_label(workspace, multiline_file):
     app = make_app(workspace, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        editor = app.main_view.get_active_code_editor()
-        assert editor is not None
-        btn = editor.footer.query_one("#cursor_btn", Button)
+        btn = app.query_one(CodeEditorFooter).query_one("#cursor_btn", Button)
         assert btn is not None
 
 
@@ -38,9 +37,7 @@ async def test_cursor_btn_initial_label(workspace, multiline_file):
     app = make_app(workspace, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        editor = app.main_view.get_active_code_editor()
-        assert editor is not None
-        btn = editor.footer.cursor_button
+        btn = app.query_one(CodeEditorFooter).cursor_button
         assert "Ln 1, Col 1" in str(btn.label)
 
 
@@ -57,7 +54,7 @@ async def test_cursor_btn_updates_on_cursor_move(workspace, multiline_file):
         assert editor is not None
         editor.editor.cursor_location = (4, 2)
         await pilot.pause()
-        btn = editor.footer.cursor_button
+        btn = app.query_one(CodeEditorFooter).cursor_button
         assert "Ln 5, Col 3" in str(btn.label)
 
 
@@ -71,7 +68,7 @@ async def test_cursor_btn_label_is_one_based(workspace, multiline_file):
         assert editor is not None
         editor.editor.cursor_location = (0, 0)
         await pilot.pause()
-        btn = editor.footer.cursor_button
+        btn = app.query_one(CodeEditorFooter).cursor_button
         assert "Ln 1, Col 1" in str(btn.label)
 
 
@@ -137,7 +134,7 @@ async def test_cursor_btn_click_cancel_no_change(workspace, multiline_file):
         await pilot.pause()
         original_location = editor.editor.cursor_location
 
-        await pilot.click("#cursor_btn")
+        await pilot.click("CodeEditorFooter #cursor_btn")
         await pilot.pause()
         assert isinstance(app.screen, GotoLineModalScreen)
         await pilot.click("#cancel")
@@ -161,7 +158,7 @@ async def test_cursor_btn_col_10_label_visible(workspace):
         editor = app.main_view.get_active_code_editor()
         editor.editor.cursor_location = (0, 9)  # col 9 → "Ln 1, Col 10"
         await pilot.pause()
-        btn = editor.footer.cursor_button
+        btn = app.query_one(CodeEditorFooter).cursor_button
         assert str(btn.label) == "Ln 1, Col 10"
         # Button must be wide enough to show the full label without clipping
         assert btn.size.width >= 15  # 13 chars + 2 padding = 15

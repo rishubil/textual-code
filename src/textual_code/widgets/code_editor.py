@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from charset_normalizer import detect as _cn_detect
-from textual import on
+from textual import events, on
 from textual.app import ComposeResult
 from textual.events import Mount
 from textual.message import Message
@@ -417,6 +417,21 @@ class CodeEditorFooter(Static):
     It displays the information about the current file being edited.
     """
 
+    DEFAULT_CSS = """
+    CodeEditorFooter {
+        dock: bottom;
+        height: 1;
+        layout: grid;
+        grid-size: 6 1;
+        grid-columns: 1fr auto auto auto auto auto;
+    }
+    CodeEditorFooter Button {
+        height: 1;
+        border: none;
+        min-width: 0;
+    }
+    """
+
     # the path of the file
     path: reactive[Path | None] = reactive(None, init=False)
     # the language of the file
@@ -436,8 +451,8 @@ class CodeEditorFooter(Static):
 
     def __init__(
         self,
-        path: Path | None,
-        language: str | None,
+        path: Path | None = None,
+        language: str | None = None,
         line_ending: str = "lf",
         encoding: str = "utf-8",
         indent_type: str = "spaces",
@@ -447,12 +462,23 @@ class CodeEditorFooter(Static):
     ) -> None:
         super().__init__(*args, **kwargs)
 
-        self.set_reactive(CodeEditor.path, path)
-        self.set_reactive(CodeEditor.language, language)
-        self.set_reactive(CodeEditor.line_ending, line_ending)
-        self.set_reactive(CodeEditor.encoding, encoding)
-        self.set_reactive(CodeEditor.indent_type, indent_type)
-        self.set_reactive(CodeEditor.indent_size, indent_size)
+        self.set_reactive(CodeEditorFooter.path, path)
+        self.set_reactive(CodeEditorFooter.language, language)
+        self.set_reactive(CodeEditorFooter.line_ending, line_ending)
+        self.set_reactive(CodeEditorFooter.encoding, encoding)
+        self.set_reactive(CodeEditorFooter.indent_type, indent_type)
+        self.set_reactive(CodeEditorFooter.indent_size, indent_size)
+
+    def reset(self) -> None:
+        """Reset footer to empty/default state (no active editor)."""
+        self.path = None
+        self.language = None
+        self.cursor_location = (0, 0)
+        self.cursor_count = 1
+        self.line_ending = "lf"
+        self.encoding = "utf-8"
+        self.indent_type = "spaces"
+        self.indent_size = 4
 
     def compose(self) -> ComposeResult:
         yield Label(
@@ -683,6 +709,16 @@ class CodeEditor(Static):
         def control(self) -> "CodeEditor":
             return self.code_editor
 
+    @dataclass
+    class FooterStateChanged(Message):
+        """Posted when this editor's footer-relevant state changes."""
+
+        code_editor: "CodeEditor"
+
+        @property
+        def control(self) -> "CodeEditor":
+            return self.code_editor
+
     @classmethod
     def generate_pane_id(cls) -> str:
         """
@@ -783,14 +819,14 @@ class CodeEditor(Static):
             language=self.language,
             tab_behavior="focus",
         )
-        yield CodeEditorFooter(
-            path=self.path,
-            language=self.language,
-            line_ending=self.line_ending,
-            encoding=self.encoding,
-            indent_type=self.indent_type,
-            indent_size=self.indent_size,
-        )
+
+    def _notify_footer(self) -> None:
+        """Post FooterStateChanged so MainView can update the global footer."""
+        self.post_message(self.FooterStateChanged(self))
+
+    def on_descendant_focus(self, event: events.DescendantFocus) -> None:
+        if event.widget is self.editor:
+            self._notify_footer()
 
     @on(Mount)
     def on_mount(self, event: Mount) -> None:
@@ -876,28 +912,24 @@ class CodeEditor(Static):
         # update the language based on the new path
         self.load_language_from_path(path)
 
-        # update the path in the footer
-        self.footer.path = path
+        self._notify_footer()
 
     def watch_language(self, language: str | None):
         # update the language in the editor
         self.editor.language = language
-        # update the language in the footer
-        self.footer.language = language
+        self._notify_footer()
 
     def watch_line_ending(self, line_ending: str) -> None:
-        # update the line ending in the footer
-        self.footer.line_ending = line_ending
+        self._notify_footer()
 
     def watch_encoding(self, encoding: str) -> None:
-        # update the encoding in the footer
-        self.footer.encoding = encoding
+        self._notify_footer()
 
     def watch_indent_type(self, indent_type: str) -> None:
-        self.footer.indent_type = indent_type
+        self._notify_footer()
 
     def watch_indent_size(self, indent_size: int) -> None:
-        self.footer.indent_size = indent_size
+        self._notify_footer()
 
     def watch_word_wrap(self, value: bool) -> None:
         self.editor.soft_wrap = value
@@ -1188,11 +1220,6 @@ class CodeEditor(Static):
 
         self.app.push_screen(GotoLineModalScreen(), do_goto)
 
-    @on(Button.Pressed, "#cursor_btn")
-    def on_cursor_button_pressed(self, event: Button.Pressed) -> None:
-        event.stop()
-        self.action_goto_line()
-
     def action_find(self) -> None:
         """Show the inline find bar in find mode."""
         self._find_offset = None
@@ -1414,26 +1441,6 @@ class CodeEditor(Static):
             do_change,
         )
 
-    @on(Button.Pressed, "#line_ending_btn")
-    def on_line_ending_button_pressed(self, event: Button.Pressed) -> None:
-        event.stop()
-        self.action_change_line_ending()
-
-    @on(Button.Pressed, "#encoding_btn")
-    def on_encoding_button_pressed(self, event: Button.Pressed) -> None:
-        event.stop()
-        self.action_change_encoding()
-
-    @on(Button.Pressed, "#indent_btn")
-    def on_indent_button_pressed(self, event: Button.Pressed) -> None:
-        event.stop()
-        self.action_change_indent()
-
-    @on(Button.Pressed, "#language")
-    def on_language_button_pressed(self, event: Button.Pressed) -> None:
-        event.stop()
-        self.action_change_language()
-
     def action_focus(self) -> None:
         """
         Focus the editor.
@@ -1450,16 +1457,12 @@ class CodeEditor(Static):
     @on(TextArea.SelectionChanged)
     def on_selection_changed(self, event: TextArea.SelectionChanged):
         event.stop()
-
-        # update the cursor position in the footer
-        self.footer.cursor_location = event.selection.end
+        self._notify_footer()
 
     @on(MultiCursorTextArea.CursorsChanged)
     def on_cursors_changed(self, event: MultiCursorTextArea.CursorsChanged):
         event.stop()
-        # update the multi-cursor count shown in the footer
-        count = 1 + len(event.text_area.extra_cursors)
-        self.footer.cursor_count = count
+        self._notify_footer()
 
     def action_add_cursor_below(self) -> None:
         """Add an extra cursor one line below the primary cursor."""
@@ -1572,10 +1575,6 @@ class CodeEditor(Static):
     @property
     def editor(self) -> MultiCursorTextArea:
         return self.query_one(MultiCursorTextArea)
-
-    @property
-    def footer(self) -> CodeEditorFooter:
-        return self.query_one(CodeEditorFooter)
 
     @property
     def syntax_theme(self) -> str:

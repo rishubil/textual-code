@@ -4,9 +4,9 @@ from textual import on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
-from textual.widgets import Static, TabbedContent, TabPane
+from textual.widgets import Button, Static, TabbedContent, TabPane
 
-from textual_code.widgets.code_editor import CodeEditor
+from textual_code.widgets.code_editor import CodeEditor, CodeEditorFooter
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 from textual_code.widgets.markdown_preview import MarkdownPreviewPane
 from textual_code.widgets.split_resize_handle import SplitResizeHandle
@@ -93,6 +93,7 @@ class MainView(Static):
             yield SplitResizeHandle()
             yield DraggableTabbedContent(id="split_right", split_side="right")
             yield MarkdownPreviewPane(id="markdown_preview")
+        yield CodeEditorFooter()
 
     # ── Properties ────────────────────────────────────────────────────────────
 
@@ -315,6 +316,7 @@ class MainView(Static):
                 k: v for k, v in self._opened_files[split].items() if v != pane_id
             }
         self._auto_close_split_if_empty()
+        self._sync_footer_to_active_editor()
 
     def action_save(self):
         """Save file in the active code editor."""
@@ -525,6 +527,24 @@ class MainView(Static):
         tc.active = new_pane_id
         self._set_active_split(other_split)
 
+    # ── Footer helpers ────────────────────────────────────────────────────────
+
+    def _sync_footer_to_active_editor(self) -> None:
+        """Update the global CodeEditorFooter to reflect the active editor's state."""
+        footer = self.query_one(CodeEditorFooter)
+        editor = self.get_active_code_editor()
+        if editor is None:
+            footer.reset()
+            return
+        footer.path = editor.path
+        footer.language = editor.language
+        footer.line_ending = editor.line_ending
+        footer.encoding = editor.encoding
+        footer.indent_type = editor.indent_type
+        footer.indent_size = editor.indent_size
+        footer.cursor_location = editor.editor.selection.end
+        footer.cursor_count = 1 + len(editor.editor.extra_cursors)
+
     # ── Event handlers ────────────────────────────────────────────────────────
 
     @on(TabbedContent.TabActivated)
@@ -539,6 +559,7 @@ class MainView(Static):
                 await self._update_markdown_preview(editor)
         elif event.control.id == "split_right":
             self._active_split = "right"
+        self._sync_footer_to_active_editor()
 
     @on(DraggableTabbedContent.TabMovedToOtherSplit)
     async def on_tab_moved_to_other_split(
@@ -562,6 +583,42 @@ class MainView(Static):
         tc.active = new_pane_id
         self._set_active_split(dest_split)
         event.stop()
+
+    @on(CodeEditor.FooterStateChanged)
+    def on_footer_state_changed(self, event: CodeEditor.FooterStateChanged) -> None:
+        if event.code_editor is not self.get_active_code_editor():
+            return
+        self._sync_footer_to_active_editor()
+
+    @on(Button.Pressed, "CodeEditorFooter #cursor_btn")
+    def on_footer_cursor_btn(self, event: Button.Pressed) -> None:
+        event.stop()
+        if editor := self.get_active_code_editor():
+            editor.action_goto_line()
+
+    @on(Button.Pressed, "CodeEditorFooter #line_ending_btn")
+    def on_footer_line_ending_btn(self, event: Button.Pressed) -> None:
+        event.stop()
+        if editor := self.get_active_code_editor():
+            editor.action_change_line_ending()
+
+    @on(Button.Pressed, "CodeEditorFooter #encoding_btn")
+    def on_footer_encoding_btn(self, event: Button.Pressed) -> None:
+        event.stop()
+        if editor := self.get_active_code_editor():
+            editor.action_change_encoding()
+
+    @on(Button.Pressed, "CodeEditorFooter #indent_btn")
+    def on_footer_indent_btn(self, event: Button.Pressed) -> None:
+        event.stop()
+        if editor := self.get_active_code_editor():
+            editor.action_change_indent()
+
+    @on(Button.Pressed, "CodeEditorFooter #language")
+    def on_footer_language_btn(self, event: Button.Pressed) -> None:
+        event.stop()
+        if editor := self.get_active_code_editor():
+            editor.action_change_language()
 
     @on(CodeEditor.TextChanged)
     async def on_code_editor_text_changed(self, event: CodeEditor.TextChanged) -> None:

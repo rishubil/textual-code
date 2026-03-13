@@ -10,7 +10,11 @@ from pathlib import Path
 import pytest
 from textual.app import App, ComposeResult
 
-from textual_code.widgets.code_editor import CodeEditor, _convert_indentation
+from textual_code.widgets.code_editor import (
+    CodeEditor,
+    CodeEditorFooter,
+    _convert_indentation,
+)
 
 # ── _convert_indentation unit tests ──────────────────────────────────────────
 
@@ -95,10 +99,27 @@ class _IndentTestApp(App):
     def compose(self) -> ComposeResult:
         pane_id = CodeEditor.generate_pane_id()
         yield CodeEditor(pane_id=pane_id, path=None)
+        yield CodeEditorFooter()
 
     async def on_mount(self) -> None:
         editor = self.query_one(CodeEditor)
         editor.replace_editor_text(self._initial_text)
+        footer = self.query_one(CodeEditorFooter)
+        footer.indent_type = editor.indent_type
+        footer.indent_size = editor.indent_size
+
+    def on_code_editor_footer_state_changed(
+        self, event: CodeEditor.FooterStateChanged
+    ) -> None:
+        footer = self.query_one(CodeEditorFooter)
+        editor = event.code_editor
+        footer.indent_type = editor.indent_type
+        footer.indent_size = editor.indent_size
+
+    def on_button_pressed(self, event) -> None:
+        if event.button.id == "indent_btn":
+            event.stop()
+            self.query_one(CodeEditor).action_change_indent()
 
     @property
     def code_editor(self) -> CodeEditor:
