@@ -466,9 +466,9 @@ class TextualCode(App):
             self.action_set_syntax_theme,
         )
         yield SystemCommand(
-            "Toggle markdown preview",
-            "Show/hide the markdown preview panel (Ctrl+Shift+M)",
-            self.action_toggle_markdown_preview_cmd,
+            "Open markdown preview as tab",
+            "Open a live markdown preview in a new tab (Ctrl+Shift+M)",
+            self.action_open_markdown_preview_tab_cmd,
         )
         yield SystemCommand(
             "Move tab to other split",
@@ -523,9 +523,9 @@ class TextualCode(App):
                 if 0 <= row < line_count:
                     editor.editor.cursor_location = (row, 0)
 
-    def action_toggle_markdown_preview_cmd(self) -> None:
-        """Toggle markdown preview from command palette."""
-        self.call_next(self.main_view.action_toggle_markdown_preview)
+    def action_open_markdown_preview_tab_cmd(self) -> None:
+        """Open markdown preview as tab from command palette."""
+        self.call_next(self.main_view.action_open_markdown_preview_tab)
 
     def action_move_tab_to_other_split_cmd(self) -> None:
         """Move current tab to the other split via command palette."""

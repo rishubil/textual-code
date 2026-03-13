@@ -803,10 +803,3 @@ SplitContainer.split-vertical > DraggableTabbedContent {
     height: 1fr;
     width: 100%;
 }
-
-#markdown_preview {
-    width: 1fr;
-    display: none;
-    border-left: tall $primary-darken-2;
-    overflow-y: auto;
-}

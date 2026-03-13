@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import uuid4
 
 from textual import events, on
 from textual.app import ComposeResult
@@ -11,7 +12,10 @@ from textual.widgets import Button, Static, TabbedContent, TabPane
 from textual_code.utils import is_binary_file
 from textual_code.widgets.code_editor import CodeEditor, CodeEditorFooter
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
-from textual_code.widgets.markdown_preview import MarkdownPreviewPane
+from textual_code.widgets.markdown_preview import (
+    MARKDOWN_EXTENSIONS,
+    MarkdownPreviewPane,
+)
 from textual_code.widgets.split_container import SplitContainer, build_split_widgets
 from textual_code.widgets.split_resize_handle import SplitResizeHandle
 from textual_code.widgets.split_tree import (
@@ -81,8 +85,8 @@ class MainView(Static):
         ),
         Binding(
             "ctrl+shift+m",
-            "toggle_markdown_preview",
-            "Toggle preview",
+            "open_markdown_preview_tab",
+            "Open markdown preview tab",
             show=False,
         ),
         Binding(
@@ -102,12 +106,11 @@ class MainView(Static):
         self._active_leaf_id: str = initial_leaf.leaf_id
         self._pane_to_leaf: dict[str, str] = {}  # pane_id → leaf_id
 
-        # Whether the markdown preview panel is visible
-        self._preview_visible: bool = False
+        # Map from source file path to open preview pane_id
+        self._preview_pane_ids: dict[Path, str] = {}
 
     def compose(self) -> ComposeResult:
         yield build_split_widgets(self._split_root)
-        yield MarkdownPreviewPane(id="markdown_preview")
         yield CodeEditorFooter()
 
     # ── Compatibility properties ─────────────────────────────────────────────
@@ -523,10 +526,22 @@ class MainView(Static):
             tc.active = editor.pane_id
             editor.action_save_as(on_complete=lambda: self._save_next(remaining))
 
-    def action_close(self):
+    async def action_close(self) -> None:
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_close()
+        else:
+            tc = self.tabbed_content
+            pane_id = tc.active
+            if pane_id and self.is_opened_pane(pane_id):
+                self._preview_pane_ids = {
+                    path: pid
+                    for path, pid in self._preview_pane_ids.items()
+                    if pid != pane_id
+                }
+                await self.close_pane(pane_id)
+                await self._auto_close_split_if_empty()
+                self._sync_footer_to_active_editor()
 
     def action_goto_line(self) -> None:
         code_editor = self.get_active_code_editor()
@@ -885,9 +900,6 @@ class MainView(Static):
             leaf = find_leaf(self._split_root, event.control.id)
             if leaf is not None:
                 self._active_leaf_id = leaf.leaf_id
-                if self._preview_visible and leaf is all_leaves(self._split_root)[0]:
-                    editor = self._get_active_code_editor_in_leaf(leaf)
-                    await self._update_markdown_preview(editor)
         self._sync_footer_to_active_editor()
         editor = self.get_active_code_editor()
         if editor is not None and editor.path is not None:
@@ -962,14 +974,17 @@ class MainView(Static):
 
     @on(CodeEditor.TextChanged)
     async def on_code_editor_text_changed(self, event: CodeEditor.TextChanged) -> None:
-        if not self._preview_visible:
+        editor = event.code_editor
+        if editor.path is None or editor.path not in self._preview_pane_ids:
             return
-        leaves = all_leaves(self._split_root)
-        first_leaf_editor = (
-            self._get_active_code_editor_in_leaf(leaves[0]) if leaves else None
-        )
-        if first_leaf_editor is event.code_editor:
-            await self._update_markdown_preview(first_leaf_editor)
+        pane_id = self._preview_pane_ids[editor.path]
+        if not self.is_opened_pane(pane_id):
+            return
+        tc = self._tc_for_pane(pane_id)
+        if tc is None:
+            return
+        preview = tc.get_pane(pane_id).query_one(MarkdownPreviewPane)
+        await preview.update_for(editor.text, editor.path)
 
     def action_toggle_split_vertical(self) -> None:
         """Toggle between horizontal and vertical split orientation."""
@@ -983,22 +998,29 @@ class MainView(Static):
             else:
                 container._direction = "horizontal"
 
-    async def action_toggle_markdown_preview(self) -> None:
-        """Toggle the markdown preview panel."""
-        preview = self.query_one(MarkdownPreviewPane)
-        self._preview_visible = not self._preview_visible
-        preview.display = self._preview_visible
-        if self._preview_visible:
-            leaves = all_leaves(self._split_root)
-            editor = self._get_active_code_editor_in_leaf(leaves[0]) if leaves else None
-            await self._update_markdown_preview(editor)
+    async def action_open_markdown_preview_tab(self) -> None:
+        """Open a markdown preview tab for the active editor's file."""
+        editor = self.get_active_code_editor()
+        if editor is None or editor.path is None:
+            return
+        path = editor.path
+        if path.suffix.lower() not in MARKDOWN_EXTENSIONS:
+            return
 
-    async def _update_markdown_preview(self, editor: CodeEditor | None) -> None:
-        preview = self.query_one(MarkdownPreviewPane)
-        if editor is None:
-            await preview.update_for(text="", path=None)
-        else:
-            await preview.update_for(text=editor.text, path=editor.path)
+        # If preview already open, focus it
+        if path in self._preview_pane_ids:
+            pane_id = self._preview_pane_ids[path]
+            if self.is_opened_pane(pane_id):
+                self.focus_pane(pane_id)
+                return
+
+        pane_id = f"md-preview-{uuid4().hex}"
+        preview = MarkdownPreviewPane(source_path=path)
+        pane = TabPane(f"Preview: {path.name}", preview, id=pane_id)
+        await self.open_new_pane(pane_id, pane)
+        self.focus_pane(pane_id)
+        await preview.update_for(editor.text, path)
+        self._preview_pane_ids[path] = pane_id
 
     @on(CodeEditor.TitleChanged)
     def on_code_editor_title_changed(self, event: CodeEditor.TitleChanged):
@@ -1017,6 +1039,13 @@ class MainView(Static):
 
     @on(CodeEditor.Closed)
     async def on_code_editor_closed(self, event: CodeEditor.Closed):
+        path = event.control.path
+        # Close the linked preview pane if one exists
+        if path is not None and path in self._preview_pane_ids:
+            preview_pane_id = self._preview_pane_ids.pop(path)
+            if self.is_opened_pane(preview_pane_id):
+                await self.close_pane(preview_pane_id)
+                await self._auto_close_split_if_empty()
         await self.action_close_code_editor(event.control.pane_id)
 
     @on(CodeEditor.Deleted)

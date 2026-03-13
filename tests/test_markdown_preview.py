@@ -1,8 +1,5 @@
 """
-Tests for the Markdown Preview feature.
-
-Red-Green TDD: written before implementation so all tests initially fail,
-then pass once the feature is implemented.
+Tests for the Markdown Preview tab feature.
 """
 
 from pathlib import Path
@@ -12,7 +9,6 @@ import pytest
 from tests.conftest import make_app
 from textual_code.widgets.markdown_preview import (
     MARKDOWN_EXTENSIONS,
-    PLACEHOLDER,
     MarkdownPreviewPane,
 )
 
@@ -33,272 +29,226 @@ def py_file(workspace: Path) -> Path:
     return f
 
 
-# ── Group A — Initial state ───────────────────────────────────────────────────
+# ── 1. test_preview_tab_opens_for_markdown_file ───────────────────────────────
 
 
-async def test_preview_initially_hidden(workspace: Path, md_file: Path):
-    """MarkdownPreviewPane starts hidden (display=False)."""
+async def test_preview_tab_opens_for_markdown_file(workspace: Path, md_file: Path):
+    """Opening preview for a markdown file adds a new pane."""
     app = make_app(workspace, open_file=md_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        assert preview.display is False
-
-
-async def test_preview_visible_flag_initially_false(workspace: Path):
-    """_preview_visible is False on startup."""
-    app = make_app(workspace)
-    async with app.run_test() as pilot:
+        initial_count = len(app.main_view.opened_pane_ids)
+        await app.main_view.action_open_markdown_preview_tab()
         await pilot.pause()
-        assert app.main_view._preview_visible is False
+        assert len(app.main_view.opened_pane_ids) == initial_count + 1
 
 
-# ── Group B — Toggle ──────────────────────────────────────────────────────────
+# ── 2. test_preview_tab_not_opened_for_non_markdown ──────────────────────────
 
 
-async def test_toggle_preview_shows_panel(workspace: Path, md_file: Path):
-    """Toggling preview makes MarkdownPreviewPane visible."""
-    app = make_app(workspace, open_file=md_file)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        await app.main_view.action_toggle_markdown_preview()
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        assert preview.display is True
-
-
-async def test_toggle_preview_sets_flag(workspace: Path, md_file: Path):
-    """Toggling preview sets _preview_visible to True."""
-    app = make_app(workspace, open_file=md_file)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        await app.main_view.action_toggle_markdown_preview()
-        assert app.main_view._preview_visible is True
-
-
-async def test_toggle_preview_twice_hides_panel(workspace: Path, md_file: Path):
-    """Toggling preview twice hides the panel again."""
-    app = make_app(workspace, open_file=md_file)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        await app.main_view.action_toggle_markdown_preview()
-        await app.main_view.action_toggle_markdown_preview()
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        assert preview.display is False
-
-
-def test_ctrl_shift_m_binding_registered():
-    """BINDINGS contains the ctrl+shift+m binding."""
-    from textual_code.app import MainView
-
-    binding_keys = [b.key for b in MainView.BINDINGS]
-    assert "ctrl+shift+m" in binding_keys
-
-
-async def test_ctrl_shift_m_toggles_preview(workspace: Path, md_file: Path):
-    """Pressing Ctrl+Shift+M opens the preview panel."""
-    app = make_app(workspace, open_file=md_file)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.press("ctrl+shift+m")
-        await pilot.pause()
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        assert preview.display is True
-
-
-# ── Group C — Content rendering ───────────────────────────────────────────────
-
-
-async def test_preview_shows_markdown_content(workspace: Path, md_file: Path):
-    """After toggle, Markdown source matches the editor content."""
-    from textual.widgets import Markdown as MarkdownWidget
-
-    app = make_app(workspace, open_file=md_file)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        await app.main_view.action_toggle_markdown_preview()
-        await pilot.pause()
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        md_widget = preview.query_one(MarkdownWidget)
-        editor = app.main_view._get_active_code_editor_in_split("left")
-        assert md_widget._markdown == editor.text
-
-
-async def test_preview_placeholder_for_non_markdown(workspace: Path, py_file: Path):
-    """With a non-Markdown file open, preview shows the placeholder."""
-    from textual.widgets import Markdown as MarkdownWidget
-
+async def test_preview_tab_not_opened_for_non_markdown(workspace: Path, py_file: Path):
+    """Opening preview for a .py file is a no-op."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await app.main_view.action_toggle_markdown_preview()
+        initial_count = len(app.main_view.opened_pane_ids)
+        await app.main_view.action_open_markdown_preview_tab()
         await pilot.pause()
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        md_widget = preview.query_one(MarkdownWidget)
-        assert md_widget._markdown == PLACEHOLDER
+        assert len(app.main_view.opened_pane_ids) == initial_count
 
 
-async def test_preview_placeholder_when_no_file(workspace: Path):
-    """With no file open, preview shows the placeholder."""
-    from textual.widgets import Markdown as MarkdownWidget
+# ── 3. test_preview_tab_not_opened_without_open_file ─────────────────────────
 
+
+async def test_preview_tab_not_opened_without_open_file(workspace: Path):
+    """Opening preview with no editor open is a no-op."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await app.main_view.action_toggle_markdown_preview()
+        initial_count = len(app.main_view.opened_pane_ids)
+        await app.main_view.action_open_markdown_preview_tab()
         await pilot.pause()
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        md_widget = preview.query_one(MarkdownWidget)
-        assert md_widget._markdown == PLACEHOLDER
+        assert len(app.main_view.opened_pane_ids) == initial_count
 
 
-# ── Group D — Live updates ────────────────────────────────────────────────────
+# ── 4. test_preview_tab_switch_to_existing ────────────────────────────────────
 
 
-async def test_preview_updates_on_text_change(workspace: Path, md_file: Path):
-    """When editor text changes, preview auto-updates."""
+async def test_preview_tab_switch_to_existing(workspace: Path, md_file: Path):
+    """Calling open preview twice does not create a duplicate tab."""
+    app = make_app(workspace, open_file=md_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_markdown_preview_tab()
+        await pilot.pause()
+        count_after_first = len(app.main_view.opened_pane_ids)
+        await app.main_view.action_open_markdown_preview_tab()
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == count_after_first
+
+
+# ── 5. test_preview_tab_title ─────────────────────────────────────────────────
+
+
+async def test_preview_tab_title(workspace: Path, md_file: Path):
+    """Preview tab label includes 'Preview:' and the filename."""
+    app = make_app(workspace, open_file=md_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_markdown_preview_tab()
+        await pilot.pause()
+        pane_id = app.main_view._preview_pane_ids[md_file]
+        tc = app.main_view._tc_for_pane(pane_id)
+        assert tc is not None
+        tab = tc.get_tab(pane_id)
+        assert "Preview:" in str(tab.label)
+        assert md_file.name in str(tab.label)
+
+
+# ── 6. test_ctrl_shift_m_opens_tab ────────────────────────────────────────────
+
+
+async def test_ctrl_shift_m_opens_tab(workspace: Path, md_file: Path):
+    """Ctrl+Shift+M opens a markdown preview tab."""
+    app = make_app(workspace, open_file=md_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        initial_count = len(app.main_view.opened_pane_ids)
+        await pilot.press("ctrl+shift+m")
+        await pilot.pause()
+        assert len(app.main_view.opened_pane_ids) == initial_count + 1
+
+
+# ── 7. test_preview_tab_updates_on_text_change ────────────────────────────────
+
+
+async def test_preview_tab_updates_on_text_change(workspace: Path, md_file: Path):
+    """When editor text changes, the preview tab content updates."""
     from textual.widgets import Markdown as MarkdownWidget
 
     app = make_app(workspace, open_file=md_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await app.main_view.action_toggle_markdown_preview()
+        # Get editor reference before opening preview (focus shifts after)
+        editor = app.main_view._get_active_code_editor_in_split("left")
+        assert editor is not None
+
+        await app.main_view.action_open_markdown_preview_tab()
         await pilot.pause()
 
-        editor = app.main_view._get_active_code_editor_in_split("left")
+        pane_id = app.main_view._preview_pane_ids[md_file]
+        tc = app.main_view._tc_for_pane(pane_id)
+        assert tc is not None
+        preview = tc.get_pane(pane_id).query_one(MarkdownPreviewPane)
+        md_widget = preview.query_one(MarkdownWidget)
+
         new_text = "# Updated\n\nNew content\n"
         editor.text = new_text
-        # post_message is called synchronously via watch_text; pause to allow processing
         await pilot.pause()
         await pilot.pause()
 
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        md_widget = preview.query_one(MarkdownWidget)
         assert md_widget._markdown == new_text
 
 
-async def test_preview_no_update_when_hidden(workspace: Path, md_file: Path):
-    """When preview is hidden, text changes do not update the preview."""
-    from textual.widgets import Markdown as MarkdownWidget
+# ── 8. test_preview_no_update_when_tab_closed ────────────────────────────────
 
+
+async def test_preview_no_update_when_tab_closed(workspace: Path, md_file: Path):
+    """After the preview tab is closed, text changes do not cause errors."""
     app = make_app(workspace, open_file=md_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        # Open preview so it gets initial content
-        await app.main_view.action_toggle_markdown_preview()
-        await pilot.pause()
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        md_widget = preview.query_one(MarkdownWidget)
-        initial_source = md_widget._markdown
-
-        # Close preview
-        await app.main_view.action_toggle_markdown_preview()
+        await app.main_view.action_open_markdown_preview_tab()
         await pilot.pause()
 
-        # Now change editor text
+        pane_id = app.main_view._preview_pane_ids.get(md_file)
+        assert pane_id is not None
+
+        # Close the preview tab manually
+        await app.main_view.close_pane(pane_id)
+        app.main_view._preview_pane_ids.pop(md_file, None)
+        await pilot.pause()
+
+        # Text change should not raise
         editor = app.main_view._get_active_code_editor_in_split("left")
-        editor.text = "# Changed while hidden\n"
+        editor.text = "# Changed\n"
         await pilot.pause()
         await pilot.pause()
-
-        # Source should not have changed
-        assert md_widget._markdown == initial_source
+        # No exception means pass
 
 
-async def test_preview_updates_on_tab_change(workspace: Path, md_file: Path):
-    """Switching tabs refreshes the preview to the new tab's content."""
-    from textual.widgets import Markdown as MarkdownWidget
+# ── 9. test_preview_tab_closes_with_source ────────────────────────────────────
 
-    md_file2 = workspace / "other.md"
-    md_file2.write_text("## Other\n\nDifferent content\n")
 
+async def test_preview_tab_closes_with_source(workspace: Path, md_file: Path):
+    """Closing the source editor also closes the preview tab."""
     app = make_app(workspace, open_file=md_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        # Open second file in left split
-        await app.main_view.action_open_code_editor(path=md_file2, focus=True)
+        # Capture source editor reference before preview tab steals focus
+        editor = app.main_view._get_active_code_editor_in_split("left")
+        assert editor is not None
+
+        await app.main_view.action_open_markdown_preview_tab()
         await pilot.pause()
 
-        # Open preview (tracks newly focused tab)
-        await app.main_view.action_toggle_markdown_preview()
+        preview_pane_id = app.main_view._preview_pane_ids.get(md_file)
+        assert preview_pane_id is not None
+        assert app.main_view.is_opened_pane(preview_pane_id)
+
+        # Close via CodeEditor.action_close() to trigger on_code_editor_closed
+        editor.action_close()
+        await pilot.pause()
         await pilot.pause()
 
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        md_widget = preview.query_one(MarkdownWidget)
-        assert "other.md" in str(md_file2)
-        # Preview should show other.md content
-        assert md_widget._markdown == md_file2.read_text()
+        assert not app.main_view.is_opened_pane(preview_pane_id)
+        assert md_file not in app.main_view._preview_pane_ids
 
 
-# ── Group E — Split view compatibility ───────────────────────────────────────
+# ── 10. test_ctrl_w_closes_preview_tab ───────────────────────────────────────
 
 
-async def test_preview_and_split_right_coexist(workspace: Path, md_file: Path):
-    """Both split_right and markdown_preview can be displayed at the same time."""
+async def test_ctrl_w_closes_preview_tab(workspace: Path, md_file: Path):
+    """Ctrl+W closes a focused preview tab."""
+    app = make_app(workspace, open_file=md_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_markdown_preview_tab()
+        await pilot.pause()
+
+        preview_pane_id = app.main_view._preview_pane_ids.get(md_file)
+        assert preview_pane_id is not None
+        assert app.main_view.is_opened_pane(preview_pane_id)
+
+        # Focus the preview tab then close via action_close
+        app.main_view.focus_pane(preview_pane_id)
+        await pilot.pause()
+        await app.main_view.action_close()
+        await pilot.pause()
+
+        assert not app.main_view.is_opened_pane(preview_pane_id)
+
+
+# ── 11. test_preview_tab_and_split_coexist ────────────────────────────────────
+
+
+async def test_preview_tab_and_split_coexist(workspace: Path, md_file: Path):
+    """Preview tab works correctly alongside a split view."""
     app = make_app(workspace, open_file=md_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
-        await app.main_view.action_toggle_markdown_preview()
+
+        # Go back to left split and open preview
+        app.main_view.action_focus_left_split()
+        await pilot.pause()
+        await app.main_view.action_open_markdown_preview_tab()
         await pilot.pause()
 
-        right_tc = app.main_view.right_tabbed_content
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        assert right_tc.display is True
-        assert preview.display is True
-
-
-async def test_preview_tracks_left_split_editor(workspace: Path, md_file: Path):
-    """Editing in right split does NOT change what preview shows (tracks left)."""
-    from textual.widgets import Markdown as MarkdownWidget
-
-    py_file = workspace / "right.py"
-    py_file.write_text("x = 1\n")
-
-    app = make_app(workspace, open_file=md_file)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-
-        # Open preview showing left editor content
-        await app.main_view.action_toggle_markdown_preview()
-        await pilot.pause()
-
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        md_widget = preview.query_one(MarkdownWidget)
-        left_content = md_widget._markdown
-
-        # Open split and put py file in right
-        await app.main_view.action_split_right()
-        await pilot.pause()
-        await app.main_view.action_open_code_editor(path=py_file, focus=True)
-        await pilot.pause()
-
-        # Simulate text change in right editor
-        right_editor = app.main_view._get_active_code_editor_in_split("right")
-        if right_editor is not None:
-            right_editor.text = "x = 42\n"
-            await pilot.pause()
-            await pilot.pause()
-
-        # Preview still shows left content (placeholder is acceptable too since
-        # the right editor is a .py file, but the main check is: NOT right editor)
-        assert md_widget._markdown == left_content or md_widget._markdown == PLACEHOLDER
-
-
-# ── Group F — Command palette ─────────────────────────────────────────────────
-
-
-async def test_toggle_preview_cmd_no_file(workspace: Path):
-    """Toggling preview via command palette with no open file does not raise."""
-    app = make_app(workspace)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        # Should not raise
-        app.action_toggle_markdown_preview_cmd()
-        await pilot.pause()
-        await pilot.pause()
-        preview = app.main_view.query_one(MarkdownPreviewPane)
-        assert preview.display is True
+        assert md_file in app.main_view._preview_pane_ids
+        preview_pane_id = app.main_view._preview_pane_ids[md_file]
+        assert app.main_view.is_opened_pane(preview_pane_id)
 
 
 # ── Utility — extensions constant ─────────────────────────────────────────────

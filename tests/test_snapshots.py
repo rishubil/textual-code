@@ -215,14 +215,14 @@ def test_snapshot_split_view_open(
 
 
 def test_snapshot_markdown_preview_open(snap_compare, snapshot_workspace: Path):
-    """App with the markdown preview panel open showing a .md file."""
+    """App with a markdown preview tab open showing a .md file."""
     md_file = snapshot_workspace / "notes.md"
     md_file.write_text("# Hello\n\nThis is a **Markdown** preview.\n")
     app = make_app(snapshot_workspace, open_file=md_file)
 
     async def open_preview(pilot):
         await pilot.pause()
-        await app.main_view.action_toggle_markdown_preview()
+        await app.main_view.action_open_markdown_preview_tab()
         await pilot.pause()
 
     assert snap_compare(app, run_before=open_preview, terminal_size=TERMINAL_SIZE)

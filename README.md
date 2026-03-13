@@ -107,7 +107,7 @@ uv run pytest tests/test_code_editor.py
   - [ ] Move tabs by dragging the tab
     - [x] Move tabs between split views by dragging the tab to the other split view
     - [ ] Split the view and move the tab to the new split view by dragging the tab to the edge of the other split view
-  - [ ] Markdown preview as tab (currently a separate panel)
+  - [x] Markdown preview as tab
 - [x] Sidebar
   - [x] Resize the sidebar
     - [x] Resize the sidebar by dragging the border
