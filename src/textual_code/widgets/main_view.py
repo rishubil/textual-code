@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from textual import on
+from textual import events, on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
@@ -547,10 +547,25 @@ class MainView(Static):
 
     # ── Event handlers ────────────────────────────────────────────────────────
 
+    def on_descendant_focus(self, event: events.DescendantFocus) -> None:
+        # Update _active_split when focus moves into a split panel.
+        # Covers the case where the user clicks inside the editor content
+        # (not the tab bar), which does not trigger TabbedContent.TabActivated.
+        widget = event.widget
+        for ancestor in widget.ancestors_with_self:
+            if ancestor.id == "split_left":
+                self._active_split = "left"
+                break
+            if ancestor.id == "split_right":
+                self._active_split = "right"
+                break
+
     @on(TabbedContent.TabActivated)
     async def on_tabbed_content_tab_activated(
         self, event: TabbedContent.TabActivated
     ) -> None:
+        # _active_split is also updated by on_descendant_focus.
+        # This handler is kept for markdown preview synchronization.
         # Track which split has focus when a tab is activated
         if event.control.id == "split_left":
             self._active_split = "left"

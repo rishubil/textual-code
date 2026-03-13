@@ -535,3 +535,103 @@ async def test_edge_drag_two_tabs_moves_one(
         assert py_file in app.main_view._opened_files["right"]
         # py_file2 still in left
         assert py_file2 in app.main_view._opened_files["left"]
+
+
+# ── Group I — DescendantFocus updates _active_split (Bug 3) ──────────────────
+
+
+async def test_descendant_focus_updates_active_split(workspace: Path, py_file: Path):
+    """Focusing editor content (not tab click) must update _active_split."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        # Manually set _active_split to "left" to simulate user having clicked
+        # on the left editor content (state mismatch the bug produces)
+        app.main_view._active_split = "left"
+
+        # Focus right editor content directly — no tab header click, so
+        # TabbedContent.TabActivated does NOT fire
+        right_editor = app.main_view._get_active_code_editor_in_split("right")
+        assert right_editor is not None
+        right_editor.editor.focus()
+        await pilot.pause()
+
+        # _active_split must update to "right"
+        assert app.main_view._active_split == "right"
+
+
+async def test_ctrl_w_closes_focused_split_editor(workspace: Path, py_file: Path):
+    """Ctrl+W closes the editor in the focused split, not the _active_split one."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_right()
+        await pilot.pause()
+        assert len(app.main_view._pane_ids["left"]) == 1
+        assert len(app.main_view._pane_ids["right"]) == 1
+
+        # Force _active_split to "left" while focus is on right editor content
+        app.main_view._active_split = "left"
+        right_editor = app.main_view._get_active_code_editor_in_split("right")
+        assert right_editor is not None
+        right_editor.editor.focus()
+        await pilot.pause()
+
+        # Ctrl+W should close the right editor (the focused one)
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+
+        assert len(app.main_view._pane_ids["left"]) == 1  # left untouched
+        assert len(app.main_view._pane_ids["right"]) == 0  # right closed
+
+
+async def test_ctrl_w_last_right_tab_auto_closes_split(workspace: Path, py_file: Path):
+    """Ctrl+W on the last right tab auto-hides the right split."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_right()
+        await pilot.pause()
+        assert app.main_view._split_visible is True
+
+        # Simulate active split being left while focus is actually in right
+        app.main_view._active_split = "left"
+        right_editor = app.main_view._get_active_code_editor_in_split("right")
+        assert right_editor is not None
+        right_editor.editor.focus()
+        await pilot.pause()
+
+        # Ctrl+W on the last right tab → split must auto-close
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+
+        assert app.main_view._split_visible is False
+        assert app.main_view._active_split == "left"
+
+
+async def test_find_replace_bar_focus_keeps_active_split(
+    workspace: Path, py_file: Path
+):
+    """Opening find bar inside right split keeps _active_split as 'right'."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        # Simulate mismatch
+        app.main_view._active_split = "left"
+        right_editor = app.main_view._get_active_code_editor_in_split("right")
+        assert right_editor is not None
+        right_editor.editor.focus()
+        await pilot.pause()
+
+        # Open find bar — focus moves to find input (still inside split_right)
+        await pilot.press("ctrl+f")
+        await pilot.pause()
+
+        # _active_split must still be "right"
+        assert app.main_view._active_split == "right"

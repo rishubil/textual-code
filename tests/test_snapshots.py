@@ -282,3 +282,38 @@ def test_snapshot_show_shortcuts_screen(snap_compare, snapshot_workspace: Path):
         await pilot.pause()
 
     assert snap_compare(app, run_before=open_shortcuts, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_tab_reorder_active_indicator(
+    snap_compare,
+    snapshot_workspace: Path,
+    snapshot_py_file: Path,
+    snapshot_json_file: Path,
+):
+    """After tab drag-reorder, the active indicator sits on the correct tab."""
+    from textual.widgets._tabbed_content import ContentTab, ContentTabs
+
+    from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def reorder_tabs(pilot):
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=snapshot_json_file)
+        await pilot.pause()
+
+        dtc = app.main_view.query_one("#split_left", DraggableTabbedContent)
+        content_tabs = dtc.get_child_by_type(ContentTabs)
+        tabs = list(content_tabs.query(ContentTab))
+        # Move second tab (json) before first tab (py)
+        b_id = ContentTab.sans_prefix(tabs[1].id)
+        a_id = ContentTab.sans_prefix(tabs[0].id)
+        dtc.reorder_tab(b_id, a_id, before=True)
+        await pilot.pause()
+
+        editor = app.main_view.get_active_code_editor()
+        if editor is not None:
+            editor.action_focus()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=reorder_tabs, terminal_size=TERMINAL_SIZE)

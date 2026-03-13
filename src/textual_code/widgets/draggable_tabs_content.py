@@ -199,3 +199,4 @@ class DraggableTabbedContent(TabbedContent):
             else:
                 tabs_list.move_child(drag_tab, after=target_tab)
                 content_switcher.move_child(drag_pane, after=target_pane)
+        content_tabs.refresh(layout=True)
