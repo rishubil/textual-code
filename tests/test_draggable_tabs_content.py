@@ -56,13 +56,13 @@ async def test_in_edge_zone_left_center_false():
         assert dtc._in_edge_zone(center_x, 5) is False
 
 
-async def test_in_edge_zone_right_left_edge_true():
-    """Right split: x near left boundary → _in_edge_zone returns True."""
+async def test_in_edge_zone_right_left_edge_false():
+    """x near left boundary returns False (edge zone is always right)."""
     app = EdgeZoneApp(split_side="right")
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
-        assert dtc._in_edge_zone(dtc.region.x + 1, 5) is True
+        assert dtc._in_edge_zone(dtc.region.x + 1, 5) is False
 
 
 async def test_in_edge_zone_right_center_false():

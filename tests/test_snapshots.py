@@ -302,7 +302,10 @@ def test_snapshot_tab_reorder_active_indicator(
         await app.main_view.action_open_code_editor(path=snapshot_json_file)
         await pilot.pause()
 
-        dtc = app.main_view.query_one("#split_left", DraggableTabbedContent)
+        from textual_code.widgets.split_tree import all_leaves
+
+        leaves = all_leaves(app.main_view._split_root)
+        dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
         content_tabs = dtc.get_child_by_type(ContentTabs)
         tabs = list(content_tabs.query(ContentTab))
         # Move second tab (json) before first tab (py)

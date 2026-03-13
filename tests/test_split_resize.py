@@ -16,6 +16,7 @@ from textual.widgets import Label
 from tests.conftest import make_app
 from textual_code.app import _parse_split_resize
 from textual_code.modals import SplitResizeModalResult, SplitResizeModalScreen
+from textual_code.widgets.split_tree import all_leaves
 
 # ── _parse_split_resize ───────────────────────────────────────────────────────
 
@@ -196,7 +197,9 @@ async def test_resize_split_absolute_changes_width(workspace, py_file):
         await pilot.click("#submit")
         await pilot.pause()
 
-        assert app.main_view.query_one("#split_left").styles.width.value == 40
+        leaves = all_leaves(app.main_view._split_root)
+        first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
+        assert first_dtc.styles.width.value == 40
 
 
 async def test_resize_split_relative_plus_changes_width(workspace, py_file):
@@ -205,7 +208,10 @@ async def test_resize_split_relative_plus_changes_width(workspace, py_file):
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
-        initial_width = app.main_view.query_one("#split_left").size.width
+
+        leaves = all_leaves(app.main_view._split_root)
+        first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
+        initial_width = first_dtc.size.width
 
         app.action_resize_split_cmd()
         await pilot.pause()
@@ -216,10 +222,7 @@ async def test_resize_split_relative_plus_changes_width(workspace, py_file):
         await pilot.click("#submit")
         await pilot.pause()
 
-        assert (
-            app.main_view.query_one("#split_left").styles.width.value
-            == initial_width + 5
-        )
+        assert first_dtc.styles.width.value == initial_width + 5
 
 
 async def test_resize_split_percentage_changes_width(workspace, py_file):
@@ -238,8 +241,9 @@ async def test_resize_split_percentage_changes_width(workspace, py_file):
         await pilot.click("#submit")
         await pilot.pause()
 
-        width = app.main_view.query_one("#split_left").styles.width
-        assert width.value == 40.0
+        leaves = all_leaves(app.main_view._split_root)
+        first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
+        assert first_dtc.styles.width.value == 40.0
 
 
 async def test_resize_split_invalid_shows_error(workspace, py_file):
@@ -248,7 +252,10 @@ async def test_resize_split_invalid_shows_error(workspace, py_file):
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
-        initial_width = app.main_view.query_one("#split_left").size.width
+
+        leaves = all_leaves(app.main_view._split_root)
+        first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
+        initial_width = first_dtc.size.width
 
         app.action_resize_split_cmd()
         await pilot.pause()
@@ -260,7 +267,7 @@ async def test_resize_split_invalid_shows_error(workspace, py_file):
         await pilot.pause()
 
         # Width should be unchanged
-        assert app.main_view.query_one("#split_left").size.width == initial_width
+        assert first_dtc.size.width == initial_width
 
 
 async def test_resize_split_cancel_keeps_width(workspace, py_file):
@@ -269,7 +276,10 @@ async def test_resize_split_cancel_keeps_width(workspace, py_file):
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
-        initial_width = app.main_view.query_one("#split_left").size.width
+
+        leaves = all_leaves(app.main_view._split_root)
+        first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
+        initial_width = first_dtc.size.width
 
         app.action_resize_split_cmd()
         await pilot.pause()
@@ -278,7 +288,7 @@ async def test_resize_split_cancel_keeps_width(workspace, py_file):
         await pilot.pause()
 
         # Width should be unchanged
-        assert app.main_view.query_one("#split_left").size.width == initial_width
+        assert first_dtc.size.width == initial_width
 
 
 async def test_resize_split_no_split_visible_shows_error(workspace, py_file):

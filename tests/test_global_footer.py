@@ -128,10 +128,9 @@ async def test_footer_updates_on_split_switch(
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        # Open right split with the json file
-        app.main_view._active_split = "right"
-        app.main_view._split_visible = True
-        app.main_view.right_tabbed_content.display = True
+        # Create a split and open the json file in the new split
+        await app.main_view.action_split_right()
+        await pilot.pause()
         await app.main_view.action_open_code_editor(sample_json_file)
         await pilot.pause()
 

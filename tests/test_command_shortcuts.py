@@ -125,22 +125,22 @@ async def test_close_split_shows_ctrl_shift_backslash(tmp_path: Path):
     assert "Ctrl+Shift+\\" in cmds["Close split"]
 
 
-async def test_focus_left_split_shows_shortcut(tmp_path: Path):
-    """'Focus left split' command description contains Ctrl+/ shortcut."""
+async def test_focus_next_split_command_exists(tmp_path: Path):
+    """'Focus next split' command is registered in system commands."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+/" in cmds["Focus left split"]
+    assert "Focus next split" in cmds
 
 
-async def test_focus_right_split_shows_shortcut(tmp_path: Path):
-    """'Focus right split' command description contains Ctrl+Shift+/ shortcut."""
+async def test_focus_prev_split_command_exists(tmp_path: Path):
+    """'Focus previous split' command is registered in system commands."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+Shift+/" in cmds["Focus right split"]
+    assert "Focus previous split" in cmds
 
 
 # ── Verify already-existing shortcuts still work ──────────────────────────────

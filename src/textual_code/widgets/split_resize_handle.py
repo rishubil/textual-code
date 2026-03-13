@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from rich.align import Align
 from rich.rule import Rule
 from rich.text import Text
@@ -8,18 +10,36 @@ SPLIT_MIN_SIZE = 10  # matches _parse_split_resize's hardcoded minimum
 
 
 class SplitResizeHandle(Widget):
-    """Drag handle between split_left and split_right for resizing."""
+    """Drag handle between split panels for resizing.
 
-    def __init__(self) -> None:
+    When used inside a SplitContainer, child_index indicates which pair of
+    children this handle separates (children[child_index] and
+    children[child_index+1]).
+    """
+
+    def __init__(self, child_index: int = 0) -> None:
         super().__init__()
         self._dragging = False
+        self._child_index = child_index
+
+    @property
+    def child_index(self) -> int:
+        return self._child_index
+
+    def _is_vertical(self) -> bool:
+        """Return True if the parent container uses vertical layout."""
+        from textual_code.widgets.split_container import SplitContainer
+
+        if isinstance(self.parent, SplitContainer):
+            return self.parent.direction == "vertical"
+        # Legacy: check parent classes
+        try:
+            return "split-vertical" in self.parent.classes
+        except Exception:
+            return False
 
     def render(self):
-        try:
-            is_vertical = "split-vertical" in self.parent.classes
-        except Exception:
-            is_vertical = False
-        if is_vertical:
+        if self._is_vertical():
             return Rule(style="dim")
         return Align.center(Text("│", style="dim"), vertical="middle")
 
@@ -38,10 +58,25 @@ class SplitResizeHandle(Widget):
             self.release_mouse()
 
     def resize_split_to(self, screen_x: int, screen_y: int) -> None:
-        """Resize split_left to the given screen position (clamped to min/max)."""
-        container = self.app.query_one("#split_container")
-        is_vertical = "split-vertical" in container.classes
-        split_left = self.app.query_one("#split_left")
+        """Resize the child at child_index to the given screen position."""
+        self._resize_in_split_container(screen_x, screen_y)
+
+    def _resize_in_split_container(self, screen_x: int, screen_y: int) -> None:
+        """Resize within a SplitContainer (new system)."""
+        from textual_code.widgets.split_container import SplitContainer
+
+        container = self.parent
+        assert isinstance(container, SplitContainer)
+
+        # Get the non-handle children in order
+        non_handle_children = [
+            c for c in container.children if not isinstance(c, SplitResizeHandle)
+        ]
+        if self._child_index + 1 >= len(non_handle_children):
+            return
+
+        left_child = non_handle_children[self._child_index]
+        is_vertical = container.direction == "vertical"
 
         if is_vertical:
             new_size = screen_y - container.region.y
@@ -50,9 +85,23 @@ class SplitResizeHandle(Widget):
             new_size = screen_x - container.region.x
             max_size = container.size.width - SPLIT_MIN_SIZE
 
+        # Account for preceding children's size
+        for i in range(self._child_index):
+            child = non_handle_children[i]
+            if is_vertical:
+                new_size -= child.size.height
+            else:
+                new_size -= child.size.width
+        # Account for handles
+        handle_count = self._child_index  # handles before this one
+        if not is_vertical:
+            new_size -= handle_count  # each handle is 1 cell wide
+        else:
+            new_size -= handle_count  # each handle is 1 cell tall
+
         clamped = max(SPLIT_MIN_SIZE, min(max_size, new_size))
 
         if is_vertical:
-            split_left.styles.height = clamped
+            left_child.styles.height = clamped
         else:
-            split_left.styles.width = clamped
+            left_child.styles.width = clamped

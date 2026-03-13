@@ -2,8 +2,8 @@
 Tests for the split view drag resize via SplitResizeHandle.
 
 Covers:
-- SplitResizeHandle visibility (hidden when split closed, visible when open)
-- resize_split_to() clamping logic
+- SplitResizeHandle visibility (not present when no split, present when split)
+- resize_split_to() clamping logic (in SplitContainer)
 - Mouse drag flow (mouse_down + mouse_move + mouse_up)
 - Vertical split orientation
 """
@@ -13,7 +13,10 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import make_app
+from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+from textual_code.widgets.split_container import SplitContainer
 from textual_code.widgets.split_resize_handle import SPLIT_MIN_SIZE, SplitResizeHandle
+from textual_code.widgets.split_tree import all_leaves
 
 
 @pytest.fixture
@@ -23,22 +26,13 @@ def py_file(workspace: Path) -> Path:
     return f
 
 
-async def test_handle_exists_in_app(workspace, py_file):
-    """SplitResizeHandle widget must exist in the DOM."""
+async def test_handle_not_present_without_split(workspace, py_file):
+    """SplitResizeHandle should not exist in the DOM when there is no split."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
-        handle = app.main_view.query_one(SplitResizeHandle)
-        assert handle is not None
-
-
-async def test_handle_hidden_when_split_closed(workspace, py_file):
-    """SplitResizeHandle should be hidden (display:none) when split is closed."""
-    app = make_app(workspace, open_file=py_file)
-    async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
-        handle = app.main_view.query_one(SplitResizeHandle)
-        assert handle.display is False
+        handles = list(app.main_view.query(SplitResizeHandle))
+        assert len(handles) == 0
 
 
 async def test_handle_visible_when_split_opened(workspace, py_file):
@@ -52,8 +46,8 @@ async def test_handle_visible_when_split_opened(workspace, py_file):
         assert handle.display is True
 
 
-async def test_handle_hidden_when_split_closes(workspace, py_file):
-    """SplitResizeHandle should be hidden again when split is closed."""
+async def test_handle_removed_when_split_closes(workspace, py_file):
+    """SplitResizeHandle should be removed when split is closed."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
@@ -61,12 +55,12 @@ async def test_handle_hidden_when_split_closes(workspace, py_file):
         await pilot.pause()
         await app.main_view.action_close_split()
         await pilot.pause()
-        handle = app.main_view.query_one(SplitResizeHandle)
-        assert handle.display is False
+        handles = list(app.main_view.query(SplitResizeHandle))
+        assert len(handles) == 0
 
 
 async def test_resize_split_to_sets_width(workspace, py_file):
-    """resize_split_to() should set split_left.styles.width."""
+    """resize_split_to() should set first leaf DTC's styles.width."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
@@ -74,15 +68,16 @@ async def test_resize_split_to_sets_width(workspace, py_file):
         await pilot.pause()
 
         handle = app.main_view.query_one(SplitResizeHandle)
-        # Container starts at x=0 (after sidebar), move handle to x=40
-        # split_container.region.x may vary; pass a screen_x that translates to 40
-        container = app.main_view.query_one("#split_container")
+        container = app.main_view.query_one(SplitContainer)
         target_x = container.region.x + 40
         handle.resize_split_to(target_x, 0)
         await pilot.pause()
 
-        width = app.main_view.query_one("#split_left").styles.width.value
-        assert width == 40
+        leaves = all_leaves(app.main_view._split_root)
+        first_dtc = app.main_view.query_one(
+            f"#{leaves[0].leaf_id}", DraggableTabbedContent
+        )
+        assert first_dtc.styles.width.value == 40
 
 
 async def test_resize_split_min_clamp(workspace, py_file):
@@ -94,13 +89,15 @@ async def test_resize_split_min_clamp(workspace, py_file):
         await pilot.pause()
 
         handle = app.main_view.query_one(SplitResizeHandle)
-        container = app.main_view.query_one("#split_container")
-        # Pass a value that would result in size < SPLIT_MIN_SIZE
+        container = app.main_view.query_one(SplitContainer)
         handle.resize_split_to(container.region.x + 2, 0)
         await pilot.pause()
 
-        width = app.main_view.query_one("#split_left").styles.width.value
-        assert width == SPLIT_MIN_SIZE
+        leaves = all_leaves(app.main_view._split_root)
+        first_dtc = app.main_view.query_one(
+            f"#{leaves[0].leaf_id}", DraggableTabbedContent
+        )
+        assert first_dtc.styles.width.value == SPLIT_MIN_SIZE
 
 
 async def test_resize_split_max_clamp(workspace, py_file):
@@ -112,17 +109,19 @@ async def test_resize_split_max_clamp(workspace, py_file):
         await pilot.pause()
 
         handle = app.main_view.query_one(SplitResizeHandle)
-        container = app.main_view.query_one("#split_container")
-        # Pass a value beyond container width
+        container = app.main_view.query_one(SplitContainer)
         handle.resize_split_to(container.region.x + container.size.width + 100, 0)
         await pilot.pause()
 
-        width = app.main_view.query_one("#split_left").styles.width.value
-        assert width == container.size.width - SPLIT_MIN_SIZE
+        leaves = all_leaves(app.main_view._split_root)
+        first_dtc = app.main_view.query_one(
+            f"#{leaves[0].leaf_id}", DraggableTabbedContent
+        )
+        assert first_dtc.styles.width.value == container.size.width - SPLIT_MIN_SIZE
 
 
 async def test_drag_flow(workspace, py_file):
-    """Full drag: mouse_down + mouse_move + mouse_up should resize split_left."""
+    """Full drag: mouse_down + mouse_move + mouse_up should resize first leaf."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
@@ -130,7 +129,7 @@ async def test_drag_flow(workspace, py_file):
         await pilot.pause()
 
         handle = app.main_view.query_one(SplitResizeHandle)
-        container = app.main_view.query_one("#split_container")
+        container = app.main_view.query_one(SplitContainer)
         target_x = container.region.x + 50
 
         # Simulate drag
@@ -141,26 +140,33 @@ async def test_drag_flow(workspace, py_file):
         await pilot.mouse_up(handle)
         await pilot.pause()
 
-        width = app.main_view.query_one("#split_left").styles.width.value
-        assert width == 50
+        leaves = all_leaves(app.main_view._split_root)
+        first_dtc = app.main_view.query_one(
+            f"#{leaves[0].leaf_id}", DraggableTabbedContent
+        )
+        assert first_dtc.styles.width.value == 50
 
 
 async def test_resize_split_vertical(workspace, py_file):
-    """In vertical split mode, resize_split_to() should set split_left.styles.height."""
+    """Vertical split: resize sets first leaf's styles.height."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
 
-        container = app.main_view.query_one("#split_container")
-        container.add_class("split-vertical")
+        # Toggle to vertical orientation
+        app.main_view.action_toggle_split_vertical()
         await pilot.pause()
 
         handle = app.main_view.query_one(SplitResizeHandle)
+        container = app.main_view.query_one(SplitContainer)
         target_y = container.region.y + 12
         handle.resize_split_to(0, target_y)
         await pilot.pause()
 
-        height = app.main_view.query_one("#split_left").styles.height.value
-        assert height == 12
+        leaves = all_leaves(app.main_view._split_root)
+        first_dtc = app.main_view.query_one(
+            f"#{leaves[0].leaf_id}", DraggableTabbedContent
+        )
+        assert first_dtc.styles.height.value == 12

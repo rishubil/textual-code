@@ -101,11 +101,13 @@ uv run pytest tests/test_code_editor.py
   - [x] Workspace-wide search
   - [x] Workspace-wide replace (Replace All)
 - [ ] Split view
+  - [x] Recursive split (N-way horizontal/vertical splits)
   - [x] Resize the split view
     - [x] Resize the split view by dragging the border
   - [ ] Move tabs by dragging the tab
     - [x] Move tabs between split views by dragging the tab to the other split view
     - [ ] Split the view and move the tab to the new split view by dragging the tab to the edge of the other split view
+  - [ ] Markdown preview as tab (currently a separate panel)
 - [x] Sidebar
   - [x] Resize the sidebar
     - [x] Resize the sidebar by dragging the border

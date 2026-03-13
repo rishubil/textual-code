@@ -1,23 +1,37 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 from textual import events, on
 from textual.app import ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal
 from textual.widgets import Button, Static, TabbedContent, TabPane
 
 from textual_code.widgets.code_editor import CodeEditor, CodeEditorFooter
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 from textual_code.widgets.markdown_preview import MarkdownPreviewPane
+from textual_code.widgets.split_container import SplitContainer, build_split_widgets
 from textual_code.widgets.split_resize_handle import SplitResizeHandle
+from textual_code.widgets.split_tree import (
+    BranchNode,
+    LeafNode,
+    adjacent_leaf,
+    all_leaves,
+    all_pane_ids,
+    find_leaf,
+    make_leaf,
+    parent_of,
+    remove_leaf,
+    split_leaf,
+)
 
 
 class MainView(Static):
     """
     Main view of the app with a tabbed content for code editors.
 
-    Supports horizontal split view: a left and right TabbedContent side by side.
-    The right panel is hidden until a split is opened.
+    Supports recursive split view: unlimited nested horizontal/vertical splits.
+    Uses a tree data structure (split_tree) internally.
     """
 
     BINDINGS = [
@@ -73,167 +87,289 @@ class MainView(Static):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
-        # Per-split pane tracking: {"left": set(), "right": set()}
-        self._pane_ids: dict[str, set[str]] = {"left": set(), "right": set()}
-        # Per-split file tracking: {"left": {path: pane_id}, "right": {path: pane_id}}
-        self._opened_files: dict[str, dict[Path, str]] = {
-            "left": {},
-            "right": {},
-        }
-        # Which split currently has focus
-        self._active_split: str = "left"
-        # Whether the right split panel is visible
-        self._split_visible: bool = False
+        # Tree-based state
+        initial_leaf = make_leaf()
+        self._split_root: LeafNode | BranchNode = initial_leaf
+        self._active_leaf_id: str = initial_leaf.leaf_id
+        self._pane_to_leaf: dict[str, str] = {}  # pane_id → leaf_id
+
         # Whether the markdown preview panel is visible
         self._preview_visible: bool = False
 
     def compose(self) -> ComposeResult:
-        with Horizontal(id="split_container"):
-            yield DraggableTabbedContent(id="split_left", split_side="left")
-            yield SplitResizeHandle()
-            yield DraggableTabbedContent(id="split_right", split_side="right")
-            yield MarkdownPreviewPane(id="markdown_preview")
+        yield build_split_widgets(self._split_root)
+        yield MarkdownPreviewPane(id="markdown_preview")
         yield CodeEditorFooter()
 
-    # ── Properties ────────────────────────────────────────────────────────────
+    # ── Compatibility properties ─────────────────────────────────────────────
+    # These provide backward-compatible access for tests and app.py
+
+    @property
+    def _split_visible(self) -> bool:
+        """Whether more than one split is visible."""
+        return isinstance(self._split_root, BranchNode)
+
+    @property
+    def _active_split(self) -> str:
+        """Backward compat: return 'left' or 'right' based on active leaf position."""
+        if isinstance(self._split_root, LeafNode):
+            return "left"
+        leaves = all_leaves(self._split_root)
+        for i, leaf in enumerate(leaves):
+            if leaf.leaf_id == self._active_leaf_id:
+                return "left" if i == 0 else "right"
+        return "left"
+
+    @_active_split.setter
+    def _active_split(self, value: str) -> None:
+        """Backward compat: set active leaf by 'left'/'right'."""
+        if isinstance(self._split_root, LeafNode):
+            return
+        leaves = all_leaves(self._split_root)
+        if value == "left" and leaves:
+            self._active_leaf_id = leaves[0].leaf_id
+        elif value == "right" and len(leaves) > 1:
+            self._active_leaf_id = leaves[1].leaf_id
+
+    @property
+    def _pane_ids(self) -> dict[str, set[str]]:
+        """Backward compat: {'left': set, 'right': set}."""
+        leaves = all_leaves(self._split_root)
+        result: dict[str, set[str]] = {"left": set(), "right": set()}
+        for i, leaf in enumerate(leaves):
+            key = "left" if i == 0 else "right"
+            result[key].update(leaf.pane_ids)
+        return result
+
+    @property
+    def _opened_files(self) -> dict[str, dict[Path, str]]:
+        """Backward compat: {'left': dict, 'right': dict}."""
+        leaves = all_leaves(self._split_root)
+        result: dict[str, dict[Path, str]] = {"left": {}, "right": {}}
+        for i, leaf in enumerate(leaves):
+            key = "left" if i == 0 else "right"
+            result[key].update(leaf.opened_files)
+        return result
+
+    # ── Properties ───────────────────────────────────────────────────────────
+
+    @property
+    def _active_leaf(self) -> LeafNode:
+        leaf = find_leaf(self._split_root, self._active_leaf_id)
+        assert leaf is not None
+        return leaf
 
     @property
     def opened_pane_ids(self) -> set[str]:
-        """All open pane IDs across both splits (read-only union)."""
-        return self._pane_ids["left"] | self._pane_ids["right"]
+        """All open pane IDs across all leaves."""
+        return all_pane_ids(self._split_root)
 
     @property
     def _active_pane_ids(self) -> set[str]:
-        """Mutable set for the active split's pane IDs."""
-        return self._pane_ids[self._active_split]
+        """Mutable set for the active leaf's pane IDs."""
+        return self._active_leaf.pane_ids
 
     @property
     def opened_files(self) -> dict[Path, str]:
-        """Open files in the active split (mutable — mutations affect active split)."""
-        return self._opened_files[self._active_split]
+        """Open files in the active leaf."""
+        return self._active_leaf.opened_files
 
     @property
     def tabbed_content(self) -> TabbedContent:
-        """The active split's TabbedContent."""
-        return self.query_one(f"#split_{self._active_split}", TabbedContent)
+        """The active leaf's TabbedContent."""
+        return self.query_one(f"#{self._active_leaf_id}", TabbedContent)
 
     @property
     def left_tabbed_content(self) -> TabbedContent:
-        return self.query_one("#split_left", TabbedContent)
+        """First leaf's TabbedContent."""
+        leaves = all_leaves(self._split_root)
+        return self.query_one(f"#{leaves[0].leaf_id}", TabbedContent)
 
     @property
     def right_tabbed_content(self) -> TabbedContent:
-        return self.query_one("#split_right", TabbedContent)
+        """Second leaf's TabbedContent (or raises if not split)."""
+        leaves = all_leaves(self._split_root)
+        if len(leaves) < 2:
+            # Return a DraggableTabbedContent that is not displayed for compat
+            return self.query_one(f"#{leaves[0].leaf_id}", TabbedContent)
+        return self.query_one(f"#{leaves[1].leaf_id}", TabbedContent)
 
-    # ── Split helpers ─────────────────────────────────────────────────────────
+    # ── Leaf helpers ─────────────────────────────────────────────────────────
+
+    def _leaf_of_pane(self, pane_id: str) -> LeafNode | None:
+        """Return the LeafNode that owns pane_id, or None."""
+        leaf_id = self._pane_to_leaf.get(pane_id)
+        if leaf_id is None:
+            return None
+        return find_leaf(self._split_root, leaf_id)
 
     def _split_of_pane(self, pane_id: str) -> str | None:
-        """Return 'left' or 'right' for the split that owns pane_id, or None."""
-        if pane_id in self._pane_ids["left"]:
-            return "left"
-        if pane_id in self._pane_ids["right"]:
-            return "right"
+        """Backward compat: return 'left' or 'right' for the split that owns pane_id."""
+        leaf = self._leaf_of_pane(pane_id)
+        if leaf is None:
+            return None
+        leaves = all_leaves(self._split_root)
+        for i, lf in enumerate(leaves):
+            if lf is leaf:
+                return "left" if i == 0 else "right"
         return None
 
     def _tc_for_pane(self, pane_id: str) -> TabbedContent | None:
         """Return the TabbedContent that owns pane_id, or None."""
-        split = self._split_of_pane(pane_id)
-        if split is None:
+        leaf = self._leaf_of_pane(pane_id)
+        if leaf is None:
             return None
-        return self.query_one(f"#split_{split}", TabbedContent)
+        return self.query_one(f"#{leaf.leaf_id}", TabbedContent)
 
-    def _get_active_code_editor_in_split(self, split: str) -> "CodeEditor | None":
-        """Return the active CodeEditor in the given split, or None."""
-        tc = self.query_one(f"#split_{split}", TabbedContent)
+    def _get_active_code_editor_in_leaf(self, leaf: LeafNode) -> CodeEditor | None:
+        """Return the active CodeEditor in the given leaf, or None."""
+        tc = self.query_one(f"#{leaf.leaf_id}", TabbedContent)
         active_id = tc.active
         if not active_id:
             return None
         pane = tc.get_pane(active_id)
         return pane.query_one(CodeEditor)
 
+    def _get_active_code_editor_in_split(self, split: str) -> CodeEditor | None:
+        """Backward compat: get active editor by 'left'/'right'."""
+        leaves = all_leaves(self._split_root)
+        if split == "left" and leaves:
+            return self._get_active_code_editor_in_leaf(leaves[0])
+        if split == "right" and len(leaves) > 1:
+            return self._get_active_code_editor_in_leaf(leaves[1])
+        return None
+
     def _set_active_split(self, split: str) -> None:
         """Switch focus to the given split and focus its active editor."""
         self._active_split = split
-        editor = self._get_active_code_editor_in_split(split)
+        leaf = self._active_leaf
+        editor = self._get_active_code_editor_in_leaf(leaf)
         if editor:
             editor.editor.focus()
         else:
-            self.query_one(f"#split_{split}", TabbedContent).focus()
+            self.query_one(f"#{leaf.leaf_id}", TabbedContent).focus()
 
-    def _auto_close_split_if_empty(self) -> None:
-        """Hide the right split and reset state if it has no open panes."""
-        if self._split_visible and not self._pane_ids["right"]:
-            self._split_visible = False
-            self.right_tabbed_content.display = False
-            self.query_one(SplitResizeHandle).display = False
-            self._active_split = "left"
-            editor = self._get_active_code_editor_in_split("left")
-            if editor:
-                editor.editor.focus()
+    def _set_active_leaf(self, leaf: LeafNode) -> None:
+        """Switch focus to the given leaf."""
+        self._active_leaf_id = leaf.leaf_id
+        editor = self._get_active_code_editor_in_leaf(leaf)
+        if editor:
+            editor.editor.focus()
+        else:
+            self.query_one(f"#{leaf.leaf_id}", TabbedContent).focus()
 
-    # ── Pane management ───────────────────────────────────────────────────────
+    async def _auto_close_split_if_empty(self) -> None:
+        """Remove empty leaves from the tree (except the first/left leaf)."""
+        if isinstance(self._split_root, LeafNode):
+            return
+
+        # Find empty leaves (but not the first one, which is always kept)
+        changed = True
+        while changed:
+            changed = False
+            leaves = all_leaves(self._split_root)
+            if len(leaves) <= 1:
+                break
+            for leaf in leaves[1:]:  # Skip the first (left) leaf
+                if not leaf.pane_ids:
+                    new_root = remove_leaf(self._split_root, leaf.leaf_id)
+                    if new_root is None:
+                        break
+                    await self._collapse_leaf_widget(leaf, new_root)
+                    self._split_root = new_root
+
+                    if self._active_leaf_id == leaf.leaf_id:
+                        remaining = all_leaves(self._split_root)
+                        self._active_leaf_id = remaining[0].leaf_id
+
+                    changed = True
+                    break  # restart iteration since tree changed
+
+        # Focus active editor
+        active_leaf = self._active_leaf
+        editor = self._get_active_code_editor_in_leaf(active_leaf)
+        if editor:
+            editor.editor.focus()
+
+    async def _collapse_leaf_widget(
+        self, removed_leaf: LeafNode, new_root: LeafNode | BranchNode
+    ) -> None:
+        """Remove widgets for collapsed leaf and restructure."""
+        removed_widget = self.query_one(
+            f"#{removed_leaf.leaf_id}", DraggableTabbedContent
+        )
+        parent_container = removed_widget.parent
+
+        if not isinstance(parent_container, SplitContainer):
+            await removed_widget.remove()
+            return
+
+        # Remove the DTC and its handle
+        await removed_widget.remove()
+
+        handles = list(parent_container.query(SplitResizeHandle))
+        if handles:
+            await handles[-1].remove()
+
+        # If only one child remains in the container, reparent it to grandparent
+        non_handle_children = [
+            c for c in parent_container.children if not isinstance(c, SplitResizeHandle)
+        ]
+        if len(non_handle_children) == 1:
+            surviving = non_handle_children[0]
+            grandparent = parent_container.parent
+            if grandparent is not None:
+                # Reparent: move surviving widget from container to grandparent
+                parent_container._nodes._remove(surviving)
+                surviving._detach()
+                idx = grandparent._nodes.index(parent_container)
+                surviving._attach(grandparent)
+                grandparent._nodes._insert(idx, surviving)
+                self.app.stylesheet.apply(surviving)
+                # Now parent_container is empty (surviving removed above),
+                # so .remove() won't destroy any reparented children
+                await parent_container.remove()
+                grandparent.refresh(layout=True)
+
+    # ── Pane management ──────────────────────────────────────────────────────
 
     def is_opened_pane(self, pane_id: str) -> bool:
-        """Check if a pane is already opened by its pane_id."""
         return pane_id in self.opened_pane_ids
 
     def pane_id_from_path(self, path: Path) -> str | None:
-        """Get the pane_id for a path in the active split, or None."""
-        return self._opened_files[self._active_split].get(path, None)
+        """Get the pane_id for a path in the active leaf, or None."""
+        return self._active_leaf.opened_files.get(path, None)
 
     async def open_new_pane(self, pane_id: str, pane: TabPane) -> bool:
-        """
-        Open a new pane in the active split if not already opened.
-
-        Returns True if a new pane was opened.
-        """
         if self.is_opened_pane(pane_id):
             return False
         self._active_pane_ids.add(pane_id)
+        self._pane_to_leaf[pane_id] = self._active_leaf_id
         await self.tabbed_content.add_pane(pane)
         return True
 
     async def close_pane(self, pane_id: str) -> bool:
-        """
-        Close a pane by its pane_id (routes to the correct split).
-
-        Returns True if the pane was closed.
-        """
-        split = self._split_of_pane(pane_id)
-        if split is None:
+        leaf = self._leaf_of_pane(pane_id)
+        if leaf is None:
             return False
-        tc = self.query_one(f"#split_{split}", TabbedContent)
+        tc = self.query_one(f"#{leaf.leaf_id}", TabbedContent)
         await tc.remove_pane(pane_id)
-        self._pane_ids[split].discard(pane_id)
+        leaf.pane_ids.discard(pane_id)
+        self._pane_to_leaf.pop(pane_id, None)
         return True
 
     def focus_pane(self, pane_id: str) -> bool:
-        """
-        Focus a pane by its pane_id (routes to the correct split).
-
-        Returns True if the pane was focused.
-        """
-        split = self._split_of_pane(pane_id)
-        if split is None:
+        leaf = self._leaf_of_pane(pane_id)
+        if leaf is None:
             return False
-        tc = self.query_one(f"#split_{split}", TabbedContent)
+        tc = self.query_one(f"#{leaf.leaf_id}", TabbedContent)
         if tc.active != pane_id:
             tc.active = pane_id
         tc.get_pane(pane_id).focus()
-        self._active_split = split
+        self._active_leaf_id = leaf.leaf_id
         return True
 
     async def open_code_editor_pane(self, path: Path | None = None) -> str:
-        """
-        Open a new code editor pane in the active split.
-
-        Returns the pane_id of the new or existing pane.
-
-        If a path is provided, open the file in the code editor.
-        Otherwise, open a new empty code editor.
-
-        If the file is already open in the active split, focus it instead.
-        """
         if path is None:
             pane_id = CodeEditor.generate_pane_id()
         else:
@@ -245,13 +381,13 @@ class MainView(Static):
 
         if (
             self.is_opened_pane(pane_id)
-            and self._split_of_pane(pane_id) == self._active_split
+            and self._pane_to_leaf.get(pane_id) == self._active_leaf_id
         ):
             self.focus_pane(pane_id)
             return pane_id
 
         pane = TabPane(
-            "...",  # temporary title, will be updated later
+            "...",
             CodeEditor(
                 pane_id=pane_id,
                 path=path,
@@ -267,16 +403,14 @@ class MainView(Static):
             id=pane_id,
         )
         if path is not None:
-            self._opened_files[self._active_split][path] = pane_id
+            self._active_leaf.opened_files[path] = pane_id
         await self.open_new_pane(pane_id, pane)
         return pane_id
 
-    def get_active_code_editor(self) -> "CodeEditor | None":
-        """Get the active code editor in the active split."""
-        return self._get_active_code_editor_in_split(self._active_split)
+    def get_active_code_editor(self) -> CodeEditor | None:
+        return self._get_active_code_editor_in_leaf(self._active_leaf)
 
     def has_unsaved_pane(self) -> bool:
-        """Check if there is any unsaved code editor pane across all splits."""
         for pane_id in list(self.opened_pane_ids):
             tc = self._tc_for_pane(pane_id)
             if tc is None:
@@ -292,40 +426,35 @@ class MainView(Static):
         path: Path | None = None,
         focus: bool = True,
     ) -> None:
-        """
-        Open a code editor pane with the given file path.
-
-        Parameters:
-            path: The file path to open in the code editor.
-            focus: If True, focus the code editor after opening.
-        """
         pane_id = await self.open_code_editor_pane(path)
-        split = self._split_of_pane(pane_id) or self._active_split
-        tc = self.query_one(f"#split_{split}", TabbedContent)
+        leaf = self._leaf_of_pane(pane_id)
+        if leaf is None:
+            leaf = self._active_leaf
+        tc = self.query_one(f"#{leaf.leaf_id}", TabbedContent)
         tc.active = pane_id
         if focus:
             editor = tc.get_pane(pane_id).query_one(CodeEditor)
             editor.action_focus()
 
-    async def action_close_code_editor(self, pane_id: str) -> None:
-        """Close a code editor pane by its pane_id."""
-        split = self._split_of_pane(pane_id)
+    async def action_close_code_editor(
+        self, pane_id: str, *, auto_close_split: bool = True
+    ) -> None:
+        leaf = self._leaf_of_pane(pane_id)
         await self.close_pane(pane_id)
-        if split:
-            self._opened_files[split] = {
-                k: v for k, v in self._opened_files[split].items() if v != pane_id
+        if leaf:
+            leaf.opened_files = {
+                k: v for k, v in leaf.opened_files.items() if v != pane_id
             }
-        self._auto_close_split_if_empty()
+        if auto_close_split:
+            await self._auto_close_split_if_empty()
         self._sync_footer_to_active_editor()
 
     def action_save(self):
-        """Save file in the active code editor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_save()
 
     def action_save_all(self) -> None:
-        """Save all open code editors with unsaved changes."""
         editors = []
         for pane_id in list(self.opened_pane_ids):
             tc = self._tc_for_pane(pane_id)
@@ -335,11 +464,10 @@ class MainView(Static):
             code_editor = pane.query_one(CodeEditor)
             if code_editor.text != code_editor.initial_text:
                 editors.append(code_editor)
-        # Files with paths first (save synchronously), untitled last (needs modal)
         editors.sort(key=lambda e: e.path is None)
         self._save_next(editors)
 
-    def _save_next(self, editors: list["CodeEditor"]) -> None:
+    def _save_next(self, editors: list[CodeEditor]) -> None:
         if not editors:
             return
         editor = editors[0]
@@ -348,62 +476,54 @@ class MainView(Static):
             editor.action_save()
             self._save_next(remaining)
         else:
-            split = self._split_of_pane(editor.pane_id) or self._active_split
-            tc = self.query_one(f"#split_{split}", TabbedContent)
+            leaf = self._leaf_of_pane(editor.pane_id)
+            if leaf is not None:
+                self._active_leaf_id = leaf.leaf_id
+            tc = self.tabbed_content
             tc.active = editor.pane_id
-            self._active_split = split
             editor.action_save_as(on_complete=lambda: self._save_next(remaining))
 
     def action_close(self):
-        """Close the active code editor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_close()
 
     def action_goto_line(self) -> None:
-        """Open the Goto Line modal for the active code editor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_goto_line()
 
     def action_find(self) -> None:
-        """Open the Find modal for the active code editor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_find()
 
     def action_replace(self) -> None:
-        """Open the Replace modal for the active code editor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_replace()
 
     def action_add_cursor_below(self) -> None:
-        """Add an extra cursor one line below the primary cursor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_add_cursor_below()
 
     def action_add_cursor_above(self) -> None:
-        """Add an extra cursor one line above the primary cursor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_add_cursor_above()
 
     def action_select_all_occurrences(self) -> None:
-        """Select all occurrences of the selection or word under cursor."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_select_all_occurrences()
 
     def action_add_next_occurrence(self) -> None:
-        """Add a cursor at the next occurrence of the current selection or word."""
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_select_next_occurrence()
 
     def action_close_all(self) -> None:
-        """Close all open code editors across all splits."""
         editors: list[CodeEditor] = []
         for pane_id in list(self.opened_pane_ids):
             tc = self._tc_for_pane(pane_id)
@@ -413,7 +533,7 @@ class MainView(Static):
             editors.append(pane.query_one(CodeEditor))
         self._close_next(editors)
 
-    def _close_next(self, editors: list["CodeEditor"]) -> None:
+    def _close_next(self, editors: list[CodeEditor]) -> None:
         if not editors:
             return
         editor = editors[0]
@@ -422,115 +542,263 @@ class MainView(Static):
             on_complete=lambda closed: self._close_next(remaining) if closed else None
         )
 
-    # ── Split actions ─────────────────────────────────────────────────────────
+    # ── Split actions ────────────────────────────────────────────────────────
 
     async def action_split_right(self) -> None:
-        """Open the current file (or a new editor) in the right split."""
-        if not self._split_visible:
-            self._split_visible = True
-            self.right_tabbed_content.display = True
-            self.query_one(SplitResizeHandle).display = True
-        # Capture current file from the left split before switching
-        left_editor = self._get_active_code_editor_in_split("left")
-        path = left_editor.path if left_editor else None
-        self._active_split = "right"
-        await self.open_code_editor_pane(path)
+        """Open the current file (or a new editor) in a new split to the right."""
+        # Capture current file from the active leaf before splitting
+        active_editor = self.get_active_code_editor()
+        path = active_editor.path if active_editor else None
+
+        await self._do_split(path, "horizontal")
+
+    async def action_split_down(self) -> None:
+        """Open the current file (or a new editor) in a new split below."""
+        active_editor = self.get_active_code_editor()
+        path = active_editor.path if active_editor else None
+        await self._do_split(path, "vertical")
+
+    async def _do_split(self, path: Path | None, direction: str) -> None:
+        """Create a new split in the given direction."""
+        if isinstance(self._split_root, LeafNode):
+            # First split: create a branch
+            new_root, new_leaf = split_leaf(
+                self._split_root, self._active_leaf_id, direction
+            )
+            self._split_root = new_root
+            await self._mount_new_split(new_leaf, direction)
+            self._active_leaf_id = new_leaf.leaf_id
+            await self.open_code_editor_pane(path)
+        else:
+            # Already split: create new leaf
+            new_root, new_leaf = split_leaf(
+                self._split_root, self._active_leaf_id, direction
+            )
+            old_root = self._split_root
+            self._split_root = new_root
+            await self._mount_new_split_in_existing(new_leaf, old_root)
+            self._active_leaf_id = new_leaf.leaf_id
+            await self.open_code_editor_pane(path)
+
+    async def _mount_new_split(self, new_leaf: LeafNode, direction: str) -> None:
+        """Mount a new split when going from 1 leaf to 2 (first split)."""
+        leaves = all_leaves(self._split_root)
+        assert len(leaves) == 2
+
+        # Get the existing DTC
+        existing_dtc = self.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+
+        # Create new DTC and handle
+        new_dtc = DraggableTabbedContent(id=new_leaf.leaf_id)
+        handle = SplitResizeHandle(child_index=0)
+
+        # Create SplitContainer, mount after existing DTC, then reparent
+        container = SplitContainer(direction=direction)
+        parent = existing_dtc.parent
+        await parent.mount(container, after=existing_dtc)
+
+        # Reparent existing DTC into container via DOM manipulation
+        # Must remove from old parent's _nodes first, then attach to new parent
+        parent._nodes._remove(existing_dtc)
+        existing_dtc._detach()
+        existing_dtc._attach(container)
+        container._nodes._append(existing_dtc)
+
+        # Re-apply CSS for new parent context and mount new children
+        self.app.stylesheet.apply(existing_dtc)
+        await container.mount(handle)
+        await container.mount(new_dtc)
+        container.refresh(layout=True)
+
+    async def _mount_new_split_in_existing(
+        self, new_leaf: LeafNode, old_root: LeafNode | BranchNode
+    ) -> None:
+        """Mount a new split when there are already multiple splits."""
+        parent_node = parent_of(self._split_root, new_leaf)
+
+        if parent_node is not None:
+            idx = parent_node.children.index(new_leaf)
+            if idx > 0:
+                sibling = parent_node.children[idx - 1]
+            else:
+                sibling = parent_node.children[1]
+
+            if isinstance(sibling, LeafNode):
+                sibling_widget = self.query_one(
+                    f"#{sibling.leaf_id}", DraggableTabbedContent
+                )
+            else:
+                sibling_leaves = all_leaves(sibling)
+                sibling_widget = self.query_one(
+                    f"#{sibling_leaves[0].leaf_id}", DraggableTabbedContent
+                )
+
+            container = sibling_widget.parent
+            new_dtc = DraggableTabbedContent(id=new_leaf.leaf_id)
+
+            if (
+                isinstance(container, SplitContainer)
+                and container.direction == parent_node.direction
+            ):
+                handle = SplitResizeHandle(child_index=len(parent_node.children) - 2)
+                await container.mount(handle)
+                await container.mount(new_dtc)
+            else:
+                handle = SplitResizeHandle(child_index=0)
+                old_widget = sibling_widget
+                new_container = SplitContainer(direction=parent_node.direction)
+
+                p = old_widget.parent
+                # Mount new container at old_widget's position, then reparent
+                await p.mount(new_container, after=old_widget)
+                # Reparent old_widget into new container via DOM manipulation
+                p._nodes._remove(old_widget)
+                old_widget._detach()
+                old_widget._attach(new_container)
+                new_container._nodes._append(old_widget)
+                self.app.stylesheet.apply(old_widget)
+                await new_container.mount(handle)
+                await new_container.mount(new_dtc)
+                new_container.refresh(layout=True)
 
     async def action_close_split(self) -> None:
-        """Close all tabs in the right split and hide the right panel."""
-        if not self._split_visible:
+        """Close all tabs in the active split (unless it's the last one)."""
+        if isinstance(self._split_root, LeafNode):
             return
-        for pane_id in list(self._pane_ids["right"]):
-            tc = self.right_tabbed_content
+        # Close all panes in the active leaf
+        active_leaf = self._active_leaf
+        for pane_id in list(active_leaf.pane_ids):
+            tc = self.query_one(f"#{active_leaf.leaf_id}", TabbedContent)
             pane = tc.get_pane(pane_id)
             editor = pane.query_one(CodeEditor)
             editor.action_close()
 
     def action_find_in_workspace(self) -> None:
-        """Open the workspace search panel in the sidebar."""
         sidebar = self.app.sidebar
         sidebar.display = True
         sidebar.tabbed_content.active = "search_pane"
         sidebar.workspace_search.focus_query_input()
 
     def action_focus_left_split(self) -> None:
-        """Move keyboard focus to the left split."""
-        self._set_active_split("left")
+        leaves = all_leaves(self._split_root)
+        if leaves:
+            self._set_active_leaf(leaves[0])
 
     def action_focus_right_split(self) -> None:
-        """Move keyboard focus to the right split (no-op if not open)."""
-        if self._split_visible:
-            self._set_active_split("right")
+        if not self._split_visible:
+            return
+        leaves = all_leaves(self._split_root)
+        if len(leaves) > 1:
+            self._set_active_leaf(leaves[1])
 
-    async def _move_pane_to_split(
-        self, source_pane_id: str, dest_split: str
+    def action_focus_next_split(self) -> None:
+        """Focus the next split (wrapping around)."""
+        result = adjacent_leaf(self._split_root, self._active_leaf_id, delta=+1)
+        if result:
+            self._set_active_leaf(result)
+
+    def action_focus_prev_split(self) -> None:
+        """Focus the previous split (wrapping around)."""
+        result = adjacent_leaf(self._split_root, self._active_leaf_id, delta=-1)
+        if result:
+            self._set_active_leaf(result)
+
+    async def _move_pane_to_leaf(
+        self, source_pane_id: str, dest_leaf: LeafNode
     ) -> str | None:
-        """Move a pane to dest_split. Returns new_pane_id or None on failure.
-
-        If dest_split already has the same file open, focuses that pane and
-        closes the source — no duplicate tab is created.
-        """
-        source_split = self._split_of_pane(source_pane_id)
-        if source_split is None:
+        """Move a pane to dest_leaf. Returns new_pane_id or None on failure."""
+        source_leaf = self._leaf_of_pane(source_pane_id)
+        if source_leaf is None:
             return None
 
-        tc_source = self.query_one(f"#split_{source_split}", TabbedContent)
+        tc_source = self.query_one(f"#{source_leaf.leaf_id}", TabbedContent)
         pane = tc_source.get_pane(source_pane_id)
         editor = pane.query_one(CodeEditor)
         path = editor.path
         text = editor.text
         has_unsaved = text != editor.initial_text
 
-        # Show right split if not visible
-        if dest_split == "right" and not self._split_visible:
-            self._split_visible = True
-            self.right_tabbed_content.display = True
-            self.query_one(SplitResizeHandle).display = True
-
         # Check for duplicate file in destination
-        if path is not None and path in self._opened_files[dest_split]:
-            existing_pane_id = self._opened_files[dest_split][path]
-            await self.action_close_code_editor(source_pane_id)
-            tc_dest = self.query_one(f"#split_{dest_split}", TabbedContent)
+        if path is not None and path in dest_leaf.opened_files:
+            existing_pane_id = dest_leaf.opened_files[path]
+            await self.action_close_code_editor(source_pane_id, auto_close_split=False)
+            await self._auto_close_split_if_empty()
+            tc_dest = self.query_one(f"#{dest_leaf.leaf_id}", TabbedContent)
             tc_dest.active = existing_pane_id
-            self._set_active_split(dest_split)
+            self._active_leaf_id = dest_leaf.leaf_id
             return existing_pane_id
 
-        # Open in destination split first (before closing source, to avoid
-        # _auto_close_split_if_empty resetting _split_visible while right is empty)
-        self._active_split = dest_split
+        # Open in destination leaf first (before closing source, to avoid
+        # _auto_close_split_if_empty collapsing while source leaf is empty)
+        self._active_leaf_id = dest_leaf.leaf_id
         new_pane_id = await self.open_code_editor_pane(path)
 
-        # Restore unsaved content if the editor had unsaved changes
+        # Restore unsaved content
         if has_unsaved:
-            tc_dest = self.query_one(f"#split_{dest_split}", TabbedContent)
+            tc_dest = self.query_one(f"#{dest_leaf.leaf_id}", TabbedContent)
             new_editor = tc_dest.get_pane(new_pane_id).query_one(CodeEditor)
             new_editor.replace_editor_text(text)
 
-        # Close the source pane now that the destination is ready
-        await self.action_close_code_editor(source_pane_id)
+        # Close the source pane (defer auto-close to preserve tree structure)
+        await self.action_close_code_editor(source_pane_id, auto_close_split=False)
+        await self._auto_close_split_if_empty()
         return new_pane_id
 
+    async def _move_pane_to_split(
+        self, source_pane_id: str, dest_split: str
+    ) -> str | None:
+        """Backward compat: Move a pane to 'left'/'right' split."""
+        leaves = all_leaves(self._split_root)
+
+        if dest_split == "right":
+            if len(leaves) < 2:
+                # Need to create right split first
+                await self._ensure_split_exists()
+                leaves = all_leaves(self._split_root)
+            dest_leaf = leaves[1] if len(leaves) > 1 else leaves[0]
+        else:
+            dest_leaf = leaves[0]
+
+        return await self._move_pane_to_leaf(source_pane_id, dest_leaf)
+
+    async def _ensure_split_exists(self) -> None:
+        """Ensure at least 2 splits exist."""
+        if isinstance(self._split_root, LeafNode):
+            new_root, new_leaf = split_leaf(
+                self._split_root, self._active_leaf_id, "horizontal"
+            )
+            self._split_root = new_root
+            await self._mount_new_split(new_leaf, "horizontal")
+
     async def action_move_tab_to_other_split(self) -> None:
-        """Move the current tab to the other split panel."""
         editor = self.get_active_code_editor()
         if editor is None:
             return
 
-        source_split = self._active_split
-        other_split = "right" if source_split == "left" else "left"
-        new_pane_id = await self._move_pane_to_split(editor.pane_id, other_split)
+        leaves = all_leaves(self._split_root)
+        current_leaf = self._active_leaf
+
+        if len(leaves) < 2:
+            # Only one leaf: create split and move to it
+            dest_split = "right"
+        else:
+            # Find the "other" leaf
+            idx = next((i for i, lf in enumerate(leaves) if lf is current_leaf), 0)
+            dest_split = "left" if idx > 0 else "right"
+
+        new_pane_id = await self._move_pane_to_split(editor.pane_id, dest_split)
         if new_pane_id is None:
             return
 
-        tc = self.query_one(f"#split_{other_split}", TabbedContent)
+        dest_leaves = all_leaves(self._split_root)
+        dest_leaf = dest_leaves[0] if dest_split == "left" else dest_leaves[-1]
+        tc = self.query_one(f"#{dest_leaf.leaf_id}", TabbedContent)
         tc.active = new_pane_id
-        self._set_active_split(other_split)
+        self._set_active_leaf(dest_leaf)
 
-    # ── Footer helpers ────────────────────────────────────────────────────────
+    # ── Footer helpers ───────────────────────────────────────────────────────
 
     def _sync_footer_to_active_editor(self) -> None:
-        """Update the global CodeEditorFooter to reflect the active editor's state."""
         footer = self.query_one(CodeEditorFooter)
         editor = self.get_active_code_editor()
         if editor is None:
@@ -545,45 +813,43 @@ class MainView(Static):
         footer.cursor_location = editor.editor.selection.end
         footer.cursor_count = 1 + len(editor.editor.extra_cursors)
 
-    # ── Event handlers ────────────────────────────────────────────────────────
+    # ── Event handlers ───────────────────────────────────────────────────────
 
     def on_descendant_focus(self, event: events.DescendantFocus) -> None:
-        # Update _active_split when focus moves into a split panel.
-        # Covers the case where the user clicks inside the editor content
-        # (not the tab bar), which does not trigger TabbedContent.TabActivated.
         widget = event.widget
         for ancestor in widget.ancestors_with_self:
-            if ancestor.id == "split_left":
-                self._active_split = "left"
-                break
-            if ancestor.id == "split_right":
-                self._active_split = "right"
+            if isinstance(ancestor, DraggableTabbedContent) and ancestor.id:
+                leaf = find_leaf(self._split_root, ancestor.id)
+                if leaf is not None:
+                    self._active_leaf_id = leaf.leaf_id
                 break
 
     @on(TabbedContent.TabActivated)
     async def on_tabbed_content_tab_activated(
         self, event: TabbedContent.TabActivated
     ) -> None:
-        # _active_split is also updated by on_descendant_focus.
-        # This handler is kept for markdown preview synchronization.
-        # Track which split has focus when a tab is activated
-        if event.control.id == "split_left":
-            self._active_split = "left"
-            if self._preview_visible:
-                editor = self._get_active_code_editor_in_split("left")
-                await self._update_markdown_preview(editor)
-        elif event.control.id == "split_right":
-            self._active_split = "right"
+        # Update active leaf based on which TabbedContent fired
+        if isinstance(event.control, DraggableTabbedContent) and event.control.id:
+            leaf = find_leaf(self._split_root, event.control.id)
+            if leaf is not None:
+                self._active_leaf_id = leaf.leaf_id
+                if self._preview_visible and leaf is all_leaves(self._split_root)[0]:
+                    editor = self._get_active_code_editor_in_leaf(leaf)
+                    await self._update_markdown_preview(editor)
         self._sync_footer_to_active_editor()
 
     @on(DraggableTabbedContent.TabMovedToOtherSplit)
     async def on_tab_moved_to_other_split(
         self, event: DraggableTabbedContent.TabMovedToOtherSplit
     ) -> None:
-        source_split = self._split_of_pane(event.source_pane_id)
-        if source_split is None:
+        source_leaf = self._leaf_of_pane(event.source_pane_id)
+        if source_leaf is None:
             return
-        dest_split = "right" if source_split == "left" else "left"
+
+        # Find destination leaf (the "other" one)
+        leaves = all_leaves(self._split_root)
+        source_idx = next((i for i, lf in enumerate(leaves) if lf is source_leaf), 0)
+        dest_split = "left" if source_idx > 0 else "right"
 
         new_pane_id = await self._move_pane_to_split(event.source_pane_id, dest_split)
         if new_pane_id is None:
@@ -591,12 +857,16 @@ class MainView(Static):
 
         # Reorder the new pane relative to the drop target (skip when edge-drop)
         if event.target_pane_id is not None:
-            dest_tc = self.query_one(f"#split_{dest_split}", DraggableTabbedContent)
+            dest_leaves = all_leaves(self._split_root)
+            dest_leaf = dest_leaves[0] if dest_split == "left" else dest_leaves[-1]
+            dest_tc = self.query_one(f"#{dest_leaf.leaf_id}", DraggableTabbedContent)
             dest_tc.reorder_tab(new_pane_id, event.target_pane_id, before=event.before)
 
-        tc = self.query_one(f"#split_{dest_split}", TabbedContent)
+        dest_leaves = all_leaves(self._split_root)
+        dest_leaf = dest_leaves[0] if dest_split == "left" else dest_leaves[-1]
+        tc = self.query_one(f"#{dest_leaf.leaf_id}", TabbedContent)
         tc.active = new_pane_id
-        self._set_active_split(dest_split)
+        self._set_active_leaf(dest_leaf)
         event.stop()
 
     @on(CodeEditor.FooterStateChanged)
@@ -639,14 +909,24 @@ class MainView(Static):
     async def on_code_editor_text_changed(self, event: CodeEditor.TextChanged) -> None:
         if not self._preview_visible:
             return
-        left_editor = self._get_active_code_editor_in_split("left")
-        if left_editor is event.code_editor:
-            await self._update_markdown_preview(left_editor)
+        leaves = all_leaves(self._split_root)
+        first_leaf_editor = (
+            self._get_active_code_editor_in_leaf(leaves[0]) if leaves else None
+        )
+        if first_leaf_editor is event.code_editor:
+            await self._update_markdown_preview(first_leaf_editor)
 
     def action_toggle_split_vertical(self) -> None:
         """Toggle between horizontal and vertical split orientation."""
-        container = self.query_one("#split_container")
-        container.toggle_class("split-vertical")
+        # Find the top-level SplitContainer if any
+        containers = list(self.query(SplitContainer))
+        if containers:
+            container = containers[0]
+            container.toggle_class("split-vertical")
+            if "split-vertical" in container.classes:
+                container._direction = "vertical"
+            else:
+                container._direction = "horizontal"
 
     async def action_toggle_markdown_preview(self) -> None:
         """Toggle the markdown preview panel."""
@@ -654,11 +934,11 @@ class MainView(Static):
         self._preview_visible = not self._preview_visible
         preview.display = self._preview_visible
         if self._preview_visible:
-            editor = self._get_active_code_editor_in_split("left")
+            leaves = all_leaves(self._split_root)
+            editor = self._get_active_code_editor_in_leaf(leaves[0]) if leaves else None
             await self._update_markdown_preview(editor)
 
-    async def _update_markdown_preview(self, editor: "CodeEditor | None") -> None:
-        """Push current editor content to the preview panel."""
+    async def _update_markdown_preview(self, editor: CodeEditor | None) -> None:
         preview = self.query_one(MarkdownPreviewPane)
         if editor is None:
             await preview.update_for(text="", path=None)
@@ -667,7 +947,6 @@ class MainView(Static):
 
     @on(CodeEditor.TitleChanged)
     def on_code_editor_title_changed(self, event: CodeEditor.TitleChanged):
-        # Update the tab label when the title of the code editor changes
         if self.is_opened_pane(event.control.pane_id):
             tc = self._tc_for_pane(event.control.pane_id)
             if tc is not None:
@@ -675,18 +954,16 @@ class MainView(Static):
 
     @on(CodeEditor.SavedAs)
     def on_code_editor_saved_as(self, event: CodeEditor.SavedAs):
-        # Update the file tracking when a file is saved as a new path
         if event.control.path is None:
             raise ValueError("CodeEditor.SavedAs event must have a path")
-        split = self._split_of_pane(event.control.pane_id) or self._active_split
-        self._opened_files[split][event.control.path] = event.control.pane_id
+        leaf = self._leaf_of_pane(event.control.pane_id)
+        if leaf is not None:
+            leaf.opened_files[event.control.path] = event.control.pane_id
 
     @on(CodeEditor.Closed)
     async def on_code_editor_closed(self, event: CodeEditor.Closed):
-        # Close the pane when the code editor signals it should close
         await self.action_close_code_editor(event.control.pane_id)
 
     @on(CodeEditor.Deleted)
     async def on_code_editor_deleted(self, event: CodeEditor.Deleted):
-        # Close the pane when the underlying file is deleted
         await self.action_close_code_editor(event.control.pane_id)

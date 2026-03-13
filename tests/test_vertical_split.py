@@ -1,8 +1,7 @@
 """
 Tests for the vertical split view (toggle split orientation) feature.
 
-Red-Green TDD: written before implementation so all tests initially fail,
-then pass once the feature is implemented.
+Uses the tree-based split model with SplitContainer.
 """
 
 from pathlib import Path
@@ -10,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import make_app
+from textual_code.widgets.split_container import SplitContainer
 
 
 @pytest.fixture
@@ -36,12 +36,17 @@ async def test_toggle_split_vertical_command_exists(workspace: Path):
 
 
 async def test_toggle_split_vertical_adds_css_class(workspace: Path, py_file: Path):
-    """action_toggle_split_vertical adds 'split-vertical' class to #split_container."""
+    """action_toggle_split_vertical toggles 'split-vertical' class on SplitContainer."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        container = app.main_view.query_one("#split_container")
-        assert "split-vertical" not in container.classes
+        # First create a split so we have a SplitContainer
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        containers = list(app.main_view.query(SplitContainer))
+        assert containers, "Expected a SplitContainer after split"
+        container = containers[0]
 
         app.main_view.action_toggle_split_vertical()
         await pilot.pause()
@@ -56,7 +61,11 @@ async def test_toggle_split_vertical_twice_removes_class(
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        container = app.main_view.query_one("#split_container")
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        containers = list(app.main_view.query(SplitContainer))
+        container = containers[0]
 
         app.main_view.action_toggle_split_vertical()
         await pilot.pause()
@@ -75,17 +84,16 @@ async def test_horizontal_split_still_works_after_vertical_toggle(
     async with app.run_test() as pilot:
         await pilot.pause()
 
+        # Open horizontal split first
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
         # Toggle to vertical orientation
         app.main_view.action_toggle_split_vertical()
         await pilot.pause()
 
-        # Open horizontal split
-        await app.main_view.action_split_right()
-        await pilot.pause()
-
-        # Split should be visible
+        # Split should still be visible
         assert app.main_view._split_visible is True
-        assert app.main_view.right_tabbed_content.display is True
 
 
 # ── Snapshot test ─────────────────────────────────────────────────────────────

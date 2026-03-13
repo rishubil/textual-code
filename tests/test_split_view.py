@@ -1,8 +1,16 @@
 """
-Tests for the horizontal split view feature.
+Tests for the split view feature (tree-based).
 
-Red-Green TDD: written before implementation so all tests initially fail,
-then pass once the feature is implemented.
+Covers:
+- Initial state (single leaf)
+- Split right
+- Focus navigation
+- Close split
+- Split independence
+- Bindings
+- Move tab to other split
+- Edge drag creates split
+- DescendantFocus updates active leaf
 """
 
 from pathlib import Path
@@ -10,6 +18,7 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import make_app
+from textual_code.widgets.split_tree import all_leaves
 
 # ── Fixtures ────────────────────────────────────────────────────────────────────
 
@@ -31,15 +40,16 @@ def py_file2(workspace: Path) -> Path:
 # ── Group A — Initial State ─────────────────────────────────────────────────────
 
 
-async def test_right_split_initially_hidden(workspace: Path, py_file: Path):
-    """Right TabbedContent starts hidden."""
+async def test_initial_state_single_leaf(workspace: Path, py_file: Path):
+    """Initially there is exactly one leaf."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        assert app.main_view.right_tabbed_content.display is False
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 1
 
 
-async def test_split_visible_initially_false(workspace: Path, py_file: Path):
+async def test_split_not_visible_initially(workspace: Path, py_file: Path):
     """_split_visible is False on startup."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
@@ -74,14 +84,15 @@ async def test_right_pane_ids_initially_empty(workspace: Path, py_file: Path):
 # ── Group B — Split Right ────────────────────────────────────────────────────────
 
 
-async def test_split_right_shows_right_panel(workspace: Path, py_file: Path):
-    """action_split_right makes the right panel visible."""
+async def test_split_right_creates_second_leaf(workspace: Path, py_file: Path):
+    """action_split_right creates a second leaf."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
-        assert app.main_view.right_tabbed_content.display is True
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
 
 
 async def test_split_right_sets_split_visible(workspace: Path, py_file: Path):
@@ -125,25 +136,26 @@ async def test_split_right_with_no_file(workspace: Path):
         assert len(app.main_view._pane_ids["right"]) == 1
 
 
-async def test_split_right_twice_reuses_right_panel(workspace: Path, py_file: Path):
-    """A second action_split_right reuses the existing right panel.
-
-    If the same file is already open in the right split, it is focused rather
-    than opened again (deduplication within a split).
-    """
+async def test_split_right_twice_creates_three_way_split(
+    workspace: Path, py_file: Path
+):
+    """A second action_split_right creates a third split (recursive splitting)."""
     app = make_app(workspace, open_file=py_file)
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(180, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
-        first_count = len(app.main_view._pane_ids["right"])
-        # Switch back to left and split right again with the same file
+        leaf_count_after_first = len(all_leaves(app.main_view._split_root))
+        assert leaf_count_after_first == 2
+
+        # Switch back to left and split right again
         app.main_view._active_split = "left"
         await app.main_view.action_split_right()
         await pilot.pause()
-        # Right panel still visible (reused), count unchanged (dedup)
+
+        # Now we should have 3 leaves
         assert app.main_view._split_visible is True
-        assert len(app.main_view._pane_ids["right"]) == first_count
+        assert len(all_leaves(app.main_view._split_root)) == 3
 
 
 # ── Group C — Focus Navigation ───────────────────────────────────────────────────
@@ -191,8 +203,8 @@ async def test_focus_right_split_noop_when_closed(workspace: Path, py_file: Path
 # ── Group D — Close Split ────────────────────────────────────────────────────────
 
 
-async def test_close_split_hides_right_panel(workspace: Path, py_file: Path):
-    """action_close_split hides the right panel."""
+async def test_close_split_returns_to_single_leaf(workspace: Path, py_file: Path):
+    """action_close_split removes the active split and returns to single leaf."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -200,7 +212,7 @@ async def test_close_split_hides_right_panel(workspace: Path, py_file: Path):
         await pilot.pause()
         await app.main_view.action_close_split()
         await pilot.pause()
-        assert app.main_view.right_tabbed_content.display is False
+        assert app.main_view._split_visible is False
 
 
 async def test_close_split_sets_split_visible_false(workspace: Path, py_file: Path):
@@ -261,8 +273,10 @@ async def test_auto_close_split_when_last_right_tab_closed(
         await app.main_view.action_split_right()
         await pilot.pause()
         assert app.main_view._split_visible is True
-        # Switch to left so we can close the right editor via its action
-        right_editor = app.main_view._get_active_code_editor_in_split("right")
+        # Close the right editor
+        leaves = all_leaves(app.main_view._split_root)
+        right_leaf = leaves[1]
+        right_editor = app.main_view._get_active_code_editor_in_leaf(right_leaf)
         assert right_editor is not None
         right_editor.action_close()
         await pilot.pause()
@@ -345,10 +359,11 @@ async def test_close_right_tab_removes_from_right_tracking(
         await pilot.pause()
         right_pane_id = app.main_view._opened_files["right"][py_file]
         assert right_pane_id in app.main_view._pane_ids["right"]
-        right_editor = app.main_view._get_active_code_editor_in_split("right")
+        leaves = all_leaves(app.main_view._split_root)
+        right_editor = app.main_view._get_active_code_editor_in_leaf(leaves[1])
         right_editor.action_close()
         await pilot.pause()
-        assert right_pane_id not in app.main_view._pane_ids["right"]
+        assert right_pane_id not in app.main_view._pane_ids.get("right", set())
 
 
 # ── Group F — Bindings & Commands ───────────────────────────────────────────────
@@ -356,7 +371,7 @@ async def test_close_right_tab_removes_from_right_tracking(
 
 def test_ctrl_backslash_binding_registered():
     """ctrl+backslash binding is in MainView.BINDINGS."""
-    from textual_code.app import MainView
+    from textual_code.widgets.main_view import MainView
 
     keys = [b.key for b in MainView.BINDINGS]
     assert "ctrl+backslash" in keys
@@ -364,7 +379,7 @@ def test_ctrl_backslash_binding_registered():
 
 def test_ctrl_shift_backslash_binding_registered():
     """ctrl+shift+backslash binding is in MainView.BINDINGS."""
-    from textual_code.app import MainView
+    from textual_code.widgets.main_view import MainView
 
     keys = [b.key for b in MainView.BINDINGS]
     assert "ctrl+shift+backslash" in keys
@@ -395,7 +410,7 @@ async def test_split_right_cmd_no_file(workspace: Path):
 
 def test_ctrl_alt_backslash_binding_registered():
     """ctrl+alt+backslash binding is in MainView.BINDINGS."""
-    from textual_code.app import MainView
+    from textual_code.widgets.main_view import MainView
 
     keys = [b.key for b in MainView.BINDINGS]
     assert "ctrl+alt+backslash" in keys
@@ -407,7 +422,7 @@ async def test_move_tab_left_to_right(workspace: Path, py_file: Path):
     async with app.run_test() as pilot:
         await pilot.pause()
         assert py_file in app.main_view._opened_files["left"]
-        assert py_file not in app.main_view._opened_files["right"]
+        assert py_file not in app.main_view._opened_files.get("right", {})
 
         await app.main_view.action_move_tab_to_other_split()
         await pilot.pause()
@@ -433,7 +448,7 @@ async def test_move_tab_right_to_left(workspace: Path, py_file: Path):
         await pilot.pause()
 
         assert py_file in app.main_view._opened_files["left"]
-        assert py_file not in app.main_view._opened_files["right"]
+        assert py_file not in app.main_view._opened_files.get("right", {})
 
 
 async def test_move_tab_creates_right_split(workspace: Path, py_file: Path):
@@ -447,7 +462,6 @@ async def test_move_tab_creates_right_split(workspace: Path, py_file: Path):
         await pilot.pause()
 
         assert app.main_view._split_visible is True
-        assert app.main_view.right_tabbed_content.display is True
 
 
 async def test_move_tab_transfers_unsaved_content(workspace: Path, py_file: Path):
@@ -467,7 +481,9 @@ async def test_move_tab_transfers_unsaved_content(workspace: Path, py_file: Path
         await pilot.pause()
 
         # The destination editor should have the unsaved content
-        new_editor = app.main_view._get_active_code_editor_in_split("right")
+        leaves = all_leaves(app.main_view._split_root)
+        right_leaf = leaves[-1]
+        new_editor = app.main_view._get_active_code_editor_in_leaf(right_leaf)
         assert new_editor is not None
         assert new_editor.text == "unsaved content here"
 
@@ -497,8 +513,11 @@ async def test_edge_drag_creates_right_split(workspace: Path, py_file: Path):
         await pilot.pause()
         assert app.main_view._split_visible is False
 
-        left_tc = app.main_view.query_one("#split_left", DraggableTabbedContent)
-        pane_id = next(iter(app.main_view._pane_ids["left"]))
+        leaves = all_leaves(app.main_view._split_root)
+        left_tc = app.main_view.query_one(
+            f"#{leaves[0].leaf_id}", DraggableTabbedContent
+        )
+        pane_id = next(iter(leaves[0].pane_ids))
         left_tc.post_message(
             DraggableTabbedContent.TabMovedToOtherSplit(pane_id, None, False)
         )
@@ -523,8 +542,11 @@ async def test_edge_drag_two_tabs_moves_one(
         await pilot.pause()
         assert len(app.main_view._pane_ids["left"]) == 2
 
-        left_tc = app.main_view.query_one("#split_left", DraggableTabbedContent)
-        pane_id = app.main_view._opened_files["left"][py_file]
+        leaves = all_leaves(app.main_view._split_root)
+        left_tc = app.main_view.query_one(
+            f"#{leaves[0].leaf_id}", DraggableTabbedContent
+        )
+        pane_id = leaves[0].opened_files[py_file]
         left_tc.post_message(
             DraggableTabbedContent.TabMovedToOtherSplit(pane_id, None, False)
         )
@@ -537,7 +559,7 @@ async def test_edge_drag_two_tabs_moves_one(
         assert py_file2 in app.main_view._opened_files["left"]
 
 
-# ── Group I — DescendantFocus updates _active_split (Bug 3) ──────────────────
+# ── Group I — DescendantFocus updates active leaf ──────────────────────────────
 
 
 async def test_descendant_focus_updates_active_split(workspace: Path, py_file: Path):
@@ -548,13 +570,12 @@ async def test_descendant_focus_updates_active_split(workspace: Path, py_file: P
         await app.main_view.action_split_right()
         await pilot.pause()
 
-        # Manually set _active_split to "left" to simulate user having clicked
-        # on the left editor content (state mismatch the bug produces)
+        # Manually set _active_split to "left"
         app.main_view._active_split = "left"
 
-        # Focus right editor content directly — no tab header click, so
-        # TabbedContent.TabActivated does NOT fire
-        right_editor = app.main_view._get_active_code_editor_in_split("right")
+        # Focus right editor content directly
+        leaves = all_leaves(app.main_view._split_root)
+        right_editor = app.main_view._get_active_code_editor_in_leaf(leaves[1])
         assert right_editor is not None
         right_editor.editor.focus()
         await pilot.pause()
@@ -575,7 +596,8 @@ async def test_ctrl_w_closes_focused_split_editor(workspace: Path, py_file: Path
 
         # Force _active_split to "left" while focus is on right editor content
         app.main_view._active_split = "left"
-        right_editor = app.main_view._get_active_code_editor_in_split("right")
+        leaves = all_leaves(app.main_view._split_root)
+        right_editor = app.main_view._get_active_code_editor_in_leaf(leaves[1])
         assert right_editor is not None
         right_editor.editor.focus()
         await pilot.pause()
@@ -585,7 +607,7 @@ async def test_ctrl_w_closes_focused_split_editor(workspace: Path, py_file: Path
         await pilot.pause()
 
         assert len(app.main_view._pane_ids["left"]) == 1  # left untouched
-        assert len(app.main_view._pane_ids["right"]) == 0  # right closed
+        assert len(app.main_view._pane_ids.get("right", set())) == 0  # right closed
 
 
 async def test_ctrl_w_last_right_tab_auto_closes_split(workspace: Path, py_file: Path):
@@ -599,7 +621,8 @@ async def test_ctrl_w_last_right_tab_auto_closes_split(workspace: Path, py_file:
 
         # Simulate active split being left while focus is actually in right
         app.main_view._active_split = "left"
-        right_editor = app.main_view._get_active_code_editor_in_split("right")
+        leaves = all_leaves(app.main_view._split_root)
+        right_editor = app.main_view._get_active_code_editor_in_leaf(leaves[1])
         assert right_editor is not None
         right_editor.editor.focus()
         await pilot.pause()
@@ -624,7 +647,8 @@ async def test_find_replace_bar_focus_keeps_active_split(
 
         # Simulate mismatch
         app.main_view._active_split = "left"
-        right_editor = app.main_view._get_active_code_editor_in_split("right")
+        leaves = all_leaves(app.main_view._split_root)
+        right_editor = app.main_view._get_active_code_editor_in_leaf(leaves[1])
         assert right_editor is not None
         right_editor.editor.focus()
         await pilot.pause()

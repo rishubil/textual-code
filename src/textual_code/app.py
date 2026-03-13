@@ -422,23 +422,28 @@ class TextualCode(App):
         )
         yield SystemCommand(
             "Split editor right",
-            "Open current file in right split panel (Ctrl+\\)",
+            "Open current file in a new split to the right (Ctrl+\\)",
             self.action_split_right_cmd,
         )
         yield SystemCommand(
+            "Split editor down",
+            "Open current file in a new split below",
+            self.action_split_down_cmd,
+        )
+        yield SystemCommand(
             "Close split",
-            "Close the right split panel (Ctrl+Shift+\\)",
+            "Close the current split panel (Ctrl+Shift+\\)",
             self.action_close_split_cmd,
         )
         yield SystemCommand(
-            "Focus left split",
-            "Move focus to the left split panel (Ctrl+/)",
-            self.action_focus_left_split_cmd,
+            "Focus next split",
+            "Move focus to the next split panel",
+            self.action_focus_next_split_cmd,
         )
         yield SystemCommand(
-            "Focus right split",
-            "Move focus to the right split panel (Ctrl+Shift+/)",
-            self.action_focus_right_split_cmd,
+            "Focus previous split",
+            "Move focus to the previous split panel",
+            self.action_focus_prev_split_cmd,
         )
         yield SystemCommand(
             "Set default indentation",
@@ -795,6 +800,10 @@ class TextualCode(App):
         """Split editor right via command palette."""
         self.call_next(self.main_view.action_split_right)
 
+    def action_split_down_cmd(self) -> None:
+        """Split editor down via command palette."""
+        self.call_next(self.main_view.action_split_down)
+
     def action_close_split_cmd(self) -> None:
         """Close split via command palette."""
         self.call_next(self.main_view.action_close_split)
@@ -806,6 +815,14 @@ class TextualCode(App):
     def action_focus_right_split_cmd(self) -> None:
         """Focus right split via command palette."""
         self.main_view.action_focus_right_split()
+
+    def action_focus_next_split_cmd(self) -> None:
+        """Focus next split via command palette."""
+        self.main_view.action_focus_next_split()
+
+    def action_focus_prev_split_cmd(self) -> None:
+        """Focus previous split via command palette."""
+        self.main_view.action_focus_prev_split()
 
     def action_goto_line_cmd(self) -> None:
         """
@@ -914,9 +931,23 @@ class TextualCode(App):
         def on_result(result: SplitResizeModalResult | None) -> None:
             if result is None or result.is_cancelled:
                 return
-            split_left = self.main_view.query_one("#split_left")
-            split_container = self.main_view.query_one("#split_container")
-            current_width = split_left.size.width
+            from textual_code.widgets.draggable_tabs_content import (
+                DraggableTabbedContent,
+            )
+            from textual_code.widgets.split_container import SplitContainer
+            from textual_code.widgets.split_tree import all_leaves
+
+            leaves = all_leaves(self.main_view._split_root)
+            if len(leaves) < 2:
+                return
+            first_dtc = self.main_view.query_one(
+                f"#{leaves[0].leaf_id}", DraggableTabbedContent
+            )
+            containers = list(self.main_view.query(SplitContainer))
+            if not containers:
+                return
+            split_container = containers[0]
+            current_width = first_dtc.size.width
             total_width = split_container.size.width
             parsed = _parse_split_resize(result.value or "", current_width, total_width)
             if parsed is None:
@@ -926,7 +957,7 @@ class TextualCode(App):
                     severity="error",
                 )
                 return
-            split_left.styles.width = parsed
+            first_dtc.styles.width = parsed
 
         self.call_next(lambda: self.push_screen(SplitResizeModalScreen(), on_result))
 

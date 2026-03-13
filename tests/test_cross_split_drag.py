@@ -1,7 +1,7 @@
 """
 Tests for cross-split tab drag: dragging a tab from one split to the other.
 
-Red-Green TDD: tests are written first, then pass once the feature is implemented.
+Uses the tree-based split model.
 """
 
 from pathlib import Path
@@ -12,6 +12,7 @@ from textual.widgets._tabbed_content import ContentTab, ContentTabs
 from tests.conftest import make_app
 from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+from textual_code.widgets.split_tree import all_leaves
 
 
 def _tab_order(dtc: DraggableTabbedContent) -> list[str]:
@@ -107,9 +108,10 @@ async def test_drag_cross_split_preserves_unsaved_content(
         main = app.main_view
 
         # Modify the editor without saving
-        left_tc = main.left_tabbed_content
-        source_pane_id = list(main._pane_ids["left"])[0]
-        pane = left_tc.get_pane(source_pane_id)
+        leaves = all_leaves(main._split_root)
+        source_pane_id = list(leaves[0].pane_ids)[0]
+        tc = main.query_one(f"#{leaves[0].leaf_id}")
+        pane = tc.get_pane(source_pane_id)
         editor = pane.query_one(CodeEditor)
         editor.replace_editor_text("unsaved content")
         await pilot.pause()
@@ -119,8 +121,10 @@ async def test_drag_cross_split_preserves_unsaved_content(
         await pilot.pause()
 
         assert new_pane_id is not None
-        right_tc = main.right_tabbed_content
-        new_editor = right_tc.get_pane(new_pane_id).query_one(CodeEditor)
+        dest_leaves = all_leaves(main._split_root)
+        dest_leaf = dest_leaves[-1]
+        dest_tc = main.query_one(f"#{dest_leaf.leaf_id}")
+        new_editor = dest_tc.get_pane(new_pane_id).query_one(CodeEditor)
         assert new_editor.text == "unsaved content"
         assert new_editor.text != new_editor.initial_text
 
@@ -128,7 +132,7 @@ async def test_drag_cross_split_preserves_unsaved_content(
 async def test_drag_cross_split_closes_right_split_when_empty(
     workspace: Path, py_file: Path, py_file2: Path
 ):
-    """Moving the last tab from right to left hides the right split."""
+    """Moving the last tab from right to left collapses the right split."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -157,7 +161,6 @@ async def test_drag_cross_split_closes_right_split_when_empty(
         await pilot.pause()
 
         assert new_pane_id is not None
-        assert main.right_tabbed_content.display is False
         assert main._split_visible is False
 
 
@@ -189,7 +192,9 @@ async def test_drag_cross_split_duplicate_file_focuses_existing(
         # Source pane closed, but no new pane added
         assert len(main._pane_ids["right"]) == right_tab_count_before
         # Should focus existing pane
-        assert main.right_tabbed_content.active == new_pane_id
+        leaves = all_leaves(main._split_root)
+        right_tc = main.query_one(f"#{leaves[-1].leaf_id}")
+        assert right_tc.active == new_pane_id
 
 
 # ── E2E drag test ─────────────────────────────────────────────────────────────
@@ -218,8 +223,9 @@ async def test_e2e_drag_tab_left_to_right(
         left_tab_count_before = len(main._pane_ids["left"])
 
         # Get the first tab in left split (py_file)
-        left_dtc = main.query_one("#split_left", DraggableTabbedContent)
-        right_dtc = main.query_one("#split_right", DraggableTabbedContent)
+        leaves = all_leaves(main._split_root)
+        left_dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+        right_dtc = main.query_one(f"#{leaves[1].leaf_id}", DraggableTabbedContent)
 
         left_tabs_widget = left_dtc.get_child_by_type(ContentTabs)
         left_tabs = list(left_tabs_widget.query(ContentTab))
@@ -248,7 +254,6 @@ async def test_e2e_drag_tab_left_to_right(
         await pilot.pause()
 
         # hover within left_dtc to exceed drag threshold and trigger capture_mouse()
-        # (must stay within left_dtc bounds so on_mouse_move is received)
         second_left_tab = left_tabs[1] if len(left_tabs) > 1 else left_tabs[0]
         intermediate_x = second_left_tab.region.x + second_left_tab.region.width // 2
         intermediate_y = second_left_tab.region.y + second_left_tab.region.height // 2
@@ -264,8 +269,6 @@ async def test_e2e_drag_tab_left_to_right(
         )
 
         # mouse_up at the screen position of the right split tab
-        # (capture_mouse is active, so left_dtc receives the event;
-        #  screen_x/screen_y point to the right split tab)
         drop_offset_from_left = (
             drop_screen[0] - left_dtc.region.x,
             drop_screen[1] - left_dtc.region.y,

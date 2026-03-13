@@ -11,6 +11,13 @@ from textual.widgets._tabbed_content import ContentTab, ContentTabs
 from tests.conftest import make_app
 from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+from textual_code.widgets.split_tree import all_leaves
+
+
+def _first_dtc(app) -> DraggableTabbedContent:
+    """Get the first leaf's DraggableTabbedContent."""
+    leaves = all_leaves(app.main_view._split_root)
+    return app.main_view.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
 
 
 def _tab_order(dtc: DraggableTabbedContent) -> list[str]:
@@ -34,7 +41,7 @@ async def test_reorder_tab_moves_before(
         await app.main_view.action_open_code_editor(path=sample_json_file)
         await pilot.pause()
 
-        dtc = app.main_view.query_one("#split_left", DraggableTabbedContent)
+        dtc = _first_dtc(app)
         order = _tab_order(dtc)
         assert len(order) == 2
         a_id, b_id = order  # A is first (py), B is second (json)
@@ -57,7 +64,7 @@ async def test_reorder_tab_moves_after(
         await app.main_view.action_open_code_editor(path=sample_json_file)
         await pilot.pause()
 
-        dtc = app.main_view.query_one("#split_left", DraggableTabbedContent)
+        dtc = _first_dtc(app)
         order = _tab_order(dtc)
         assert len(order) == 2
         a_id, b_id = order  # A is first (py), B is second (json)
@@ -80,7 +87,7 @@ async def test_reorder_tab_correct_order_and_content(
         await app.main_view.action_open_code_editor(path=sample_json_file)
         await pilot.pause()
 
-        dtc = app.main_view.query_one("#split_left", DraggableTabbedContent)
+        dtc = _first_dtc(app)
         order_before = _tab_order(dtc)
         assert len(order_before) == 2
         py_id, json_id = order_before
@@ -110,7 +117,7 @@ async def test_reorder_tab_same_id_noop(
         await app.main_view.action_open_code_editor(path=sample_json_file)
         await pilot.pause()
 
-        dtc = app.main_view.query_one("#split_left", DraggableTabbedContent)
+        dtc = _first_dtc(app)
         order_before = _tab_order(dtc)
 
         dtc.reorder_tab(order_before[0], order_before[0], before=True)
@@ -127,7 +134,7 @@ async def test_reorder_tab_invalid_target_id_noop(
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        dtc = app.main_view.query_one("#split_left", DraggableTabbedContent)
+        dtc = _first_dtc(app)
         order_before = _tab_order(dtc)
 
         # Neither raises nor changes order
@@ -148,7 +155,7 @@ async def test_drag_threshold_not_exceeded_no_capture(
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        dtc = app.main_view.query_one("#split_left", DraggableTabbedContent)
+        dtc = _first_dtc(app)
         # Simulate state as if mouse_down was captured on a tab
         dtc._drag_start = (10, 10)
         dtc._drag_pane_id = "some-pane"
@@ -188,7 +195,7 @@ async def test_drag_reorders_tabs(
         await app.main_view.action_open_code_editor(path=sample_json_file)
         await pilot.pause()
 
-        dtc = app.main_view.query_one("#split_left", DraggableTabbedContent)
+        dtc = _first_dtc(app)
         order_before = _tab_order(dtc)
         assert len(order_before) == 2
 

@@ -31,37 +31,25 @@ class DraggableTabbedContent(TabbedContent):
 
     def __init__(self, *args, split_side: str = "left", **kwargs):
         super().__init__(*args, **kwargs)
-        self._split_side = split_side  # "left", "right", "top", "bottom"
+        # split_side kept for backward compat but no longer used for edge detection
+        self._split_side = split_side
         self._drag_pane_id: str | None = None
         self._drag_start: tuple[int, int] | None = None
         self._dragging: bool = False
 
     # ── Edge zone helpers ──────────────────────────────────────────────────────
 
-    def _is_vertical_split(self) -> bool:
-        """Return True if this split is in a vertical (top/bottom) layout."""
-        container = next((a for a in self.ancestors if a.id == "split_container"), None)
-        return container is not None and container.has_class("split-vertical")
-
     def _edge_zone_width(self) -> int:
         """Width (or height for vertical) of the edge drop zone in cells."""
-        is_vertical = self._is_vertical_split()
-        size = self.region.height if is_vertical else self.region.width
+        size = self.region.width
         return max(5, min(15, int(size * EDGE_ZONE_FRACTION)))
 
     def _in_edge_zone(self, screen_x: int, screen_y: int) -> bool:
-        """Return True if (screen_x, screen_y) is in the edge zone for this split."""
-        if self._split_side == "left":
-            return screen_x >= self.region.right - self._edge_zone_width()
-        elif self._split_side == "right":
-            return screen_x <= self.region.x + self._edge_zone_width()
-        elif self._split_side == "top":
-            return (
-                screen_y >= self.region.y + self.region.height - self._edge_zone_width()
-            )
-        elif self._split_side == "bottom":
-            return screen_y <= self.region.y + self._edge_zone_width()
-        return False
+        """Return True if (screen_x, screen_y) is in the edge zone.
+
+        Edge zone is at the right side of this widget (for horizontal splits).
+        """
+        return screen_x >= self.region.right - self._edge_zone_width()
 
     # ── Mouse event handlers ───────────────────────────────────────────────────
 
