@@ -27,8 +27,14 @@ in isolation and do not capture screenshots.
 from pathlib import Path
 
 import pytest
+from pytest_textual_snapshot import SVGImageExtension
 
 from textual_code.app import TextualCode
+
+# pytest-textual-snapshot 1.0.0 sets _file_extension (underscore prefix) but
+# syrupy 5.x looks at file_extension (no prefix), so snapshots fall back to
+# ".raw".  Patch the correct attribute so snap_compare produces ".svg" files.
+SVGImageExtension.file_extension = "svg"
 
 
 @pytest.fixture
