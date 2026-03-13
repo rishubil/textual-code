@@ -264,16 +264,12 @@ def _get_word_at_location(text: str, row: int, col: int) -> str:
     Returns an empty string if the character at (row, col) is not a word
     character or if the coordinates are out of range.
     """
+    bounds = MultiCursorTextArea._word_bounds_at(text, row, col)
+    if bounds is None:
+        return ""
     lines = text.split("\n")
-    if row >= len(lines):
-        return ""
     line = lines[row]
-    if col >= len(line):
-        return ""
-    for m in re.finditer(r"\w+", line):
-        if m.start() <= col < m.end():
-            return m.group()
-    return ""
+    return line[bounds[0] : bounds[1]]
 
 
 def _convert_indentation(text: str, to_type: str, to_size: int) -> str:

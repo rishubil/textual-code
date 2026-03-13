@@ -1191,6 +1191,10 @@ class TextualCode(App):
 
         self.push_screen(DeleteFileModalScreen(path), do_delete)
 
+    @on(MainView.ActiveFileChanged)
+    def on_active_file_changed(self, event: MainView.ActiveFileChanged) -> None:
+        self.sidebar.explorer.select_file(event.path)
+
     @on(Explorer.FileOpenRequested)
     async def on_file_open_requested(self, event: Explorer.FileOpenRequested):
         # open the file in the code editor when requested from the explorer

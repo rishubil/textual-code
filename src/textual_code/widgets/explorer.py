@@ -54,6 +54,36 @@ class Explorer(Static):
 
         # the path to open in the explorer
         self.workspace_path = workspace_path
+        self._pending_path: Path | None = None
+
+    def on_mount(self) -> None:
+        if self._pending_path is not None:
+            pending = self._pending_path
+            self._pending_path = None
+            self.call_after_refresh(self.select_file, pending)
+
+    def select_file(self, path: Path) -> None:
+        """Move the explorer cursor to path if it is loaded and within workspace."""
+        try:
+            path.relative_to(self.workspace_path)
+        except ValueError:
+            return  # outside workspace
+
+        def find_node(node):
+            if node.data is not None and node.data.path == path:
+                return node
+            for child in node.children:
+                result = find_node(child)
+                if result is not None:
+                    return result
+            return None
+
+        root = self.directory_tree.root
+        node = find_node(root)
+        if node is not None:
+            self.directory_tree.move_cursor(node)
+        else:
+            self._pending_path = path
 
     def compose(self) -> ComposeResult:
         directory_tree = DirectoryTree(self.workspace_path)

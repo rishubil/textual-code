@@ -259,6 +259,52 @@ class MultiCursorTextArea(TextArea):
 
         return line
 
+    # ── click handling ────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _word_bounds_at(text: str, row: int, col: int) -> tuple[int, int] | None:
+        """Return (start_col, end_col) of the word at (row, col), or None.
+
+        Uses \\w+ boundaries.  Returns None if (row, col) is not inside a word
+        (whitespace, punctuation, or past end of line).
+        """
+        lines = text.split("\n")
+        if row >= len(lines):
+            return None
+        line = lines[row]
+        if col >= len(line):
+            return None
+        for m in re.finditer(r"\w+", line):
+            if m.start() <= col < m.end():
+                return (m.start(), m.end())
+        return None
+
+    def on_click(self, event: events.Click) -> None:
+        """Handle double/triple click for word/line selection."""
+        from textual.widgets.text_area import Selection
+
+        if event.chain == 1:
+            return  # single click: TextArea handles normally
+
+        row, col = self.cursor_location
+
+        if event.chain == 2:
+            # Double-click: clear extra cursors, then select word at cursor
+            if self._extra_cursors:
+                self.clear_extra_cursors()
+            bounds = self._word_bounds_at(self.text, row, col)
+            if bounds is not None:
+                start, end = bounds
+                self.selection = Selection((row, start), (row, end))
+
+        elif event.chain == 3:
+            # Triple-click: clear extra cursors, then select entire line
+            if self._extra_cursors:
+                self.clear_extra_cursors()
+            lines = self.text.split("\n")
+            line = lines[row] if row < len(lines) else ""
+            self.selection = Selection((row, 0), (row, len(line)))
+
     # ── copy / cut overrides ──────────────────────────────────────────────────
 
     def action_copy(self) -> None:

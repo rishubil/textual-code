@@ -4,6 +4,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from textual_code.utils import is_binary_file
+
 
 @dataclass
 class WorkspaceReplaceResult:
@@ -70,7 +72,7 @@ def search_workspace(
             continue
 
         # Skip binary files
-        if b"\x00" in raw[:8192]:
+        if is_binary_file(file_path):
             continue
 
         # Decode as UTF-8; skip files with encoding errors

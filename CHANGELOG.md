@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add double/triple click selection: double-clicking a word selects the full word (using `\w+` boundaries); triple-clicking a line selects the entire line; double/triple click also clears any active extra cursors
+- Add binary file detection: opening a binary file (null byte in first 8 KiB) now shows a "⚠  Binary file — not supported" notice tab instead of attempting to load it in the editor; the same file cannot be opened twice
+- Add explorer cursor sync: switching between editor tabs now moves the explorer cursor to the corresponding file, keeping the sidebar in sync with the active editor
+
 - Add recursive split system: replace the binary left/right split with unlimited nested horizontal/vertical splits using a tree data structure; split right (Ctrl+\\), split down, close split (Ctrl+Shift+\\), focus next/previous split; N-way splits flatten into siblings when direction matches; closing a split auto-collapses the parent; split resize handles work with any number of children
 - Refactor status bar to a single global footer owned by `MainView`: previously each `CodeEditor` tab rendered its own `CodeEditorFooter`; now there is exactly one footer in the whole app that always reflects the active editor's state (path, language, line ending, encoding, indentation, cursor position, and cursor count); footer buttons (cursor, line ending, encoding, indent, language) are wired through `MainView` to the active editor
 - Add multi-cursor selection and movement: arrow keys, Home/End, Ctrl+Left/Right/Home/End, Page Up/Down now move all active cursors simultaneously; Shift+movement extends the selection per cursor; each extra cursor has an independent anchor so selections are maintained; typing or backspace/delete replaces/removes the selected range at every cursor; overlapping selections are automatically merged before editing; cursors that collide after movement are deduplicated; `Ctrl+Shift+L` (select all occurrences) now places each extra cursor at the end of the matched word with the selection spanning the whole match, consistent with VS Code behaviour

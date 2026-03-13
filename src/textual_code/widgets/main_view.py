@@ -5,8 +5,10 @@ from pathlib import Path
 from textual import events, on
 from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.message import Message
 from textual.widgets import Button, Static, TabbedContent, TabPane
 
+from textual_code.utils import is_binary_file
 from textual_code.widgets.code_editor import CodeEditor, CodeEditorFooter
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 from textual_code.widgets.markdown_preview import MarkdownPreviewPane
@@ -33,6 +35,13 @@ class MainView(Static):
     Supports recursive split view: unlimited nested horizontal/vertical splits.
     Uses a tree data structure (split_tree) internally.
     """
+
+    class ActiveFileChanged(Message):
+        """Posted when the active tab's file changes."""
+
+        def __init__(self, path: Path) -> None:
+            super().__init__()
+            self.path = path
 
     BINDINGS = [
         Binding("ctrl+s", "save", "Save"),
@@ -228,7 +237,8 @@ class MainView(Static):
         if not active_id:
             return None
         pane = tc.get_pane(active_id)
-        return pane.query_one(CodeEditor)
+        editors = pane.query(CodeEditor)
+        return editors.first(CodeEditor) if editors else None
 
     def _get_active_code_editor_in_split(self, split: str) -> CodeEditor | None:
         """Backward compat: get active editor by 'left'/'right'."""
@@ -399,6 +409,16 @@ class MainView(Static):
             self.focus_pane(pane_id)
             return pane_id
 
+        if path is not None and is_binary_file(path):
+            pane = TabPane(
+                path.name,
+                Static("⚠  Binary file — not supported", classes="binary-notice"),
+                id=pane_id,
+            )
+            target_leaf.opened_files[path] = pane_id
+            await self.open_new_pane(pane_id, pane, leaf_id=target_leaf_id)
+            return pane_id
+
         pane = TabPane(
             "...",
             CodeEditor(
@@ -429,7 +449,10 @@ class MainView(Static):
             if tc is None:
                 continue
             pane = tc.get_pane(pane_id)
-            code_editor = pane.query_one(CodeEditor)
+            editors = pane.query(CodeEditor)
+            if not editors:
+                continue
+            code_editor = editors.first(CodeEditor)
             if code_editor.text != code_editor.initial_text:
                 return True
         return False
@@ -446,8 +469,9 @@ class MainView(Static):
         tc = self.query_one(f"#{leaf.leaf_id}", TabbedContent)
         tc.active = pane_id
         if focus:
-            editor = tc.get_pane(pane_id).query_one(CodeEditor)
-            editor.action_focus()
+            editors = tc.get_pane(pane_id).query(CodeEditor)
+            if editors:
+                editors.first(CodeEditor).action_focus()
 
     async def action_close_code_editor(
         self, pane_id: str, *, auto_close_split: bool = True
@@ -474,7 +498,10 @@ class MainView(Static):
             if tc is None:
                 continue
             pane = tc.get_pane(pane_id)
-            code_editor = pane.query_one(CodeEditor)
+            pane_editors = pane.query(CodeEditor)
+            if not pane_editors:
+                continue
+            code_editor = pane_editors.first(CodeEditor)
             if code_editor.text != code_editor.initial_text:
                 editors.append(code_editor)
         editors.sort(key=lambda e: e.path is None)
@@ -543,7 +570,9 @@ class MainView(Static):
             if tc is None:
                 continue
             pane = tc.get_pane(pane_id)
-            editors.append(pane.query_one(CodeEditor))
+            pane_editors = pane.query(CodeEditor)
+            if pane_editors:
+                editors.append(pane_editors.first(CodeEditor))
         self._close_next(editors)
 
     def _close_next(self, editors: list[CodeEditor]) -> None:
@@ -595,8 +624,9 @@ class MainView(Static):
         # Ensure DOM focus moves to the new leaf's editor
         tc = self.query_one(f"#{new_leaf.leaf_id}", TabbedContent)
         tc.active = pane_id
-        editor = tc.get_pane(pane_id).query_one(CodeEditor)
-        editor.editor.focus()
+        editors = tc.get_pane(pane_id).query(CodeEditor)
+        if editors:
+            editors.first(CodeEditor).editor.focus()
 
     async def _mount_new_split(self, new_leaf: LeafNode, direction: str) -> None:
         """Mount a new split when going from 1 leaf to 2 (first split)."""
@@ -688,8 +718,12 @@ class MainView(Static):
         for pane_id in list(active_leaf.pane_ids):
             tc = self.query_one(f"#{active_leaf.leaf_id}", TabbedContent)
             pane = tc.get_pane(pane_id)
-            editor = pane.query_one(CodeEditor)
-            editor.action_close()
+            pane_editors = pane.query(CodeEditor)
+            if pane_editors:
+                pane_editors.first(CodeEditor).action_close()
+            else:
+                # Binary pane: close directly
+                self.app.call_later(self.action_close_code_editor, pane_id)
 
     def action_find_in_workspace(self) -> None:
         sidebar = self.app.sidebar
@@ -855,6 +889,9 @@ class MainView(Static):
                     editor = self._get_active_code_editor_in_leaf(leaf)
                     await self._update_markdown_preview(editor)
         self._sync_footer_to_active_editor()
+        editor = self.get_active_code_editor()
+        if editor is not None and editor.path is not None:
+            self.post_message(self.ActiveFileChanged(editor.path))
 
     @on(DraggableTabbedContent.TabMovedToOtherSplit)
     async def on_tab_moved_to_other_split(
