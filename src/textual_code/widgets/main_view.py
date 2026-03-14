@@ -780,6 +780,14 @@ class MainView(Static):
 
         tc_source = self.query_one(f"#{source_leaf.leaf_id}", TabbedContent)
         pane = tc_source.get_pane(source_pane_id)
+
+        # Handle markdown preview panes separately
+        preview_results = pane.query(MarkdownPreviewPane)
+        if preview_results:
+            return await self._move_preview_pane_to_leaf(
+                source_pane_id, preview_results.first(), dest_leaf
+            )
+
         editor = pane.query_one(CodeEditor)
         path = editor.path
         text = editor.text
@@ -808,6 +816,43 @@ class MainView(Static):
 
         # Close the source pane (defer auto-close to preserve tree structure)
         await self.action_close_code_editor(source_pane_id, auto_close_split=False)
+        await self._auto_close_split_if_empty()
+        return new_pane_id
+
+    async def _move_preview_pane_to_leaf(
+        self,
+        source_pane_id: str,
+        source_preview: MarkdownPreviewPane,
+        dest_leaf: LeafNode,
+    ) -> str | None:
+        """Move a markdown preview pane to dest_leaf."""
+        path = source_preview.source_path
+
+        # Create new preview in destination
+        self._active_leaf_id = dest_leaf.leaf_id
+        new_pane_id = f"md-preview-{uuid4().hex}"
+        new_preview = MarkdownPreviewPane(source_path=path)
+        new_tab_pane = TabPane(
+            f"Preview: {path.name}" if path else "Preview", new_preview, id=new_pane_id
+        )
+        await self.open_new_pane(new_pane_id, new_tab_pane)
+
+        # Update tracking
+        if path is not None:
+            self._preview_pane_ids[path] = new_pane_id
+
+        # Update preview content from source editor (if available)
+        if path is not None:
+            for leaf in all_leaves(self._split_root):
+                if path in leaf.opened_files:
+                    editor_pane_id = leaf.opened_files[path]
+                    tc = self.query_one(f"#{leaf.leaf_id}", TabbedContent)
+                    editor = tc.get_pane(editor_pane_id).query_one(CodeEditor)
+                    await new_preview.update_for(editor.text, path)
+                    break
+
+        # Close source pane
+        await self.close_pane(source_pane_id)
         await self._auto_close_split_if_empty()
         return new_pane_id
 

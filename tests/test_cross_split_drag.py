@@ -12,6 +12,7 @@ from textual.widgets._tabbed_content import ContentTab, ContentTabs
 from tests.conftest import make_app
 from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+from textual_code.widgets.markdown_preview import MarkdownPreviewPane
 from textual_code.widgets.split_tree import all_leaves
 
 
@@ -291,3 +292,68 @@ async def test_e2e_drag_tab_left_to_right(
             len(main._pane_ids["right"]) > right_tab_count_before
             or len(main._pane_ids["left"]) < left_tab_count_before
         )
+
+
+# ── Markdown preview pane drag ────────────────────────────────────────────────
+
+
+@pytest.fixture
+def md_file(workspace: Path) -> Path:
+    f = workspace / "README.md"
+    f.write_text("# Hello\n\nWorld\n")
+    return f
+
+
+async def test_drag_markdown_preview_to_other_split(
+    workspace: Path, md_file: Path, py_file: Path
+):
+    """Moving a markdown preview pane to another split should not crash."""
+    app = make_app(workspace, open_file=md_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        # Open a second file so the source split isn't empty after move
+        await main.action_open_code_editor(path=py_file)
+        await pilot.pause()
+
+        # Open markdown preview for the .md file
+        # Focus the md editor first
+        leaves = all_leaves(main._split_root)
+        source_leaf = leaves[0]
+        md_pane_id = source_leaf.opened_files[md_file]
+        tc = main.query_one(f"#{source_leaf.leaf_id}")
+        tc.active = md_pane_id
+        await pilot.pause()
+
+        await main.action_open_markdown_preview_tab()
+        await pilot.pause()
+
+        # Verify preview was created
+        assert md_file in main._preview_pane_ids
+        preview_pane_id = main._preview_pane_ids[md_file]
+        assert preview_pane_id in source_leaf.pane_ids
+
+        # Move preview pane to right split
+        new_pane_id = await main._move_pane_to_split(preview_pane_id, "right")
+        await pilot.pause()
+
+        # Verify move succeeded
+        assert new_pane_id is not None
+
+        # Preview pane should be in destination leaf
+        dest_leaves = all_leaves(main._split_root)
+        dest_leaf = dest_leaves[-1]
+        assert new_pane_id in dest_leaf.pane_ids
+
+        # Source pane should be removed
+        assert preview_pane_id not in source_leaf.pane_ids
+
+        # _preview_pane_ids should be updated to new pane_id
+        assert main._preview_pane_ids[md_file] == new_pane_id
+
+        # Preview content should reflect the source file
+        dest_tc = main.query_one(f"#{dest_leaf.leaf_id}")
+        new_pane = dest_tc.get_pane(new_pane_id)
+        new_preview = new_pane.query_one(MarkdownPreviewPane)
+        assert new_preview.source_path == md_file
