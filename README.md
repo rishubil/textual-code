@@ -97,5 +97,3 @@ uv run pytest tests/test_code_editor.py
   - [ ] Move tabs by dragging the tab
     - [x] Move tabs between split views by dragging the tab to the other split view
     - [ ] Split the view and move the tab to the new split view by dragging the tab to the edge of the other split view
-- [ ] Known bugs
-  - [ ] Ctrl+D with a reverse selection (selected right-to-left) adds extra cursor at wrong position
