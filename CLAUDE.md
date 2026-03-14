@@ -25,6 +25,11 @@
 - Add tests before modifying if possible
 - If adding tests is out of scope, state it explicitly: "This change has no tests"
 
+**When adding new UI (modal / widget / screen):**
+- A snapshot test is **mandatory**. Add it to `tests/test_snapshots.py` before the implementation is merged.
+- Use `_open_editor_modal` helper for editor-triggered modals; use `_open_app_modal` for app-level modals.
+- Run `uv run pytest tests/test_snapshots.py --snapshot-update` after adding the test to generate the SVG.
+
 ## Textual Official Documentation
 
 When Textual framework behaviour (API, Widget, Screen, Worker, reactive, etc.) is uncertain, **always search the local docs before implementing**.

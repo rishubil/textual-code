@@ -17,8 +17,11 @@ Compare on subsequent runs:
 from pathlib import Path
 
 import pytest
+from textual.widgets import Input
 
 from tests.conftest import make_app
+from textual_code.modals import RebindKeyScreen
+from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
 pytestmark = pytest.mark.serial
 
@@ -386,3 +389,238 @@ def test_snapshot_footer_encoding_modal_no_save_level(
         await pilot.pause()
 
     assert snap_compare(app, run_before=open_modal, terminal_size=TERMINAL_SIZE)
+
+
+# ── Helpers for modal tests ────────────────────────────────────────────────────
+
+
+def _open_editor_modal(app, action_fn):
+    """Return run_before that focuses the editor then calls action_fn."""
+
+    async def run_before(pilot):
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None, f"No active editor in {app}"
+        editor.action_focus()
+        await pilot.pause()
+        action_fn(editor)
+        await pilot.pause()
+
+    return run_before
+
+
+def _open_app_modal(app, action_fn):
+    """Return run_before that calls an app-level action_fn."""
+
+    async def run_before(pilot):
+        await pilot.pause()
+        action_fn(app)
+        await pilot.pause()
+
+    return run_before
+
+
+# ── Additional modal snapshots ─────────────────────────────────────────────────
+
+
+def test_snapshot_goto_line_modal(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """GotoLineModalScreen open via editor action_goto_line()."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+    assert snap_compare(
+        app,
+        run_before=_open_editor_modal(app, lambda e: e.action_goto_line()),
+        terminal_size=TERMINAL_SIZE,
+    )
+
+
+def test_snapshot_change_language_modal(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """ChangeLanguageModalScreen open via editor action_change_language()."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+    assert snap_compare(
+        app,
+        run_before=_open_editor_modal(app, lambda e: e.action_change_language()),
+        terminal_size=TERMINAL_SIZE,
+    )
+
+
+def test_snapshot_change_syntax_theme_modal(snap_compare, snapshot_workspace: Path):
+    """ChangeSyntaxThemeModalScreen (with save_level row) via app action."""
+    app = make_app(snapshot_workspace)
+    assert snap_compare(
+        app,
+        run_before=_open_app_modal(app, lambda a: a.action_set_syntax_theme()),
+        terminal_size=TERMINAL_SIZE,
+    )
+
+
+def test_snapshot_change_word_wrap_modal(snap_compare, snapshot_workspace: Path):
+    """ChangeWordWrapModalScreen (with save_level row) via app action."""
+    app = make_app(snapshot_workspace)
+    assert snap_compare(
+        app,
+        run_before=_open_app_modal(app, lambda a: a.action_set_default_word_wrap()),
+        terminal_size=TERMINAL_SIZE,
+    )
+
+
+def test_snapshot_change_ui_theme_modal(snap_compare, snapshot_workspace: Path):
+    """ChangeUIThemeModalScreen (with save_level row) via app action."""
+    app = make_app(snapshot_workspace)
+    assert snap_compare(
+        app,
+        run_before=_open_app_modal(app, lambda a: a.action_set_ui_theme()),
+        terminal_size=TERMINAL_SIZE,
+    )
+
+
+def test_snapshot_sidebar_resize_modal(snap_compare, snapshot_workspace: Path):
+    """SidebarResizeModalScreen open via app action_resize_sidebar_cmd()."""
+    app = make_app(snapshot_workspace)
+    assert snap_compare(
+        app,
+        run_before=_open_app_modal(app, lambda a: a.action_resize_sidebar_cmd()),
+        terminal_size=TERMINAL_SIZE,
+    )
+
+
+def test_snapshot_split_resize_modal(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """SplitResizeModalScreen open after split_right then action_resize_split_cmd()."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def run_before(pilot):
+        await pilot.pause()
+        await app.main_view.action_split_right()
+        await pilot.pause()
+        app.action_resize_split_cmd()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_rebind_key_screen(snap_compare, snapshot_workspace: Path):
+    """RebindKeyScreen shown for the 'quit' action."""
+    app = make_app(snapshot_workspace)
+
+    async def run_before(pilot):
+        await pilot.pause()
+        app.push_screen(RebindKeyScreen("quit", "Quit", "q"))
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_indent_modal_with_save_level(snap_compare, snapshot_workspace: Path):
+    """ChangeIndentModalScreen with save_level row (user/project setting visible)."""
+    app = make_app(snapshot_workspace)
+    assert snap_compare(
+        app,
+        run_before=_open_app_modal(app, lambda a: a.action_set_default_indentation()),
+        terminal_size=TERMINAL_SIZE,
+    )
+
+
+def test_snapshot_line_ending_modal_with_save_level(
+    snap_compare, snapshot_workspace: Path
+):
+    """ChangeLineEndingModalScreen with save_level row (user/project visible)."""
+    app = make_app(snapshot_workspace)
+    assert snap_compare(
+        app,
+        run_before=_open_app_modal(app, lambda a: a.action_set_default_line_ending()),
+        terminal_size=TERMINAL_SIZE,
+    )
+
+
+def test_snapshot_encoding_modal_with_save_level(
+    snap_compare, snapshot_workspace: Path
+):
+    """ChangeEncodingModalScreen with save_level row (user/project setting visible)."""
+    app = make_app(snapshot_workspace)
+    assert snap_compare(
+        app,
+        run_before=_open_app_modal(app, lambda a: a.action_set_default_encoding()),
+        terminal_size=TERMINAL_SIZE,
+    )
+
+
+# ── Additional UI panel snapshots ─────────────────────────────────────────────
+
+
+def test_snapshot_find_bar_open(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """FindReplaceBar shown in find mode via editor action_find()."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+    assert snap_compare(
+        app,
+        run_before=_open_editor_modal(app, lambda e: e.action_find()),
+        terminal_size=TERMINAL_SIZE,
+    )
+
+
+def test_snapshot_replace_bar_open(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """FindReplaceBar shown in replace mode via editor action_replace()."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+    assert snap_compare(
+        app,
+        run_before=_open_editor_modal(app, lambda e: e.action_replace()),
+        terminal_size=TERMINAL_SIZE,
+    )
+
+
+def test_snapshot_sidebar_search_tab(snap_compare, snapshot_workspace: Path):
+    """WorkspaceSearchPane shown in empty state after switching to Search tab."""
+    app = make_app(snapshot_workspace)
+
+    async def run_before(pilot):
+        await pilot.pause()
+        app.main_view.action_find_in_workspace()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_workspace_search_results(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """WorkspaceSearchPane showing results after searching for 'print'."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def run_before(pilot):
+        await pilot.pause()
+        app.main_view.action_find_in_workspace()
+        await pilot.pause()
+        pane = app.query_one(WorkspaceSearchPane)
+        pane.query_one("#ws-query", Input).value = "print"
+        pane._run_search()
+        await pilot.pause(0.5)
+
+    assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_multi_cursor(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """MultiCursorTextArea showing multiple cursors after Ctrl+Alt+Down twice."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def run_before(pilot):
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.action_focus()
+        await pilot.pause()
+        await pilot.press("ctrl+alt+down")
+        await pilot.pause()
+        await pilot.press("ctrl+alt+down")
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
