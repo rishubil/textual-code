@@ -1,10 +1,42 @@
 #!/usr/bin/env bash
 
-set -eu
+set -o errexit
+set -o nounset
+set -o pipefail
+if [[ "${TRACE-0}" == "1" ]]; then
+    set -o xtrace
+fi
 
-COMPOSE_FILE=".devcontainer/docker-compose.yml"
-COMMON_SERVICE_NAME="textual-code-devcontainer"
-APP_SERVICE_NAME="$COMMON_SERVICE_NAME-app"
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+# Resolve devcontainer.json path (prefer local override)
+resolve_devcontainer_json() {
+    local devcontainer_dir=".devcontainer"
+    if [[ -f "${devcontainer_dir}/local/devcontainer.json" ]]; then
+        echo "${devcontainer_dir}/local/devcontainer.json"
+    else
+        echo "${devcontainer_dir}/devcontainer.json"
+    fi
+}
+
+# Extract a string field from devcontainer.json
+# Usage: extract_field <json_file> <field_name>
+extract_field() {
+    local json_file="$1"
+    local field="$2"
+    local value
+    value=$(grep -o "\"${field}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$json_file" \
+        | sed "s/.*\"${field}\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/")
+    if [[ -z "$value" ]]; then
+        echo "Error: ${field} not found in $json_file" >&2
+        exit 1
+    fi
+    echo "$value"
+}
+
+DEVCONTAINER_JSON="$(resolve_devcontainer_json)"
+COMPOSE_FILE="$(dirname "$DEVCONTAINER_JSON")/$(extract_field "$DEVCONTAINER_JSON" dockerComposeFile)"
+APP_SERVICE_NAME="$(extract_field "$DEVCONTAINER_JSON" service)"
 
 show_help() {
     cat << EOF
@@ -89,7 +121,6 @@ wt_name=""
 wt_project_root=""
 wt_worktree_path=""
 wt_branch_name=""
-wt_db_name=""
 wt_override_file=""
 
 copy_files_to_worktree() {
