@@ -366,3 +366,155 @@ def test_trailing_comma_whitespace_in_pattern_string(tmp_path: Path) -> None:
     paths = {r.file_path.name for r in results}
     assert "main.py" in paths
     assert "other.txt" not in paths
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: folder exclusion
+# ---------------------------------------------------------------------------
+
+
+def test_exclude_folder_by_name(tmp_path: Path) -> None:
+    """Folder name in files_to_exclude skips all files inside it."""
+    (tmp_path / "node_modules").mkdir()
+    (tmp_path / "node_modules" / "pkg.js").write_text("needle\n")
+    (tmp_path / "keep.py").write_text("needle\n")
+
+    results = search_workspace(tmp_path, "needle", files_to_exclude="node_modules")
+    paths = {r.file_path.name for r in results}
+    assert "pkg.js" not in paths
+    assert "keep.py" in paths
+
+
+def test_exclude_multiple_folders(tmp_path: Path) -> None:
+    """Comma-separated folder names are all excluded."""
+    (tmp_path / "dist").mkdir()
+    (tmp_path / "dist" / "bundle.js").write_text("needle\n")
+    (tmp_path / "build").mkdir()
+    (tmp_path / "build" / "out.js").write_text("needle\n")
+    (tmp_path / "src.py").write_text("needle\n")
+
+    results = search_workspace(tmp_path, "needle", files_to_exclude="dist,build")
+    paths = {r.file_path.name for r in results}
+    assert "bundle.js" not in paths
+    assert "out.js" not in paths
+    assert "src.py" in paths
+
+
+def test_exclude_nested_folder(tmp_path: Path) -> None:
+    """Folder name matches at any depth in the directory tree."""
+    vendor = tmp_path / "src" / "vendor"
+    vendor.mkdir(parents=True)
+    (vendor / "lib.js").write_text("needle\n")
+    (tmp_path / "src" / "main.py").write_text("needle\n")
+
+    results = search_workspace(tmp_path, "needle", files_to_exclude="vendor")
+    paths = {r.file_path.name for r in results}
+    assert "lib.js" not in paths
+    assert "main.py" in paths
+
+
+def test_exclude_folder_trailing_slash(tmp_path: Path) -> None:
+    """Trailing slash in exclude pattern is handled (dist/ excludes dist/)."""
+    (tmp_path / "dist").mkdir()
+    (tmp_path / "dist" / "out.js").write_text("needle\n")
+    (tmp_path / "keep.py").write_text("needle\n")
+
+    results = search_workspace(tmp_path, "needle", files_to_exclude="dist/")
+    paths = {r.file_path.name for r in results}
+    assert "out.js" not in paths
+    assert "keep.py" in paths
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: case-sensitive search
+# ---------------------------------------------------------------------------
+
+
+def test_case_sensitive_search_default(tmp_path: Path) -> None:
+    """By default search is case-sensitive."""
+    (tmp_path / "a.txt").write_text("Hello World\n")
+
+    results = search_workspace(tmp_path, "hello")
+    assert results == []
+
+    results = search_workspace(tmp_path, "Hello")
+    assert len(results) == 1
+
+
+def test_case_insensitive_search(tmp_path: Path) -> None:
+    """case_sensitive=False matches regardless of case."""
+    (tmp_path / "a.txt").write_text("Hello World\n")
+
+    results = search_workspace(tmp_path, "hello", case_sensitive=False)
+    assert len(results) == 1
+    assert results[0].line_text == "Hello World"
+
+
+def test_case_insensitive_regex(tmp_path: Path) -> None:
+    """case_sensitive=False works with use_regex=True."""
+    (tmp_path / "a.txt").write_text("FooBar\nbaz\n")
+
+    results = search_workspace(tmp_path, "foo.*", use_regex=True, case_sensitive=False)
+    assert len(results) == 1
+    assert results[0].line_text == "FooBar"
+
+
+# ---------------------------------------------------------------------------
+# UI integration test: exclude field in WorkspaceSearchPane
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_exclude_field_in_ui_applies_to_search(tmp_path: Path) -> None:
+    """The #ws-exclude Input field is read and applied during search."""
+    from textual.widgets import Input, Label, ListView
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "node_modules").mkdir()
+    (tmp_path / "node_modules" / "pkg.js").write_text("needle\n")
+    (tmp_path / "keep.py").write_text("needle\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle"
+        ws_pane.query_one("#ws-exclude", Input).value = "node_modules"
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_list = ws_pane.query_one("#ws-results", ListView)
+        labels = [str(lbl.content) for lbl in results_list.query(Label)]
+        assert not any("pkg.js" in lbl for lbl in labels)
+        assert any("keep.py" in lbl for lbl in labels)
+
+
+@pytest.mark.asyncio
+async def test_case_sensitive_checkbox_in_ui(tmp_path: Path) -> None:
+    """The #ws-case-sensitive checkbox controls case sensitivity."""
+    from textual.widgets import Checkbox, Input, Label, ListView
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "sample.txt").write_text("Hello World\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "hello"
+        # Disable case-sensitive (uncheck)
+        ws_pane.query_one("#ws-case-sensitive", Checkbox).value = False
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_list = ws_pane.query_one("#ws-results", ListView)
+        labels = [str(lbl.content) for lbl in results_list.query(Label)]
+        assert any("sample.txt" in lbl for lbl in labels)

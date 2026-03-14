@@ -126,6 +126,7 @@ def search_workspace(
     respect_gitignore: bool = False,
     files_to_include: str = "",
     files_to_exclude: str = "",
+    case_sensitive: bool = True,
 ) -> list[WorkspaceSearchResult]:
     """Search all text files under workspace_path for query.
 
@@ -140,8 +141,9 @@ def search_workspace(
     if not query:
         return []
 
+    flags = 0 if case_sensitive else re.IGNORECASE
     try:
-        pattern = re.compile(query if use_regex else re.escape(query))
+        pattern = re.compile(query if use_regex else re.escape(query), flags)
     except re.error:
         return []
 
@@ -179,6 +181,7 @@ def replace_workspace(
     respect_gitignore: bool = False,
     files_to_include: str = "",
     files_to_exclude: str = "",
+    case_sensitive: bool = True,
 ) -> WorkspaceReplaceResult:
     """Replace all occurrences of query with replacement in workspace text files.
 
@@ -192,8 +195,9 @@ def replace_workspace(
     if not query:
         return WorkspaceReplaceResult(files_modified=0, replacements_count=0)
 
+    flags = 0 if case_sensitive else re.IGNORECASE
     try:
-        pattern = re.compile(query if use_regex else re.escape(query))
+        pattern = re.compile(query if use_regex else re.escape(query), flags)
     except re.error:
         return WorkspaceReplaceResult(files_modified=0, replacements_count=0)
 

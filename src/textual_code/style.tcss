@@ -803,9 +803,31 @@ WorkspaceSearchPane #ws-regex {
     height: 3;
 }
 
+WorkspaceSearchPane #ws-case-sensitive {
+    width: auto;
+    height: 3;
+}
+
+WorkspaceSearchPane #ws-gitignore {
+    width: auto;
+    height: 3;
+}
+
 WorkspaceSearchPane #ws-search {
     width: auto;
     height: 3;
+}
+
+WorkspaceSearchPane #ws-filter-bar {
+    height: auto;
+}
+
+WorkspaceSearchPane #ws-include {
+    width: 1fr;
+}
+
+WorkspaceSearchPane #ws-exclude {
+    width: 1fr;
 }
 
 WorkspaceSearchPane #ws-replace-bar {

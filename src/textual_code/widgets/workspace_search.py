@@ -39,21 +39,35 @@ class WorkspaceSearchPane(Static):
         yield Label("", id="ws-replace-status")
         yield ListView(id="ws-results")
 
-    # ── Internal state ─────────────────────────────────────────────────────────
+    # ── Internal helpers ───────────────────────────────────────────────────────
 
     def _get_result_data(self) -> list[tuple[Path, int]]:
         """Return the (file_path, line_number) pairs stored on each ListItem."""
         return getattr(self, "_result_data", [])
 
+    def _read_search_inputs(self) -> tuple[str, bool, bool, bool, str, str]:
+        """Read and return shared search inputs from the UI widgets."""
+        return (
+            self.query_one("#ws-query", Input).value.strip(),
+            bool(self.query_one("#ws-regex", Checkbox).value),
+            bool(self.query_one("#ws-gitignore", Checkbox).value),
+            bool(self.query_one("#ws-case-sensitive", Checkbox).value),
+            self.query_one("#ws-include", Input).value,
+            self.query_one("#ws-exclude", Input).value,
+        )
+
     # ── Search execution ───────────────────────────────────────────────────────
 
     def _run_search(self) -> None:
         """Read UI state and kick off a background search worker."""
-        query = self.query_one("#ws-query", Input).value.strip()
-        use_regex = bool(self.query_one("#ws-regex", Checkbox).value)
-        respect_gitignore = bool(self.query_one("#ws-gitignore", Checkbox).value)
-        files_to_include = self.query_one("#ws-include", Input).value
-        files_to_exclude = self.query_one("#ws-exclude", Input).value
+        (
+            query,
+            use_regex,
+            respect_gitignore,
+            case_sensitive,
+            files_to_include,
+            files_to_exclude,
+        ) = self._read_search_inputs()
 
         results_list = self.query_one("#ws-results", ListView)
         results_list.clear()
@@ -71,6 +85,7 @@ class WorkspaceSearchPane(Static):
             query,
             use_regex,
             respect_gitignore,
+            case_sensitive,
             files_to_include,
             files_to_exclude,
         )
@@ -82,6 +97,7 @@ class WorkspaceSearchPane(Static):
         query: str,
         use_regex: bool,
         respect_gitignore: bool,
+        case_sensitive: bool,
         files_to_include: str,
         files_to_exclude: str,
     ) -> None:
@@ -90,6 +106,7 @@ class WorkspaceSearchPane(Static):
             query,
             use_regex,
             respect_gitignore=respect_gitignore,
+            case_sensitive=case_sensitive,
             files_to_include=files_to_include,
             files_to_exclude=files_to_exclude,
         )
@@ -122,12 +139,15 @@ class WorkspaceSearchPane(Static):
     # ── Replace execution ──────────────────────────────────────────────────────
 
     def _run_replace_all(self) -> None:
-        query = self.query_one("#ws-query", Input).value.strip()
+        (
+            query,
+            use_regex,
+            respect_gitignore,
+            case_sensitive,
+            files_to_include,
+            files_to_exclude,
+        ) = self._read_search_inputs()
         replacement = self.query_one("#ws-replace", Input).value
-        use_regex = bool(self.query_one("#ws-regex", Checkbox).value)
-        respect_gitignore = bool(self.query_one("#ws-gitignore", Checkbox).value)
-        files_to_include = self.query_one("#ws-include", Input).value
-        files_to_exclude = self.query_one("#ws-exclude", Input).value
         status = self.query_one("#ws-replace-status", Label)
 
         if not query:
@@ -143,6 +163,7 @@ class WorkspaceSearchPane(Static):
             replacement,
             use_regex,
             respect_gitignore=respect_gitignore,
+            case_sensitive=case_sensitive,
             files_to_include=files_to_include,
             files_to_exclude=files_to_exclude,
         )

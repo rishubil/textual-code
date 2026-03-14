@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add file include/exclude filters to workspace search: two new inputs ("Files to include" / "Files to exclude") accept comma-separated glob patterns (e.g. `src/**`, `*.py`) to narrow or skip files during workspace search and replace
 - Improve open-file command palette performance: `OpenFileCommandProvider` now enumerates only files (not directories) and skips hidden paths, returning relative paths so the matcher scores them correctly; absolute path is still passed to the open callback
 - Add background worker for workspace search: workspace search now runs in a background thread so the UI stays responsive during large searches; errors are surfaced as a "Search failed" result item
+- Add case-sensitive toggle to workspace search: a new "Aa" checkbox (default on) controls whether the workspace search and replace operations are case-sensitive; unchecking it enables case-insensitive matching for both plain-text and regex queries
+- Fix workspace search folder exclusion: the "Files to exclude" field now correctly excludes entire directories by name (e.g. `node_modules`, `dist`), including at any nesting depth and with or without a trailing slash
 
 - Add Ctrl+A select all: selects the entire document text and clears any active extra cursors in one keystroke
 - Add markdown preview as tab (Ctrl+Shift+M): opens a live preview of the active `.md` file in a new editor tab instead of a side panel; the preview auto-updates as you type; closing the source editor also closes its linked preview tab; pressing Ctrl+Shift+M again focuses the existing preview tab without creating a duplicate
