@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add Ctrl+A select all: selects the entire document text and clears any active extra cursors in one keystroke
 - Add markdown preview as tab (Ctrl+Shift+M): opens a live preview of the active `.md` file in a new editor tab instead of a side panel; the preview auto-updates as you type; closing the source editor also closes its linked preview tab; pressing Ctrl+Shift+M again focuses the existing preview tab without creating a duplicate
 - Add syntax highlighting for 10 additional languages via `tree-sitter-language-pack`: Dockerfile, TypeScript (`.ts`), TSX (`.tsx`), C (`.c`, `.h`), C++ (`.cpp`, `.cc`, `.cxx`, `.hpp`), Ruby (`.rb`), Kotlin (`.kt`, `.kts`), Lua (`.lua`), PHP (`.php`), Makefile (`Makefile`, `makefile`, `GNUmakefile`, `.mk`, `.dockerfile`); highlight queries are bundled in `src/textual_code/grammars/`
 - Remove save-level selector from footer indentation/line-ending/encoding modals: the "Save to User/Project" dropdown now only appears in the "Set default…" dialogs invoked from the app menu, not in the per-file change dialogs opened via the footer buttons

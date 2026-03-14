@@ -90,6 +90,7 @@ class MultiCursorTextArea(TextArea):
 
     BINDINGS = [
         Binding("ctrl+shift+z", "redo", "Redo", show=False),
+        Binding("ctrl+a", "select_all", "Select all", show=False),
         Binding("tab", "indent_line", "Indent", show=False),
         Binding("shift+tab", "dedent_line", "Dedent", show=False),
     ]
@@ -144,6 +145,12 @@ class MultiCursorTextArea(TextArea):
             self._line_cache.clear()
             self.refresh()
             self.post_message(self.CursorsChanged(self))
+
+    def action_select_all(self) -> None:
+        """Select all text and clear extra cursors."""
+        with self.app.batch_update():
+            super().action_select_all()
+            self.clear_extra_cursors()
 
     def clear_extra_cursors(self) -> None:
         """Remove all extra cursors."""

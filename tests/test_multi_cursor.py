@@ -1271,3 +1271,48 @@ async def test_movement_key_moves_not_clears(workspace: Path, two_line_file: Pat
 
         assert ta.extra_cursors != []
         assert ta.extra_cursors[0] == (1, 1)
+
+
+# ── Ctrl+A: select all ────────────────────────────────────────────────────────
+
+
+async def test_ctrl_a_selects_all_text(workspace: Path, two_line_file: Path):
+    """Ctrl+A selects the entire document text."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+        # selection should span from (0,0) to end of document
+        sel = ta.selection
+        assert sel.start == (0, 0)
+        assert sel.end[0] == ta.document.line_count - 1
+
+
+async def test_ctrl_a_clears_extra_cursors(workspace: Path, two_line_file: Path):
+    """Ctrl+A removes extra cursors."""
+    app = make_app(workspace, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        ta.add_cursor((1, 0))
+        await pilot.pause()
+        assert ta.extra_cursors != []
+
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+        assert ta.extra_cursors == []
+
+
+async def test_ctrl_a_on_empty_document(workspace: Path):
+    """Ctrl+A on an empty document doesn't raise."""
+    empty = workspace / "empty.txt"
+    empty.write_text("")
+    app = make_app(workspace, open_file=empty)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+a")
+        await pilot.pause()
+        assert ta.extra_cursors == []
