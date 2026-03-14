@@ -188,3 +188,7 @@ class DraggableTabbedContent(TabbedContent):
                 tabs_list.move_child(drag_tab, after=target_tab)
                 content_switcher.move_child(drag_pane, after=target_pane)
         content_tabs.refresh(layout=True)
+        # move_child() doesn't update the underline position; trigger manually
+        content_tabs.call_after_refresh(
+            lambda: content_tabs._highlight_active(animate=False)
+        )

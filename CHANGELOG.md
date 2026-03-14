@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix active tab indicator misplaced after tab reorder: `reorder_tab()` used `move_child()` to change DOM order but never re-ran `_highlight_active()`, leaving the underline pointing at the old visual position; now calls `call_after_refresh(_highlight_active)` after each reorder
 - Fix crash when dragging a markdown preview tab to another split: `_move_pane_to_leaf` assumed all panes contain a `CodeEditor`; now handles `MarkdownPreviewPane` separately, recreating the preview in the destination split and updating `_preview_pane_ids` tracking
 - Fix markdown preview tab rendering blank: `MarkdownPreviewPane` had no CSS, so the entire `height: auto` chain caused the Markdown widget content to be invisible; added `height: 1fr; overflow-y: auto` to fill the tab pane and enable scrolling
 - Fix split focus and active leaf not synced after creating a new split: `_active_leaf_id` and DOM focus now both move to the newly created leaf immediately after splitting, so a second split (e.g. split right then split down) correctly splits the new leaf rather than the original one

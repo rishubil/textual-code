@@ -312,6 +312,7 @@ def test_snapshot_tab_reorder_active_indicator(
         b_id = ContentTab.sans_prefix(tabs[1].id)
         a_id = ContentTab.sans_prefix(tabs[0].id)
         dtc.reorder_tab(b_id, a_id, before=True)
+        assert dtc.active == b_id  # active tab must remain data.json after reorder
         await pilot.pause()
 
         editor = app.main_view.get_active_code_editor()
