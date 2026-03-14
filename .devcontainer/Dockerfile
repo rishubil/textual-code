@@ -2,11 +2,6 @@ FROM ubuntu:24.04 AS base
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# change apt mirrors to mirror.kakao.com
-RUN sed -i 's|http://archive.ubuntu.com|http://ftp.kaist.ac.kr|g' /etc/apt/sources.list.d/ubuntu.sources && \
-    sed -i 's|http://kr.archive.ubuntu.com|http://ftp.kaist.ac.kr|g' /etc/apt/sources.list.d/ubuntu.sources && \
-    sed -i 's|http://security.ubuntu.com|http://ftp.kaist.ac.kr|g' /etc/apt/sources.list.d/ubuntu.sources
-
 # install basic packages
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --fix-broken && apt-get install -y --no-install-recommends \
     build-essential \
@@ -41,24 +36,6 @@ RUN echo 'export LANG="en_US.UTF-8"' >> ~/.bashrc \
 
 FROM base AS tools
 
-# install claude cli
-USER $USER_UID
-RUN curl -fsSL https://claude.ai/install.sh | bash
-RUN echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
-USER root
-RUN ln -s /home/$(getent passwd $USER_UID | cut -d: -f1)/.local/bin/claude /usr/local/bin/claude
-
-# link user's .claude settings to the project directory
-USER $USER_UID
-RUN rm -r ~/.claude \
-    && mkdir -p /project/.devcontainer/.claude \
-    && touch /project/.devcontainer/.claude.json \
-    && touch /project/.devcontainer/.claude.json.backup \
-    && chown -R $USER_UID:$USER_GID /project/.devcontainer \
-    && ln -sf /project/.devcontainer/.claude ~/ \
-    && ln -sf /project/.devcontainer/.claude.json ~/.claude.json \
-    && ln -sf /project/.devcontainer/.claude.json.backup ~/.claude.json.backup
-
 # install lazygit
 USER root
 RUN export LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | \grep -Po '"tag_name": *"v\K[^"]*') \
@@ -75,19 +52,9 @@ FROM tools AS dev
 
 # install dependencies
 USER root
-# cmake/unzip is for qmd
-# jq is for claude hook
 # shellcheck is for linting shell scripts
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    cmake \
-    jq \
     shellcheck \
-    unzip \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
-# node for qmd
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get update && apt-get install -y --no-install-recommends \
-    nodejs \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # install uv
@@ -104,24 +71,6 @@ USER $USER_UID
 RUN uv python install 3.12 --default \
     && echo 'export PATH="/project/.devcontainer/uv/python-bin:$PATH"' >> ~/.bashrc \
     && export PATH="/project/.devcontainer/uv/python-bin:$PATH"
-
-# install qmd
-USER $USER_UID
-RUN curl -fsSL https://bun.com/install | bash \
-    && echo 'export PATH="$HOME/.bun/bin:$PATH"' >> ~/.bashrc \
-    && export PATH="$HOME/.bun/bin:$PATH" \
-    && bun install -g @tobilu/qmd \
-    && mkdir -p /project/.devcontainer/qmd-config \
-    && mkdir -p /project/.devcontainer/qmd-cache \
-    && mkdir -p ~/.cache \
-    && mkdir -p ~/.config \
-    && ln -sf /project/.devcontainer/qmd-config ~/.config/qmd \
-    && ln -sf /project/.devcontainer/qmd-cache ~/.cache/qmd
-
-# run qmd status for first time to initialize qmd
-USER $USER_UID
-ENV NODE_LLAMA_CPP_CMAKE_OPTION_GGML_CUDA=OFF
-RUN $HOME/.bun/bin/qmd status
 
 ### PROJECT-SPECIFIC SETUP END
 

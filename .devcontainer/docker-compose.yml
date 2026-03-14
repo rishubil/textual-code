@@ -10,10 +10,7 @@ services:
     init: true
     volumes:
       - ../:/project
-      - ${SSH_AUTH_SOCK:-/tmp/ssh_auth_fallback.sock}:/run/host-services/ssh-auth.sock
-      - ${HOME}/.ssh/known_hosts:/home/ubuntu/.ssh/known_hosts:ro
     environment:
-      - SSH_AUTH_SOCK=/run/host-services/ssh-auth.sock
       - CLAUDE_CONFIG_DIR=/home/ubuntu/.claude
     env_file:
       - path: ../.env

@@ -7,15 +7,6 @@
 - Use WebFetch proactively. Always check the latest development docs and search for anything unclear.
 - All code comments, docstrings, and documentation (including files in `docs/`) must be written in **English**.
 
-## Task Start Rules
-
-**Always check documentation before exploring code (Grep/Glob/Read):**
-
-1. **Check docs**: search relevant documentation with qmd
-2. Only explore code for information not found in the docs
-
-**Never skip content just because you recognize the title** — you must read the content to give accurate answers
-
 ## Test Strategy: Red-Green TDD
 
 **Before starting work, check and run existing tests:**
@@ -39,7 +30,6 @@
 When Textual framework behaviour (API, Widget, Screen, Worker, reactive, etc.) is uncertain, **always search the local docs before implementing**.
 
 - **Local docs**: `docs/libs/textual/` (MkDocs format, mirrored from textual.textualize.io)
-- **How to search**: use the `qmd` skill (`Skill(skill="qmd")`) to search the local docs
 - Key topics: App · ModalScreen · push_screen · dismiss · Message · on_* · reactive · watch_* · Worker · @work · BINDINGS · Binding · action_* · CommandPalette · Provider · TCSS · TabbedContent · TabPane · DirectoryTree · TextArea
 
 **No guessing**: if behaviour is unclear, search the local docs first.
