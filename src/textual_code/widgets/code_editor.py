@@ -1602,15 +1602,15 @@ class CodeEditor(Static):
         from textual.widgets.text_area import Selection
 
         text = self.text
+        query = self._get_query_text()
+        if not query:
+            return
+
         sel = self.editor.selection
 
-        # Case 1: No selection — select word under cursor
+        # Case 1: No selection — find and select the word instance under cursor
         if sel.start == sel.end:
             row, col = self.editor.cursor_location
-            query = _get_word_at_location(text, row, col)
-            if not query:
-                return
-            # Find the match containing the cursor
             line_offset = _location_to_text_offset(text, (row, 0))
             for m in re.finditer(re.escape(query), text):
                 if m.start() <= line_offset + col < m.end():
@@ -1622,10 +1622,6 @@ class CodeEditor(Static):
             return
 
         # Case 2: Selection exists — find next occurrence
-        query = self.editor.selected_text
-        if not query:
-            return
-
         # Search starts after the last cursor (cursor is at end of match)
         if self.editor.extra_cursors:
             last_loc = self.editor.extra_cursors[-1]
@@ -1637,14 +1633,15 @@ class CodeEditor(Static):
         if start == -1:
             return  # No occurrences at all
 
+        anchor_loc = _text_offset_to_location(text, start)
         new_loc = _text_offset_to_location(text, end)
 
         # Check if we've wrapped around to the primary selection (all selected)
-        if _text_offset_to_location(text, start) == sel.start:
+        if anchor_loc == sel.start:
             self.notify("All occurrences already selected", severity="information")
             return
 
-        self.editor.add_cursor(new_loc)
+        self.editor.add_cursor(new_loc, anchor=anchor_loc)
 
     @property
     def editor(self) -> MultiCursorTextArea:

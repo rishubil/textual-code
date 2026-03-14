@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix Ctrl+D (add next occurrence) not selecting the matched text on extra cursors: `add_cursor()` was called without an `anchor`, collapsing new cursors to a single point; now passes `anchor` at the match start so extra cursors have the same selection highlight as the primary cursor
 - Fix active tab indicator misplaced after tab reorder: `reorder_tab()` used `move_child()` to change DOM order but never re-ran `_highlight_active()`, leaving the underline pointing at the old visual position; now calls `call_after_refresh(_highlight_active)` after each reorder
 - Fix crash when dragging a markdown preview tab to another split: `_move_pane_to_leaf` assumed all panes contain a `CodeEditor`; now handles `MarkdownPreviewPane` separately, recreating the preview in the destination split and updating `_preview_pane_ids` tracking
 - Fix markdown preview tab rendering blank: `MarkdownPreviewPane` had no CSS, so the entire `height: auto` chain caused the Markdown widget content to be invisible; added `height: 1fr; overflow-y: auto` to fill the tab pane and enable scrolling

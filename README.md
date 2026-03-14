@@ -93,26 +93,9 @@ uv run pytest tests/test_code_editor.py
 
 ## TODO
 
-- [ ] Edit file
-  - [ ] Code completion
-  - [x] Syntax highlighting
-- [x] Search and replace
-  - [x] In-file find and replace (inline FindReplaceBar)
-  - [x] Workspace-wide search
-  - [x] Workspace-wide replace (Replace All)
 - [ ] Split view
-  - [x] Recursive split (N-way horizontal/vertical splits)
-  - [x] Resize the split view
-    - [x] Resize the split view by dragging the border
   - [ ] Move tabs by dragging the tab
     - [x] Move tabs between split views by dragging the tab to the other split view
     - [ ] Split the view and move the tab to the new split view by dragging the tab to the edge of the other split view
-  - [x] Markdown preview as tab
-- [x] Sidebar
-  - [x] Resize the sidebar
-    - [x] Resize the sidebar by dragging the border
-- [x] Setting
-  - [x] Themes
-    - [x] UI
-    - [x] Syntax highlighting
-  - [x] Shortcuts
+- [ ] Known bugs
+  - [ ] Ctrl+D with a reverse selection (selected right-to-left) adds extra cursor at wrong position
