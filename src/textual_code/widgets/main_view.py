@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from uuid import uuid4
 
@@ -7,6 +8,7 @@ from textual import events, on
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.message import Message
+from textual.timer import Timer
 from textual.widgets import Button, Static, TabbedContent, TabPane
 
 from textual_code.utils import is_binary_file
@@ -30,6 +32,10 @@ from textual_code.widgets.split_tree import (
     remove_leaf,
     split_leaf,
 )
+
+log = logging.getLogger(__name__)
+
+PREVIEW_DEBOUNCE_DELAY = 0.3
 
 
 class MainView(Static):
@@ -108,6 +114,8 @@ class MainView(Static):
 
         # Map from source file path to open preview pane_id
         self._preview_pane_ids: dict[Path, str] = {}
+        # Debounce timers for preview updates, keyed by source file path
+        self._preview_update_timers: dict[Path, Timer] = {}
 
     def compose(self) -> ComposeResult:
         yield build_split_widgets(self._split_root)
@@ -385,7 +393,15 @@ class MainView(Static):
         tc = self.query_one(f"#{leaf.leaf_id}", TabbedContent)
         if tc.active != pane_id:
             tc.active = pane_id
-        tc.get_pane(pane_id).focus()
+        pane = tc.get_pane(pane_id)
+        # Focus the first focusable descendant (e.g. CodeEditor, MarkdownPreviewPane)
+        focusable = (
+            pane.query("*:can-focus").first() if pane.query("*:can-focus") else None
+        )
+        if focusable is not None:
+            focusable.focus()
+        else:
+            pane.focus()
         self._active_leaf_id = leaf.leaf_id
         return True
 
@@ -534,6 +550,10 @@ class MainView(Static):
             tc = self.tabbed_content
             pane_id = tc.active
             if pane_id and self.is_opened_pane(pane_id):
+                # Cancel any pending debounce timer for this preview
+                for path, pid in list(self._preview_pane_ids.items()):
+                    if pid == pane_id:
+                        self._cancel_preview_timer(path)
                 self._preview_pane_ids = {
                     path: pid
                     for path, pid in self._preview_pane_ids.items()
@@ -827,6 +847,8 @@ class MainView(Static):
     ) -> str | None:
         """Move a markdown preview pane to dest_leaf."""
         path = source_preview.source_path
+        if path is not None:
+            self._cancel_preview_timer(path)
 
         # Create new preview in destination
         self._active_leaf_id = dest_leaf.leaf_id
@@ -907,6 +929,15 @@ class MainView(Static):
         tc = self.query_one(f"#{dest_leaf.leaf_id}", TabbedContent)
         tc.active = new_pane_id
         self._set_active_leaf(dest_leaf)
+
+    # ── Preview debounce helpers ────────────────────────────────────────────
+
+    def _cancel_preview_timer(self, path: Path) -> None:
+        """Cancel and remove a pending preview-update timer for *path*."""
+        timer = self._preview_update_timers.pop(path, None)
+        if timer is not None:
+            timer.stop()
+            log.debug("preview debounce: cancelled timer for %s", path)
 
     # ── Footer helpers ───────────────────────────────────────────────────────
 
@@ -1018,18 +1049,34 @@ class MainView(Static):
             editor.action_change_language()
 
     @on(CodeEditor.TextChanged)
-    async def on_code_editor_text_changed(self, event: CodeEditor.TextChanged) -> None:
+    def on_code_editor_text_changed(self, event: CodeEditor.TextChanged) -> None:
         editor = event.code_editor
-        if editor.path is None or editor.path not in self._preview_pane_ids:
+        path = editor.path
+        if path is None or path not in self._preview_pane_ids:
             return
-        pane_id = self._preview_pane_ids[editor.path]
+        pane_id = self._preview_pane_ids[path]
         if not self.is_opened_pane(pane_id):
             return
-        tc = self._tc_for_pane(pane_id)
-        if tc is None:
-            return
-        preview = tc.get_pane(pane_id).query_one(MarkdownPreviewPane)
-        await preview.update_for(editor.text, editor.path)
+
+        self._cancel_preview_timer(path)
+
+        async def _do_update() -> None:
+            self._preview_update_timers.pop(path, None)
+            try:
+                if not self.is_opened_pane(pane_id):
+                    return
+                tc = self._tc_for_pane(pane_id)
+                if tc is None:
+                    return
+                preview = tc.get_pane(pane_id).query_one(MarkdownPreviewPane)
+                await preview.update_for(editor.text, path)
+                log.debug("preview debounce: updated preview for %s", path)
+            except Exception:
+                log.error("preview debounce: update failed for %s", path, exc_info=True)
+
+        self._preview_update_timers[path] = self.set_timer(
+            PREVIEW_DEBOUNCE_DELAY, _do_update, name=f"preview-update-{path.name}"
+        )
 
     def action_toggle_split_vertical(self) -> None:
         """Toggle between horizontal and vertical split orientation."""
@@ -1087,6 +1134,7 @@ class MainView(Static):
         path = event.control.path
         # Close the linked preview pane if one exists
         if path is not None and path in self._preview_pane_ids:
+            self._cancel_preview_timer(path)
             preview_pane_id = self._preview_pane_ids.pop(path)
             if self.is_opened_pane(preview_pane_id):
                 await self.close_pane(preview_pane_id)

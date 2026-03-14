@@ -1,20 +1,23 @@
 from pathlib import Path
 
 from textual.app import ComposeResult
-from textual.widget import Widget
+from textual.containers import VerticalScroll
 from textual.widgets import Markdown
 
 MARKDOWN_EXTENSIONS = {".md", ".markdown", ".mkd"}
 PLACEHOLDER = "*Open a Markdown file in an editor tab to see a preview.*"
 
 
-class MarkdownPreviewPane(Widget):
+class MarkdownPreviewPane(VerticalScroll):
     """Renders a live Markdown preview of a CodeEditor's content."""
 
     DEFAULT_CSS = """
     MarkdownPreviewPane {
         height: 1fr;
-        overflow-y: auto;
+        border: tall transparent;
+    }
+    MarkdownPreviewPane:focus {
+        border: tall $accent;
     }
     """
 

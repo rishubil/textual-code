@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Improve markdown preview: debounce preview updates (300ms) so editing with a preview open no longer blocks input; change base class to VerticalScroll for keyboard scrolling (arrow keys, Page Up/Down, Home/End); add focus border highlight; auto-focus the preview pane when opened; improve `focus_pane()` to focus the first focusable descendant instead of the unfocusable TabPane
 - Fix Ctrl+D with reverse selection (right-to-left) adding extra cursor at wrong position: `action_select_next_occurrence()` used `sel.end`/`sel.start` directly without normalizing for selection direction; now uses `max()`/`min()` to get logical bounds and matches extra cursor direction to primary selection
 - Fix Ctrl+D (add next occurrence) not selecting the matched text on extra cursors: `add_cursor()` was called without an `anchor`, collapsing new cursors to a single point; now passes `anchor` at the match start so extra cursors have the same selection highlight as the primary cursor
 - Fix active tab indicator misplaced after tab reorder: `reorder_tab()` used `move_child()` to change DOM order but never re-ran `_highlight_active()`, leaving the underline pointing at the old visual position; now calls `call_after_refresh(_highlight_active)` after each reorder
