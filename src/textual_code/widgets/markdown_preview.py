@@ -11,6 +11,13 @@ PLACEHOLDER = "*Open a Markdown file in an editor tab to see a preview.*"
 class MarkdownPreviewPane(Widget):
     """Renders a live Markdown preview of a CodeEditor's content."""
 
+    DEFAULT_CSS = """
+    MarkdownPreviewPane {
+        height: 1fr;
+        overflow-y: auto;
+    }
+    """
+
     def __init__(self, source_path: Path | None = None, **kwargs) -> None:
         super().__init__(**kwargs)
         self.source_path = source_path
