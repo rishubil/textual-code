@@ -515,7 +515,7 @@ ChangeIndentModalScreen Button {
 ChangeIndentModalScreen.no-save-level #dialog {
     grid-size: 2 4;
     grid-rows: 1fr 3 3 3;
-    max-height: 14;
+    max-height: 16;
 }
 
 ChangeLineEndingModalScreen {

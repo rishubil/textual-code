@@ -1,11 +1,14 @@
 # Relies on Textual internals (tested against textual 0.x):
 # ContentTab, ContentTabs from textual.widgets._tabbed_content
 # ContentSwitcher from textual.widgets._content_switcher
+# Underline from textual.widgets._tabs
 from textual import events
+from textual.css.query import NoMatches
 from textual.message import Message
 from textual.widgets import TabbedContent
 from textual.widgets._content_switcher import ContentSwitcher  # internal
 from textual.widgets._tabbed_content import ContentTab, ContentTabs  # internal
+from textual.widgets._tabs import Underline  # internal
 
 DRAG_THRESHOLD = 3  # pixels (euclidean distance)
 EDGE_ZONE_FRACTION = 0.15  # fraction of widget size that counts as edge zone
@@ -188,7 +191,45 @@ class DraggableTabbedContent(TabbedContent):
                 tabs_list.move_child(drag_tab, after=target_tab)
                 content_switcher.move_child(drag_pane, after=target_pane)
         content_tabs.refresh(layout=True)
-        # move_child() doesn't update the underline position; trigger manually
-        content_tabs.call_after_refresh(
-            lambda: content_tabs._highlight_active(animate=False)
-        )
+
+        # move_child() doesn't update the underline position; trigger manually.
+        # We implement move_underline inline (instead of calling _highlight_active)
+        # to avoid the double call_after_refresh chain inside _highlight_active.
+        # Retry if layout hasn't propagated yet (virtual_region returns degenerate
+        # region with start >= end before the compositor updates tab positions).
+        def _move_underline(retries_left: int = 5) -> None:
+            if not content_tabs.is_mounted:
+                return
+            try:
+                active_tab = content_tabs.query_one("#tabs-list > Tab.-active")
+                underline = content_tabs.query_one(Underline)
+            except NoMatches:
+                return
+            active_region = active_tab.virtual_region
+            if active_region.width < 3:
+                # Layout or CSS not yet applied (min valid width = 1 char + 2 padding).
+                # Retry after the next refresh cycle.
+                if retries_left > 0:
+                    content_tabs.call_after_refresh(
+                        lambda: _move_underline(retries_left - 1)
+                    )
+                return
+            tab_region = active_region.shrink(active_tab.styles.gutter)
+            start, end = tab_region.column_span
+            if start >= end:
+                # Degenerate region; layout not yet propagated to compositor.
+                if retries_left > 0:
+                    content_tabs.call_after_refresh(
+                        lambda: _move_underline(retries_left - 1)
+                    )
+                return
+            # Stop any running slide animation before setting static values.
+            # Opening a tab starts a 300ms animate() on highlight_start/end;
+            # without stopping it, the animator will override our values.
+            # force_stop_animation is synchronous; stop_animation is async.
+            content_tabs.app.animator.force_stop_animation(underline, "highlight_start")
+            content_tabs.app.animator.force_stop_animation(underline, "highlight_end")
+            underline.highlight_start = start
+            underline.highlight_end = end
+
+        content_tabs.call_after_refresh(_move_underline)
