@@ -846,6 +846,8 @@ class ChangeSyntaxThemeModalResult:
     is_cancelled: bool
     # The selected theme, or None if cancelled.
     theme: str | None
+    # The save level: "user" or "project".
+    save_level: str = "user"
 
 
 class ChangeSyntaxThemeModalScreen(ModalScreen[ChangeSyntaxThemeModalResult]):
@@ -862,6 +864,14 @@ class ChangeSyntaxThemeModalScreen(ModalScreen[ChangeSyntaxThemeModalResult]):
         yield Grid(
             Label("Syntax Highlighting Theme", id="title"),
             Select(options=options, value=self._current_theme, id="theme"),
+            Select(
+                options=[
+                    ("User (~/.config)", "user"),
+                    ("Project (.textual-code.toml)", "project"),
+                ],
+                value="user",
+                id="save_level",
+            ),
             Button("Apply", variant="primary", id="apply"),
             Button("Cancel", variant="default", id="cancel"),
             id="dialog",
@@ -869,9 +879,14 @@ class ChangeSyntaxThemeModalScreen(ModalScreen[ChangeSyntaxThemeModalResult]):
 
     @on(Button.Pressed, "#apply")
     def on_apply(self) -> None:
-        value = self.query_one(Select).value
+        value = self.query_one("#theme", Select).value
         theme = str(value) if value is not Select.BLANK else self._current_theme
-        self.dismiss(ChangeSyntaxThemeModalResult(is_cancelled=False, theme=theme))
+        save_level = str(self.query_one("#save_level", Select).value)
+        self.dismiss(
+            ChangeSyntaxThemeModalResult(
+                is_cancelled=False, theme=theme, save_level=save_level
+            )
+        )
 
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
@@ -948,6 +963,8 @@ class ChangeUIThemeModalResult:
     is_cancelled: bool
     # The selected theme, or None if cancelled.
     theme: str | None
+    # The save level: "user" or "project".
+    save_level: str = "user"
 
 
 class ChangeUIThemeModalScreen(ModalScreen[ChangeUIThemeModalResult]):
@@ -964,6 +981,14 @@ class ChangeUIThemeModalScreen(ModalScreen[ChangeUIThemeModalResult]):
         yield Grid(
             Label("UI Theme", id="title"),
             Select(options=options, value=self._current_theme, id="theme"),
+            Select(
+                options=[
+                    ("User (~/.config)", "user"),
+                    ("Project (.textual-code.toml)", "project"),
+                ],
+                value="user",
+                id="save_level",
+            ),
             Button("Apply", variant="primary", id="apply"),
             Button("Cancel", variant="default", id="cancel"),
             id="dialog",
@@ -971,9 +996,14 @@ class ChangeUIThemeModalScreen(ModalScreen[ChangeUIThemeModalResult]):
 
     @on(Button.Pressed, "#apply")
     def on_apply(self) -> None:
-        value = self.query_one(Select).value
+        value = self.query_one("#theme", Select).value
         theme = str(value) if value is not Select.BLANK else self._current_theme
-        self.dismiss(ChangeUIThemeModalResult(is_cancelled=False, theme=theme))
+        save_level = str(self.query_one("#save_level", Select).value)
+        self.dismiss(
+            ChangeUIThemeModalResult(
+                is_cancelled=False, theme=theme, save_level=save_level
+            )
+        )
 
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:

@@ -401,8 +401,8 @@ Available UI themes (Textual built-ins):
 | App defaults | `app.py` `TextualCode.__init__` | loads settings on startup; stores as `default_*` attributes |
 | CodeEditor | `widgets/code_editor.py` `CodeEditor.__init__` | accepts `default_*` kwargs; applies them when `path is None` |
 | `open_code_editor_pane` | `app.py` `MainView` | passes app `default_*` attrs to each new `CodeEditor` |
-| Actions | `app.py` `TextualCode` | `action_set_default_indentation`, `action_set_default_line_ending`, `action_set_default_encoding`, `action_set_syntax_theme`, `action_set_default_word_wrap`, `action_set_ui_theme` — open the existing change modals and persist on apply |
-| Command palette | `app.py` `get_system_commands` | "Set default indentation/line ending/encoding", "Change syntax theme", "Set default word wrap", "Change UI theme" entries |
+| Actions | `app.py` `TextualCode` | `action_set_default_indentation`, `action_set_default_line_ending`, `action_set_default_encoding`, `action_set_syntax_theme`, `action_set_default_word_wrap`, `action_set_ui_theme` — open the existing change modals and persist on apply; `action_set_syntax_theme` and `action_set_ui_theme` include a save-level selector (User / Project) |
+| Command palette | `app.py` `get_system_commands` | "Set default indentation/line ending/encoding", "Change syntax theme", "Set default word wrap", "Change UI theme" entries; Textual's built-in "Theme" command is filtered out to avoid duplication |
 
 ---
 

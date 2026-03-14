@@ -56,6 +56,10 @@ from textual_code.widgets.main_view import MainView
 from textual_code.widgets.sidebar import SIDEBAR_MIN_WIDTH, Sidebar
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
+# Textual's built-in "Theme" command title — used to filter it out from command palette.
+# This string matches the title yielded by textual.app.App.get_system_commands().
+_TEXTUAL_BUILTIN_THEME_CMD = "Theme"
+
 
 def _parse_sidebar_resize(
     value: str, current_width: int, max_width: int
@@ -268,7 +272,9 @@ class TextualCode(App):
             )
 
     def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
-        yield from super().get_system_commands(screen)
+        for cmd in super().get_system_commands(screen):
+            if cmd.title != _TEXTUAL_BUILTIN_THEME_CMD:
+                yield cmd
         yield SystemCommand(
             "Show keyboard shortcuts",
             "View and change keyboard shortcuts (F1)",
@@ -631,18 +637,19 @@ class TextualCode(App):
                 self.default_syntax_theme = result.theme
                 for editor in self.query(CodeEditor):
                     editor.syntax_theme = result.theme
-                save_user_editor_settings(
-                    {
-                        "indent_type": self.default_indent_type,
-                        "indent_size": self.default_indent_size,
-                        "line_ending": self.default_line_ending,
-                        "encoding": self.default_encoding,
-                        "syntax_theme": self.default_syntax_theme,
-                        "word_wrap": self.default_word_wrap,
-                        "ui_theme": self.default_ui_theme,
-                    },
-                    self._user_config_path,
-                )
+                settings = {
+                    "indent_type": self.default_indent_type,
+                    "indent_size": self.default_indent_size,
+                    "line_ending": self.default_line_ending,
+                    "encoding": self.default_encoding,
+                    "syntax_theme": self.default_syntax_theme,
+                    "word_wrap": self.default_word_wrap,
+                    "ui_theme": self.default_ui_theme,
+                }
+                if result.save_level == "project":
+                    save_project_editor_settings(settings, self.workspace_path)
+                else:
+                    save_user_editor_settings(settings, self._user_config_path)
 
         self.call_next(
             lambda: self.push_screen(
@@ -776,18 +783,19 @@ class TextualCode(App):
             if result and not result.is_cancelled and result.theme:
                 self.default_ui_theme = result.theme
                 self.theme = result.theme
-                save_user_editor_settings(
-                    {
-                        "indent_type": self.default_indent_type,
-                        "indent_size": self.default_indent_size,
-                        "line_ending": self.default_line_ending,
-                        "encoding": self.default_encoding,
-                        "syntax_theme": self.default_syntax_theme,
-                        "word_wrap": self.default_word_wrap,
-                        "ui_theme": self.default_ui_theme,
-                    },
-                    self._user_config_path,
-                )
+                settings = {
+                    "indent_type": self.default_indent_type,
+                    "indent_size": self.default_indent_size,
+                    "line_ending": self.default_line_ending,
+                    "encoding": self.default_encoding,
+                    "syntax_theme": self.default_syntax_theme,
+                    "word_wrap": self.default_word_wrap,
+                    "ui_theme": self.default_ui_theme,
+                }
+                if result.save_level == "project":
+                    save_project_editor_settings(settings, self.workspace_path)
+                else:
+                    save_user_editor_settings(settings, self._user_config_path)
 
         self.call_next(
             lambda: self.push_screen(

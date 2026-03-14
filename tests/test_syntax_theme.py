@@ -208,3 +208,80 @@ def test_modal_result_cancelled():
     result = ChangeSyntaxThemeModalResult(is_cancelled=True, theme=None)
     assert result.is_cancelled
     assert result.theme is None
+
+
+# ---------------------------------------------------------------------------
+# Group 9: save_level support
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_action_set_syntax_theme_save_level_user(workspace):
+    cfg = workspace / "settings.toml"
+    proj = workspace / ".textual-code.toml"
+    app = TextualCode(
+        workspace_path=workspace, with_open_file=None, user_config_path=cfg
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_set_syntax_theme()
+        await pilot.pause()
+        from textual_code.modals import ChangeSyntaxThemeModalScreen
+
+        assert isinstance(app.screen, ChangeSyntaxThemeModalScreen)
+        app.screen.dismiss(
+            ChangeSyntaxThemeModalResult(
+                is_cancelled=False, theme="dracula", save_level="user"
+            )
+        )
+        await pilot.pause()
+        assert app.default_syntax_theme == "dracula"
+        assert cfg.exists()
+        loaded = load_editor_settings(workspace, user_config_path=cfg)
+        assert loaded["syntax_theme"] == "dracula"
+        assert not proj.exists()
+
+
+@pytest.mark.asyncio
+async def test_action_set_syntax_theme_save_level_project(workspace):
+    cfg = workspace / "settings.toml"
+    proj = workspace / ".textual-code.toml"
+    app = TextualCode(
+        workspace_path=workspace, with_open_file=None, user_config_path=cfg
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_set_syntax_theme()
+        await pilot.pause()
+        from textual_code.modals import ChangeSyntaxThemeModalScreen
+
+        assert isinstance(app.screen, ChangeSyntaxThemeModalScreen)
+        app.screen.dismiss(
+            ChangeSyntaxThemeModalResult(
+                is_cancelled=False, theme="dracula", save_level="project"
+            )
+        )
+        await pilot.pause()
+        assert proj.exists()
+        loaded = load_editor_settings(workspace, user_config_path=cfg)
+        assert loaded["syntax_theme"] == "dracula"
+
+
+@pytest.mark.asyncio
+async def test_action_set_syntax_theme_cancel(workspace):
+    cfg = workspace / "settings.toml"
+    app = TextualCode(
+        workspace_path=workspace, with_open_file=None, user_config_path=cfg
+    )
+    original = app.default_syntax_theme
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_set_syntax_theme()
+        await pilot.pause()
+        from textual_code.modals import ChangeSyntaxThemeModalScreen
+
+        assert isinstance(app.screen, ChangeSyntaxThemeModalScreen)
+        app.screen.dismiss(ChangeSyntaxThemeModalResult(is_cancelled=True, theme=None))
+        await pilot.pause()
+        assert app.default_syntax_theme == original
+        assert not cfg.exists()

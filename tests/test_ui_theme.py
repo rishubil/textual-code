@@ -132,12 +132,72 @@ async def test_action_set_ui_theme_applies_and_saves(workspace):
         app.action_set_ui_theme()
         await pilot.pause()
         assert isinstance(app.screen, ChangeUIThemeModalScreen)
-        app.screen.dismiss(ChangeUIThemeModalResult(is_cancelled=False, theme="nord"))
+        app.screen.dismiss(
+            ChangeUIThemeModalResult(
+                is_cancelled=False, theme="nord", save_level="user"
+            )
+        )
         await pilot.pause()
         assert app.theme == "nord"
         assert app.default_ui_theme == "nord"
         loaded = load_editor_settings(workspace, user_config_path=cfg)
         assert loaded["ui_theme"] == "nord"
+
+
+@pytest.mark.asyncio
+async def test_action_set_ui_theme_save_level_user(workspace):
+    cfg = workspace / "settings.toml"
+    proj = workspace / ".textual-code.toml"
+    app = TextualCode(
+        workspace_path=workspace, with_open_file=None, user_config_path=cfg
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_set_ui_theme()
+        await pilot.pause()
+        app.screen.dismiss(
+            ChangeUIThemeModalResult(
+                is_cancelled=False, theme="nord", save_level="user"
+            )
+        )
+        await pilot.pause()
+        assert cfg.exists()
+        loaded = load_editor_settings(workspace, user_config_path=cfg)
+        assert loaded["ui_theme"] == "nord"
+        # project config should NOT have been created
+        assert not proj.exists()
+
+
+@pytest.mark.asyncio
+async def test_action_set_ui_theme_save_level_project(workspace):
+    cfg = workspace / "settings.toml"
+    proj = workspace / ".textual-code.toml"
+    app = TextualCode(
+        workspace_path=workspace, with_open_file=None, user_config_path=cfg
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_set_ui_theme()
+        await pilot.pause()
+        app.screen.dismiss(
+            ChangeUIThemeModalResult(
+                is_cancelled=False, theme="nord", save_level="project"
+            )
+        )
+        await pilot.pause()
+        assert proj.exists()
+        loaded = load_editor_settings(workspace, user_config_path=cfg)
+        assert loaded["ui_theme"] == "nord"
+
+
+@pytest.mark.asyncio
+async def test_builtin_theme_command_removed(workspace):
+    app = TextualCode(workspace_path=workspace, with_open_file=None)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        cmds = list(app.get_system_commands(app.screen))
+        titles = [c.title for c in cmds]
+        assert "Theme" not in titles
 
 
 @pytest.mark.asyncio
