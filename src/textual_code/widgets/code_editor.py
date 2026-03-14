@@ -282,28 +282,25 @@ def _location_to_text_offset(text: str, location: tuple[int, int]) -> int:
 
 
 def _find_next(
-    text: str, query: str, cursor_offset: int, use_regex: bool = False
+    text: str,
+    query: str,
+    cursor_offset: int,
+    use_regex: bool = False,
+    case_sensitive: bool = True,
 ) -> tuple[int, int]:
     """Return (start, end) of next match from cursor_offset, wrapping around.
 
     Returns (-1, -1) if not found.
     Raises re.error for invalid regex when use_regex=True.
     """
-    if use_regex:
-        pattern = re.compile(query)
-        match = pattern.search(text, cursor_offset)
-        if match is None:
-            match = pattern.search(text, 0)
-        if match is not None:
-            return match.start(), match.end()
-        return -1, -1
-    else:
-        idx = text.find(query, cursor_offset)
-        if idx == -1:
-            idx = text.find(query, 0)
-        if idx != -1:
-            return idx, idx + len(query)
-        return -1, -1
+    flags = 0 if case_sensitive else re.IGNORECASE
+    pattern = re.compile(query if use_regex else re.escape(query), flags)
+    match = pattern.search(text, cursor_offset)
+    if match is None:
+        match = pattern.search(text, 0)
+    if match is not None:
+        return match.start(), match.end()
+    return -1, -1
 
 
 def _get_word_at_location(text: str, row: int, col: int) -> str:
@@ -1317,7 +1314,9 @@ class CodeEditor(Static):
             )
 
         try:
-            start_idx, end_idx = _find_next(text, query, cursor_offset, event.use_regex)
+            start_idx, end_idx = _find_next(
+                text, query, cursor_offset, event.use_regex, event.case_sensitive
+            )
         except re.error as e:
             self.notify(f"Invalid regex: {e}", severity="error")
             return
@@ -1340,19 +1339,17 @@ class CodeEditor(Static):
         find_query = event.query
         replacement = event.replacement
         use_regex = event.use_regex
+        case_sensitive = event.case_sensitive
+        flags = 0 if case_sensitive else re.IGNORECASE
         try:
-            if use_regex:
-                count = len(re.findall(find_query, self.text))
-                if count == 0:
-                    self.notify(f"'{find_query}' not found", severity="warning")
-                    return
-                new_text = re.sub(find_query, replacement, self.text)
-            else:
-                count = self.text.count(find_query)
-                if count == 0:
-                    self.notify(f"'{find_query}' not found", severity="warning")
-                    return
-                new_text = self.text.replace(find_query, replacement)
+            pattern = re.compile(
+                find_query if use_regex else re.escape(find_query), flags
+            )
+            count = len(pattern.findall(self.text))
+            if count == 0:
+                self.notify(f"'{find_query}' not found", severity="warning")
+                return
+            new_text = pattern.sub(replacement, self.text)
         except re.error as e:
             self.notify(f"Invalid regex: {e}", severity="error")
             return
@@ -1370,6 +1367,8 @@ class CodeEditor(Static):
         find_query = event.query
         replacement = event.replacement
         use_regex = event.use_regex
+        case_sensitive = event.case_sensitive
+        flags = 0 if case_sensitive else re.IGNORECASE
 
         sel = self.editor.selection
         text = self.text
@@ -1381,24 +1380,32 @@ class CodeEditor(Static):
         selected_text = text[start_offset:end_offset]
 
         try:
-            if not use_regex:
-                match_found = selected_text == find_query
-            else:
-                match_found = bool(re.fullmatch(find_query, selected_text))
+            match_found = bool(
+                re.fullmatch(
+                    find_query if use_regex else re.escape(find_query),
+                    selected_text,
+                    flags,
+                )
+            )
         except re.error as e:
             self.notify(f"Invalid regex: {e}", severity="error")
             return
 
         if match_found:
-            if use_regex:
-                rep = re.sub(find_query, replacement, selected_text)
-            else:
+            try:
+                rep = re.sub(
+                    find_query if use_regex else re.escape(find_query),
+                    replacement,
+                    selected_text,
+                    flags=flags,
+                )
+            except re.error:
                 rep = replacement
             new_text = text[:start_offset] + rep + text[end_offset:]
             search_from = start_offset + len(rep)
             try:
                 start_idx, end_idx = _find_next(
-                    new_text, find_query, search_from, use_regex
+                    new_text, find_query, search_from, use_regex, case_sensitive
                 )
             except re.error:
                 start_idx = -1
@@ -1417,7 +1424,7 @@ class CodeEditor(Static):
             )
             try:
                 start_idx, end_idx = _find_next(
-                    text, find_query, cursor_offset, use_regex
+                    text, find_query, cursor_offset, use_regex, case_sensitive
                 )
             except re.error as e:
                 self.notify(f"Invalid regex: {e}", severity="error")

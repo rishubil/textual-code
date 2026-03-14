@@ -658,3 +658,59 @@ async def test_find_entire_file_content_as_query(workspace: Path):
         sel = editor.editor.selection
         assert sel.start == (0, 0)
         assert sel.end == (0, len(content))
+
+
+# ── Case-insensitive find ─────────────────────────────────────────────────────
+
+
+async def test_case_insensitive_find_selects_uppercase_match(workspace: Path):
+    """Case-insensitive find selects uppercase match for lowercase query."""
+    f = workspace / "ci.txt"
+    f.write_text("HELLO world\nhello\n")
+    app = make_app(workspace, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.action_find()
+        await pilot.pause()
+        bar = editor.query_one(FindReplaceBar)
+
+        # Uncheck case_sensitive checkbox
+        case_cb = bar.query_one("#case_sensitive")
+        case_cb.value = False
+        await pilot.pause()
+
+        await pilot.click("#find_input")
+        await pilot.press("h", "e", "l", "l", "o")
+        await pilot.click("#next_match")
+        await pilot.pause()
+
+        sel = editor.editor.selection
+        # "HELLO" at (0, 0)-(0, 5) should be selected first
+        assert sel.start == (0, 0)
+        assert sel.end == (0, 5)
+
+
+async def test_case_sensitive_find_does_not_match_different_case(workspace: Path):
+    """Case-sensitive find (default) does not match different-case text."""
+    f = workspace / "cs.txt"
+    f.write_text("HELLO world\n")
+    app = make_app(workspace, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.action_find()
+        await pilot.pause()
+
+        await pilot.click("#find_input")
+        await pilot.press("h", "e", "l", "l", "o")
+        await pilot.click("#next_match")
+        await pilot.pause()
+
+        # No selection change since "hello" != "HELLO" (case-sensitive default)
+        sel = editor.editor.selection
+        assert sel.start == sel.end  # cursor not moved to a selection

@@ -7,18 +7,27 @@ from typing import Any
 from textual.command import Hit, Hits, Provider
 
 
+def _read_workspace_files(workspace_path: Path) -> list[Path]:
+    """Return relative paths for all non-hidden files under workspace_path."""
+    return [
+        p.relative_to(workspace_path)
+        for p in workspace_path.rglob("*")
+        if p.is_file()
+        and not any(
+            part.startswith(".") for part in p.relative_to(workspace_path).parts
+        )
+    ]
+
+
 def create_open_file_command_provider(
     workspace_path: Path, post_message_callback: Callable[[Path], Any]
 ) -> type[Provider]:
     class OpenFileCommandProvider(Provider):
         """A command provider to open a file in the viewer."""
 
-        def read_files(self, workspace_path: Path) -> list[Path]:
-            return list(workspace_path.glob("**/*"))
-
         async def startup(self) -> None:
             worker = self.app.run_worker(
-                partial(self.read_files, workspace_path), thread=True
+                partial(_read_workspace_files, workspace_path), thread=True
             )
             self.file_paths = await worker.wait()
 
@@ -27,7 +36,7 @@ def create_open_file_command_provider(
 
             def hits() -> Generator[Hit, None, None]:
                 for path in self.file_paths:
-                    command = f"{str(path)}"
+                    command = str(path)  # relative path
                     score = matcher.match(command)
                     if score > 0:
                         yield Hit(
@@ -35,7 +44,7 @@ def create_open_file_command_provider(
                             matcher.highlight(command),
                             partial(
                                 post_message_callback,
-                                path,
+                                workspace_path / path,  # absolute for callback
                             ),
                             help="Open this file in the viewer",
                         )

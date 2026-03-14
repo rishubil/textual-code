@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add case-sensitive toggle to find/replace bar: a new "Aa" checkbox controls case sensitivity for find and replace operations; the checkbox is automatically disabled when regex mode is on (regex controls its own case via `(?i)`)
+- Add gitignore support to workspace search: a "Gitignore" checkbox (default on) filters workspace search results according to `.gitignore` files found at any directory level; nested `.gitignore` files are applied relative to their own directory
+- Add file include/exclude filters to workspace search: two new inputs ("Files to include" / "Files to exclude") accept comma-separated glob patterns (e.g. `src/**`, `*.py`) to narrow or skip files during workspace search and replace
+- Improve open-file command palette performance: `OpenFileCommandProvider` now enumerates only files (not directories) and skips hidden paths, returning relative paths so the matcher scores them correctly; absolute path is still passed to the open callback
+- Add background worker for workspace search: workspace search now runs in a background thread so the UI stays responsive during large searches; errors are surfaced as a "Search failed" result item
+
 - Add Ctrl+A select all: selects the entire document text and clears any active extra cursors in one keystroke
 - Add markdown preview as tab (Ctrl+Shift+M): opens a live preview of the active `.md` file in a new editor tab instead of a side panel; the preview auto-updates as you type; closing the source editor also closes its linked preview tab; pressing Ctrl+Shift+M again focuses the existing preview tab without creating a duplicate
 - Add syntax highlighting for 10 additional languages via `tree-sitter-language-pack`: Dockerfile, TypeScript (`.ts`), TSX (`.tsx`), C (`.c`, `.h`), C++ (`.cpp`, `.cc`, `.cxx`, `.hpp`), Ruby (`.rb`), Kotlin (`.kt`, `.kts`), Lua (`.lua`), PHP (`.php`), Makefile (`Makefile`, `makefile`, `GNUmakefile`, `.mk`, `.dockerfile`); highlight queries are bundled in `src/textual_code/grammars/`

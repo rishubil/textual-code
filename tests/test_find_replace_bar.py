@@ -317,3 +317,81 @@ async def test_replace_btn_no_selection_match_finds_next(workspace: Path):
         sel = editor.editor.selection
         assert sel.start == (0, 0)
         assert sel.end == (0, 5)
+
+
+# ── Case-sensitive toggle ─────────────────────────────────────────────────────
+
+
+async def test_case_insensitive_find_via_bar(workspace: Path):
+    """Unchecking Aa checkbox causes case-insensitive find."""
+    from textual.widgets import Checkbox
+
+    f = await _open_file(workspace, "HELLO world\n")
+    app = make_app(workspace, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.action_find()
+        await pilot.pause()
+        bar = editor.query_one(FindReplaceBar)
+
+        # Uncheck case_sensitive
+        bar.query_one("#case_sensitive", Checkbox).value = False
+        await pilot.pause()
+
+        await pilot.click("#find_input")
+        await pilot.press("h", "e", "l", "l", "o")
+        await pilot.click("#next_match")
+        await pilot.pause()
+
+        sel = editor.editor.selection
+        assert sel.start == (0, 0)
+        assert sel.end == (0, 5)
+
+
+async def test_regex_on_disables_case_sensitive_checkbox(workspace: Path):
+    """Enabling regex disables the case_sensitive checkbox."""
+    from textual.widgets import Checkbox
+
+    f = await _open_file(workspace, "hello\n")
+    app = make_app(workspace, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.action_find()
+        await pilot.pause()
+        bar = editor.query_one(FindReplaceBar)
+
+        await pilot.click("#use_regex")
+        await pilot.pause()
+
+        case_cb = bar.query_one("#case_sensitive", Checkbox)
+        assert case_cb.disabled
+
+
+async def test_regex_on_get_case_sensitive_always_true(workspace: Path):
+    """When regex is on, _get_case_sensitive() always returns True."""
+    from textual.widgets import Checkbox
+
+    f = await _open_file(workspace, "hello\n")
+    app = make_app(workspace, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        editor.action_find()
+        await pilot.pause()
+        bar = editor.query_one(FindReplaceBar)
+
+        # Uncheck case_sensitive, then turn regex on
+        bar.query_one("#case_sensitive", Checkbox).value = False
+        await pilot.pause()
+        await pilot.click("#use_regex")
+        await pilot.pause()
+
+        assert bar._get_case_sensitive() is True

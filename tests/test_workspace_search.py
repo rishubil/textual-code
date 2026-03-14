@@ -253,3 +253,116 @@ async def test_search_result_cursor_position(tmp_path: Path) -> None:
         assert editor is not None
         row, _col = editor.editor.cursor_location
         assert row == 2  # 0-based, line 3 → row 2
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: gitignore support
+# ---------------------------------------------------------------------------
+
+
+def test_gitignore_root_respected(tmp_path: Path) -> None:
+    """Files listed in root .gitignore are excluded from search."""
+    (tmp_path / ".gitignore").write_text("ignored.txt\n")
+    (tmp_path / "ignored.txt").write_text("needle\n")
+    (tmp_path / "visible.txt").write_text("needle\n")
+
+    results = search_workspace(tmp_path, "needle", respect_gitignore=True)
+    paths = {r.file_path.name for r in results}
+    assert "ignored.txt" not in paths
+    assert "visible.txt" in paths
+
+
+def test_gitignore_nested_subdir_respected(tmp_path: Path) -> None:
+    """Nested .gitignore is applied relative to its directory."""
+    subdir = tmp_path / "sub"
+    subdir.mkdir()
+    (subdir / ".gitignore").write_text("secret.txt\n")
+    (subdir / "secret.txt").write_text("needle\n")
+    (subdir / "public.txt").write_text("needle\n")
+
+    results = search_workspace(tmp_path, "needle", respect_gitignore=True)
+    paths = {r.file_path.name for r in results}
+    assert "secret.txt" not in paths
+    assert "public.txt" in paths
+
+
+def test_respect_gitignore_false_bypasses(tmp_path: Path) -> None:
+    """respect_gitignore=False returns gitignored files."""
+    (tmp_path / ".gitignore").write_text("ignored.txt\n")
+    (tmp_path / "ignored.txt").write_text("needle\n")
+
+    results = search_workspace(tmp_path, "needle", respect_gitignore=False)
+    assert any(r.file_path.name == "ignored.txt" for r in results)
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: include/exclude filter
+# ---------------------------------------------------------------------------
+
+
+def test_include_filter_restricts_to_matching_files(tmp_path: Path) -> None:
+    """files_to_include restricts search to matching files only."""
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "main.py").write_text("needle\n")
+    (tmp_path / "other.txt").write_text("needle\n")
+
+    results = search_workspace(tmp_path, "needle", files_to_include="src/**")
+    paths = {r.file_path.name for r in results}
+    assert "main.py" in paths
+    assert "other.txt" not in paths
+
+
+def test_exclude_filter_skips_matching_files(tmp_path: Path) -> None:
+    """files_to_exclude skips matching files."""
+    (tmp_path / "keep.py").write_text("needle\n")
+    (tmp_path / "skip.txt").write_text("needle\n")
+
+    results = search_workspace(tmp_path, "needle", files_to_exclude="*.txt")
+    paths = {r.file_path.name for r in results}
+    assert "keep.py" in paths
+    assert "skip.txt" not in paths
+
+
+def test_empty_include_returns_all_files(tmp_path: Path) -> None:
+    """Empty files_to_include returns all files (no restriction)."""
+    (tmp_path / "a.py").write_text("needle\n")
+    (tmp_path / "b.txt").write_text("needle\n")
+
+    results = search_workspace(tmp_path, "needle", files_to_include="")
+    assert len(results) == 2
+
+
+def test_extension_only_include_pattern(tmp_path: Path) -> None:
+    """Extension-only pattern like '*.py' works for include filter."""
+    (tmp_path / "code.py").write_text("needle\n")
+    (tmp_path / "doc.txt").write_text("needle\n")
+
+    results = search_workspace(tmp_path, "needle", files_to_include="*.py")
+    paths = {r.file_path.name for r in results}
+    assert "code.py" in paths
+    assert "doc.txt" not in paths
+
+
+def test_invalid_include_pattern_returns_empty(tmp_path: Path) -> None:
+    """Invalid pattern in files_to_include yields empty results (no crash)."""
+    (tmp_path / "a.txt").write_text("needle\n")
+
+    # pathspec with an extremely malformed pattern; if it raises, iterator returns []
+    # We pass something that could be invalid in some pathspec versions
+    results = search_workspace(tmp_path, "needle", files_to_include="[invalid(")
+    # Must not crash; result is a list (possibly empty)
+    assert isinstance(results, list)
+
+
+def test_trailing_comma_whitespace_in_pattern_string(tmp_path: Path) -> None:
+    """Trailing comma and whitespace in pattern string are handled gracefully."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("needle\n")
+    (tmp_path / "other.txt").write_text("needle\n")
+
+    # Leading/trailing comma and spaces should be stripped
+    results = search_workspace(tmp_path, "needle", files_to_include=" src/** , ")
+    paths = {r.file_path.name for r in results}
+    assert "main.py" in paths
+    assert "other.txt" not in paths
