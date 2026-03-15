@@ -2,13 +2,6 @@
 
 Issues found during visual snapshot inspection.
 
-## [A] Footer: language name truncated
-
-**Files**: `test_snapshot_app_with_file`, `test_snapshot_unsaved_marker`, `test_snapshot_multi_cursor`
-
-Footer last column (`auto` width) truncates `python` to `pytho`. The 6-column grid
-(`1fr auto auto auto auto auto`) may not allocate enough space for the language button.
-
 ## [B] Overwrite confirm modal: body text truncated
 
 **File**: `test_snapshot_overwrite_confirm_modal`

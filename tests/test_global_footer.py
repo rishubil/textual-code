@@ -1,5 +1,5 @@
 """
-Global footer tests (G-01 ~ G-10).
+Global footer tests (G-01 ~ G-15).
 
 After the global footer refactor, there is exactly one CodeEditorFooter in the
 whole app, owned by MainView. It reflects the currently active editor's state.
@@ -58,7 +58,7 @@ async def test_one_footer_with_two_open_files(
 async def test_footer_shows_active_editor_path(workspace: Path, sample_py_file: Path):
     """G-04: global footer path label contains the active file's path."""
     app = make_app(workspace, open_file=sample_py_file)
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(240, 40)) as pilot:
         await pilot.pause()
         footer = app.query_one(CodeEditorFooter)
         assert str(sample_py_file) in str(footer.path_view.content)
@@ -72,7 +72,7 @@ async def test_footer_updates_on_tab_switch(
 ):
     """G-05: switching tab updates global footer to new active editor's path."""
     app = make_app(workspace, open_file=sample_py_file)
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(240, 40)) as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(sample_json_file)
         await pilot.pause()
@@ -126,7 +126,7 @@ async def test_footer_updates_on_split_switch(
 ):
     """G-08: switching focus to the right split shows right editor's path."""
     app = make_app(workspace, open_file=sample_py_file)
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(240, 40)) as pilot:
         await pilot.pause()
         # Create a split and open the json file in the new split
         await app.main_view.action_split_right()
@@ -169,3 +169,105 @@ async def test_footer_resets_when_last_editor_closed(
         footer = app.query_one(CodeEditorFooter)
         assert str(footer.path_view.content) == ""
         assert "plain" in str(footer.language_button.label)
+
+
+# ── G-11: buttons auto-size to content width ──────────────────────────────────
+
+
+async def test_footer_buttons_auto_size_to_content(
+    workspace: Path, sample_py_file: Path
+):
+    """G-11: all 4 status buttons use only the space their current label needs.
+
+    Formula (empirically verified): region.width = label_len + 4
+      (1 button-internal pad + 1 CSS pad on each side).
+    Fails with fixed-column layout (line_ending col=8 even when label='LF'=6).
+    """
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        footer = app.query_one(CodeEditorFooter)
+        # sample_py_file: LF endings, UTF-8, 4 Spaces, python
+        # Formula: region.width = label_len + 4 (pad + internal button pad each side)
+        # Exception: last button (no margin-right) may receive 1 less (1fr rounding)
+        assert footer.line_ending_button.region.width == 6  # "LF"=2+4
+        assert footer.encoding_button.region.width == 9  # "UTF-8"=5+4
+        assert footer.indent_button.region.width == 12  # "4 Spaces"=8+4
+        assert footer.language_button.region.width >= 9  # "python"=6+3..4
+
+
+# ── G-12: path column absorbs freed space when button label shrinks ───────────
+
+
+async def test_footer_path_widens_when_button_label_shortens(
+    workspace: Path, sample_py_file: Path
+):
+    """G-12: switching line_ending CRLF→LF frees 2 cells; path column absorbs them."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        footer = app.query_one(CodeEditorFooter)
+        footer.line_ending = "crlf"
+        await pilot.pause()
+        await pilot.pause()
+        path_crlf = footer.path_view.region.width
+
+        footer.line_ending = "lf"
+        await pilot.pause()
+        await pilot.pause()
+        path_lf = footer.path_view.region.width
+
+        # CRLF=8 cells, LF=6 cells → path must be 2 wider when showing LF
+        assert path_lf == path_crlf + 2
+
+
+# ── G-13: path shrinks first on narrow screen ─────────────────────────────────
+
+
+async def test_footer_path_shrinks_first_on_narrow_screen(
+    workspace: Path, sample_py_file: Path
+):
+    """G-13: on a narrow screen buttons maintain content width; path absorbs surplus."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test(size=(70, 40)) as pilot:
+        await pilot.pause()
+        footer = app.query_one(CodeEditorFooter)
+        assert footer.line_ending_button.region.width == 6  # not shrunk
+        assert footer.encoding_button.region.width == 9
+        assert footer.indent_button.region.width == 12
+        assert footer.language_button.region.width >= 9  # "python"=6+3..4
+        assert footer.path_view.region.width >= 1  # path still has some space
+
+
+# ── G-14: path ellipsis on very long path ─────────────────────────────────────
+
+
+async def test_footer_path_ellipsis_on_very_long_path(workspace: Path, tmp_path: Path):
+    """G-14: when path is too long to display fully, '...' + end of path is shown."""
+    long_file = tmp_path / ("a" * 200 + ".py")
+    long_file.touch()
+    app = make_app(workspace, open_file=long_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        footer = app.query_one(CodeEditorFooter)
+        content = str(footer.path_view.content)
+        assert content.startswith("...")
+        assert content.endswith(".py")
+
+
+# ── G-15: cursor_btn width is capped ──────────────────────────────────────────
+
+
+async def test_footer_cursor_btn_capped_width(workspace: Path, multiline_file: Path):
+    """G-15: cursor_btn never exceeds max-width=28 even with many cursors."""
+    app = make_app(workspace, open_file=multiline_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        # Add many cursors to force long label
+        for row in range(1, 5):
+            editor.editor.add_cursor((row, 0))
+        await pilot.pause()
+        footer = app.query_one(CodeEditorFooter)
+        assert footer.cursor_button.region.width <= 28

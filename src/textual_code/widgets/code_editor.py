@@ -451,6 +451,29 @@ _LINE_ENDING_WARNING = (
 )
 
 
+class _PathLabel(Label):
+    """Label that front-truncates its content to fit the available width."""
+
+    _raw: str = ""
+
+    def show(self, path: "Path | None") -> None:
+        """Set the path and immediately render (uses current region if available)."""
+        self._raw = str(path) if path else ""
+        self._truncate()
+
+    def _truncate(self) -> None:
+        raw = self._raw
+        available = self.region.width
+        if available > 0 and len(raw) > available:
+            raw = (
+                "..." + raw[-(available - 3) :] if available > 3 else "..."[:available]
+            )
+        self.update(raw)
+
+    def on_resize(self) -> None:
+        self._truncate()
+
+
 class CodeEditorFooter(Static):
     """
     Footer for the CodeEditor widget.
@@ -462,9 +485,7 @@ class CodeEditorFooter(Static):
     CodeEditorFooter {
         dock: bottom;
         height: 1;
-        layout: grid;
-        grid-size: 6 1;
-        grid-columns: 1fr auto auto auto auto auto;
+        layout: horizontal;
     }
     CodeEditorFooter Button {
         height: 1;
@@ -522,7 +543,7 @@ class CodeEditorFooter(Static):
         self.indent_size = 4
 
     def compose(self) -> ComposeResult:
-        yield Label(
+        yield _PathLabel(
             str(self.path) if self.path else "",
             id="path",
         )
@@ -553,15 +574,14 @@ class CodeEditorFooter(Static):
         )
 
     def watch_path(self, path: Path | None) -> None:
-        # update the path view with the new path
-        self.path_view.update(str(path) if path else "")
+        self.path_view.show(path)
 
     def watch_language(self, language: str | None) -> None:
-        # update the language button with the new language
         self.language_button.label = language or "plain"
+        self.language_button.refresh(layout=True)
+        self.refresh(layout=True)
 
     def watch_cursor_location(self, location: tuple[int, int]) -> None:
-        row, col = location
         self._update_cursor_button()
 
     def watch_cursor_count(self, count: int) -> None:
@@ -573,22 +593,32 @@ class CodeEditorFooter(Static):
         if self.cursor_count > 1:
             label += f" [{self.cursor_count}]"
         self.cursor_button.label = label
+        self.cursor_button.refresh(layout=True)
+        self.refresh(layout=True)
 
     def watch_line_ending(self, line_ending: str) -> None:
         self.line_ending_button.label = line_ending.upper()
+        self.line_ending_button.refresh(layout=True)
+        self.refresh(layout=True)
 
     def watch_encoding(self, encoding: str) -> None:
         self.encoding_button.label = _ENCODING_DISPLAY.get(encoding, encoding)
+        self.encoding_button.refresh(layout=True)
+        self.refresh(layout=True)
 
     def watch_indent_type(self, indent_type: str) -> None:
         self.indent_button.label = _indent_display(indent_type, self.indent_size)
+        self.indent_button.refresh(layout=True)
+        self.refresh(layout=True)
 
     def watch_indent_size(self, indent_size: int) -> None:
         self.indent_button.label = _indent_display(self.indent_type, indent_size)
+        self.indent_button.refresh(layout=True)
+        self.refresh(layout=True)
 
     @property
-    def path_view(self) -> Label:
-        return self.query_one("#path", Label)
+    def path_view(self) -> _PathLabel:
+        return self.query_one("#path", _PathLabel)
 
     @property
     def cursor_button(self) -> Button:

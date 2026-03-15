@@ -160,5 +160,6 @@ async def test_cursor_btn_col_10_label_visible(workspace):
         await pilot.pause()
         btn = app.query_one(CodeEditorFooter).cursor_button
         assert str(btn.label) == "Ln 1, Col 10"
-        # Button must be wide enough to show the full label without clipping
-        assert btn.size.width >= 15  # 13 chars + 2 padding = 15
+        # Button must be wide enough to show the full label without clipping.
+        # "Ln 1, Col 10" = 12 chars; formula: region.width >= 12 + 4 = 16
+        assert btn.region.width >= 16

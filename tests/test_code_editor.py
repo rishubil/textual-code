@@ -338,7 +338,7 @@ async def test_delete_cancel_keeps_file_and_tab(workspace: Path, sample_py_file:
 
 async def test_footer_shows_file_path(workspace: Path, sample_py_file: Path):
     app = make_app(workspace, open_file=sample_py_file)
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(240, 40)) as pilot:
         await pilot.pause()
         path_label = app.query_one(CodeEditorFooter).path_view
         assert str(sample_py_file) in str(path_label.content)
@@ -461,7 +461,7 @@ async def test_footer_path_updates_on_tab_switch(
 ):
     """Footer shows the correct path when switching between tabs."""
     app = make_app(workspace, open_file=sample_py_file)
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(240, 40)) as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
         await pilot.pause()
@@ -694,7 +694,7 @@ async def test_language_button_opens_change_language_modal(
     from textual_code.modals import ChangeLanguageModalScreen
 
     app = make_app(workspace, open_file=sample_py_file)
-    async with app.run_test() as pilot:
+    async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
