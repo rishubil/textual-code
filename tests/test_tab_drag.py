@@ -181,6 +181,61 @@ async def test_drag_threshold_not_exceeded_no_capture(
 
         assert dtc._dragging is False
 
+        # No tab should have the -dragging CSS class when threshold not exceeded
+        content_tabs = dtc.get_child_by_type(ContentTabs)
+        for tab in content_tabs.query(ContentTab):
+            assert not tab.has_class("-dragging")
+
+
+# ── Dragging class toggle test ───────────────────────────────────────────────
+
+
+async def test_drag_applies_dragging_class(
+    workspace: Path, sample_py_file: Path, sample_json_file: Path
+):
+    """Dragging a tab adds -dragging class; releasing removes it."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=sample_json_file)
+        await pilot.pause()
+
+        dtc = _first_dtc(app)
+        content_tabs = dtc.get_child_by_type(ContentTabs)
+        tabs = list(content_tabs.query(ContentTab))
+        first_tab = tabs[0]
+        second_tab = tabs[1]
+
+        first_region = first_tab.region
+        second_region = second_tab.region
+
+        first_x = first_region.x + first_region.width // 4
+        first_y = first_region.y + first_region.height // 2
+        second_x = second_region.x + second_region.width * 3 // 4
+        second_y = second_region.y + second_region.height // 2
+
+        first_offset = (first_x - dtc.region.x, first_y - dtc.region.y)
+        second_offset = (second_x - dtc.region.x, second_y - dtc.region.y)
+
+        # mouse_down on first tab
+        await pilot.mouse_down(dtc, offset=first_offset)
+        await pilot.pause()
+
+        # Hover to exceed threshold — should activate dragging
+        await pilot.hover(dtc, offset=second_offset)
+        await pilot.pause()
+
+        # The dragged tab should have -dragging class
+        assert first_tab.has_class("-dragging")
+
+        # Release mouse
+        await pilot.mouse_up(dtc, offset=second_offset)
+        await pilot.pause()
+
+        # No tab should have -dragging class after release
+        for tab in content_tabs.query(ContentTab):
+            assert not tab.has_class("-dragging")
+
 
 # ── E2E drag test ─────────────────────────────────────────────────────────────
 

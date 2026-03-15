@@ -2,7 +2,7 @@
 - [x] When the path is truncated with ellipsis in the footer, display the "..." in a different color to avoid confusion with actual dot characters in the path.
 - Implement split left and split up functionality.
 - [x] Add commands to move a tab to another split pane (up, down, left, right).
-- Highlight the dragged tab with a distinct color during drag.
+- [x] Highlight the dragged tab with a distinct color during drag.
 - [x] Add commands to reorder tabs within a tab group (move tab forward/backward).
 - Support splitting in all four directions (up, down, left, right) when dragging a tab to the edge.
 - Highlight the target split pane when dragging a tab between split areas, so the user can preview the drop target before releasing.

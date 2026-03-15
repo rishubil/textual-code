@@ -849,8 +849,10 @@ WorkspaceSearchPane #ws-results {
 }
 
 /* Draggable tab visual feedback */
-.tab.-dragging {
-    color: $accent;
+Tab.-dragging {
+    background: $accent;
+    color: $background;
+    text-style: bold;
 }
 
 /* Edge drop zone visual indicator */

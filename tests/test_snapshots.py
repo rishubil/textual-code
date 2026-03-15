@@ -660,6 +660,36 @@ def test_snapshot_multi_cursor(
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
 
+def test_snapshot_tab_dragging_highlight(
+    snap_compare,
+    snapshot_workspace: Path,
+    snapshot_py_file: Path,
+    snapshot_json_file: Path,
+):
+    """Dragged tab shows distinct highlight (accent background, inverted text, bold)."""
+    from textual.widgets._tabbed_content import ContentTab, ContentTabs
+
+    from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+    from textual_code.widgets.split_tree import all_leaves
+
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def add_dragging_class(pilot):
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=snapshot_json_file)
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+        content_tabs = dtc.get_child_by_type(ContentTabs)
+        tabs = list(content_tabs.query(ContentTab))
+        # Manually add -dragging class to the first tab
+        tabs[0].add_class("-dragging")
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=add_dragging_class, terminal_size=TERMINAL_SIZE)
+
+
 def test_snapshot_footer_path_truncation(snap_compare, snapshot_workspace: Path):
     """Footer path shows dim ellipsis when path is truncated."""
     long_file = snapshot_workspace / ("a" * 150 + ".py")
