@@ -72,6 +72,13 @@ RUN uv python install 3.12 --default \
     && echo 'export PATH="/project/.devcontainer/uv/python-bin:$PATH"' >> ~/.bashrc \
     && export PATH="/project/.devcontainer/uv/python-bin:$PATH"
 
+# set TERM and COLORTERM env variable for correct color rendering in textual
+USER $USER_UID
+RUN echo 'export TERM="xterm-256color"' >> ~/.bashrc \
+    && echo 'export COLORTERM="truecolor"' >> ~/.bashrc \
+    && export TERM="xterm-256color" \
+    && export COLORTERM="truecolor"
+
 ### PROJECT-SPECIFIC SETUP END
 
 USER $USER_UID
