@@ -22,11 +22,14 @@ from textual_code.widgets.split_container import SplitContainer, build_split_wid
 from textual_code.widgets.split_resize_handle import SplitResizeHandle
 from textual_code.widgets.split_tree import (
     BranchNode,
+    Direction,
     LeafNode,
     adjacent_leaf,
     all_leaves,
     all_pane_ids,
+    directional_leaf,
     find_leaf,
+    find_leaf_for_pane,
     make_leaf,
     parent_of,
     remove_leaf,
@@ -929,6 +932,40 @@ class MainView(Static):
         tc = self.query_one(f"#{dest_leaf.leaf_id}", TabbedContent)
         tc.active = new_pane_id
         self._set_active_leaf(dest_leaf)
+
+    async def _move_tab_directional(self, direction: Direction) -> None:
+        """Move the active tab to the adjacent split in the given direction."""
+        editor = self.get_active_code_editor()
+        if editor is None:
+            return
+
+        dest = directional_leaf(self._split_root, self._active_leaf_id, direction)
+        if dest is None:
+            log.debug("move_tab_%s: no split in that direction", direction)
+            return
+
+        new_pane_id = await self._move_pane_to_leaf(editor.pane_id, dest)
+        if new_pane_id is None:
+            return
+
+        # Tree may have changed due to auto-close; find the leaf holding the pane
+        dest_leaf = find_leaf_for_pane(self._split_root, new_pane_id)
+        if dest_leaf is not None:
+            tc = self.query_one(f"#{dest_leaf.leaf_id}", TabbedContent)
+            tc.active = new_pane_id
+            self._set_active_leaf(dest_leaf)
+
+    async def action_move_tab_left(self) -> None:
+        await self._move_tab_directional("left")
+
+    async def action_move_tab_right(self) -> None:
+        await self._move_tab_directional("right")
+
+    async def action_move_tab_up(self) -> None:
+        await self._move_tab_directional("up")
+
+    async def action_move_tab_down(self) -> None:
+        await self._move_tab_directional("down")
 
     # ── Preview debounce helpers ────────────────────────────────────────────
 

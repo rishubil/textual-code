@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Directional tab move commands: move the active tab to an adjacent split pane in a specific direction (left, right, up, down) via the command palette ("Move tab left/right/up/down"); uses a spatial tree-walk algorithm to correctly navigate nested split layouts
+
 - Widget focus cycling with `F6` / `Shift+F6`: cycle focus between all focusable widgets (sidebar, editor, etc.) using Textual's built-in focus navigation
 
 - Live text sync between split editors: when the same file is open in two split views, edits in one editor are immediately reflected in the other without needing to save first; saving in one editor also updates the sibling's `initial_text` and mtime so no false "file changed externally" warnings appear

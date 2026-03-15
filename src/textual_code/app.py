@@ -486,6 +486,26 @@ class TextualCode(App):
             self.action_move_tab_to_other_split_cmd,
         )
         yield SystemCommand(
+            "Move tab left",
+            "Move the current tab to the split pane on the left",
+            self.action_move_tab_left_cmd,
+        )
+        yield SystemCommand(
+            "Move tab right",
+            "Move the current tab to the split pane on the right",
+            self.action_move_tab_right_cmd,
+        )
+        yield SystemCommand(
+            "Move tab up",
+            "Move the current tab to the split pane above",
+            self.action_move_tab_up_cmd,
+        )
+        yield SystemCommand(
+            "Move tab down",
+            "Move the current tab to the split pane below",
+            self.action_move_tab_down_cmd,
+        )
+        yield SystemCommand(
             "Find in Workspace",
             "Search all files in the workspace (Ctrl+Shift+F)",
             self.action_find_in_workspace_cmd,
@@ -540,6 +560,18 @@ class TextualCode(App):
     def action_move_tab_to_other_split_cmd(self) -> None:
         """Move current tab to the other split via command palette."""
         self.call_next(self.main_view.action_move_tab_to_other_split)
+
+    def action_move_tab_left_cmd(self) -> None:
+        self.call_next(self.main_view.action_move_tab_left)
+
+    def action_move_tab_right_cmd(self) -> None:
+        self.call_next(self.main_view.action_move_tab_right)
+
+    def action_move_tab_up_cmd(self) -> None:
+        self.call_next(self.main_view.action_move_tab_up)
+
+    def action_move_tab_down_cmd(self) -> None:
+        self.call_next(self.main_view.action_move_tab_down)
 
     def action_set_default_indentation(self) -> None:
         """Set the default indentation for new files and save to config."""

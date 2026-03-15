@@ -11,6 +11,7 @@ from __future__ import annotations
 import itertools
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Literal
 
 _counter = itertools.count()
 
@@ -209,3 +210,43 @@ def adjacent_leaf(root: SplitNode, leaf_id: str, delta: int = 1) -> LeafNode | N
         if leaf.leaf_id == leaf_id:
             return leaves[(i + delta) % len(leaves)]
     return None
+
+
+# Direction → (matching axis, index delta, descent index for target subtree)
+_DIR_CONFIG: dict[str, tuple[str, int, int]] = {
+    "left": ("horizontal", -1, -1),  # descend to last (rightmost) leaf
+    "right": ("horizontal", +1, 0),  # descend to first (leftmost) leaf
+    "up": ("vertical", -1, -1),  # descend to last (bottommost) leaf
+    "down": ("vertical", +1, 0),  # descend to first (topmost) leaf
+}
+
+
+Direction = Literal["left", "right", "up", "down"]
+
+
+def directional_leaf(
+    root: SplitNode, leaf_id: str, direction: Direction
+) -> LeafNode | None:
+    """Find the leaf spatially adjacent in the given direction.
+
+    direction: "left" | "right" | "up" | "down"
+    Returns None if no leaf exists in that direction.
+    """
+    axis, delta, descent_idx = _DIR_CONFIG[direction]
+    leaf = find_leaf(root, leaf_id)
+    if leaf is None:
+        return None
+
+    node: SplitNode = leaf
+    while True:
+        parent = parent_of(root, node)
+        if parent is None:
+            return None  # reached root without finding matching axis
+        idx = parent.children.index(node)
+        if parent.direction == axis:
+            target_idx = idx + delta
+            if 0 <= target_idx < len(parent.children):
+                subtree = parent.children[target_idx]
+                leaves = all_leaves(subtree)
+                return leaves[descent_idx]
+        node = parent
