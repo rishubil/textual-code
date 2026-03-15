@@ -214,9 +214,9 @@ OverwriteConfirmModalScreen {
 OverwriteConfirmModalScreen #dialog {
     grid-size: 2 3;
     grid-gutter: 1 2;
-    grid-rows: 1fr 1fr 3;
+    grid-rows: 1fr 2fr 3;
     padding: 0 1;
-    max-width: 60;
+    max-width: 68; /* 62 (text) + 2 (border) + 2 (padding) + 2 (buffer) */
     max-height: 9;
     border: thick $background 80%;
     background: $surface;

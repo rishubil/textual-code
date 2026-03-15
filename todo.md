@@ -2,13 +2,6 @@
 
 Issues found during visual snapshot inspection.
 
-## [B] Overwrite confirm modal: body text truncated
-
-**File**: `test_snapshot_overwrite_confirm_modal`
-
-Modal body reads "The file was modified externally. Overwrite with your" — the remainder
-("changes?") is missing. The dialog width or text wrapping is too narrow.
-
 ## [E] Dockerfile highlighting: missing space between keyword and argument
 
 **File**: `test_snapshot_dockerfile_highlighting`

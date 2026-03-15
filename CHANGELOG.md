@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix overwrite confirm modal body text truncated: `max-width: 60` was too narrow for the 62-character message "The file was modified externally. Overwrite with your changes?", cutting off "changes?"; widened to `max-width: 68` and increased the message row height from `1fr` to `2fr` so text can wrap safely in narrow terminals
+
 - Fix footer wasted space: replaced fixed-width grid columns with `layout: horizontal` so each status button (`line_ending`, `encoding`, `indent`, `language`) sizes exactly to its current label (`width: auto`), the path column (`1fr`) absorbs all freed space, and the path label truncates from the front (`"..." + filename`) when the terminal is narrow. `#cursor_btn` is capped at `max-width: 28` to prevent very long multi-cursor labels from crowding the path
 
 - Fix workspace search pane layout clipping: sidebar widened from 20 to 28 characters, checkboxes (regex/case/gitignore) moved to a dedicated row with compact styling so all labels are visible, and the include/exclude filter inputs changed from a side-by-side horizontal layout to a vertical stack so each input spans the full sidebar width instead of half
