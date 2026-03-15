@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tab reorder commands: reorder the active tab within its tab group via the command palette ("Reorder tab left/right"); includes a defensive underline indicator update to prevent animation race conditions with command palette dismissal
+
 - Directional tab move commands: move the active tab to an adjacent split pane in a specific direction (left, right, up, down) via the command palette ("Move tab left/right/up/down"); uses a spatial tree-walk algorithm to correctly navigate nested split layouts
 
 - Widget focus cycling with `F6` / `Shift+F6`: cycle focus between all focusable widgets (sidebar, editor, etc.) using Textual's built-in focus navigation

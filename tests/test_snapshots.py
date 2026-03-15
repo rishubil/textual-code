@@ -327,6 +327,39 @@ def test_snapshot_tab_reorder_active_indicator(
     assert snap_compare(app, run_before=reorder_tabs, terminal_size=TERMINAL_SIZE)
 
 
+def test_snapshot_tab_reorder_right_indicator(
+    snap_compare,
+    snapshot_workspace: Path,
+    snapshot_py_file: Path,
+    snapshot_json_file: Path,
+):
+    """After action_reorder_tab_right, the active indicator sits on the moved tab."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def reorder_right(pilot):
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(path=snapshot_json_file)
+        await pilot.pause()
+
+        tc = app.main_view.tabbed_content
+        order = tc.get_ordered_pane_ids()
+        # Activate first tab (hello.py)
+        tc.active = order[0]
+        await pilot.pause()
+
+        # Move it right (swap with data.json)
+        app.main_view.action_reorder_tab_right()
+        await pilot.pause()
+        await pilot.pause()
+
+        editor = app.main_view.get_active_code_editor()
+        if editor is not None:
+            editor.action_focus()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=reorder_right, terminal_size=TERMINAL_SIZE)
+
+
 # ── Custom language highlighting ───────────────────────────────────────────────
 
 

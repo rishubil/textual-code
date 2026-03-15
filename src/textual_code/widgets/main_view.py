@@ -967,6 +967,20 @@ class MainView(Static):
     async def action_move_tab_down(self) -> None:
         await self._move_tab_directional("down")
 
+    # ── Tab reorder (within same group) ────────────────────────────────────
+
+    def action_reorder_tab_right(self) -> None:
+        """Move the active tab one position to the right."""
+        tc = self.query_one(f"#{self._active_leaf.leaf_id}", DraggableTabbedContent)
+        if not tc.reorder_active_tab_by_delta(1):
+            log.debug("reorder_tab_right: no-op (at end or single tab)")
+
+    def action_reorder_tab_left(self) -> None:
+        """Move the active tab one position to the left."""
+        tc = self.query_one(f"#{self._active_leaf.leaf_id}", DraggableTabbedContent)
+        if not tc.reorder_active_tab_by_delta(-1):
+            log.debug("reorder_tab_left: no-op (at start or single tab)")
+
     # ── Preview debounce helpers ────────────────────────────────────────────
 
     def _cancel_preview_timer(self, path: Path) -> None:

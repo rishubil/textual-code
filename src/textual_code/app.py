@@ -506,6 +506,16 @@ class TextualCode(App):
             self.action_move_tab_down_cmd,
         )
         yield SystemCommand(
+            "Reorder tab right",
+            "Move the current tab one position to the right",
+            self.action_reorder_tab_right_cmd,
+        )
+        yield SystemCommand(
+            "Reorder tab left",
+            "Move the current tab one position to the left",
+            self.action_reorder_tab_left_cmd,
+        )
+        yield SystemCommand(
             "Find in Workspace",
             "Search all files in the workspace (Ctrl+Shift+F)",
             self.action_find_in_workspace_cmd,
@@ -572,6 +582,12 @@ class TextualCode(App):
 
     def action_move_tab_down_cmd(self) -> None:
         self.call_next(self.main_view.action_move_tab_down)
+
+    def action_reorder_tab_right_cmd(self) -> None:
+        self.call_next(self.main_view.action_reorder_tab_right)
+
+    def action_reorder_tab_left_cmd(self) -> None:
+        self.call_next(self.main_view.action_reorder_tab_left)
 
     def action_set_default_indentation(self) -> None:
         """Set the default indentation for new files and save to config."""

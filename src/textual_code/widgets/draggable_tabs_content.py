@@ -233,3 +233,39 @@ class DraggableTabbedContent(TabbedContent):
             underline.highlight_end = end
 
         content_tabs.call_after_refresh(_move_underline)
+
+    def get_ordered_pane_ids(self) -> list[str]:
+        """Return the pane IDs in their current visual (tab-bar) order."""
+        content_tabs = self.get_child_by_type(ContentTabs)
+        return [
+            ContentTab.sans_prefix(t.id) for t in content_tabs.query(ContentTab) if t.id
+        ]
+
+    def reorder_active_tab_by_delta(self, delta: int) -> bool:
+        """Move the active tab by *delta* positions within this tab group.
+
+        *delta* should be 1 (right) or -1 (left).
+        Returns True if the tab was moved, False otherwise (boundary / single tab).
+        """
+        if not self.is_mounted:
+            return False
+        pane_ids = self.get_ordered_pane_ids()
+        active_id = self.active
+        if not active_id or active_id not in pane_ids:
+            return False
+        idx = pane_ids.index(active_id)
+        target_idx = idx + delta
+        if target_idx < 0 or target_idx >= len(pane_ids):
+            return False
+        self.reorder_tab(active_id, pane_ids[target_idx], before=(delta < 0))
+        # reorder_tab schedules _move_underline via call_after_refresh, but
+        # external events (e.g. command palette dismissal) can trigger
+        # _highlight_active(animate=True) which starts a 300ms animation
+        # that overrides the underline position. Schedule a second update
+        # after a delay to win the race against any interfering animation.
+        content_tabs = self.get_child_by_type(ContentTabs)
+        content_tabs.set_timer(
+            0.05,
+            lambda: content_tabs._highlight_active(animate=False),
+        )
+        return True
