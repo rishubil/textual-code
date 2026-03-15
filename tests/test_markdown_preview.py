@@ -10,6 +10,7 @@ from tests.conftest import make_app
 from textual_code.widgets.markdown_preview import (
     MARKDOWN_EXTENSIONS,
     MarkdownPreviewPane,
+    _make_parser,
 )
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
@@ -258,3 +259,96 @@ def test_markdown_extensions_constant():
     """MARKDOWN_EXTENSIONS includes the common extensions."""
     assert ".md" in MARKDOWN_EXTENSIONS
     assert ".markdown" in MARKDOWN_EXTENSIONS
+
+
+# ── _move_trailing_spaces core rule ───────────────────────────────────────────
+
+
+def _render_inline(md, source: str) -> list[tuple[str, str]]:
+    """Return [(token.type, token.content), ...] for inline children."""
+    tokens = md.parse(source)
+    for tok in tokens:
+        if tok.type == "inline":
+            return [(c.type, c.content) for c in tok.children]
+    return []
+
+
+def test_move_trailing_spaces_bold():
+    """Space after **bold** moves into the bold span's trailing text."""
+    md = _make_parser()
+    children = _render_inline(md, "**bold** text")
+    # The text token inside the bold span should now end with a space.
+    text_tokens = [(t, c) for t, c in children if t == "text"]
+    assert any(c.endswith(" ") for _, c in text_tokens), (
+        f"Expected a text token ending with space, got: {text_tokens}"
+    )
+    # The text following strong_close should NOT start with a space.
+    types = [t for t, _ in children]
+    close_idx = types.index("strong_close")
+    if close_idx + 1 < len(children) and children[close_idx + 1][0] == "text":
+        assert not children[close_idx + 1][1].startswith(" ")
+
+
+def test_move_trailing_spaces_italic():
+    """Space after *italic* moves into the italic span's trailing text."""
+    md = _make_parser()
+    children = _render_inline(md, "*italic* text")
+    text_tokens = [(t, c) for t, c in children if t == "text"]
+    assert any(c.endswith(" ") for _, c in text_tokens)
+
+
+def test_move_trailing_spaces_strikethrough():
+    """Space after ~~strike~~ moves into the span's trailing text."""
+    md = _make_parser()
+    children = _render_inline(md, "~~strike~~ text")
+    text_tokens = [(t, c) for t, c in children if t == "text"]
+    assert any(c.endswith(" ") for _, c in text_tokens)
+
+
+def test_move_trailing_spaces_link():
+    """Space after [link](url) moves into the link span's trailing text."""
+    md = _make_parser()
+    children = _render_inline(md, "[link](http://example.com) text")
+    text_tokens = [(t, c) for t, c in children if t == "text"]
+    assert any(c.endswith(" ") for _, c in text_tokens)
+
+
+def test_move_trailing_spaces_no_space():
+    """No change when there is no space after the closing tag."""
+    md = _make_parser()
+    children = _render_inline(md, "**bold**text")
+    text_tokens = [(t, c) for t, c in children if t == "text"]
+    # None of the text tokens should have an artificially added trailing space.
+    assert not any(c.endswith(" ") for _, c in text_tokens)
+
+
+def test_move_trailing_spaces_multiple_spans():
+    """Each span's space is handled independently without cross-contamination."""
+    md = _make_parser()
+    children = _render_inline(md, "**bold** *italic* text")
+    # Two inline spans, two spaces should be absorbed.
+    text_tokens = [(t, c) for t, c in children if t == "text"]
+    trailing_space_count = sum(1 for _, c in text_tokens if c.endswith(" "))
+    assert trailing_space_count >= 1
+
+
+async def test_markdown_widget_renders_with_space(workspace: Path):
+    """Markdown widget correctly stores bold+space+normal text content."""
+    from textual.widgets import Markdown as MarkdownWidget
+
+    bold_md_file = workspace / "bold_test.md"
+    bold_md_file.write_text("# Hello\n\nThis is a **Markdown** preview.\n")
+
+    app = make_app(workspace, open_file=bold_md_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_markdown_preview_tab()
+        await pilot.pause()
+
+        pane_id = app.main_view._preview_pane_ids[bold_md_file]
+        tc = app.main_view._tc_for_pane(pane_id)
+        preview = tc.get_pane(pane_id).query_one(MarkdownPreviewPane)
+        md_widget = preview.query_one(MarkdownWidget)
+
+        # Content is stored with the space intact in the raw markdown.
+        assert "**Markdown** preview." in md_widget._markdown

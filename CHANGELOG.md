@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix missing space between bold and normal text in markdown preview: a markdown-it core rule now moves leading spaces from text tokens that follow inline close tokens (`strong_close`, `em_close`, etc.) into the trailing of the preceding text token, so rsvg-convert renders the space correctly instead of collapsing it
+
 - Fix overwrite confirm modal body text truncated: `max-width: 60` was too narrow for the 62-character message "The file was modified externally. Overwrite with your changes?", cutting off "changes?"; widened to `max-width: 68` and increased the message row height from `1fr` to `2fr` so text can wrap safely in narrow terminals
 
 - Fix footer wasted space: replaced fixed-width grid columns with `layout: horizontal` so each status button (`line_ending`, `encoding`, `indent`, `language`) sizes exactly to its current label (`width: auto`), the path column (`1fr`) absorbs all freed space, and the path label truncates from the front (`"..." + filename`) when the terminal is narrow. `#cursor_btn` is capped at `max-width: 28` to prevent very long multi-cursor labels from crowding the path
