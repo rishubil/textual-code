@@ -11,7 +11,7 @@ services:
     volumes:
       - ../:/project
     environment:
-      - CLAUDE_CONFIG_DIR=/home/ubuntu/.claude
+      - CLAUDE_CONFIG_DIR=/home/appuser/.claude
     env_file:
       - path: ../.env
         required: false
