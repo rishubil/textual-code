@@ -1659,26 +1659,33 @@ class CodeEditor(Static):
             return
 
         # Case 2: Selection exists — find next occurrence
-        # Search starts after the last cursor (cursor is at end of match)
+        # Use max() to get logical end, handling reverse selections (end < start)
         if self.editor.extra_cursors:
-            last_loc = self.editor.extra_cursors[-1]
-            search_from = _location_to_text_offset(text, last_loc)
+            last_cursor = self.editor.extra_cursors[-1]
+            last_anchor = self.editor.extra_anchors[-1]
+            search_from = _location_to_text_offset(text, max(last_cursor, last_anchor))
         else:
-            search_from = _location_to_text_offset(text, sel.end)
+            search_from = _location_to_text_offset(text, max(sel.start, sel.end))
 
         start, end = _find_next(text, query, search_from)
         if start == -1:
             return  # No occurrences at all
 
-        anchor_loc = _text_offset_to_location(text, start)
-        new_loc = _text_offset_to_location(text, end)
+        match_start = _text_offset_to_location(text, start)
+        match_end = _text_offset_to_location(text, end)
 
         # Check if we've wrapped around to the primary selection (all selected)
-        if anchor_loc == sel.start:
+        if match_start == min(sel.start, sel.end):
             self.notify("All occurrences already selected", severity="information")
             return
 
-        self.editor.add_cursor(new_loc, anchor=anchor_loc)
+        # Match extra cursor direction to primary selection
+        cursor, anchor = (
+            (match_start, match_end)
+            if sel.start > sel.end
+            else (match_end, match_start)
+        )
+        self.editor.add_cursor(cursor, anchor=anchor)
 
     @property
     def editor(self) -> MultiCursorTextArea:

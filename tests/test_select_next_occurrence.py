@@ -262,6 +262,83 @@ async def test_ctrl_d_extra_cursor_has_selection(workspace: Path, occ_file: Path
         assert editor.editor.extra_anchors == [(1, 0)]
 
 
+async def test_ctrl_d_reverse_selection_adds_cursor(workspace: Path, occ_file: Path):
+    """Reverse selection (right-to-left) → next occurrence found correctly."""
+    from textual.widgets.text_area import Selection
+
+    # occ_file: "foo bar\nfoo baz\nqux\n"
+    app = make_app(workspace, open_file=occ_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        # Reverse selection: dragged from (0,3) to (0,0) — selects "foo" right-to-left
+        editor.editor.selection = Selection(start=(0, 3), end=(0, 0))
+        await pilot.pause()
+
+        editor.action_select_next_occurrence()
+        await pilot.pause()
+
+        # Reverse: cursor at start of second "foo" (1,0), anchor at end (1,3)
+        assert editor.editor.extra_cursors == [(1, 0)]
+        assert editor.editor.extra_anchors == [(1, 3)]
+
+
+async def test_ctrl_d_reverse_selection_wrap_around(workspace: Path, occ_file: Path):
+    """Reverse selection: after all occurrences selected, wrap-around notifies."""
+    from textual.widgets.text_area import Selection
+
+    # occ_file: "foo bar\nfoo baz\nqux\n" — 2 "foo"s
+    app = make_app(workspace, open_file=occ_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        # Reverse selection on first "foo"
+        editor.editor.selection = Selection(start=(0, 3), end=(0, 0))
+        await pilot.pause()
+
+        # First Ctrl+D: adds second "foo"
+        editor.action_select_next_occurrence()
+        await pilot.pause()
+        assert len(editor.editor.extra_cursors) == 1
+
+        # Second Ctrl+D: should wrap around and notify (not add duplicate)
+        editor.action_select_next_occurrence()
+        await pilot.pause()
+        assert len(editor.editor.extra_cursors) == 1  # no new cursor
+
+
+async def test_ctrl_d_reverse_selection_twice(workspace: Path, three_occ_file: Path):
+    """Reverse selection + two Ctrl+D presses → two extra cursors."""
+    from textual.widgets.text_area import Selection
+
+    # three_occ_file: "foo bar foo\nfoo baz\n"
+    # positions: (0,0), (0,8), (1,0)
+    app = make_app(workspace, open_file=three_occ_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        # Reverse selection on first "foo"
+        editor.editor.selection = Selection(start=(0, 3), end=(0, 0))
+        await pilot.pause()
+
+        editor.action_select_next_occurrence()
+        await pilot.pause()
+        assert len(editor.editor.extra_cursors) == 1
+        # Reverse: cursor at start (0,8), anchor at end (0,11)
+        assert editor.editor.extra_cursors == [(0, 8)]
+        assert editor.editor.extra_anchors == [(0, 11)]
+
+        editor.action_select_next_occurrence()
+        await pilot.pause()
+        assert len(editor.editor.extra_cursors) == 2
+        # Reverse: cursors at starts, anchors at ends
+        assert editor.editor.extra_cursors == [(0, 8), (1, 0)]
+        assert editor.editor.extra_anchors == [(0, 11), (1, 3)]
+
+
 async def test_ctrl_d_cmd_no_file(workspace: Path):
     """Command palette action when no file open → no crash."""
     app = make_app(workspace, open_file=None)

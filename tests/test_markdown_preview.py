@@ -145,8 +145,8 @@ async def test_preview_tab_updates_on_text_change(workspace: Path, md_file: Path
 
         new_text = "# Updated\n\nNew content\n"
         editor.text = new_text
-        await pilot.pause()
-        await pilot.pause()
+        # Wait for debounce timer to fire
+        await pilot.pause(delay=0.5)
 
         assert md_widget._markdown == new_text
 
@@ -250,6 +250,166 @@ async def test_preview_tab_and_split_coexist(workspace: Path, md_file: Path):
         assert md_file in app.main_view._preview_pane_ids
         preview_pane_id = app.main_view._preview_pane_ids[md_file]
         assert app.main_view.is_opened_pane(preview_pane_id)
+
+
+# ── 12. test_clicking_preview_pane_updates_active_leaf ─────────────────────────
+
+
+async def test_clicking_preview_pane_updates_active_leaf(
+    workspace: Path, md_file: Path
+):
+    """Clicking on MarkdownPreviewPane gives it focus."""
+    app = make_app(workspace, open_file=md_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Get editor reference before preview steals focus
+        editor = app.main_view._get_active_code_editor_in_split("left")
+        assert editor is not None
+
+        await app.main_view.action_open_markdown_preview_tab()
+        await pilot.pause()
+
+        preview_pane_id = app.main_view._preview_pane_ids[md_file]
+        tc = app.main_view._tc_for_pane(preview_pane_id)
+        assert tc is not None
+
+        # Activate the preview tab so it's visible
+        tc.active = preview_pane_id
+        await pilot.pause()
+
+        # Focus the editor (simulates user clicking away from preview)
+        editor.focus()
+        await pilot.pause()
+
+        # Click on the preview pane content
+        preview = tc.get_pane(preview_pane_id).query_one(MarkdownPreviewPane)
+        await pilot.click(MarkdownPreviewPane)
+        await pilot.pause()
+
+        # The preview pane should have received focus
+        assert preview.has_focus
+
+
+# ── 13. test_preview_update_is_debounced ──────────────────────────────────────
+
+
+async def test_preview_update_is_debounced(workspace: Path, md_file: Path):
+    """Rapid text changes should trigger only one preview update, not three."""
+    from unittest.mock import patch
+
+    from textual.widgets import Markdown as MarkdownWidget
+
+    app = make_app(workspace, open_file=md_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view._get_active_code_editor_in_split("left")
+        assert editor is not None
+
+        await app.main_view.action_open_markdown_preview_tab()
+        await pilot.pause()
+
+        pane_id = app.main_view._preview_pane_ids[md_file]
+        tc = app.main_view._tc_for_pane(pane_id)
+        assert tc is not None
+        preview = tc.get_pane(pane_id).query_one(MarkdownPreviewPane)
+        md_widget = preview.query_one(MarkdownWidget)
+
+        # Spy on Markdown.update to count calls
+        original_update = md_widget.update
+        call_count = 0
+
+        async def counting_update(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return await original_update(*args, **kwargs)
+
+        with patch.object(md_widget, "update", side_effect=counting_update):
+            # Rapid consecutive changes
+            editor.text = "# One"
+            editor.text = "# Two"
+            editor.text = "# Three"
+
+            # Wait for debounce to fire
+            await pilot.pause(delay=0.5)
+
+        # With debounce, update should be called once (not three times)
+        assert call_count == 1, f"Expected 1 update call, got {call_count}"
+        assert md_widget._markdown == "# Three"
+
+
+# ── 14. test_preview_tab_focus_resets_footer ──────────────────────────────────
+
+
+async def test_preview_tab_focus_resets_footer(workspace: Path, md_file: Path):
+    """Activating a preview tab resets the footer (no active code editor)."""
+    from textual_code.widgets.code_editor import CodeEditorFooter
+
+    app = make_app(workspace, open_file=md_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Footer should have editor info initially
+        footer = app.main_view.query_one(CodeEditorFooter)
+        assert footer.path is not None
+
+        await app.main_view.action_open_markdown_preview_tab()
+        await pilot.pause()
+
+        preview_pane_id = app.main_view._preview_pane_ids[md_file]
+        app.main_view.focus_pane(preview_pane_id)
+        await pilot.pause()
+
+        # Footer should be reset since preview pane has no code editor
+        assert footer.path is None
+
+
+# ── 15. test_preview_focus_does_not_shift_content ─────────────────────────────
+
+
+async def test_preview_focus_does_not_shift_content(workspace: Path, md_file: Path):
+    """Focus highlight must use outline (not border) so content doesn't shift."""
+    app = make_app(workspace, open_file=md_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_markdown_preview_tab()
+        await pilot.pause()
+
+        preview_pane_id = app.main_view._preview_pane_ids[md_file]
+        tc = app.main_view._tc_for_pane(preview_pane_id)
+        assert tc is not None
+        preview = tc.get_pane(preview_pane_id).query_one(MarkdownPreviewPane)
+
+        # Record size before focus
+        size_before = preview.content_size
+
+        # Focus the preview pane
+        preview.focus()
+        await pilot.pause()
+        assert preview.has_focus
+
+        # Content size must not change (outline doesn't consume space)
+        size_after = preview.content_size
+        assert size_before == size_after, (
+            f"Content shifted: {size_before} -> {size_after}. "
+            "Use outline instead of border for focus highlight."
+        )
+
+
+# ── 16. test_preview_tab_receives_focus_on_open ──────────────────────────────
+
+
+async def test_preview_tab_receives_focus_on_open(workspace: Path, md_file: Path):
+    """Opening a preview tab should give focus to the MarkdownPreviewPane."""
+    app = make_app(workspace, open_file=md_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_markdown_preview_tab()
+        await pilot.pause()
+
+        preview_pane_id = app.main_view._preview_pane_ids[md_file]
+        tc = app.main_view._tc_for_pane(preview_pane_id)
+        assert tc is not None
+        preview = tc.get_pane(preview_pane_id).query_one(MarkdownPreviewPane)
+        assert preview.has_focus
 
 
 # ── Utility — extensions constant ─────────────────────────────────────────────
