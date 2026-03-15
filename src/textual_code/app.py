@@ -10,7 +10,7 @@ from textual.command import CommandPalette
 from textual.events import Ready
 from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import Footer
+from textual.widgets import Footer, TabbedContent
 
 from textual_code.commands import (
     create_create_file_or_dir_command_provider,
@@ -54,6 +54,7 @@ from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.explorer import Explorer
 from textual_code.widgets.main_view import MainView
 from textual_code.widgets.sidebar import SIDEBAR_MIN_WIDTH, Sidebar
+from textual_code.widgets.split_tree import LeafNode, all_leaves
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
 # Textual's built-in "Theme" command title — used to filter it out from command palette.
@@ -221,6 +222,20 @@ class TextualCode(App):
             show=False,
         ),
         Binding("f1", "show_shortcuts", "Keyboard shortcuts", show=False),
+        Binding(
+            "ctrl+tab",
+            "focus_next_panel",
+            "Next panel",
+            show=False,
+            priority=True,
+        ),
+        Binding(
+            "ctrl+shift+tab",
+            "focus_prev_panel",
+            "Previous panel",
+            show=False,
+            priority=True,
+        ),
     ]
 
     def __init__(
@@ -982,6 +997,74 @@ class TextualCode(App):
         Toggle the sidebar visibility.
         """
         self.sidebar.display = not self.sidebar.display
+
+    # ── Panel focus cycling ──────────────────────────────────────────────────
+
+    _SIDEBAR = "sidebar"
+
+    def _get_focusable_panels(self) -> list[str | LeafNode]:
+        """Return ordered list of focusable panels: sidebar (if visible) + leaves."""
+        panels: list[str | LeafNode] = []
+        sidebar = self.sidebar
+        if sidebar.display:
+            panels.append(self._SIDEBAR)
+        panels.extend(all_leaves(self.main_view._split_root))
+        return panels
+
+    def _current_panel_index(self, panels: list[str | LeafNode]) -> int:
+        """Determine which panel currently has focus."""
+        focused = self.focused
+        if focused is not None:
+            ancestors = focused.ancestors_with_self
+            # Check if focus is inside the sidebar
+            if self.sidebar in ancestors:
+                try:
+                    return panels.index(self._SIDEBAR)
+                except ValueError:
+                    pass
+            # Check each leaf
+            main_view = self.main_view
+            for i, panel in enumerate(panels):
+                if isinstance(panel, LeafNode):
+                    try:
+                        tc = main_view.query_one(f"#{panel.leaf_id}", TabbedContent)
+                        if tc in ancestors:
+                            return i
+                    except Exception:
+                        pass
+        # Fallback: use the active leaf tracked by MainView
+        active_leaf = self.main_view._active_leaf
+        for i, panel in enumerate(panels):
+            if panel is active_leaf:
+                return i
+        return 0
+
+    def _focus_panel(self, panel: str | LeafNode) -> None:
+        """Set focus to the given panel."""
+        if panel == self._SIDEBAR:
+            sidebar = self.sidebar
+            if sidebar.tabbed_content.active == "search_pane":
+                sidebar.workspace_search.focus_query_input()
+            else:
+                sidebar.explorer.directory_tree.focus()
+        elif isinstance(panel, LeafNode):
+            self.main_view._set_active_leaf(panel)
+
+    def action_focus_next_panel(self) -> None:
+        """Focus the next panel (sidebar / split leaf), wrapping around."""
+        panels = self._get_focusable_panels()
+        if not panels:
+            return
+        idx = self._current_panel_index(panels)
+        self._focus_panel(panels[(idx + 1) % len(panels)])
+
+    def action_focus_prev_panel(self) -> None:
+        """Focus the previous panel (sidebar / split leaf), wrapping around."""
+        panels = self._get_focusable_panels()
+        if not panels:
+            return
+        idx = self._current_panel_index(panels)
+        self._focus_panel(panels[(idx - 1) % len(panels)])
 
     def action_reload_explorer(self) -> None:
         """
