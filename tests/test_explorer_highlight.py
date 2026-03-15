@@ -62,6 +62,120 @@ async def test_switch_tab_updates_explorer(workspace: Path, two_files):
         assert explorer.directory_tree.cursor_node.data.path == f1
 
 
+async def test_switch_tab_updates_explorer_nested_file(workspace: Path):
+    """Switching to a tab with a file in a collapsed folder should highlight it."""
+    subdir = workspace / "subdir"
+    subdir.mkdir()
+    f_top = workspace / "top.py"
+    f_nested = subdir / "nested.py"
+    f_top.write_text("# top\n")
+    f_nested.write_text("# nested\n")
+
+    app = make_app(workspace, open_file=f_top)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+
+        # Open nested file — subdir is collapsed in the explorer
+        await app.main_view.action_open_code_editor(f_nested)
+        # Wait for expand + reload chain (each folder level requires one refresh cycle)
+        for _ in range(5):
+            await pilot.pause()
+
+        explorer = app.sidebar.query_one(Explorer)
+        assert explorer.directory_tree.cursor_node is not None
+        assert explorer.directory_tree.cursor_node.data.path == f_nested
+
+
+async def test_switch_tab_updates_explorer_doubly_nested_file(workspace: Path):
+    """Switching to a tab whose file is two levels deep should highlight it."""
+    subdir = workspace / "a" / "b"
+    subdir.mkdir(parents=True)
+    f_top = workspace / "top.py"
+    f_nested = subdir / "deep.py"
+    f_top.write_text("# top\n")
+    f_nested.write_text("# deep\n")
+
+    app = make_app(workspace, open_file=f_top)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+
+        await app.main_view.action_open_code_editor(f_nested)
+        # Two folder levels → each needs its own refresh cycle; give extra headroom
+        for _ in range(10):
+            await pilot.pause()
+
+        explorer = app.sidebar.query_one(Explorer)
+        assert explorer.directory_tree.cursor_node is not None
+        assert explorer.directory_tree.cursor_node.data.path == f_nested
+
+
+async def test_switch_tab_updates_explorer_after_collapse(workspace: Path):
+    """Switching to a tab whose folder was expanded then collapsed should work."""
+    subdir = workspace / "subdir"
+    subdir.mkdir()
+    f_top = workspace / "top.py"
+    f_nested = subdir / "nested.py"
+    f_top.write_text("# top\n")
+    f_nested.write_text("# nested\n")
+
+    app = make_app(workspace)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+
+        # Open both files so subdir gets expanded
+        await app.main_view.action_open_code_editor(f_top)
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(f_nested)
+        for _ in range(5):
+            await pilot.pause()
+
+        explorer = app.sidebar.query_one(Explorer)
+
+        # Collapse subdir manually
+        subdir_node = next(
+            n
+            for n in explorer.directory_tree.root.children
+            if n.data is not None and n.data.path == subdir
+        )
+        subdir_node.collapse()
+        await pilot.pause()
+
+        # Switch to f_top, then back to f_nested (subdir is collapsed)
+        pane_id_top = app.main_view.pane_id_from_path(f_top)
+        app.main_view.tabbed_content.active = pane_id_top
+        await pilot.pause()
+
+        pane_id_nested = app.main_view.pane_id_from_path(f_nested)
+        app.main_view.tabbed_content.active = pane_id_nested
+        for _ in range(5):
+            await pilot.pause()
+
+        assert explorer.directory_tree.cursor_node is not None
+        assert explorer.directory_tree.cursor_node.data.path == f_nested
+
+
+async def test_select_file_nonexistent_nested_path_is_noop(workspace: Path):
+    """select_file with a path whose parent dir is missing from the tree is a no-op."""
+    app = make_app(workspace)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+
+        explorer = app.sidebar.query_one(Explorer)
+        original_node = explorer.directory_tree.cursor_node
+
+        # Path is inside workspace but the subdirectory does not exist on disk
+        ghost_path = workspace / "ghost_dir" / "ghost.py"
+        explorer.select_file(ghost_path)
+        await pilot.pause()
+
+        # Cursor should not have changed
+        assert explorer.directory_tree.cursor_node is original_node
+
+
 async def test_select_file_outside_workspace_is_noop(workspace: Path, two_files):
     """select_file with path outside workspace is silently ignored."""
     f1, _ = two_files

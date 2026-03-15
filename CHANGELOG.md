@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix explorer cursor not updating when switching to a tab whose file is inside a collapsed folder: the sidebar now expands the collapsed folder and retries cursor placement until the file node is visible; also fixes the case where a folder was previously expanded then manually collapsed (stale `_line` values on hidden nodes caused `move_cursor` to land on the wrong entry)
+
 - Fix missing space between bold and normal text in markdown preview: a markdown-it core rule now moves leading spaces from text tokens that follow inline close tokens (`strong_close`, `em_close`, etc.) into the trailing of the preceding text token, so rsvg-convert renders the space correctly instead of collapsing it
 
 - Fix overwrite confirm modal body text truncated: `max-width: 60` was too narrow for the 62-character message "The file was modified externally. Overwrite with your changes?", cutting off "changes?"; widened to `max-width: 68` and increased the message row height from `1fr` to `2fr` so text can wrap safely in narrow terminals
