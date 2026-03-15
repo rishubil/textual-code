@@ -255,6 +255,27 @@ async def test_footer_path_ellipsis_on_very_long_path(workspace: Path, tmp_path:
         assert content.endswith(".py")
 
 
+# ── G-14b: ellipsis uses dim style ────────────────────────────────────────────
+
+
+async def test_footer_path_ellipsis_has_dim_style(workspace: Path, tmp_path: Path):
+    """G-14b: '...' prefix is a Rich Text object so it carries independent style."""
+    from rich.text import Text
+
+    long_file = tmp_path / ("a" * 200 + ".py")
+    long_file.touch()
+    app = make_app(workspace, open_file=long_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        footer = app.query_one(CodeEditorFooter)
+        content = footer.path_view.content
+        # Must be a Rich Text object (not plain str) to carry style information
+        assert isinstance(content, Text)
+        # Plain text still starts with "..." and ends with ".py"
+        assert content.plain.startswith("...")
+        assert content.plain.endswith(".py")
+
+
 # ── G-15: cursor_btn width is capped ──────────────────────────────────────────
 
 

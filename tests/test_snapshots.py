@@ -625,3 +625,11 @@ def test_snapshot_multi_cursor(
         await pilot.pause()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_footer_path_truncation(snap_compare, snapshot_workspace: Path):
+    """Footer path shows dim ellipsis when path is truncated."""
+    long_file = snapshot_workspace / ("a" * 150 + ".py")
+    long_file.touch()
+    app = make_app(snapshot_workspace, open_file=long_file)
+    assert snap_compare(app, terminal_size=TERMINAL_SIZE)

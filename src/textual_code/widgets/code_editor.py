@@ -7,6 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from charset_normalizer import detect as _cn_detect
+from rich.text import Text
 from textual import events, on
 from textual.app import ComposeResult
 from textual.events import Mount
@@ -465,10 +466,20 @@ class _PathLabel(Label):
         raw = self._raw
         available = self.region.width
         if available > 0 and len(raw) > available:
-            raw = (
-                "..." + raw[-(available - 3) :] if available > 3 else "..."[:available]
-            )
-        self.update(raw)
+            theme = self.app.theme_variables
+            fg = theme.get("foreground-darken-3", "#a2a2a2")
+            bg = theme.get("surface-lighten-2", "#3e3e3e")
+            ellipsis_style = f"{fg} on {bg}"
+            if available > 3:
+                tail = raw[-(available - 3) :]
+                text = Text()
+                text.append("...", style=ellipsis_style)
+                text.append(tail)
+                self.update(text)
+            else:
+                self.update(Text("..."[:available], style=ellipsis_style))
+        else:
+            self.update(raw)
 
     def on_resize(self) -> None:
         self._truncate()

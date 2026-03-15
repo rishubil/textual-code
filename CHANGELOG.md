@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Footer path truncation indicator ("...") is now visually distinct from actual path dot characters: the ellipsis uses theme-aware dimmed foreground (`$foreground-darken-3`) and a lighter background (`$surface-lighten-2`) so it stands out from the rest of the path
+
 ### Fixed
 
 - Fix explorer cursor not updating when switching to a tab whose file is inside a collapsed folder: the sidebar now expands the collapsed folder and retries cursor placement until the file node is visible; also fixes the case where a folder was previously expanded then manually collapsed (stale `_line` values on hidden nodes caused `move_cursor` to land on the wrong entry)

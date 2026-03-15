@@ -1,4 +1,4 @@
-- split한 에디터에서 편집할 때, 다른 에디터에 수정 사항이 저장하기 전에도 바로 바로 적용되서 보일 수 있도록 해주세요.
-- footer에서 path가 elipsis될 때, 실제 경로 표시에 사용하는 dot character와 혼동하지 않도록 다른 색으로 표현하세요.
-- split left, up 기능을 구현하세요.
-- 다른 스플릿 영역으로 탭을 이동하기 위한 명령을 만드세요 (상, 하, 좌, 우)
+- When editing in a split editor, changes should be reflected in the other editor live (before saving).
+- [x] When the path is truncated with ellipsis in the footer, display the "..." in a different color to avoid confusion with actual dot characters in the path.
+- Implement split left and split up functionality.
+- Add commands to move a tab to another split pane (up, down, left, right).
