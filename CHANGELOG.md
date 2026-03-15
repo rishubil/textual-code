@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Panel focus cycling with `Ctrl+Tab` / `Ctrl+Shift+Tab`: cycle focus between the sidebar and editor split leaves in left-to-right order, wrapping around; hidden sidebar is automatically skipped, and sidebar focus respects the currently active tab (Explorer or Search)
+- Widget focus cycling with `F6` / `Shift+F6`: cycle focus between all focusable widgets (sidebar, editor, etc.) using Textual's built-in focus navigation
 
 - Live text sync between split editors: when the same file is open in two split views, edits in one editor are immediately reflected in the other without needing to save first; saving in one editor also updates the sibling's `initial_text` and mtime so no false "file changed externally" warnings appear
 
