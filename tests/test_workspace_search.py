@@ -518,3 +518,28 @@ async def test_case_sensitive_checkbox_in_ui(tmp_path: Path) -> None:
         results_list = ws_pane.query_one("#ws-results", ListView)
         labels = [str(lbl.content) for lbl in results_list.query(Label)]
         assert any("sample.txt" in lbl for lbl in labels)
+
+
+@pytest.mark.asyncio
+async def test_workspace_search_no_clipping(tmp_path: Path) -> None:
+    """#ws-include must span the full width of its parent container (not half)."""
+    from textual.widgets import Input
+
+    from tests.conftest import make_app
+
+    app = make_app(tmp_path)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+        ws_filter_bar = app.query_one("#ws-filter-bar")
+        ws_include = app.query_one("#ws-include", Input)
+        ws_exclude = app.query_one("#ws-exclude", Input)
+        # Both inputs must span the full container width (stacked, not side by side).
+        # Use outer_size (includes borders/padding) to match the container's size.
+        container_w = ws_filter_bar.size.width
+        assert ws_include.outer_size.width == container_w, (
+            f"ws-include outer width {ws_include.outer_size.width} != {container_w}"
+        )
+        assert ws_exclude.outer_size.width == container_w, (
+            f"ws-exclude outer width {ws_exclude.outer_size.width} != {container_w}"
+        )

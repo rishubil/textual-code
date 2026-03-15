@@ -1,6 +1,6 @@
 Sidebar {
     dock: left;
-    width: 20;
+    width: 28;
 }
 
 SidebarResizeHandle {
@@ -798,24 +798,20 @@ WorkspaceSearchPane #ws-query {
     width: 1fr;
 }
 
-WorkspaceSearchPane #ws-regex {
-    width: auto;
-    height: 3;
-}
-
-WorkspaceSearchPane #ws-case-sensitive {
-    width: auto;
-    height: 3;
-}
-
-WorkspaceSearchPane #ws-gitignore {
-    width: auto;
-    height: 3;
-}
-
 WorkspaceSearchPane #ws-search {
     width: auto;
     height: 3;
+}
+
+WorkspaceSearchPane #ws-search-options {
+    height: auto;
+}
+
+WorkspaceSearchPane #ws-search-options Checkbox {
+    width: auto;
+    border: none;
+    padding: 0;
+    height: 1;
 }
 
 WorkspaceSearchPane #ws-filter-bar {
@@ -823,11 +819,11 @@ WorkspaceSearchPane #ws-filter-bar {
 }
 
 WorkspaceSearchPane #ws-include {
-    width: 1fr;
+    width: 100%;
 }
 
 WorkspaceSearchPane #ws-exclude {
-    width: 1fr;
+    width: 100%;
 }
 
 WorkspaceSearchPane #ws-replace-bar {

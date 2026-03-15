@@ -5,7 +5,7 @@ from pathlib import Path
 
 from textual import on, work
 from textual.app import ComposeResult
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.widgets import Button, Checkbox, Input, Label, ListItem, ListView, Static
 from textual.worker import Worker, WorkerState
@@ -26,13 +26,14 @@ class WorkspaceSearchPane(Static):
     def compose(self) -> ComposeResult:
         with Horizontal(id="ws-search-bar"):
             yield Input(placeholder="Search workspace...", id="ws-query")
+            yield Button("Search", id="ws-search", variant="primary")
+        with Horizontal(id="ws-search-options"):
             yield Checkbox(".*", id="ws-regex")
             yield Checkbox("Aa", id="ws-case-sensitive", value=True)
             yield Checkbox("Gitignore", id="ws-gitignore", value=True)
-            yield Button("Search", id="ws-search", variant="primary")
-        with Horizontal(id="ws-filter-bar"):
-            yield Input(placeholder="Files to include (e.g. src/**)", id="ws-include")
-            yield Input(placeholder="Files to exclude (e.g. dist/**)", id="ws-exclude")
+        with Vertical(id="ws-filter-bar"):
+            yield Input(placeholder="Include files (src/**)", id="ws-include")
+            yield Input(placeholder="Exclude files (dist/**)", id="ws-exclude")
         with Horizontal(id="ws-replace-bar"):
             yield Input(placeholder="Replace with...", id="ws-replace")
             yield Button("Replace All", id="ws-replace-all", variant="warning")

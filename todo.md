@@ -16,13 +16,6 @@ Footer last column (`auto` width) truncates `python` to `pytho`. The 6-column gr
 Modal body reads "The file was modified externally. Overwrite with your" — the remainder
 ("changes?") is missing. The dialog width or text wrapping is too narrow.
 
-## [D] Sidebar search: button labels truncated
-
-**Files**: `test_snapshot_sidebar_search_tab`, `test_snapshot_workspace_search_results`
-
-Buttons in the workspace search pane are clipped to `"Fil"` and `"File"`. The sidebar
-width is too narrow, or button labels are too long for the available space.
-
 ## [E] Dockerfile highlighting: missing space between keyword and argument
 
 **File**: `test_snapshot_dockerfile_highlighting`

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix workspace search pane layout clipping: sidebar widened from 20 to 28 characters, checkboxes (regex/case/gitignore) moved to a dedicated row with compact styling so all labels are visible, and the include/exclude filter inputs changed from a side-by-side horizontal layout to a vertical stack so each input spans the full sidebar width instead of half
+
 - Fix Ctrl+D (add next occurrence) not selecting the matched text on extra cursors: `add_cursor()` was called without an `anchor`, collapsing new cursors to a single point; now passes `anchor` at the match start so extra cursors have the same selection highlight as the primary cursor
 - Fix "Change Indentation" title invisible in footer indent modal: `ChangeIndentModalScreen.no-save-level #dialog` had `max-height: 14`, exactly equal to the fixed row heights (9 rows + 3 gutters + 2 border), leaving 0 cells for the `1fr` title row; increased to `max-height: 16`
 - Fix active tab indicator intermittently misplaced after tab reorder: a 300 ms slide animation started when the tab was activated continued to override the underline position set by `_highlight_active`; now stops the animation synchronously via `force_stop_animation` and sets `highlight_start`/`highlight_end` directly, with retry logic for degenerate pre-layout regions
