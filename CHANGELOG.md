@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dragged tab visual highlight: when dragging a tab to reorder or move between splits, the dragged tab now shows an accent-colored background with inverted text and bold styling for clear visual feedback
 
+- Drop target split pane highlight: when dragging a tab across split panes, the target pane shows an accent-colored border to preview the drop destination
+
 ### Changed
 
 - Footer path truncation indicator ("...") is now visually distinct from actual path dot characters: the ellipsis uses theme-aware dimmed foreground (`$foreground-darken-3`) and a lighter background (`$surface-lighten-2`) so it stands out from the rest of the path

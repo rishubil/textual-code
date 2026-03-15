@@ -860,6 +860,11 @@ DraggableTabbedContent.-edge-hover {
     border-right: outer $accent;
 }
 
+/* Drop target highlight during cross-split tab drag */
+DraggableTabbedContent.-drop-target {
+    border: tall $accent;
+}
+
 /* Split view layout */
 SplitContainer {
     width: 1fr;

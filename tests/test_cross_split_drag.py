@@ -207,6 +207,185 @@ async def test_drag_cross_split_duplicate_file_focuses_existing(
         assert right_tc.active == new_pane_id
 
 
+# ── Drop target highlight tests ───────────────────────────────────────────────
+
+
+async def test_drop_target_highlight_during_cross_split_drag(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Dragging a tab over the other split adds -drop-target class to it."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+        await main.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(main._split_root)
+        left_dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+        right_dtc = main.query_one(f"#{leaves[1].leaf_id}", DraggableTabbedContent)
+
+        left_tabs = list(left_dtc.get_child_by_type(ContentTabs).query(ContentTab))
+        right_tabs = list(right_dtc.get_child_by_type(ContentTabs).query(ContentTab))
+        drag_tab = left_tabs[0]
+
+        # Start drag on left tab
+        drag_region = drag_tab.region
+        drag_x = drag_region.x + drag_region.width // 2
+        drag_y = drag_region.y + drag_region.height // 2
+        drag_offset = (drag_x - left_dtc.region.x, drag_y - left_dtc.region.y)
+        await pilot.mouse_down(left_dtc, offset=drag_offset)
+        await pilot.pause()
+
+        # Move past threshold
+        second_tab = left_tabs[1]
+        mid_x = second_tab.region.x + second_tab.region.width // 2
+        mid_y = second_tab.region.y + second_tab.region.height // 2
+        await pilot.hover(
+            left_dtc,
+            offset=(mid_x - left_dtc.region.x, mid_y - left_dtc.region.y),
+        )
+        await pilot.pause()
+        assert left_dtc._dragging
+
+        # Move cursor over right split tab bar
+        drop_tab = right_tabs[0]
+        drop_region = drop_tab.region
+        drop_x = drop_region.x + drop_region.width // 2
+        drop_y = drop_region.y + drop_region.height // 2
+        await pilot.hover(
+            left_dtc,
+            offset=(drop_x - left_dtc.region.x, drop_y - left_dtc.region.y),
+        )
+        await pilot.pause()
+
+        # Right DTC should have -drop-target class
+        assert right_dtc.has_class("-drop-target")
+        # Left DTC (source) should NOT have -drop-target
+        assert not left_dtc.has_class("-drop-target")
+
+        # Clean up: mouse_up
+        await pilot.mouse_up(
+            left_dtc,
+            offset=(drop_x - left_dtc.region.x, drop_y - left_dtc.region.y),
+        )
+        await pilot.pause()
+
+        # After mouse_up, -drop-target should be removed
+        assert not right_dtc.has_class("-drop-target")
+
+
+async def test_drop_target_removed_when_cursor_returns_to_source(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Moving cursor back to source split removes -drop-target from sibling."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+        await main.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(main._split_root)
+        left_dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+        right_dtc = main.query_one(f"#{leaves[1].leaf_id}", DraggableTabbedContent)
+
+        left_tabs = list(left_dtc.get_child_by_type(ContentTabs).query(ContentTab))
+        right_tabs = list(right_dtc.get_child_by_type(ContentTabs).query(ContentTab))
+        drag_tab = left_tabs[0]
+
+        # Start drag
+        drag_region = drag_tab.region
+        drag_x = drag_region.x + drag_region.width // 2
+        drag_y = drag_region.y + drag_region.height // 2
+        drag_offset = (drag_x - left_dtc.region.x, drag_y - left_dtc.region.y)
+        await pilot.mouse_down(left_dtc, offset=drag_offset)
+        await pilot.pause()
+
+        # Exceed threshold
+        second_tab = left_tabs[1]
+        mid_x = second_tab.region.x + second_tab.region.width // 2
+        mid_y = second_tab.region.y + second_tab.region.height // 2
+        await pilot.hover(
+            left_dtc,
+            offset=(mid_x - left_dtc.region.x, mid_y - left_dtc.region.y),
+        )
+        await pilot.pause()
+        assert left_dtc._dragging
+
+        # Move to right split
+        drop_tab = right_tabs[0]
+        drop_region = drop_tab.region
+        drop_x = drop_region.x + drop_region.width // 2
+        drop_y = drop_region.y + drop_region.height // 2
+        await pilot.hover(
+            left_dtc,
+            offset=(drop_x - left_dtc.region.x, drop_y - left_dtc.region.y),
+        )
+        await pilot.pause()
+        assert right_dtc.has_class("-drop-target")
+
+        # Move back to source (left) split
+        await pilot.hover(
+            left_dtc,
+            offset=(mid_x - left_dtc.region.x, mid_y - left_dtc.region.y),
+        )
+        await pilot.pause()
+
+        # -drop-target should be removed from right
+        assert not right_dtc.has_class("-drop-target")
+
+        # Cleanup
+        await pilot.mouse_up(left_dtc, offset=drag_offset)
+        await pilot.pause()
+
+
+async def test_no_drop_target_in_single_split(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """In single split mode, no -drop-target class is applied during drag."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
+        leaves = all_leaves(main._split_root)
+        dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+
+        tabs = list(dtc.get_child_by_type(ContentTabs).query(ContentTab))
+        drag_tab = tabs[0]
+        drag_region = drag_tab.region
+        drag_x = drag_region.x + drag_region.width // 2
+        drag_y = drag_region.y + drag_region.height // 2
+        drag_offset = (drag_x - dtc.region.x, drag_y - dtc.region.y)
+
+        await pilot.mouse_down(dtc, offset=drag_offset)
+        await pilot.pause()
+
+        # Exceed threshold
+        second_tab = tabs[1]
+        mid_x = second_tab.region.x + second_tab.region.width // 2
+        mid_y = second_tab.region.y + second_tab.region.height // 2
+        await pilot.hover(dtc, offset=(mid_x - dtc.region.x, mid_y - dtc.region.y))
+        await pilot.pause()
+        assert dtc._dragging
+
+        # No -drop-target should be set on self
+        assert not dtc.has_class("-drop-target")
+
+        await pilot.mouse_up(dtc, offset=(mid_x - dtc.region.x, mid_y - dtc.region.y))
+        await pilot.pause()
+
+
 # ── E2E drag test ─────────────────────────────────────────────────────────────
 
 

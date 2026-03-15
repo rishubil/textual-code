@@ -5,4 +5,4 @@
 - [x] Highlight the dragged tab with a distinct color during drag.
 - [x] Add commands to reorder tabs within a tab group (move tab forward/backward).
 - Support splitting in all four directions (up, down, left, right) when dragging a tab to the edge.
-- Highlight the target split pane when dragging a tab between split areas, so the user can preview the drop target before releasing.
+- [x] Highlight the target split pane when dragging a tab between split areas, so the user can preview the drop target before releasing.

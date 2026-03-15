@@ -39,6 +39,7 @@ class DraggableTabbedContent(TabbedContent):
         self._drag_pane_id: str | None = None
         self._drag_start: tuple[int, int] | None = None
         self._dragging: bool = False
+        self._drop_target: DraggableTabbedContent | None = None
 
     # ── Edge zone helpers ──────────────────────────────────────────────────────
 
@@ -53,6 +54,29 @@ class DraggableTabbedContent(TabbedContent):
         Edge zone is at the right side of this widget (for horizontal splits).
         """
         return screen_x >= self.region.right - self._edge_zone_width()
+
+    def _update_drop_target(self, screen_x: int, screen_y: int) -> None:
+        """Add/remove -drop-target class on the sibling DTC under the cursor."""
+        widget, _ = self.screen.get_widget_at(screen_x, screen_y)
+        target = next(
+            (
+                a
+                for a in widget.ancestors_with_self
+                if isinstance(a, DraggableTabbedContent)
+            ),
+            None,
+        )
+        if target is self or target is None:
+            target = None
+
+        if target is self._drop_target:
+            return
+
+        if self._drop_target is not None:
+            self._drop_target.remove_class("-drop-target")
+        self._drop_target = target
+        if self._drop_target is not None:
+            self._drop_target.add_class("-drop-target")
 
     # ── Mouse event handlers ───────────────────────────────────────────────────
 
@@ -98,6 +122,7 @@ class DraggableTabbedContent(TabbedContent):
             self.set_class(
                 self._in_edge_zone(event.screen_x, event.screen_y), "-edge-hover"
             )
+            self._update_drop_target(event.screen_x, event.screen_y)
 
     def on_mouse_up(self, event: events.MouseUp) -> None:
         if not self._dragging:
@@ -114,6 +139,9 @@ class DraggableTabbedContent(TabbedContent):
         for tab in self.query(ContentTab):
             tab.remove_class("-dragging")
         self.remove_class("-edge-hover")
+        if self._drop_target is not None:
+            self._drop_target.remove_class("-drop-target")
+            self._drop_target = None
 
         # Determine drop target
         widget, region = self.screen.get_widget_at(event.screen_x, event.screen_y)
