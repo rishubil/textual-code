@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Live text sync between split editors: when the same file is open in two split views, edits in one editor are immediately reflected in the other without needing to save first; saving in one editor also updates the sibling's `initial_text` and mtime so no false "file changed externally" warnings appear
+
 ### Changed
 
 - Footer path truncation indicator ("...") is now visually distinct from actual path dot characters: the ellipsis uses theme-aware dimmed foreground (`$foreground-darken-3`) and a lighter background (`$surface-lighten-2`) so it stands out from the rest of the path

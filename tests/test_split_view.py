@@ -236,6 +236,7 @@ async def test_close_split_focuses_left(workspace: Path, py_file: Path):
         await pilot.pause()
         await app.main_view.action_close_split()
         await pilot.pause()
+        await pilot.pause()
         assert app.main_view._active_split == "left"
 
 
@@ -662,6 +663,54 @@ async def test_ctrl_w_last_right_tab_auto_closes_split(workspace: Path, py_file:
 
         assert app.main_view._split_visible is False
         assert app.main_view._active_split == "left"
+
+
+# ── Group J — Live Sync Between Split Editors ───────────────────────────────────
+
+
+async def test_split_editors_sync_live_edits(workspace: Path, py_file: Path):
+    """Editing in the left editor syncs text to the right editor in real time."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        left_editor = app.main_view._get_active_code_editor_in_leaf(leaves[0])
+        right_editor = app.main_view._get_active_code_editor_in_leaf(leaves[1])
+        assert left_editor is not None
+        assert right_editor is not None
+
+        new_text = "# synced!\nprint('live')\n"
+        left_editor.replace_editor_text(new_text)
+        await pilot.pause()
+
+        assert right_editor.text == new_text
+
+
+async def test_split_editors_sync_on_save(workspace: Path, py_file: Path):
+    """Saving the left editor updates initial_text and _file_mtime in sibling editor."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        left_editor = app.main_view._get_active_code_editor_in_leaf(leaves[0])
+        right_editor = app.main_view._get_active_code_editor_in_leaf(leaves[1])
+        assert left_editor is not None
+        assert right_editor is not None
+
+        new_text = "# saved content\n"
+        left_editor.replace_editor_text(new_text)
+        await pilot.pause()
+        left_editor.action_save()
+        await pilot.pause()
+
+        assert right_editor.initial_text == new_text
+        assert right_editor._file_mtime == left_editor._file_mtime
 
 
 async def test_find_replace_bar_focus_keeps_active_split(

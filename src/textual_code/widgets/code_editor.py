@@ -990,6 +990,14 @@ class CodeEditor(Static):
             self.editor.document.end,
         )
 
+    def sync_text(self, text: str) -> None:
+        """Sync text from another editor editing the same file. Preserves cursor."""
+        if self.editor.text == text:
+            return
+        selection = self.editor.selection
+        self.replace_editor_text(text)
+        self.editor.selection = selection
+
     def watch_title(self, title: str) -> None:
         # notify that the title has changed
         # this will update the tab title in the MainView

@@ -90,6 +90,7 @@ async def test_close_middle_split_collapses_correctly(
         app.main_view._active_leaf_id = middle_leaf.leaf_id
         await app.main_view.action_close_split()
         await pilot.pause()
+        await pilot.pause()
 
         leaves_after = all_leaves(app.main_view._split_root)
         assert len(leaves_after) == 2

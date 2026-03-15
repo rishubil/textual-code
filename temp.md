@@ -1,4 +1,4 @@
-- When editing in a split editor, changes should be reflected in the other editor live (before saving).
+- [x] When editing in a split editor, changes should be reflected in the other editor live (before saving).
 - [x] When the path is truncated with ellipsis in the footer, display the "..." in a different color to avoid confusion with actual dot characters in the path.
 - Implement split left and split up functionality.
 - Add commands to move a tab to another split pane (up, down, left, right).

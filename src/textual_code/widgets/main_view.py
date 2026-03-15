@@ -1052,6 +1052,20 @@ class MainView(Static):
     def on_code_editor_text_changed(self, event: CodeEditor.TextChanged) -> None:
         editor = event.code_editor
         path = editor.path
+        # Live sync: propagate edits to other editors with the same file open
+        if path is not None:
+            new_text = editor.text
+            for leaf in all_leaves(self._split_root):
+                other_pane_id = leaf.opened_files.get(path)
+                if other_pane_id is None or other_pane_id == editor.pane_id:
+                    continue
+                try:
+                    other_editor = self.query_one(
+                        f"#{other_pane_id}", TabPane
+                    ).query_one(CodeEditor)
+                    other_editor.sync_text(new_text)
+                except Exception:
+                    pass
         if path is None or path not in self._preview_pane_ids:
             return
         pane_id = self._preview_pane_ids[path]
@@ -1077,6 +1091,24 @@ class MainView(Static):
         self._preview_update_timers[path] = self.set_timer(
             PREVIEW_DEBOUNCE_DELAY, _do_update, name=f"preview-update-{path.name}"
         )
+
+    @on(CodeEditor.Saved)
+    def on_code_editor_saved(self, event: CodeEditor.Saved) -> None:
+        saved = event.code_editor
+        if saved.path is None:
+            return
+        for leaf in all_leaves(self._split_root):
+            other_pane_id = leaf.opened_files.get(saved.path)
+            if other_pane_id is None or other_pane_id == saved.pane_id:
+                continue
+            try:
+                other_editor = self.query_one(f"#{other_pane_id}", TabPane).query_one(
+                    CodeEditor
+                )
+                other_editor.initial_text = saved.text
+                other_editor._file_mtime = saved._file_mtime
+            except Exception:
+                pass
 
     def action_toggle_split_vertical(self) -> None:
         """Toggle between horizontal and vertical split orientation."""
