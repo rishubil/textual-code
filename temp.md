@@ -1,6 +1,5 @@
 - [ ] When splitting via mouse drag-and-drop, modify it so that splitting is possible in all directions: up, down, left, and right.
 - [ ] When splitting via mouse drag-and-drop, make the highlight textbox appear near the split location instead of the center, depending on where the split occurs.
-- [ ] In the sidebar search function, ensure the button label text is only displayed when the sidebar width is 40 or greater.
 - [ ] When moving a tab to another pane via mouse drag-and-drop or a command, focus on the destination pane and ultimately focus on the moved tab.
 - [ ] Add a setting in the footer area to choose whether to display the file path as an absolute or relative path.
 - [ ] Add an option to the settings to show or hide hidden files in the Explorer. (Also add as a command)
@@ -10,4 +9,10 @@
 - [ ] Since sidebar searches can take a while, show the user that it's loading using a widget like a spinner while the search is in progress.
 - [ ] Automatically refresh the explorer by detecting changes to files and folders within the workspace.
 - [ ] Highlight modified git files in the explorer with colors. (Including folders, only when a .git folder is present)
-- [ ] Summary CHANGELOG.md to prepare release.
+- [ ] Automatically reload when the `.editorconfig` file is modified.
+- [ ] Indent and unindent operations must follow the indentation settings configured in the code editor. Currently, it indents by 4 spaces even if the setting is 2 spaces.
+- [ ] Implement actual compliance with the `insert_final_newline`, `trim_trailing_whitespace` values from editorconfig.
+
+---
+
+- [ ] Clean up the CHANGELOG.md content to prepare for the next release.
