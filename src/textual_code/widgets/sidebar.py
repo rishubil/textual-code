@@ -62,8 +62,8 @@ class Sidebar(Static):
     def __init__(self, workspace_path: Path, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.workspace_path = workspace_path
-        self._compact_tabs = False
-        self._compact_buttons = False
+        self._compact_tabs: bool | None = None
+        self._compact_buttons: bool | None = None
 
     def compose(self) -> ComposeResult:
         yield SidebarResizeHandle()

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from rich.cells import cell_len
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -15,6 +16,14 @@ from textual_code.search import replace_workspace, search_workspace
 _BTN_LABELS = {
     "ws-search": ("🔍 Search", "🔍"),
     "ws-replace-all": ("🔄 Replace All", "🔄"),
+}
+
+_BTN_PADDING = 2  # Button left + right padding (1 cell each side)
+
+# Precomputed min-width for each label variant: {btn_id: (full_width, icon_width)}
+_BTN_MIN_WIDTHS = {
+    btn_id: (cell_len(full) + _BTN_PADDING, cell_len(icon) + _BTN_PADDING)
+    for btn_id, (full, icon) in _BTN_LABELS.items()
 }
 
 
@@ -53,7 +62,9 @@ class WorkspaceSearchPane(Static):
         """Switch button labels between icon+text and icon-only."""
         idx = 1 if compact else 0
         for btn_id, labels in _BTN_LABELS.items():
-            self.query_one(f"#{btn_id}", Button).label = labels[idx]
+            btn = self.query_one(f"#{btn_id}", Button)
+            btn.label = labels[idx]
+            btn.styles.min_width = _BTN_MIN_WIDTHS[btn_id][idx]
 
     # ── Internal helpers ───────────────────────────────────────────────────────
 

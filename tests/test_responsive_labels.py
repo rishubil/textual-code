@@ -1,6 +1,8 @@
 """Tests for responsive icon labels on sidebar tabs and search buttons."""
 
 import pytest
+from rich.cells import cell_len
+from textual.widgets import Button
 
 from tests.conftest import make_app
 from textual_code.widgets.sidebar import (
@@ -8,6 +10,7 @@ from textual_code.widgets.sidebar import (
     _TAB_ICON_ONLY_THRESHOLD,
     _TAB_LABELS,
 )
+from textual_code.widgets.workspace_search import _BTN_LABELS, _BTN_PADDING
 
 
 @pytest.fixture
@@ -23,8 +26,6 @@ async def _get_tab_labels(app):
 
 async def _get_button_labels(app):
     """Return (search_label, replace_label) from the workspace search pane."""
-    from textual.widgets import Button
-
     ws = app.sidebar.workspace_search
     return (
         ws.query_one("#ws-search", Button).label.plain,
@@ -78,3 +79,49 @@ class TestButtonLabelThreshold:
             search, replace = await _get_button_labels(app)
             assert search.strip() in ("🔍",)
             assert replace.strip() in ("🔄",)
+
+    async def test_full_labels_set_min_width(self, ws):
+        """Wide sidebar sets min-width to match full label text length."""
+        app = make_app(ws)
+        async with app.run_test(size=(120, 40)) as pilot:
+            app.sidebar.styles.width = _BTN_ICON_ONLY_THRESHOLD
+            await pilot.pause()
+            wsp = app.sidebar.workspace_search
+            for btn_id, (full, _icon) in _BTN_LABELS.items():
+                btn = wsp.query_one(f"#{btn_id}", Button)
+                expected = cell_len(full) + _BTN_PADDING
+                assert btn.styles.min_width is not None
+                assert btn.styles.min_width.value == expected, (
+                    f"{btn_id} min-width {expected} != {btn.styles.min_width}"
+                )
+
+    async def test_compact_labels_set_min_width(self, ws):
+        """Narrow sidebar sets min-width to match icon-only label length."""
+        app = make_app(ws)
+        async with app.run_test(size=(120, 40)) as pilot:
+            app.sidebar.styles.width = _BTN_ICON_ONLY_THRESHOLD - 1
+            await pilot.pause()
+            wsp = app.sidebar.workspace_search
+            for btn_id, (_full, icon) in _BTN_LABELS.items():
+                btn = wsp.query_one(f"#{btn_id}", Button)
+                expected = cell_len(icon) + _BTN_PADDING
+                assert btn.styles.min_width is not None
+                assert btn.styles.min_width.value == expected, (
+                    f"{btn_id} min-width {expected} != {btn.styles.min_width}"
+                )
+
+    async def test_initial_mount_sets_min_width(self, ws):
+        """Buttons have full-label min-width after initial app start."""
+        app = make_app(ws)
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause()
+            wsp = app.sidebar.workspace_search
+            for btn_id, (full, _icon) in _BTN_LABELS.items():
+                btn = wsp.query_one(f"#{btn_id}", Button)
+                expected = cell_len(full) + _BTN_PADDING
+                assert btn.styles.min_width is not None, (
+                    f"{btn_id} should have min-width set after mount"
+                )
+                assert btn.styles.min_width.value == expected, (
+                    f"{btn_id} min-width {expected} != {btn.styles.min_width}"
+                )
