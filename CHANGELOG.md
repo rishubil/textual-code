@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix drag-and-drop tab movement layout jank and unreliable drop: highlight CSS changed from `border` to `outline` so the drop-target indicator no longer causes layout reflow; dropping a tab onto the content area (not just the tab bar) of another split now correctly triggers the cross-split move
+
 - Fix explorer cursor not updating when switching to a tab whose file is inside a collapsed folder: the sidebar now expands the collapsed folder and retries cursor placement until the file node is visible; also fixes the case where a folder was previously expanded then manually collapsed (stale `_line` values on hidden nodes caused `move_cursor` to land on the wrong entry)
 
 - Fix missing space between bold and normal text in markdown preview: a markdown-it core rule now moves leading spaces from text tokens that follow inline close tokens (`strong_close`, `em_close`, etc.) into the trailing of the preceding text token, so rsvg-convert renders the space correctly instead of collapsing it

@@ -6,7 +6,7 @@
 - [x] Add commands to reorder tabs within a tab group (move tab forward/backward).
 - [x] Support splitting in all four directions (up, down, left, right) when dragging a tab to the edge.
 - [x] Highlight the target split pane when dragging a tab between split areas, so the user can preview the drop target before releasing.
-- [ ] Fixed an issue where the layout would jank when moving tabs via drag-and-drop because the highlight area was targeting the child inside the pane instead of the pane itself
-- [ ] Drag-and-drop tab movement is not working properly. It sometimes not works even if user dropped to the target pane.
+- [x] Fixed an issue where the layout would jank when moving tabs via drag-and-drop because the highlight area was targeting the child inside the pane instead of the pane itself
+- [x] Drag-and-drop tab movement is not working properly. It sometimes not works even if user dropped to the target pane.
 - [x] Modified the "Move tab left, right, up, down" command to create a split pane if one doesn't already exist.
 - [x] Add config option to disable warning about copying crlf line ending.

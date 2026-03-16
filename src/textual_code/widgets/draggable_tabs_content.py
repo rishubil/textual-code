@@ -55,10 +55,9 @@ class DraggableTabbedContent(TabbedContent):
         """
         return screen_x >= self.region.right - self._edge_zone_width()
 
-    def _update_drop_target(self, screen_x: int, screen_y: int) -> None:
-        """Add/remove -drop-target class on the sibling DTC under the cursor."""
-        widget, _ = self.screen.get_widget_at(screen_x, screen_y)
-        target = next(
+    def _find_ancestor_dtc(self, widget) -> "DraggableTabbedContent | None":
+        """Find the nearest DraggableTabbedContent ancestor."""
+        return next(
             (
                 a
                 for a in widget.ancestors_with_self
@@ -66,6 +65,11 @@ class DraggableTabbedContent(TabbedContent):
             ),
             None,
         )
+
+    def _update_drop_target(self, screen_x: int, screen_y: int) -> None:
+        """Add/remove -drop-target class on the sibling DTC under the cursor."""
+        widget, _ = self.screen.get_widget_at(screen_x, screen_y)
+        target = self._find_ancestor_dtc(widget)
         if target is self or target is None:
             target = None
 
@@ -148,13 +152,19 @@ class DraggableTabbedContent(TabbedContent):
         self.release_mouse()
 
         if not isinstance(widget, ContentTab) or not widget.id:
+            if not drag_id:
+                return
             # Edge zone → create new split by posting with target_pane_id=None
             # Guard: don't move if it's the last tab
             if (
-                drag_id
-                and self._in_edge_zone(event.screen_x, event.screen_y)
+                self._in_edge_zone(event.screen_x, event.screen_y)
                 and len(list(self.query(ContentTab))) > 1
             ):
+                self.post_message(self.TabMovedToOtherSplit(drag_id, None, False))
+                return
+            # Non-tab area of another split → move to that split
+            target_dtc = self._find_ancestor_dtc(widget)
+            if target_dtc is not None and target_dtc is not self:
                 self.post_message(self.TabMovedToOtherSplit(drag_id, None, False))
             return
 
@@ -168,10 +178,7 @@ class DraggableTabbedContent(TabbedContent):
 
         # Cross-split: find sibling DraggableTabbedContent that owns this tab
         if drag_id:
-            owner = next(
-                (a for a in widget.ancestors if isinstance(a, DraggableTabbedContent)),
-                None,
-            )
+            owner = self._find_ancestor_dtc(widget)
             if owner is not None and owner is not self:
                 target_id = ContentTab.sans_prefix(widget.id)
                 before = (event.screen_x - region.x) < region.width / 2

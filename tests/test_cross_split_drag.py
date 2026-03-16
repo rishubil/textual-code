@@ -536,3 +536,132 @@ async def test_drag_markdown_preview_to_other_split(
         new_pane = dest_tc.get_pane(new_pane_id)
         new_preview = new_pane.query_one(MarkdownPreviewPane)
         assert new_preview.source_path == md_file
+
+
+# ── Drop on non-tab areas ───────────────────────────────────────────────────
+
+
+async def _setup_two_splits(pilot, workspace, py_file, py_file2):
+    """Open two files in left, split right. Return (main, left_dtc, right_dtc)."""
+    main = pilot.app.main_view
+    await main.action_open_code_editor(path=py_file2)
+    await pilot.pause()
+    await main.action_split_right()
+    await pilot.pause()
+
+    leaves = all_leaves(main._split_root)
+    left_dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+    right_dtc = main.query_one(f"#{leaves[1].leaf_id}", DraggableTabbedContent)
+    return main, left_dtc, right_dtc
+
+
+async def _start_drag(pilot, dtc):
+    """Helper: mouse_down on first tab + hover to second tab to start dragging."""
+    tabs = list(dtc.get_child_by_type(ContentTabs).query(ContentTab))
+    drag_tab = tabs[0]
+    drag_region = drag_tab.region
+    drag_x = drag_region.x + drag_region.width // 2
+    drag_y = drag_region.y + drag_region.height // 2
+    drag_offset = (drag_x - dtc.region.x, drag_y - dtc.region.y)
+    await pilot.mouse_down(dtc, offset=drag_offset)
+    await pilot.pause()
+
+    # Move to second tab to exceed drag threshold
+    if len(tabs) > 1:
+        second = tabs[1]
+        mid_x = second.region.x + second.region.width // 2
+        mid_y = second.region.y + second.region.height // 2
+        await pilot.hover(dtc, offset=(mid_x - dtc.region.x, mid_y - dtc.region.y))
+        await pilot.pause()
+
+    assert dtc._dragging
+
+
+async def test_e2e_drag_tab_drop_on_content_area(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Dropping a tab onto the content area (not tab bar) of another split moves it."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        main, left_dtc, right_dtc = await _setup_two_splits(
+            pilot, workspace, py_file, py_file2
+        )
+
+        left_tab_count_before = len(main._pane_ids["left"])
+        right_tab_count_before = len(main._pane_ids["right"])
+
+        await _start_drag(pilot, left_dtc)
+
+        # Drop on the content area (center) of the right DTC, not on a tab
+        right_region = right_dtc.region
+        content_x = right_region.x + right_region.width // 2
+        content_y = right_region.y + right_region.height // 2 + 5  # well below tab bar
+        drop_offset = (content_x - left_dtc.region.x, content_y - left_dtc.region.y)
+
+        await pilot.mouse_up(left_dtc, offset=drop_offset)
+        await pilot.pause()
+        await pilot.pause()
+
+        # Tab should have moved: left lost one OR right gained one
+        assert (
+            len(main._pane_ids["right"]) > right_tab_count_before
+            or len(main._pane_ids["left"]) < left_tab_count_before
+        )
+
+
+async def test_drop_on_own_content_area_is_noop(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Dropping a tab onto own content area (not another split) is a no-op."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        main, left_dtc, right_dtc = await _setup_two_splits(
+            pilot, workspace, py_file, py_file2
+        )
+
+        left_pane_ids_before = list(main._pane_ids["left"])
+        right_pane_ids_before = list(main._pane_ids["right"])
+
+        await _start_drag(pilot, left_dtc)
+
+        # Drop on left DTC's own content area
+        left_region = left_dtc.region
+        content_x = left_region.x + left_region.width // 2
+        content_y = left_region.y + left_region.height // 2 + 5
+        drop_offset = (content_x - left_dtc.region.x, content_y - left_dtc.region.y)
+
+        await pilot.mouse_up(left_dtc, offset=drop_offset)
+        await pilot.pause()
+
+        # No change
+        assert list(main._pane_ids["left"]) == left_pane_ids_before
+        assert list(main._pane_ids["right"]) == right_pane_ids_before
+
+
+async def test_drop_outside_any_split_is_noop(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Dropping a tab outside any DTC (e.g. sidebar area) is a no-op."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        main = pilot.app.main_view
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
+        leaves = all_leaves(main._split_root)
+        dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+
+        left_pane_ids_before = list(main._pane_ids["left"])
+
+        await _start_drag(pilot, dtc)
+
+        # Drop on far left (sidebar area, x=1)
+        drop_offset = (1 - dtc.region.x, 10 - dtc.region.y)
+        await pilot.mouse_up(dtc, offset=drop_offset)
+        await pilot.pause()
+
+        # No change
+        assert list(main._pane_ids["left"]) == left_pane_ids_before

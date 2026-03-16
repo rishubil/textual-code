@@ -857,12 +857,12 @@ Tab.-dragging {
 
 /* Edge drop zone visual indicator */
 DraggableTabbedContent.-edge-hover {
-    border-right: outer $accent;
+    outline-right: outer $accent;
 }
 
 /* Drop target highlight during cross-split tab drag */
 DraggableTabbedContent.-drop-target {
-    border: tall $accent;
+    outline: tall $accent;
 }
 
 /* Split view layout */
