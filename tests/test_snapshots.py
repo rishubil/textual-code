@@ -749,3 +749,17 @@ def test_snapshot_footer_path_truncation(snap_compare, snapshot_workspace: Path)
     long_file.touch()
     app = make_app(snapshot_workspace, open_file=long_file)
     assert snap_compare(app, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_narrow_sidebar_icon_only(snap_compare, snapshot_workspace: Path):
+    """Sidebar tabs and search buttons show icon-only labels when narrow."""
+    app = make_app(snapshot_workspace)
+
+    async def run_before(pilot):
+        await pilot.pause()
+        app.main_view.action_find_in_workspace()
+        await pilot.pause()
+        app.sidebar.styles.width = 12
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)

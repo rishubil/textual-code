@@ -4,6 +4,7 @@ from rich.align import Align
 from rich.text import Text
 from textual import events
 from textual.app import ComposeResult
+from textual.css.query import NoMatches
 from textual.widget import Widget
 from textual.widgets import Static, TabbedContent, TabPane
 
@@ -11,6 +12,15 @@ from textual_code.widgets.explorer import Explorer
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
 SIDEBAR_MIN_WIDTH = 5  # matches _parse_sidebar_resize's hardcoded minimum
+
+# Responsive icon labels: (full_label, icon_only)
+_TAB_LABELS = {
+    "explorer_pane": ("📁 Explorer", "📁"),
+    "search_pane": ("🔍 Search", "🔍"),
+}
+# 2-stage collapse: buttons lose text first (wider), then tabs (narrower)
+_BTN_ICON_ONLY_THRESHOLD = 20
+_TAB_ICON_ONLY_THRESHOLD = 15
 
 
 class SidebarResizeHandle(Widget):
@@ -51,17 +61,39 @@ class Sidebar(Static):
 
     def __init__(self, workspace_path: Path, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-
-        # the path to open in the explorer
         self.workspace_path = workspace_path
+        self._compact_tabs = False
+        self._compact_buttons = False
 
     def compose(self) -> ComposeResult:
         yield SidebarResizeHandle()
         with TabbedContent():
-            with TabPane("Explorer", id="explorer_pane"):
-                yield Explorer(workspace_path=self.workspace_path)
-            with TabPane("Search", id="search_pane"):
-                yield WorkspaceSearchPane(id="workspace_search")
+            for pane_id, (full, _icon) in _TAB_LABELS.items():
+                with TabPane(full, id=pane_id):
+                    if pane_id == "explorer_pane":
+                        yield Explorer(workspace_path=self.workspace_path)
+                    else:
+                        yield WorkspaceSearchPane(id="workspace_search")
+
+    def on_resize(self, event: events.Resize) -> None:
+        """Update tab and button labels based on sidebar width."""
+        width = event.size.width
+        compact_tabs = width < _TAB_ICON_ONLY_THRESHOLD
+        compact_buttons = width < _BTN_ICON_ONLY_THRESHOLD
+        if (
+            compact_tabs == self._compact_tabs
+            and compact_buttons == self._compact_buttons
+        ):
+            return
+        self._compact_tabs = compact_tabs
+        self._compact_buttons = compact_buttons
+        try:
+            tc = self.tabbed_content
+            for pane_id, (full, icon) in _TAB_LABELS.items():
+                tc.get_tab(pane_id).label = icon if compact_tabs else full
+            self.workspace_search.update_button_labels(compact=compact_buttons)
+        except (NoMatches, ValueError):
+            pass  # widgets not yet mounted
 
     @property
     def tabbed_content(self) -> TabbedContent:

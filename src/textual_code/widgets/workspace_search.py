@@ -12,6 +12,11 @@ from textual.worker import Worker, WorkerState
 
 from textual_code.search import replace_workspace, search_workspace
 
+_BTN_LABELS = {
+    "ws-search": ("🔍 Search", "🔍"),
+    "ws-replace-all": ("🔄 Replace All", "🔄"),
+}
+
 
 class WorkspaceSearchPane(Static):
     """Sidebar panel for searching text across all workspace files."""
@@ -26,7 +31,7 @@ class WorkspaceSearchPane(Static):
     def compose(self) -> ComposeResult:
         with Horizontal(id="ws-search-bar"):
             yield Input(placeholder="Search workspace...", id="ws-query")
-            yield Button("Search", id="ws-search", variant="primary")
+            yield Button(_BTN_LABELS["ws-search"][0], id="ws-search", variant="primary")
         with Horizontal(id="ws-search-options"):
             yield Checkbox(".*", id="ws-regex")
             yield Checkbox("Aa", id="ws-case-sensitive", value=True)
@@ -36,9 +41,19 @@ class WorkspaceSearchPane(Static):
             yield Input(placeholder="Exclude files (dist/**)", id="ws-exclude")
         with Horizontal(id="ws-replace-bar"):
             yield Input(placeholder="Replace with...", id="ws-replace")
-            yield Button("Replace All", id="ws-replace-all", variant="warning")
+            yield Button(
+                _BTN_LABELS["ws-replace-all"][0], id="ws-replace-all", variant="warning"
+            )
         yield Label("", id="ws-replace-status")
         yield ListView(id="ws-results")
+
+    # ── Responsive labels ──────────────────────────────────────────────────────
+
+    def update_button_labels(self, *, compact: bool) -> None:
+        """Switch button labels between icon+text and icon-only."""
+        idx = 1 if compact else 0
+        for btn_id, labels in _BTN_LABELS.items():
+            self.query_one(f"#{btn_id}", Button).label = labels[idx]
 
     # ── Internal helpers ───────────────────────────────────────────────────────
 
