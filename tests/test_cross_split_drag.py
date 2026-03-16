@@ -13,10 +13,20 @@ from tests.conftest import make_app
 from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.draggable_tabs_content import (
     DraggableTabbedContent,
-    DropTargetOverlay,
+    DropTargetScreen,
 )
 from textual_code.widgets.markdown_preview import MarkdownPreviewPane
 from textual_code.widgets.split_tree import all_leaves
+
+
+def _highlight_is_mode(app, dtc_id: str, mode: str) -> bool:
+    """Check if a DTC's highlight is in the given mode on the overlay screen."""
+    for s in reversed(app.screen_stack):
+        if isinstance(s, DropTargetScreen):
+            highlight = s._highlights.get(dtc_id)
+            if highlight:
+                return highlight.is_mode(mode)
+    return False
 
 
 def _tab_order(dtc: DraggableTabbedContent) -> list[str]:
@@ -266,9 +276,9 @@ async def test_drop_target_highlight_during_cross_split_drag(
         await pilot.pause()
 
         # Right DTC overlay should have -visible class
-        assert right_dtc.query_one(DropTargetOverlay).has_class("-visible")
+        assert _highlight_is_mode(app, right_dtc.id, "full")
         # Left DTC (source) overlay should NOT have -visible
-        assert not left_dtc.query_one(DropTargetOverlay).has_class("-visible")
+        assert not _highlight_is_mode(app, left_dtc.id, "full")
 
         # Clean up: mouse_up
         await pilot.mouse_up(
@@ -278,7 +288,7 @@ async def test_drop_target_highlight_during_cross_split_drag(
         await pilot.pause()
 
         # After mouse_up, overlay should be hidden
-        assert not right_dtc.query_one(DropTargetOverlay).has_class("-visible")
+        assert not _highlight_is_mode(app, right_dtc.id, "full")
 
 
 async def test_drop_target_removed_when_cursor_returns_to_source(
@@ -332,7 +342,7 @@ async def test_drop_target_removed_when_cursor_returns_to_source(
             offset=(drop_x - left_dtc.region.x, drop_y - left_dtc.region.y),
         )
         await pilot.pause()
-        assert right_dtc.query_one(DropTargetOverlay).has_class("-visible")
+        assert _highlight_is_mode(app, right_dtc.id, "full")
 
         # Move back to source (left) split
         await pilot.hover(
@@ -342,7 +352,7 @@ async def test_drop_target_removed_when_cursor_returns_to_source(
         await pilot.pause()
 
         # overlay should be hidden on right
-        assert not right_dtc.query_one(DropTargetOverlay).has_class("-visible")
+        assert not _highlight_is_mode(app, right_dtc.id, "full")
 
         # Cleanup
         await pilot.mouse_up(left_dtc, offset=drag_offset)
@@ -383,7 +393,7 @@ async def test_no_drop_target_in_single_split(
         assert dtc._dragging
 
         # No overlay -visible should be set on self
-        assert not dtc.query_one(DropTargetOverlay).has_class("-visible")
+        assert not _highlight_is_mode(app, dtc.id, "full")
 
         await pilot.mouse_up(dtc, offset=(mid_x - dtc.region.x, mid_y - dtc.region.y))
         await pilot.pause()
@@ -681,8 +691,8 @@ async def test_drop_highlight_classes_on_dtc(workspace: Path, py_file: Path):
         main = app.main_view
         leaves = all_leaves(main._split_root)
         dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
-        assert not dtc.query_one(DropTargetOverlay).has_class("-visible")
-        assert not dtc.query_one(DropTargetOverlay).has_class("-edge")
+        assert not _highlight_is_mode(app, dtc.id, "full")
+        assert not _highlight_is_mode(app, dtc.id, "edge")
 
 
 async def test_e2e_drag_tab_three_way_split(
@@ -720,7 +730,7 @@ async def test_e2e_drag_tab_three_way_split(
         # Verify all DTCs have no drop highlight by default
         for leaf in leaves:
             dtc = main.query_one(f"#{leaf.leaf_id}", DraggableTabbedContent)
-            assert not dtc.query_one(DropTargetOverlay).has_class("-visible")
+            assert not _highlight_is_mode(app, dtc.id, "full")
 
 
 # ── Edge zone bounds check tests ──────────────────────────────────────────────
@@ -778,7 +788,7 @@ async def test_edge_highlight_not_shown_when_cursor_over_other_dtc(
         await pilot.pause()
 
         # Source DTC must NOT have edge overlay
-        assert not left_dtc.query_one(DropTargetOverlay).has_class("-edge")
+        assert not _highlight_is_mode(app, left_dtc.id, "edge")
 
         # Cleanup
         await pilot.mouse_up(

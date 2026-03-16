@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dragged tab visual highlight: when dragging a tab to reorder or move between splits, the dragged tab now shows an accent-colored background with inverted text and bold styling for clear visual feedback
 
-- Drop target split pane highlight: when dragging a tab across split panes, the target pane shows a semi-transparent accent-colored overlay to preview the drop destination; uses a `DropTargetOverlay` widget with `layer: overlay` for clear visual feedback while keeping content visible underneath
+- Drop target hint box: when dragging a tab across split panes, a centered hint box ("Move to this pane" / "Split right") appears on the target pane to preview the drop destination; uses a transparent `DropTargetScreen` overlay so pane content remains fully visible underneath
 
 - Split left and split up commands: open the current file in a new split to the left or above the active editor, complementing the existing split right and split down; available via the command palette ("Split editor left" / "Split editor up")
 

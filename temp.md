@@ -1,12 +1,13 @@
-- [x] When editing in a split editor, changes should be reflected in the other editor live (before saving).
-- [x] When the path is truncated with ellipsis in the footer, display the "..." in a different color to avoid confusion with actual dot characters in the path.
-- [x] Implement split left and split up functionality.
-- [x] Add commands to move a tab to another split pane (up, down, left, right).
-- [x] Highlight the dragged tab with a distinct color during drag.
-- [x] Add commands to reorder tabs within a tab group (move tab forward/backward).
-- [x] Support splitting in all four directions (up, down, left, right) when dragging a tab to the edge.
-- [x] Highlight the target split pane when dragging a tab between split areas, so the user can preview the drop target before releasing.
-- [x] Fixed an issue where the layout would jank when moving tabs via drag-and-drop because the highlight area was targeting the child inside the pane instead of the pane itself
-- [x] Drag-and-drop tab movement is not working properly. It sometimes not works even if user dropped to the target pane.
-- [x] Modified the "Move tab left, right, up, down" command to create a split pane if one doesn't already exist.
-- [x] Add config option to disable warning about copying crlf line ending.
+- [ ] When splitting via mouse drag-and-drop, modify it so that splitting is possible in all directions: up, down, left, and right.
+- [ ] When splitting via mouse drag-and-drop, make the highlight textbox appear near the split location instead of the center, depending on where the split occurs.
+- [ ] In the sidebar search function, ensure the button label text is only displayed when the sidebar width is 40 or greater.
+- [ ] When moving a tab to another pane via mouse drag-and-drop or a command, focus on the destination pane and ultimately focus on the moved tab.
+- [ ] Make the file path in the footer area clickable, and have it copy the path when clicked.
+- [ ] Add a setting in the footer area to choose whether to display the file path as an absolute or relative path.
+- [ ] Add an option to the settings to show or hide hidden files in the Explorer. (Also add as a command)
+- [ ] Add an option to the settings to show or hide files ignored by gitignore in the Explorer. (Also add as a command)
+- [ ] Add a "select all" button to the search function within the tab so that everything can be selected with multi-cursors.
+- [ ] Allow users to set an initial sidebar width in the settings. Support both raw numbers and percentages.
+- [ ] Since sidebar searches can take a while, show the user that it's loading using a widget like a spinner while the search is in progress.
+- [ ] Automatically refresh the explorer by detecting changes to files and folders within the workspace.
+- [ ] Highlight modified git files in the explorer with colors. (Including folders, only when a .git folder is present)

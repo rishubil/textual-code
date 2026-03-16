@@ -719,6 +719,8 @@ def test_snapshot_drop_target_highlight(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def setup_drop_target(pilot):
+        from textual_code.widgets.draggable_tabs_content import DropTargetScreen
+
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=snapshot_json_file)
         await pilot.pause()
@@ -739,6 +741,14 @@ def test_snapshot_drop_target_highlight(
         right_dtc = app.main_view.query_one(
             f"#{leaves[1].leaf_id}", DraggableTabbedContent
         )
+
+        # Push overlay screen and set references on all DTCs
+        dtcs = list(app.main_view.query(DraggableTabbedContent))
+        overlay = DropTargetScreen([dtc.id for dtc in dtcs])
+        for dtc in dtcs:
+            dtc._overlay_screen = overlay
+        app.push_screen(overlay)
+        await pilot.pause()
 
         # Simulate drag state: -dragging on source tab, overlay on target pane
         content_tabs = left_dtc.get_child_by_type(ContentTabs)
@@ -765,6 +775,8 @@ def test_snapshot_drop_target_edge_highlight(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def setup_edge_overlay(pilot):
+        from textual_code.widgets.draggable_tabs_content import DropTargetScreen
+
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=snapshot_json_file)
         await pilot.pause()
@@ -782,6 +794,14 @@ def test_snapshot_drop_target_edge_highlight(
         left_dtc = app.main_view.query_one(
             f"#{leaves[0].leaf_id}", DraggableTabbedContent
         )
+
+        # Push overlay screen and set references on all DTCs
+        dtcs = list(app.main_view.query(DraggableTabbedContent))
+        overlay = DropTargetScreen([dtc.id for dtc in dtcs])
+        for dtc in dtcs:
+            dtc._overlay_screen = overlay
+        app.push_screen(overlay)
+        await pilot.pause()
 
         # Simulate drag state: -dragging on source tab, edge overlay on source pane
         content_tabs = left_dtc.get_child_by_type(ContentTabs)

@@ -872,7 +872,6 @@ SplitContainer.split-vertical {
 DraggableTabbedContent {
     width: 1fr;
     height: 1fr;
-    layers: default overlay;
 }
 
 SplitResizeHandle {

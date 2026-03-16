@@ -2,11 +2,14 @@
 # ContentTab, ContentTabs from textual.widgets._tabbed_content
 # ContentSwitcher from textual.widgets._content_switcher
 # Underline from textual.widgets._tabs
+from __future__ import annotations
+
 from textual import events
 from textual.css.query import NoMatches
+from textual.geometry import Region
 from textual.message import Message
-from textual.widget import Widget
-from textual.widgets import TabbedContent
+from textual.screen import Screen
+from textual.widgets import Static, TabbedContent
 from textual.widgets._content_switcher import ContentSwitcher  # internal
 from textual.widgets._tabbed_content import ContentTab, ContentTabs  # internal
 from textual.widgets._tabs import Underline  # internal
@@ -15,30 +18,147 @@ DRAG_THRESHOLD = 3  # pixels (euclidean distance)
 EDGE_ZONE_FRACTION = 0.15  # fraction of widget size that counts as edge zone
 
 
-class DropTargetOverlay(Widget):
-    """Semi-transparent overlay shown on a DraggableTabbedContent during drag."""
+FULL_LABEL = "Move to this pane"
+EDGE_LABEL = "Split right"
+
+
+class DropHintBox(Static):
+    """A small centered label shown on a DropTargetScreen to indicate a drop zone.
+
+    Only this box is visible on the overlay screen; the rest of the screen
+    is transparent, so the pane content beneath remains fully visible.
+    """
 
     DEFAULT_CSS = """
-    DropTargetOverlay {
+    DropHintBox {
         display: none;
-        layer: overlay;
-        width: 100%;
-        height: 100%;
-    }
-    DropTargetOverlay.-visible {
-        display: block;
-        background: $accent 15%;
-        border: tall $accent;
-    }
-    DropTargetOverlay.-edge {
-        display: block;
-        background: $accent 15%;
-        border-right: tall $accent;
+        position: absolute;
+        background: $accent;
+        color: $text;
+        text-style: bold;
+        content-align: center middle;
+        width: auto;
+        height: 3;
+        padding: 0 2;
     }
     """
 
-    def render(self) -> str:
-        return ""
+
+class DropHighlight:
+    """Manages a DropHintBox widget centered over a DTC region."""
+
+    def __init__(self, dtc_id: str) -> None:
+        self.dtc_id = dtc_id
+        self.hint = DropHintBox(id=f"hl-hint-{dtc_id}")
+        self._mode: str | None = None
+
+    @property
+    def widgets(self) -> list[DropHintBox]:
+        return [self.hint]
+
+    def show(self, region: Region, mode: str) -> None:
+        """Position and display the hint box centered in the given region."""
+        self._mode = mode
+        x, y, w, h = region.x, region.y, region.width, region.height
+
+        label = FULL_LABEL if mode == "full" else EDGE_LABEL
+        box_w = len(label) + 4  # 2 padding each side
+        box_h = 3
+        cx = x + max(0, (w - box_w) // 2)
+        cy = y + max(0, (h - box_h) // 2)
+
+        self.hint.update(label)
+        self.hint.styles.offset = (cx, cy)
+        self.hint.styles.width = box_w
+        self.hint.styles.height = box_h
+        self.hint.styles.display = "block"
+
+    def hide(self) -> None:
+        """Hide the hint box."""
+        self._mode = None
+        self.hint.styles.display = "none"
+
+    def is_mode(self, mode: str) -> bool:
+        """Check if this highlight is currently in the given mode."""
+        return self._mode == mode
+
+
+class DropTargetScreen(Screen):
+    """Transparent overlay screen for semi-transparent drop-target highlights.
+
+    Pushed during tab drag to show highlight widgets that composite
+    transparently over the content beneath (Textual composites screens
+    with true alpha blending, unlike widget layers).
+
+    All mouse and Enter/Leave events are forwarded to the screen below
+    so that drag-and-drop continues to function normally.
+    """
+
+    DEFAULT_CSS = """
+    DropTargetScreen {
+        background: transparent;
+    }
+    """
+
+    def __init__(self, dtc_ids: list[str] | None = None) -> None:
+        super().__init__()
+        self._highlights: dict[str, DropHighlight] = {}
+        # Cache: dtc_id → (region, mode) to skip redundant updates
+        self._highlight_state: dict[str, tuple[Region, str]] = {}
+        # Pre-create highlight bar groups so they're available before mount
+        for dtc_id in dtc_ids or []:
+            self._highlights[dtc_id] = DropHighlight(dtc_id)
+
+    def compose(self):
+        for highlight in self._highlights.values():
+            yield from highlight.widgets
+
+    def _forward_event(self, event: events.Event) -> None:
+        """Forward mouse and Enter/Leave events to the screen below."""
+        if event.is_forwarded:
+            return
+        if isinstance(event, (events.MouseEvent, events.Enter, events.Leave)):
+            if len(self.app.screen_stack) >= 2:
+                try:
+                    prev_screen = self.app.screen_stack[-2]
+                    prev_screen._forward_event(event)
+                except (LookupError, AttributeError):
+                    self.log.warning(
+                        f"Failed to forward {type(event).__name__} to previous screen"
+                    )
+            return
+        super()._forward_event(event)
+
+    def show_highlight(self, dtc_id: str, region: Region, mode: str) -> None:
+        """Show a highlight over the given DTC region."""
+        cached = self._highlight_state.get(dtc_id)
+        if cached and cached == (region, mode):
+            return
+        self._highlight_state[dtc_id] = (region, mode)
+
+        highlight = self._highlights.get(dtc_id)
+        if highlight is None:
+            return
+        highlight.show(region, mode)
+        self.log.debug(f"Show highlight {mode} on {dtc_id} at {region}")
+
+    def hide_highlight(self, dtc_id: str) -> None:
+        """Hide the highlight for the given DTC."""
+        if dtc_id not in self._highlight_state:
+            return
+        self._highlight_state.pop(dtc_id, None)
+        highlight = self._highlights.get(dtc_id)
+        if highlight is None:
+            return
+        highlight.hide()
+        self.log.debug(f"Hide highlight on {dtc_id}")
+
+    def clear_all(self) -> None:
+        """Hide all highlight widgets."""
+        self._highlight_state.clear()
+        for highlight in self._highlights.values():
+            highlight.hide()
+        self.log.debug("Cleared all highlights")
 
 
 class DraggableTabbedContent(TabbedContent):
@@ -73,27 +193,49 @@ class DraggableTabbedContent(TabbedContent):
         self._drag_start: tuple[int, int] | None = None
         self._dragging: bool = False
         self._drop_target: DraggableTabbedContent | None = None
-
-    def on_mount(self) -> None:
-        """Mount the drop-target overlay widget."""
-        self._overlay = DropTargetOverlay()
-        self.mount(self._overlay)
+        self._overlay_screen: DropTargetScreen | None = None
 
     # ── Drop highlight helpers ────────────────────────────────────────────────
 
     def show_drop_overlay(self) -> None:
-        """Show full-pane drop target highlight via overlay."""
-        self._overlay.remove_class("-edge")
-        self._overlay.add_class("-visible")
+        """Show full-pane drop target highlight via overlay screen."""
+        if self._overlay_screen:
+            self._overlay_screen.show_highlight(self.id, self.region, "full")
 
     def show_edge_overlay(self) -> None:
-        """Show right-edge drop zone highlight via overlay."""
-        self._overlay.remove_class("-visible")
-        self._overlay.add_class("-edge")
+        """Show right-edge drop zone highlight via overlay screen."""
+        if self._overlay_screen:
+            self._overlay_screen.show_highlight(self.id, self.region, "edge")
 
     def hide_drop_overlay(self) -> None:
         """Hide all drop highlight overlays."""
-        self._overlay.remove_class("-visible", "-edge")
+        if self._overlay_screen:
+            self._overlay_screen.hide_highlight(self.id)
+
+    def _push_overlay_screen(self) -> None:
+        """Push the transparent overlay screen and set references on all DTCs."""
+        dtcs = list(self.screen.query(DraggableTabbedContent))
+        dtc_ids = [dtc.id for dtc in dtcs]
+        overlay_screen = DropTargetScreen(dtc_ids)
+        self._overlay_screen = overlay_screen
+        # Set overlay_screen on all sibling DTCs so they can update highlights
+        for dtc in dtcs:
+            dtc._overlay_screen = overlay_screen
+        self.app.push_screen(overlay_screen)
+        # push_screen releases mouse capture; re-establish it so mouse events
+        # continue to be routed to this DTC via the overlay screen's forwarding.
+        self.app.capture_mouse(self)
+        self.log.debug("Pushed DropTargetScreen")
+
+    def _pop_overlay_screen(self) -> None:
+        """Pop the overlay screen and clear references on all DTCs."""
+        if self._overlay_screen:
+            self._overlay_screen.clear_all()
+            self.app.pop_screen()
+            self.log.debug("Popped DropTargetScreen")
+        # Clear references on all sibling DTCs
+        for dtc in self.screen.query(DraggableTabbedContent):
+            dtc._overlay_screen = None
 
     # ── Edge zone helpers ──────────────────────────────────────────────────────
 
@@ -112,7 +254,7 @@ class DraggableTabbedContent(TabbedContent):
             return False
         return screen_x >= self.region.right - self._edge_zone_width()
 
-    def _find_ancestor_dtc(self, widget) -> "DraggableTabbedContent | None":
+    def _find_ancestor_dtc(self, widget) -> DraggableTabbedContent | None:
         """Find the nearest DraggableTabbedContent ancestor."""
         return next(
             (
@@ -161,6 +303,7 @@ class DraggableTabbedContent(TabbedContent):
             if dx * dx + dy * dy >= DRAG_THRESHOLD * DRAG_THRESHOLD:
                 self._dragging = True
                 self.capture_mouse()
+                self._push_overlay_screen()
                 # Visual feedback: highlight dragged tab
                 # IDs like "--content-tab-..." are invalid CSS selectors,
                 # so match by .id attribute directly instead of query_one.
@@ -207,6 +350,9 @@ class DraggableTabbedContent(TabbedContent):
         if self._drop_target is not None:
             self._drop_target.hide_drop_overlay()
             self._drop_target = None
+
+        # Pop overlay screen before determining drop target
+        self._pop_overlay_screen()
 
         # Determine drop target
         widget, region = self.screen.get_widget_at(event.screen_x, event.screen_y)
