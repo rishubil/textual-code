@@ -88,6 +88,8 @@ class MultiCursorTextArea(TextArea):
     selection spans [min(anchor,cursor), max(anchor,cursor)].
     """
 
+    indent_type: str = "spaces"
+
     BINDINGS = [
         Binding("ctrl+shift+z", "redo", "Redo", show=False),
         Binding("ctrl+a", "select_all", "Select all", show=False),
@@ -184,11 +186,17 @@ class MultiCursorTextArea(TextArea):
 
     # ── indent / dedent ───────────────────────────────────────────────────────
 
+    @property
+    def _use_tabs(self) -> bool:
+        return self.indent_type == "tabs"
+
     def action_indent_line(self) -> None:
         """VS Code style: add indent at start of selected lines, or at cursor."""
         from textual.widgets.text_area import Selection
 
-        indent = " " * self.indent_width
+        use_tabs = self._use_tabs
+        indent = "\t" if use_tabs else " " * self.indent_width
+        indent_col_width = 1 if use_tabs else self.indent_width
         sel = self.selection
         start_row, start_col = sel.start
         end_row, end_col = sel.end
@@ -201,15 +209,15 @@ class MultiCursorTextArea(TextArea):
                 if row < len(lines):
                     lines[row] = indent + lines[row]
             self.replace("\n".join(lines), self.document.start, self.document.end)
-            new_start = (start_row, start_col + self.indent_width)
-            new_end = (end_row, end_col + self.indent_width if end_col > 0 else 0)
+            new_start = (start_row, start_col + indent_col_width)
+            new_end = (end_row, end_col + indent_col_width if end_col > 0 else 0)
             self.selection = Selection(start=new_start, end=new_end)
         else:
-            # Single line or no selection: insert spaces at cursor
+            # Single line or no selection: insert at cursor
             self.replace(indent, self.cursor_location, self.cursor_location)
 
     def action_dedent_line(self) -> None:
-        """Remove up to tab_width leading spaces from each selected line."""
+        """Remove up to one indent level of leading whitespace from each line."""
         from textual.widgets.text_area import Selection
 
         n = self.indent_width
@@ -224,10 +232,14 @@ class MultiCursorTextArea(TextArea):
         removed: dict[int, int] = {}
         for row in range(start_row, actual_end_row + 1):
             if row < len(lines):
-                spaces = len(lines[row]) - len(lines[row].lstrip(" "))
-                remove = min(spaces, n)
-                lines[row] = lines[row][remove:]
-                removed[row] = remove
+                if lines[row].startswith("\t"):
+                    lines[row] = lines[row][1:]
+                    removed[row] = 1
+                else:
+                    spaces = len(lines[row]) - len(lines[row].lstrip(" "))
+                    remove = min(spaces, n)
+                    lines[row] = lines[row][remove:]
+                    removed[row] = remove
 
         if not any(removed.values()):
             return  # nothing to dedent

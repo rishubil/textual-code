@@ -593,6 +593,137 @@ async def test_shift_tab_no_leading_spaces_noop(workspace: Path):
         assert editor.editor.text == original_text
 
 
+# ── indent_size / indent_type sync tests ──────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_tab_respects_indent_size_2(tmp_path: Path):
+    """Tab inserts 2 spaces when EditorConfig sets indent_size=2."""
+    from textual.widgets.text_area import Selection
+
+    from tests.conftest import make_app
+
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("root = true\n\n[*.py]\nindent_style = space\nindent_size = 2\n")
+    f = tmp_path / "hello.py"
+    f.write_text("x = 1\n")
+
+    app = make_app(tmp_path, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.indent_size == 2
+        editor.editor.selection = Selection(start=(0, 0), end=(0, 0))
+        await pilot.pause()
+
+        await pilot.press("tab")
+        await pilot.pause()
+
+        assert editor.editor.text.startswith("  x = 1")
+
+
+@pytest.mark.asyncio
+async def test_shift_tab_respects_indent_size_2(tmp_path: Path):
+    """Shift+Tab removes 2 spaces when indent_size=2."""
+    from textual.widgets.text_area import Selection
+
+    from tests.conftest import make_app
+
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("root = true\n\n[*.py]\nindent_style = space\nindent_size = 2\n")
+    f = tmp_path / "hello.py"
+    f.write_text("    x = 1\n")
+
+    app = make_app(tmp_path, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.editor.selection = Selection(start=(0, 4), end=(0, 4))
+        await pilot.pause()
+
+        await pilot.press("shift+tab")
+        await pilot.pause()
+
+        # Should remove only 2 spaces (not 4)
+        assert editor.editor.text.startswith("  x = 1")
+
+
+@pytest.mark.asyncio
+async def test_tab_inserts_tab_char_when_indent_type_tabs(tmp_path: Path):
+    """Tab inserts \\t when indent_type='tabs'."""
+    from textual.widgets.text_area import Selection
+
+    from tests.conftest import make_app
+
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("root = true\n\n[*.py]\nindent_style = tab\n")
+    f = tmp_path / "hello.py"
+    f.write_text("x = 1\n")
+
+    app = make_app(tmp_path, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.indent_type == "tabs"
+        editor.editor.selection = Selection(start=(0, 0), end=(0, 0))
+        await pilot.pause()
+
+        await pilot.press("tab")
+        await pilot.pause()
+
+        assert editor.editor.text.startswith("\tx = 1")
+
+
+@pytest.mark.asyncio
+async def test_shift_tab_removes_tab_char(tmp_path: Path):
+    """Shift+Tab removes leading \\t when indent_type='tabs'."""
+    from textual.widgets.text_area import Selection
+
+    from tests.conftest import make_app
+
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("root = true\n\n[*.py]\nindent_style = tab\n")
+    f = tmp_path / "hello.py"
+    f.write_text("\tx = 1\n")
+
+    app = make_app(tmp_path, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.editor.selection = Selection(start=(0, 1), end=(0, 1))
+        await pilot.pause()
+
+        await pilot.press("shift+tab")
+        await pilot.pause()
+
+        assert editor.editor.text.startswith("x = 1")
+
+
+@pytest.mark.asyncio
+async def test_indent_size_reactive_syncs_to_textarea(tmp_path: Path):
+    """Setting CodeEditor.indent_size updates TextArea.indent_width."""
+    from tests.conftest import make_app
+
+    f = tmp_path / "hello.py"
+    f.write_text("x = 1\n")
+
+    app = make_app(tmp_path, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.editor.indent_width == 4
+
+        editor.indent_size = 2
+        await pilot.pause()
+
+        assert editor.editor.indent_width == 2
+
+
 # ── save_level visibility tests ───────────────────────────────────────────────
 
 

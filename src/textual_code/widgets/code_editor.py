@@ -945,6 +945,9 @@ class CodeEditor(Static):
         self.editor.theme = self._syntax_theme
         # apply word wrap (reactive init=False, so set manually)
         self.editor.soft_wrap = self.word_wrap
+        # apply indent settings (reactive init=False, so set manually)
+        self.editor.indent_width = self.indent_size
+        self.editor.indent_type = self.indent_type
         # warn if the file has non-LF line endings
         self._notify_non_lf_if_needed()
         # poll for external file changes every 2 seconds
@@ -1041,9 +1044,11 @@ class CodeEditor(Static):
         self._notify_footer()
 
     def watch_indent_type(self, indent_type: str) -> None:
+        self.editor.indent_type = indent_type
         self._notify_footer()
 
     def watch_indent_size(self, indent_size: int) -> None:
+        self.editor.indent_width = indent_size
         self._notify_footer()
 
     def watch_word_wrap(self, value: bool) -> None:
@@ -1528,8 +1533,6 @@ class CodeEditor(Static):
                 self.text, result.indent_type, result.indent_size
             )
             self.replace_editor_text(new_text)
-            self.editor.indent_type = result.indent_type
-            self.editor.indent_width = result.indent_size
             self.indent_type = result.indent_type
             self.indent_size = result.indent_size
 
