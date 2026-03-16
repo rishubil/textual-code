@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Split left and split up commands: open the current file in a new split to the left or above the active editor, complementing the existing split right and split down; available via the command palette ("Split editor left" / "Split editor up")
 
-- Responsive emoji icons on sidebar tabs and search buttons: sidebar tabs show "📁 Explorer" and "🔍 Search" with emoji prefixes; workspace search buttons show "🔍 Search" and "🔄 Replace All"; when the sidebar is narrowed below a threshold, labels collapse to icon-only (2-stage: buttons collapse first at width < 20, tabs at width < 15)
+- Responsive emoji icons on sidebar tabs and search buttons: sidebar tabs show "📁 Explorer" and "🔍 Search" with emoji prefixes; workspace search buttons show "🔍 Search" and "🔄 Replace All"; when the sidebar is narrowed below a threshold, labels collapse to icon-only (2-stage: buttons collapse first at width < 40, tabs at width < 15)
 
 - `warn_line_ending` config option (`[editor]` section, default `true`): set to `false` to suppress the warning toast shown when opening or switching to files with non-LF line endings (CRLF, CR)
 

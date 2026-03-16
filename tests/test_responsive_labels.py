@@ -111,14 +111,14 @@ class TestButtonLabelThreshold:
                 )
 
     async def test_initial_mount_sets_min_width(self, ws):
-        """Buttons have full-label min-width after initial app start."""
+        """Icon-only min-width after initial mount (default sidebar < threshold)."""
         app = make_app(ws)
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
             wsp = app.sidebar.workspace_search
-            for btn_id, (full, _icon) in _BTN_LABELS.items():
+            for btn_id, (_full, icon) in _BTN_LABELS.items():
                 btn = wsp.query_one(f"#{btn_id}", Button)
-                expected = cell_len(full) + _BTN_PADDING
+                expected = cell_len(icon) + _BTN_PADDING
                 assert btn.styles.min_width is not None, (
                     f"{btn_id} should have min-width set after mount"
                 )

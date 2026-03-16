@@ -19,7 +19,7 @@ _TAB_LABELS = {
     "search_pane": ("🔍 Search", "🔍"),
 }
 # 2-stage collapse: buttons lose text first (wider), then tabs (narrower)
-_BTN_ICON_ONLY_THRESHOLD = 20
+_BTN_ICON_ONLY_THRESHOLD = 40
 _TAB_ICON_ONLY_THRESHOLD = 15
 
 
