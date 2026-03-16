@@ -10,3 +10,4 @@
 - [ ] Since sidebar searches can take a while, show the user that it's loading using a widget like a spinner while the search is in progress.
 - [ ] Automatically refresh the explorer by detecting changes to files and folders within the workspace.
 - [ ] Highlight modified git files in the explorer with colors. (Including folders, only when a .git folder is present)
+- [ ] Summary CHANGELOG.md to prepare release.
