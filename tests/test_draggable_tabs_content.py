@@ -3,7 +3,10 @@
 from textual.app import App, ComposeResult
 from textual.widgets import TabPane
 
-from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+from textual_code.widgets.draggable_tabs_content import (
+    DraggableTabbedContent,
+    DropTargetOverlay,
+)
 
 
 class EdgeZoneApp(App):
@@ -85,6 +88,54 @@ async def test_in_edge_zone_right_center_false():
         assert (
             dtc._in_edge_zone(center_x, dtc.region.y + dtc.region.height // 2) is False
         )
+
+
+async def test_drop_target_overlay_exists_after_mount():
+    """DropTargetOverlay widget is mounted inside DraggableTabbedContent."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        overlays = dtc.query(DropTargetOverlay)
+        assert len(overlays) == 1
+
+
+async def test_drop_overlay_visible_class():
+    """show_drop_overlay adds -visible class to DropTargetOverlay."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        overlay = dtc.query_one(DropTargetOverlay)
+        assert not overlay.has_class("-visible")
+        dtc.show_drop_overlay()
+        assert overlay.has_class("-visible")
+        assert not overlay.has_class("-edge")
+
+
+async def test_edge_overlay_class():
+    """show_edge_overlay adds -edge class to DropTargetOverlay."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        overlay = dtc.query_one(DropTargetOverlay)
+        dtc.show_edge_overlay()
+        assert overlay.has_class("-edge")
+        assert not overlay.has_class("-visible")
+
+
+async def test_hide_drop_overlay_removes_classes():
+    """hide_drop_overlay removes both -visible and -edge classes."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        overlay = dtc.query_one(DropTargetOverlay)
+        dtc.show_drop_overlay()
+        dtc.hide_drop_overlay()
+        assert not overlay.has_class("-visible")
+        assert not overlay.has_class("-edge")
 
 
 async def test_tab_moved_message_target_none_allowed():

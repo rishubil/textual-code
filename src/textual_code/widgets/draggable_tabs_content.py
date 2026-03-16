@@ -5,6 +5,7 @@
 from textual import events
 from textual.css.query import NoMatches
 from textual.message import Message
+from textual.widget import Widget
 from textual.widgets import TabbedContent
 from textual.widgets._content_switcher import ContentSwitcher  # internal
 from textual.widgets._tabbed_content import ContentTab, ContentTabs  # internal
@@ -14,17 +15,34 @@ DRAG_THRESHOLD = 3  # pixels (euclidean distance)
 EDGE_ZONE_FRACTION = 0.15  # fraction of widget size that counts as edge zone
 
 
-class DraggableTabbedContent(TabbedContent):
-    """TabbedContent subclass that supports tab reordering via mouse drag."""
+class DropTargetOverlay(Widget):
+    """Semi-transparent overlay shown on a DraggableTabbedContent during drag."""
 
     DEFAULT_CSS = """
-    DraggableTabbedContent.-drop-target {
-        outline: tall $accent;
+    DropTargetOverlay {
+        display: none;
+        layer: overlay;
+        width: 100%;
+        height: 100%;
     }
-    DraggableTabbedContent.-drop-edge {
-        outline-right: tall $accent;
+    DropTargetOverlay.-visible {
+        display: block;
+        background: $accent 15%;
+        border: tall $accent;
+    }
+    DropTargetOverlay.-edge {
+        display: block;
+        background: $accent 15%;
+        border-right: tall $accent;
     }
     """
+
+    def render(self) -> str:
+        return ""
+
+
+class DraggableTabbedContent(TabbedContent):
+    """TabbedContent subclass that supports tab reordering via mouse drag."""
 
     class TabMovedToOtherSplit(Message):
         """Posted when a tab is dropped onto a ContentTab in a different split,
@@ -56,21 +74,26 @@ class DraggableTabbedContent(TabbedContent):
         self._dragging: bool = False
         self._drop_target: DraggableTabbedContent | None = None
 
+    def on_mount(self) -> None:
+        """Mount the drop-target overlay widget."""
+        self._overlay = DropTargetOverlay()
+        self.mount(self._overlay)
+
     # ── Drop highlight helpers ────────────────────────────────────────────────
 
     def show_drop_overlay(self) -> None:
-        """Show full-pane drop target highlight via outline."""
-        self.remove_class("-drop-edge")
-        self.add_class("-drop-target")
+        """Show full-pane drop target highlight via overlay."""
+        self._overlay.remove_class("-edge")
+        self._overlay.add_class("-visible")
 
     def show_edge_overlay(self) -> None:
-        """Show right-edge drop zone highlight via outline."""
-        self.remove_class("-drop-target")
-        self.add_class("-drop-edge")
+        """Show right-edge drop zone highlight via overlay."""
+        self._overlay.remove_class("-visible")
+        self._overlay.add_class("-edge")
 
     def hide_drop_overlay(self) -> None:
-        """Hide all drop highlight outlines."""
-        self.remove_class("-drop-target", "-drop-edge")
+        """Hide all drop highlight overlays."""
+        self._overlay.remove_class("-visible", "-edge")
 
     # ── Edge zone helpers ──────────────────────────────────────────────────────
 
