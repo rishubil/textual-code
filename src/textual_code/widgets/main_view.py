@@ -461,6 +461,9 @@ class MainView(Static):
                     self.app, "default_syntax_theme", "monokai"
                 ),
                 default_word_wrap=getattr(self.app, "default_word_wrap", False),
+                default_warn_line_ending=getattr(
+                    self.app, "default_warn_line_ending", True
+                ),
             ),
             id=pane_id,
         )

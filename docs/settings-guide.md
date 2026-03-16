@@ -57,6 +57,7 @@ All editor settings go under the `[editor]` TOML table.
 | `syntax_theme` | string | `"monokai"` | Syntax highlighting theme (e.g. `"dracula"`, `"github-dark"`) |
 | `word_wrap` | boolean | `true` | Wrap long lines at the editor boundary |
 | `ui_theme` | string | `"textual-dark"` | UI colour theme: `"textual-dark"` or `"textual-light"` |
+| `warn_line_ending` | boolean | `true` | Show warning toast when file uses non-LF line endings (CRLF, CR) |
 
 ### Example: user settings file
 
@@ -69,6 +70,7 @@ encoding = "utf-8"
 syntax_theme = "dracula"
 word_wrap = true
 ui_theme = "textual-dark"
+warn_line_ending = true
 ```
 
 ### Example: project settings file (override only what differs)

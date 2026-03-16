@@ -12,6 +12,7 @@ EDITOR_KEYS = {
     "syntax_theme",
     "word_wrap",
     "ui_theme",
+    "warn_line_ending",
 }
 
 DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
@@ -22,6 +23,7 @@ DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "syntax_theme": "monokai",
     "word_wrap": True,
     "ui_theme": "textual-dark",
+    "warn_line_ending": True,
 }
 
 

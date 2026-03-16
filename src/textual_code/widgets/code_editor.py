@@ -840,6 +840,7 @@ class CodeEditor(Static):
         default_encoding: str = "utf-8",
         default_syntax_theme: str = "monokai",
         default_word_wrap: bool = False,
+        default_warn_line_ending: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -848,6 +849,7 @@ class CodeEditor(Static):
         self._file_mtime: float | None = None
         self._external_change_notification: Notification | None = None
         self._syntax_theme: str = default_syntax_theme
+        self._warn_line_ending: bool = default_warn_line_ending
         # tracks the end offset of the last successful find for sequential search
         self._find_offset: int | None = None
 
@@ -1052,6 +1054,8 @@ class CodeEditor(Static):
         self.word_wrap = not self.word_wrap
 
     def _notify_non_lf_if_needed(self) -> None:
+        if not self._warn_line_ending:
+            return
         if self.line_ending != "lf":
             self.notify(
                 _LINE_ENDING_WARNING.format(ending=self.line_ending.upper()),

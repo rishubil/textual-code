@@ -255,6 +255,9 @@ class TextualCode(App):
         self.default_syntax_theme: str = str(settings.get("syntax_theme", "monokai"))
         self.default_word_wrap: bool = bool(settings.get("word_wrap", True))
         self.default_ui_theme: str = str(settings.get("ui_theme", "textual-dark"))
+        self.default_warn_line_ending: bool = bool(
+            settings.get("warn_line_ending", True)
+        )
         self.theme = self.default_ui_theme
 
         # load and apply custom keybindings
@@ -599,6 +602,19 @@ class TextualCode(App):
     def action_reorder_tab_left_cmd(self) -> None:
         self.call_next(self.main_view.action_reorder_tab_left)
 
+    def _build_editor_settings(self) -> dict[str, str | int | bool]:
+        """Build the current editor settings dict for saving to config."""
+        return {
+            "indent_type": self.default_indent_type,
+            "indent_size": self.default_indent_size,
+            "line_ending": self.default_line_ending,
+            "encoding": self.default_encoding,
+            "syntax_theme": self.default_syntax_theme,
+            "word_wrap": self.default_word_wrap,
+            "ui_theme": self.default_ui_theme,
+            "warn_line_ending": self.default_warn_line_ending,
+        }
+
     def action_set_default_indentation(self) -> None:
         """Set the default indentation for new files and save to config."""
 
@@ -610,15 +626,7 @@ class TextualCode(App):
                 self.default_indent_size = (
                     result.indent_size or self.default_indent_size
                 )
-                settings = {
-                    "indent_type": self.default_indent_type,
-                    "indent_size": self.default_indent_size,
-                    "line_ending": self.default_line_ending,
-                    "encoding": self.default_encoding,
-                    "syntax_theme": self.default_syntax_theme,
-                    "word_wrap": self.default_word_wrap,
-                    "ui_theme": self.default_ui_theme,
-                }
+                settings = self._build_editor_settings()
                 if result.save_level == "project":
                     save_project_editor_settings(settings, self.workspace_path)
                 else:
@@ -641,15 +649,7 @@ class TextualCode(App):
                 self.default_line_ending = (
                     result.line_ending or self.default_line_ending
                 )
-                settings = {
-                    "indent_type": self.default_indent_type,
-                    "indent_size": self.default_indent_size,
-                    "line_ending": self.default_line_ending,
-                    "encoding": self.default_encoding,
-                    "syntax_theme": self.default_syntax_theme,
-                    "word_wrap": self.default_word_wrap,
-                    "ui_theme": self.default_ui_theme,
-                }
+                settings = self._build_editor_settings()
                 if result.save_level == "project":
                     save_project_editor_settings(settings, self.workspace_path)
                 else:
@@ -670,15 +670,7 @@ class TextualCode(App):
         def do_change(result: ChangeEncodingModalResult | None) -> None:
             if result and not result.is_cancelled:
                 self.default_encoding = result.encoding or self.default_encoding
-                settings = {
-                    "indent_type": self.default_indent_type,
-                    "indent_size": self.default_indent_size,
-                    "line_ending": self.default_line_ending,
-                    "encoding": self.default_encoding,
-                    "syntax_theme": self.default_syntax_theme,
-                    "word_wrap": self.default_word_wrap,
-                    "ui_theme": self.default_ui_theme,
-                }
+                settings = self._build_editor_settings()
                 if result.save_level == "project":
                     save_project_editor_settings(settings, self.workspace_path)
                 else:
@@ -699,15 +691,7 @@ class TextualCode(App):
                 self.default_syntax_theme = result.theme
                 for editor in self.query(CodeEditor):
                     editor.syntax_theme = result.theme
-                settings = {
-                    "indent_type": self.default_indent_type,
-                    "indent_size": self.default_indent_size,
-                    "line_ending": self.default_line_ending,
-                    "encoding": self.default_encoding,
-                    "syntax_theme": self.default_syntax_theme,
-                    "word_wrap": self.default_word_wrap,
-                    "ui_theme": self.default_ui_theme,
-                }
+                settings = self._build_editor_settings()
                 if result.save_level == "project":
                     save_project_editor_settings(settings, self.workspace_path)
                 else:
@@ -770,15 +754,7 @@ class TextualCode(App):
         def do_change(result: ChangeWordWrapModalResult | None) -> None:
             if result and not result.is_cancelled and result.word_wrap is not None:
                 self.default_word_wrap = result.word_wrap
-                settings = {
-                    "indent_type": self.default_indent_type,
-                    "indent_size": self.default_indent_size,
-                    "line_ending": self.default_line_ending,
-                    "encoding": self.default_encoding,
-                    "syntax_theme": self.default_syntax_theme,
-                    "word_wrap": self.default_word_wrap,
-                    "ui_theme": self.default_ui_theme,
-                }
+                settings = self._build_editor_settings()
                 if result.save_level == "project":
                     save_project_editor_settings(settings, self.workspace_path)
                 else:
@@ -845,15 +821,7 @@ class TextualCode(App):
             if result and not result.is_cancelled and result.theme:
                 self.default_ui_theme = result.theme
                 self.theme = result.theme
-                settings = {
-                    "indent_type": self.default_indent_type,
-                    "indent_size": self.default_indent_size,
-                    "line_ending": self.default_line_ending,
-                    "encoding": self.default_encoding,
-                    "syntax_theme": self.default_syntax_theme,
-                    "word_wrap": self.default_word_wrap,
-                    "ui_theme": self.default_ui_theme,
-                }
+                settings = self._build_editor_settings()
                 if result.save_level == "project":
                     save_project_editor_settings(settings, self.workspace_path)
                 else:

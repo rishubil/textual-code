@@ -79,13 +79,18 @@ def test_convert_empty_string():
 class _LineEndingTestApp(App):
     """Test app containing a CodeEditor for integration tests."""
 
-    def __init__(self, path: Path | None = None):
+    def __init__(self, path: Path | None = None, *, warn_line_ending: bool = True):
         super().__init__()
         self._path = path
+        self._warn_line_ending = warn_line_ending
 
     def compose(self) -> ComposeResult:
         pane_id = CodeEditor.generate_pane_id()
-        yield CodeEditor(pane_id=pane_id, path=self._path)
+        yield CodeEditor(
+            pane_id=pane_id,
+            path=self._path,
+            default_warn_line_ending=self._warn_line_ending,
+        )
         yield CodeEditorFooter()
 
     async def on_mount(self) -> None:
@@ -305,14 +310,19 @@ async def test_select_lf_no_warning_toast(tmp_path: Path):
 class _NotifyCapturingApp(App):
     """Test app that overrides app.notify to capture on_mount warnings."""
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, *, warn_line_ending: bool = True):
         super().__init__()
         self._path = path
+        self._warn_line_ending = warn_line_ending
         self.notified: list[str] = []
 
     def compose(self) -> ComposeResult:
         pane_id = CodeEditor.generate_pane_id()
-        yield CodeEditor(pane_id=pane_id, path=self._path)
+        yield CodeEditor(
+            pane_id=pane_id,
+            path=self._path,
+            default_warn_line_ending=self._warn_line_ending,
+        )
 
     def notify(self, message, *, severity="information", **kwargs):
         self.notified.append(f"{severity}:{message}")
@@ -364,3 +374,45 @@ async def test_footer_line_ending_modal_no_save_level(tmp_path: Path):
 
         assert isinstance(app.screen, ChangeLineEndingModalScreen)
         assert len(app.screen.query("#save_level")) == 0
+
+
+async def test_open_crlf_file_no_warning_when_disabled(tmp_path: Path):
+    """Opening a CRLF file with warn_line_ending=False → no warning."""
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello\r\nworld")
+
+    app = _NotifyCapturingApp(path=f, warn_line_ending=False)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+    assert not any("warning" in n for n in app.notified)
+
+
+async def test_select_crlf_no_warning_when_disabled(tmp_path: Path):
+    """Apply CRLF with warn_line_ending=False → no warning."""
+    from textual.widgets import Select
+
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello\nworld")
+
+    app = _LineEndingTestApp(path=f, warn_line_ending=False)
+    notified: list[str] = []
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        original_notify = editor.notify
+
+        def capture_notify(message, *, severity="information", **kwargs):
+            notified.append(f"{severity}:{message}")
+            return original_notify(message, severity=severity, **kwargs)
+
+        editor.notify = capture_notify  # type: ignore
+
+        editor.action_change_line_ending()
+        await pilot.pause()
+        app.screen.query_one(Select).value = "crlf"
+        await pilot.click("#apply")
+        await pilot.pause()
+
+    assert not any("warning" in n for n in notified)

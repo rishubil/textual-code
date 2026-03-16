@@ -274,6 +274,20 @@ def test_serialize_editor_settings_bool_lowercase(tmp_path):
     assert "word_wrap2 = false" in result
 
 
+def test_warn_line_ending_default_true(tmp_path):
+    """warn_line_ending defaults to True when absent from config."""
+    settings = load_editor_settings(tmp_path, user_config_path=tmp_path / "no.toml")
+    assert settings["warn_line_ending"] is True
+
+
+def test_warn_line_ending_false_from_config(tmp_path):
+    """TOML with warn_line_ending = false → load_editor_settings returns False."""
+    cfg = tmp_path / "user.toml"
+    cfg.write_text("[editor]\nwarn_line_ending = false\n")
+    settings = load_editor_settings(tmp_path, user_config_path=cfg)
+    assert settings["warn_line_ending"] is False
+
+
 @pytest.mark.asyncio
 async def test_action_set_default_indentation_saves_to_project(workspace):
     """Selecting 'Project' save level → .textual-code.toml is written."""
