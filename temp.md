@@ -9,3 +9,4 @@
 - [ ] Fixed an issue where the layout would jank when moving tabs via drag-and-drop because the highlight area was targeting the child inside the pane instead of the pane itself
 - [ ] Drag-and-drop tab movement is not working properly
 - [ ] Modified the "Move tab left, right, up, down" command to create a split pane if one doesn't already exist.
+- [ ] Add config option to disable warning about copying crlf line ending.
