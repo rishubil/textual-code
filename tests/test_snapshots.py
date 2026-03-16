@@ -725,6 +725,13 @@ def test_snapshot_drop_target_highlight(
         await app.main_view.action_split_right()
         await pilot.pause()
 
+        # Open a different file in the right split so it has visible content
+        leaves = all_leaves(app.main_view._split_root)
+        right_leaf = leaves[-1]
+        app.main_view._active_leaf_id = right_leaf.leaf_id
+        await app.main_view.action_open_code_editor(path=snapshot_py_file)
+        await pilot.pause()
+
         leaves = all_leaves(app.main_view._split_root)
         left_dtc = app.main_view.query_one(
             f"#{leaves[0].leaf_id}", DraggableTabbedContent

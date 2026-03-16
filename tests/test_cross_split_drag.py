@@ -11,10 +11,7 @@ from textual.widgets._tabbed_content import ContentTab, ContentTabs
 
 from tests.conftest import make_app
 from textual_code.widgets.code_editor import CodeEditor
-from textual_code.widgets.draggable_tabs_content import (
-    DraggableTabbedContent,
-    DropTargetOverlay,
-)
+from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 from textual_code.widgets.markdown_preview import MarkdownPreviewPane
 from textual_code.widgets.split_tree import all_leaves
 
@@ -266,9 +263,9 @@ async def test_drop_target_highlight_during_cross_split_drag(
         await pilot.pause()
 
         # Right DTC overlay should have -visible class
-        assert right_dtc.query_one(DropTargetOverlay).has_class("-visible")
+        assert right_dtc.has_class("-drop-target")
         # Left DTC (source) overlay should NOT have -visible
-        assert not left_dtc.query_one(DropTargetOverlay).has_class("-visible")
+        assert not left_dtc.has_class("-drop-target")
 
         # Clean up: mouse_up
         await pilot.mouse_up(
@@ -278,7 +275,7 @@ async def test_drop_target_highlight_during_cross_split_drag(
         await pilot.pause()
 
         # After mouse_up, overlay should be hidden
-        assert not right_dtc.query_one(DropTargetOverlay).has_class("-visible")
+        assert not right_dtc.has_class("-drop-target")
 
 
 async def test_drop_target_removed_when_cursor_returns_to_source(
@@ -332,7 +329,7 @@ async def test_drop_target_removed_when_cursor_returns_to_source(
             offset=(drop_x - left_dtc.region.x, drop_y - left_dtc.region.y),
         )
         await pilot.pause()
-        assert right_dtc.query_one(DropTargetOverlay).has_class("-visible")
+        assert right_dtc.has_class("-drop-target")
 
         # Move back to source (left) split
         await pilot.hover(
@@ -342,7 +339,7 @@ async def test_drop_target_removed_when_cursor_returns_to_source(
         await pilot.pause()
 
         # overlay should be hidden on right
-        assert not right_dtc.query_one(DropTargetOverlay).has_class("-visible")
+        assert not right_dtc.has_class("-drop-target")
 
         # Cleanup
         await pilot.mouse_up(left_dtc, offset=drag_offset)
@@ -383,7 +380,7 @@ async def test_no_drop_target_in_single_split(
         assert dtc._dragging
 
         # No overlay -visible should be set on self
-        assert not dtc.query_one(DropTargetOverlay).has_class("-visible")
+        assert not dtc.has_class("-drop-target")
 
         await pilot.mouse_up(dtc, offset=(mid_x - dtc.region.x, mid_y - dtc.region.y))
         await pilot.pause()
@@ -673,18 +670,16 @@ async def test_drop_outside_any_split_is_noop(
 # ── Overlay mount & 3-way split tests ────────────────────────────────────────
 
 
-async def test_overlay_mounted_on_dtc(workspace: Path, py_file: Path):
-    """Each DraggableTabbedContent mounts a DropTargetOverlay on mount."""
+async def test_drop_highlight_classes_on_dtc(workspace: Path, py_file: Path):
+    """DTC does not have drop highlight classes by default."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         main = app.main_view
         leaves = all_leaves(main._split_root)
         dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
-        overlay = dtc.query_one(DropTargetOverlay)
-        assert overlay is not None
-        assert not overlay.has_class("-visible")
-        assert not overlay.has_class("-edge")
+        assert not dtc.has_class("-drop-target")
+        assert not dtc.has_class("-drop-edge")
 
 
 async def test_e2e_drag_tab_three_way_split(
@@ -719,7 +714,195 @@ async def test_e2e_drag_tab_three_way_split(
         leaves = all_leaves(main._split_root)
         assert len(leaves) >= 3, f"Expected 3+ leaves, got {len(leaves)}"
 
-        # Verify all DTCs have overlays
+        # Verify all DTCs have no drop highlight by default
         for leaf in leaves:
             dtc = main.query_one(f"#{leaf.leaf_id}", DraggableTabbedContent)
-            dtc.query_one(DropTargetOverlay)  # should not raise
+            assert not dtc.has_class("-drop-target")
+
+
+# ── Edge zone bounds check tests ──────────────────────────────────────────────
+
+
+async def test_in_edge_zone_rejects_outside_region(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """_in_edge_zone must return False when cursor is outside the DTC region."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+        await main.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(main._split_root)
+        left_dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+
+        # screen_x far beyond the right edge of left_dtc
+        outside_x = left_dtc.region.right + 10
+        mid_y = left_dtc.region.y + left_dtc.region.height // 2
+        assert not left_dtc._in_edge_zone(outside_x, mid_y)
+
+        # Also below the DTC
+        inside_x = left_dtc.region.right - 1
+        below_y = left_dtc.region.bottom + 5
+        assert not left_dtc._in_edge_zone(inside_x, below_y)
+
+
+async def test_edge_highlight_not_shown_when_cursor_over_other_dtc(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Source DTC edge highlight must NOT show when cursor is over target DTC."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        main, left_dtc, right_dtc = await _setup_two_splits(
+            pilot, workspace, py_file, py_file2
+        )
+
+        await _start_drag(pilot, left_dtc)
+
+        # Move cursor over right DTC's content area
+        right_region = right_dtc.region
+        target_x = right_region.x + right_region.width // 2
+        target_y = right_region.y + right_region.height // 2
+        await pilot.hover(
+            left_dtc,
+            offset=(target_x - left_dtc.region.x, target_y - left_dtc.region.y),
+        )
+        await pilot.pause()
+
+        # Source DTC must NOT have edge overlay
+        assert not left_dtc.has_class("-drop-edge")
+
+        # Cleanup
+        await pilot.mouse_up(
+            left_dtc,
+            offset=(target_x - left_dtc.region.x, target_y - left_dtc.region.y),
+        )
+        await pilot.pause()
+
+
+async def test_e2e_drag_tab_three_way_split_correct_target(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """3-way split [A|B|C]: drag A's tab to C, tab must arrive in C (not B)."""
+    py_file3 = workspace / "third.py"
+    py_file3.write_text("z = 3\n")
+
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(180, 40)) as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        # A has py_file + py_file2
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
+        # Split right → creates B
+        await main.action_split_right()
+        await pilot.pause()
+
+        # Open py_file3 in B, then split right → creates C
+        leaves = all_leaves(main._split_root)
+        b_leaf = leaves[-1]
+        main._active_leaf_id = b_leaf.leaf_id
+        await main.action_open_code_editor(path=py_file3)
+        await pilot.pause()
+        await main.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(main._split_root)
+        assert len(leaves) >= 3, f"Expected 3+ leaves, got {len(leaves)}"
+        dtc_a = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+        dtc_c = main.query_one(f"#{leaves[-1].leaf_id}", DraggableTabbedContent)
+        leaf_c = leaves[-1]
+
+        pane_count_c_before = len(leaf_c.pane_ids)
+
+        # Drag from A
+        await _start_drag(pilot, dtc_a)
+
+        # Drop on C's content area (center)
+        c_region = dtc_c.region
+        drop_x = c_region.x + c_region.width // 2
+        drop_y = c_region.y + c_region.height // 2
+        await pilot.mouse_up(
+            dtc_a,
+            offset=(drop_x - dtc_a.region.x, drop_y - dtc_a.region.y),
+        )
+        await pilot.pause()
+        await pilot.pause()
+
+        # Tab must arrive in C (the last leaf)
+        leaves_after = all_leaves(main._split_root)
+        leaf_c_after = leaves_after[-1]
+        assert len(leaf_c_after.pane_ids) > pane_count_c_before, (
+            f"Tab should have moved to leaf C. "
+            f"C pane_ids before={pane_count_c_before}, "
+            f"after={len(leaf_c_after.pane_ids)}"
+        )
+
+
+async def test_e2e_drag_tab_mixed_nested_split(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Mixed nested split [A | [B / C]]: drag A's tab to C (vertical child)."""
+    py_file3 = workspace / "third.py"
+    py_file3.write_text("z = 3\n")
+
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(160, 40)) as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        # A has py_file + py_file2
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
+        # Split right → creates B (horizontal)
+        await main.action_split_right()
+        await pilot.pause()
+
+        # In B, open py_file3, then split down → creates C (vertical)
+        leaves = all_leaves(main._split_root)
+        b_leaf = leaves[-1]
+        main._active_leaf_id = b_leaf.leaf_id
+        await main.action_open_code_editor(path=py_file3)
+        await pilot.pause()
+        await main.action_split_down()
+        await pilot.pause()
+
+        leaves = all_leaves(main._split_root)
+        assert len(leaves) >= 3, f"Expected 3+ leaves, got {len(leaves)}"
+        dtc_a = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+        # C is the last leaf (bottom-right)
+        leaf_c = leaves[-1]
+        dtc_c = main.query_one(f"#{leaf_c.leaf_id}", DraggableTabbedContent)
+
+        pane_count_c_before = len(leaf_c.pane_ids)
+
+        # Drag from A
+        await _start_drag(pilot, dtc_a)
+
+        # Drop on C's content area
+        c_region = dtc_c.region
+        drop_x = c_region.x + c_region.width // 2
+        drop_y = c_region.y + c_region.height // 2
+        await pilot.mouse_up(
+            dtc_a,
+            offset=(drop_x - dtc_a.region.x, drop_y - dtc_a.region.y),
+        )
+        await pilot.pause()
+        await pilot.pause()
+
+        # Tab must arrive in C
+        leaves_after = all_leaves(main._split_root)
+        leaf_c_after = leaves_after[-1]
+        assert len(leaf_c_after.pane_ids) > pane_count_c_before, (
+            f"Tab should have moved to leaf C. "
+            f"C pane_ids before={pane_count_c_before}, "
+            f"after={len(leaf_c_after.pane_ids)}"
+        )

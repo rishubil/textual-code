@@ -5,7 +5,6 @@
 from textual import events
 from textual.css.query import NoMatches
 from textual.message import Message
-from textual.widget import Widget
 from textual.widgets import TabbedContent
 from textual.widgets._content_switcher import ContentSwitcher  # internal
 from textual.widgets._tabbed_content import ContentTab, ContentTabs  # internal
@@ -15,33 +14,17 @@ DRAG_THRESHOLD = 3  # pixels (euclidean distance)
 EDGE_ZONE_FRACTION = 0.15  # fraction of widget size that counts as edge zone
 
 
-class DropTargetOverlay(Widget):
-    """Transparent overlay for drop target / edge zone highlight."""
-
-    def render(self) -> str:
-        return ""
-
-    DEFAULT_CSS = """
-    DropTargetOverlay {
-        display: none;
-        layer: overlay;
-        width: 100%;
-        height: 100%;
-        background: transparent;
-    }
-    DropTargetOverlay.-visible {
-        display: block;
-        border: tall $accent;
-    }
-    DropTargetOverlay.-edge {
-        display: block;
-        border-right: tall $accent;
-    }
-    """
-
-
 class DraggableTabbedContent(TabbedContent):
     """TabbedContent subclass that supports tab reordering via mouse drag."""
+
+    DEFAULT_CSS = """
+    DraggableTabbedContent.-drop-target {
+        outline: tall $accent;
+    }
+    DraggableTabbedContent.-drop-edge {
+        outline-right: tall $accent;
+    }
+    """
 
     class TabMovedToOtherSplit(Message):
         """Posted when a tab is dropped onto a ContentTab in a different split,
@@ -73,27 +56,21 @@ class DraggableTabbedContent(TabbedContent):
         self._dragging: bool = False
         self._drop_target: DraggableTabbedContent | None = None
 
-    def on_mount(self) -> None:
-        self.mount(DropTargetOverlay())
-
-    # ── Overlay helpers ───────────────────────────────────────────────────────
+    # ── Drop highlight helpers ────────────────────────────────────────────────
 
     def show_drop_overlay(self) -> None:
-        """Show full-pane drop target highlight."""
-        overlay = self.query_one(DropTargetOverlay)
-        overlay.remove_class("-edge")
-        overlay.add_class("-visible")
+        """Show full-pane drop target highlight via outline."""
+        self.remove_class("-drop-edge")
+        self.add_class("-drop-target")
 
     def show_edge_overlay(self) -> None:
-        """Show right-edge drop zone highlight."""
-        overlay = self.query_one(DropTargetOverlay)
-        overlay.remove_class("-visible")
-        overlay.add_class("-edge")
+        """Show right-edge drop zone highlight via outline."""
+        self.remove_class("-drop-target")
+        self.add_class("-drop-edge")
 
     def hide_drop_overlay(self) -> None:
-        """Hide all overlay highlights."""
-        overlay = self.query_one(DropTargetOverlay)
-        overlay.remove_class("-visible", "-edge")
+        """Hide all drop highlight outlines."""
+        self.remove_class("-drop-target", "-drop-edge")
 
     # ── Edge zone helpers ──────────────────────────────────────────────────────
 
@@ -106,7 +83,10 @@ class DraggableTabbedContent(TabbedContent):
         """Return True if (screen_x, screen_y) is in the edge zone.
 
         Edge zone is at the right side of this widget (for horizontal splits).
+        The cursor must be within this widget's region.
         """
+        if not self.region.contains_point((screen_x, screen_y)):
+            return False
         return screen_x >= self.region.right - self._edge_zone_width()
 
     def _find_ancestor_dtc(self, widget) -> "DraggableTabbedContent | None":
@@ -198,6 +178,9 @@ class DraggableTabbedContent(TabbedContent):
         for tab in self.query(ContentTab):
             tab.remove_class("-dragging")
         self.hide_drop_overlay()
+
+        # Capture tracked drop target before clearing
+        tracked_target = self._drop_target
         if self._drop_target is not None:
             self._drop_target.hide_drop_overlay()
             self._drop_target = None
@@ -217,14 +200,19 @@ class DraggableTabbedContent(TabbedContent):
             ):
                 self.post_message(self.TabMovedToOtherSplit(drag_id, None, False))
                 return
-            # Non-tab area of another split → move to that split
-            target_dtc = self._find_ancestor_dtc(widget)
+            # Use tracked drop target (highlighted DTC) as primary,
+            # fall back to hit-test
+            target_dtc = tracked_target
+            if target_dtc is None:
+                target_dtc = self._find_ancestor_dtc(widget)
             if target_dtc is not None and target_dtc is not self:
                 self.post_message(
                     self.TabMovedToOtherSplit(
                         drag_id, None, False, target_dtc_id=target_dtc.id
                     )
                 )
+            else:
+                self.log.debug(f"Drop ignored: no valid target DTC for pane {drag_id}")
             return
 
         if widget in self.query(ContentTab):

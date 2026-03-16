@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dragged tab visual highlight: when dragging a tab to reorder or move between splits, the dragged tab now shows an accent-colored background with inverted text and bold styling for clear visual feedback
 
-- Drop target split pane highlight: when dragging a tab across split panes, the target pane shows an accent-colored border overlay to preview the drop destination; uses a transparent `DropTargetOverlay` widget on a separate layer to avoid layout reflow
+- Drop target split pane highlight: when dragging a tab across split panes, the target pane shows an accent-colored outline to preview the drop destination; uses CSS `outline` directly on the pane (no separate overlay widget) so content remains visible through the highlight
 
 - Split left and split up commands: open the current file in a new split to the left or above the active editor, complementing the existing split right and split down; available via the command palette ("Split editor left" / "Split editor up")
 
@@ -33,7 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix drag-and-drop tab movement layout jank and unreliable drop: drop-target highlight replaced from CSS class (`-drop-target`, `-edge-hover`) to a `DropTargetOverlay` widget on a dedicated `overlay` layer, eliminating all layout reflow; cross-split tab drop now uses `target_dtc_id` to directly identify the destination leaf, fixing crashes in nested (3+ way) splits; edge-zone drag in single-split mode correctly creates a new split via `_move_pane_to_split` fallback
+- Fix drag-and-drop tab movement layout jank and unreliable drop: drop-target highlight uses CSS `outline` on the pane directly (no overlay widget), eliminating layout reflow and ensuring content is visible through the highlight; cross-split tab drop now uses `target_dtc_id` to directly identify the destination leaf, fixing crashes in nested (3+ way) splits; edge-zone drag in single-split mode correctly creates a new split via `_move_pane_to_split` fallback
+
+- Fix tab not moving to the correct target in 3+ nested splits: `_in_edge_zone()` lacked a bounds check, causing it to always return `True` when the cursor was beyond the source pane's right edge; this triggered the edge-zone code path (which uses adjacent-leaf fallback) instead of the correct `target_dtc_id` path, so tabs landed in the wrong pane; also uses the tracked drop target (the highlighted pane) as the primary drop destination for consistency
 
 - Fix explorer cursor not updating when switching to a tab whose file is inside a collapsed folder: the sidebar now expands the collapsed folder and retries cursor placement until the file node is visible; also fixes the case where a folder was previously expanded then manually collapsed (stale `_line` values on hidden nodes caused `move_cursor` to land on the wrong entry)
 
