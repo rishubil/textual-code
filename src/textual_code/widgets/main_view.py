@@ -1107,27 +1107,59 @@ class MainView(Static):
         if source_leaf is None:
             return
 
-        # Find destination leaf (the "other" one)
-        leaves = all_leaves(self._split_root)
-        source_idx = next((i for i, lf in enumerate(leaves) if lf is source_leaf), 0)
-        dest_split = "left" if source_idx > 0 else "right"
+        # Determine destination leaf
+        dest_leaf: LeafNode | None = None
+        if event.target_dtc_id:
+            dest_leaf = find_leaf(self._split_root, event.target_dtc_id)
+        elif event.target_pane_id:
+            dest_leaf = find_leaf_for_pane(self._split_root, event.target_pane_id)
+        if dest_leaf is None:
+            # Fallback: pick adjacent leaf
+            leaves = all_leaves(self._split_root)
+            src_idx = next((i for i, lf in enumerate(leaves) if lf is source_leaf), 0)
+            adj_idx = src_idx - 1 if src_idx > 0 else src_idx + 1
+            if 0 <= adj_idx < len(leaves):
+                dest_leaf = leaves[adj_idx]
+        if dest_leaf is None or dest_leaf is source_leaf:
+            # Edge zone drag with no adjacent leaf → create new split
+            if event.target_pane_id is None and event.target_dtc_id is None:
+                leaves = all_leaves(self._split_root)
+                src_idx = next(
+                    (i for i, lf in enumerate(leaves) if lf is source_leaf), 0
+                )
+                dest_split = "left" if src_idx > 0 else "right"
+                new_pane_id = await self._move_pane_to_split(
+                    event.source_pane_id, dest_split
+                )
+                if new_pane_id is not None:
+                    dest_leaf_now = self._leaf_of_pane(new_pane_id)
+                    if dest_leaf_now is not None:
+                        tc = self.query_one(f"#{dest_leaf_now.leaf_id}", TabbedContent)
+                        tc.active = new_pane_id
+                        self._set_active_leaf(dest_leaf_now)
+                event.stop()
+            return
 
-        new_pane_id = await self._move_pane_to_split(event.source_pane_id, dest_split)
+        new_pane_id = await self._move_pane_to_leaf(event.source_pane_id, dest_leaf)
         if new_pane_id is None:
             return
 
-        # Reorder the new pane relative to the drop target (skip when edge-drop)
+        # Reorder the new pane relative to the drop target
         if event.target_pane_id is not None:
-            dest_leaves = all_leaves(self._split_root)
-            dest_leaf = dest_leaves[0] if dest_split == "left" else dest_leaves[-1]
-            dest_tc = self.query_one(f"#{dest_leaf.leaf_id}", DraggableTabbedContent)
-            dest_tc.reorder_tab(new_pane_id, event.target_pane_id, before=event.before)
+            dest_leaf_now = self._leaf_of_pane(new_pane_id)
+            if dest_leaf_now is not None:
+                dest_tc = self.query_one(
+                    f"#{dest_leaf_now.leaf_id}", DraggableTabbedContent
+                )
+                dest_tc.reorder_tab(
+                    new_pane_id, event.target_pane_id, before=event.before
+                )
 
-        dest_leaves = all_leaves(self._split_root)
-        dest_leaf = dest_leaves[0] if dest_split == "left" else dest_leaves[-1]
-        tc = self.query_one(f"#{dest_leaf.leaf_id}", TabbedContent)
-        tc.active = new_pane_id
-        self._set_active_leaf(dest_leaf)
+        dest_leaf_now = self._leaf_of_pane(new_pane_id)
+        if dest_leaf_now is not None:
+            tc = self.query_one(f"#{dest_leaf_now.leaf_id}", TabbedContent)
+            tc.active = new_pane_id
+            self._set_active_leaf(dest_leaf_now)
         event.stop()
 
     @on(CodeEditor.FooterStateChanged)

@@ -5,6 +5,7 @@
 from textual import events
 from textual.css.query import NoMatches
 from textual.message import Message
+from textual.widget import Widget
 from textual.widgets import TabbedContent
 from textual.widgets._content_switcher import ContentSwitcher  # internal
 from textual.widgets._tabbed_content import ContentTab, ContentTabs  # internal
@@ -12,6 +13,31 @@ from textual.widgets._tabs import Underline  # internal
 
 DRAG_THRESHOLD = 3  # pixels (euclidean distance)
 EDGE_ZONE_FRACTION = 0.15  # fraction of widget size that counts as edge zone
+
+
+class DropTargetOverlay(Widget):
+    """Transparent overlay for drop target / edge zone highlight."""
+
+    def render(self) -> str:
+        return ""
+
+    DEFAULT_CSS = """
+    DropTargetOverlay {
+        display: none;
+        layer: overlay;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+    }
+    DropTargetOverlay.-visible {
+        display: block;
+        border: tall $accent;
+    }
+    DropTargetOverlay.-edge {
+        display: block;
+        border-right: tall $accent;
+    }
+    """
 
 
 class DraggableTabbedContent(TabbedContent):
@@ -22,15 +48,21 @@ class DraggableTabbedContent(TabbedContent):
         or into the edge zone to create a new split.
 
         target_pane_id is None when dropped in the edge zone (create new split).
+        target_dtc_id identifies the destination DraggableTabbedContent (leaf).
         """
 
         def __init__(
-            self, source_pane_id: str, target_pane_id: str | None, before: bool
+            self,
+            source_pane_id: str,
+            target_pane_id: str | None,
+            before: bool,
+            target_dtc_id: str | None = None,
         ) -> None:
             super().__init__()
             self.source_pane_id = source_pane_id
             self.target_pane_id = target_pane_id
             self.before = before
+            self.target_dtc_id = target_dtc_id
 
     def __init__(self, *args, split_side: str = "left", **kwargs):
         super().__init__(*args, **kwargs)
@@ -40,6 +72,28 @@ class DraggableTabbedContent(TabbedContent):
         self._drag_start: tuple[int, int] | None = None
         self._dragging: bool = False
         self._drop_target: DraggableTabbedContent | None = None
+
+    def on_mount(self) -> None:
+        self.mount(DropTargetOverlay())
+
+    # ── Overlay helpers ───────────────────────────────────────────────────────
+
+    def show_drop_overlay(self) -> None:
+        """Show full-pane drop target highlight."""
+        overlay = self.query_one(DropTargetOverlay)
+        overlay.remove_class("-edge")
+        overlay.add_class("-visible")
+
+    def show_edge_overlay(self) -> None:
+        """Show right-edge drop zone highlight."""
+        overlay = self.query_one(DropTargetOverlay)
+        overlay.remove_class("-visible")
+        overlay.add_class("-edge")
+
+    def hide_drop_overlay(self) -> None:
+        """Hide all overlay highlights."""
+        overlay = self.query_one(DropTargetOverlay)
+        overlay.remove_class("-visible", "-edge")
 
     # ── Edge zone helpers ──────────────────────────────────────────────────────
 
@@ -67,7 +121,7 @@ class DraggableTabbedContent(TabbedContent):
         )
 
     def _update_drop_target(self, screen_x: int, screen_y: int) -> None:
-        """Add/remove -drop-target class on the sibling DTC under the cursor."""
+        """Show/hide drop overlay on the sibling DTC under the cursor."""
         widget, _ = self.screen.get_widget_at(screen_x, screen_y)
         target = self._find_ancestor_dtc(widget)
         if target is self or target is None:
@@ -77,10 +131,10 @@ class DraggableTabbedContent(TabbedContent):
             return
 
         if self._drop_target is not None:
-            self._drop_target.remove_class("-drop-target")
+            self._drop_target.hide_drop_overlay()
         self._drop_target = target
         if self._drop_target is not None:
-            self._drop_target.add_class("-drop-target")
+            self._drop_target.show_drop_overlay()
 
     # ── Mouse event handlers ───────────────────────────────────────────────────
 
@@ -123,9 +177,10 @@ class DraggableTabbedContent(TabbedContent):
 
         # Update edge hover visual during drag
         if self._dragging:
-            self.set_class(
-                self._in_edge_zone(event.screen_x, event.screen_y), "-edge-hover"
-            )
+            if self._in_edge_zone(event.screen_x, event.screen_y):
+                self.show_edge_overlay()
+            else:
+                self.hide_drop_overlay()
             self._update_drop_target(event.screen_x, event.screen_y)
 
     def on_mouse_up(self, event: events.MouseUp) -> None:
@@ -142,9 +197,9 @@ class DraggableTabbedContent(TabbedContent):
         # Remove visual feedback
         for tab in self.query(ContentTab):
             tab.remove_class("-dragging")
-        self.remove_class("-edge-hover")
+        self.hide_drop_overlay()
         if self._drop_target is not None:
-            self._drop_target.remove_class("-drop-target")
+            self._drop_target.hide_drop_overlay()
             self._drop_target = None
 
         # Determine drop target
@@ -165,7 +220,11 @@ class DraggableTabbedContent(TabbedContent):
             # Non-tab area of another split → move to that split
             target_dtc = self._find_ancestor_dtc(widget)
             if target_dtc is not None and target_dtc is not self:
-                self.post_message(self.TabMovedToOtherSplit(drag_id, None, False))
+                self.post_message(
+                    self.TabMovedToOtherSplit(
+                        drag_id, None, False, target_dtc_id=target_dtc.id
+                    )
+                )
             return
 
         if widget in self.query(ContentTab):
@@ -182,7 +241,11 @@ class DraggableTabbedContent(TabbedContent):
             if owner is not None and owner is not self:
                 target_id = ContentTab.sans_prefix(widget.id)
                 before = (event.screen_x - region.x) < region.width / 2
-                self.post_message(self.TabMovedToOtherSplit(drag_id, target_id, before))
+                self.post_message(
+                    self.TabMovedToOtherSplit(
+                        drag_id, target_id, before, target_dtc_id=owner.id
+                    )
+                )
 
     def reorder_tab(self, pane_id: str, target_id: str, *, before: bool = True) -> None:
         """Reorder pane_id to be before/after target_id.

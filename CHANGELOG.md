@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dragged tab visual highlight: when dragging a tab to reorder or move between splits, the dragged tab now shows an accent-colored background with inverted text and bold styling for clear visual feedback
 
-- Drop target split pane highlight: when dragging a tab across split panes, the target pane shows an accent-colored border to preview the drop destination
+- Drop target split pane highlight: when dragging a tab across split panes, the target pane shows an accent-colored border overlay to preview the drop destination; uses a transparent `DropTargetOverlay` widget on a separate layer to avoid layout reflow
 
 - Split left and split up commands: open the current file in a new split to the left or above the active editor, complementing the existing split right and split down; available via the command palette ("Split editor left" / "Split editor up")
 
@@ -33,7 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix drag-and-drop tab movement layout jank and unreliable drop: highlight CSS changed from `border` to `outline` so the drop-target indicator no longer causes layout reflow; dropping a tab onto the content area (not just the tab bar) of another split now correctly triggers the cross-split move
+- Fix drag-and-drop tab movement layout jank and unreliable drop: drop-target highlight replaced from CSS class (`-drop-target`, `-edge-hover`) to a `DropTargetOverlay` widget on a dedicated `overlay` layer, eliminating all layout reflow; cross-split tab drop now uses `target_dtc_id` to directly identify the destination leaf, fixing crashes in nested (3+ way) splits; edge-zone drag in single-split mode correctly creates a new split via `_move_pane_to_split` fallback
 
 - Fix explorer cursor not updating when switching to a tab whose file is inside a collapsed folder: the sidebar now expands the collapsed folder and retries cursor placement until the file node is visible; also fixes the case where a folder was previously expanded then manually collapsed (stale `_line` values on hidden nodes caused `move_cursor` to land on the wrong entry)
 

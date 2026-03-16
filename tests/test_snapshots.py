@@ -733,11 +733,11 @@ def test_snapshot_drop_target_highlight(
             f"#{leaves[1].leaf_id}", DraggableTabbedContent
         )
 
-        # Simulate drag state: -dragging on source tab, -drop-target on target pane
+        # Simulate drag state: -dragging on source tab, overlay on target pane
         content_tabs = left_dtc.get_child_by_type(ContentTabs)
         tabs = list(content_tabs.query(ContentTab))
         tabs[0].add_class("-dragging")
-        right_dtc.add_class("-drop-target")
+        right_dtc.show_drop_overlay()
         await pilot.pause()
 
     assert snap_compare(app, run_before=setup_drop_target, terminal_size=TERMINAL_SIZE)

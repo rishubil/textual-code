@@ -11,7 +11,10 @@ from textual.widgets._tabbed_content import ContentTab, ContentTabs
 
 from tests.conftest import make_app
 from textual_code.widgets.code_editor import CodeEditor
-from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+from textual_code.widgets.draggable_tabs_content import (
+    DraggableTabbedContent,
+    DropTargetOverlay,
+)
 from textual_code.widgets.markdown_preview import MarkdownPreviewPane
 from textual_code.widgets.split_tree import all_leaves
 
@@ -262,10 +265,10 @@ async def test_drop_target_highlight_during_cross_split_drag(
         )
         await pilot.pause()
 
-        # Right DTC should have -drop-target class
-        assert right_dtc.has_class("-drop-target")
-        # Left DTC (source) should NOT have -drop-target
-        assert not left_dtc.has_class("-drop-target")
+        # Right DTC overlay should have -visible class
+        assert right_dtc.query_one(DropTargetOverlay).has_class("-visible")
+        # Left DTC (source) overlay should NOT have -visible
+        assert not left_dtc.query_one(DropTargetOverlay).has_class("-visible")
 
         # Clean up: mouse_up
         await pilot.mouse_up(
@@ -274,8 +277,8 @@ async def test_drop_target_highlight_during_cross_split_drag(
         )
         await pilot.pause()
 
-        # After mouse_up, -drop-target should be removed
-        assert not right_dtc.has_class("-drop-target")
+        # After mouse_up, overlay should be hidden
+        assert not right_dtc.query_one(DropTargetOverlay).has_class("-visible")
 
 
 async def test_drop_target_removed_when_cursor_returns_to_source(
@@ -329,7 +332,7 @@ async def test_drop_target_removed_when_cursor_returns_to_source(
             offset=(drop_x - left_dtc.region.x, drop_y - left_dtc.region.y),
         )
         await pilot.pause()
-        assert right_dtc.has_class("-drop-target")
+        assert right_dtc.query_one(DropTargetOverlay).has_class("-visible")
 
         # Move back to source (left) split
         await pilot.hover(
@@ -338,8 +341,8 @@ async def test_drop_target_removed_when_cursor_returns_to_source(
         )
         await pilot.pause()
 
-        # -drop-target should be removed from right
-        assert not right_dtc.has_class("-drop-target")
+        # overlay should be hidden on right
+        assert not right_dtc.query_one(DropTargetOverlay).has_class("-visible")
 
         # Cleanup
         await pilot.mouse_up(left_dtc, offset=drag_offset)
@@ -379,8 +382,8 @@ async def test_no_drop_target_in_single_split(
         await pilot.pause()
         assert dtc._dragging
 
-        # No -drop-target should be set on self
-        assert not dtc.has_class("-drop-target")
+        # No overlay -visible should be set on self
+        assert not dtc.query_one(DropTargetOverlay).has_class("-visible")
 
         await pilot.mouse_up(dtc, offset=(mid_x - dtc.region.x, mid_y - dtc.region.y))
         await pilot.pause()
@@ -665,3 +668,58 @@ async def test_drop_outside_any_split_is_noop(
 
         # No change
         assert list(main._pane_ids["left"]) == left_pane_ids_before
+
+
+# ── Overlay mount & 3-way split tests ────────────────────────────────────────
+
+
+async def test_overlay_mounted_on_dtc(workspace: Path, py_file: Path):
+    """Each DraggableTabbedContent mounts a DropTargetOverlay on mount."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        main = app.main_view
+        leaves = all_leaves(main._split_root)
+        dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+        overlay = dtc.query_one(DropTargetOverlay)
+        assert overlay is not None
+        assert not overlay.has_class("-visible")
+        assert not overlay.has_class("-edge")
+
+
+async def test_e2e_drag_tab_three_way_split(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Dragging a tab in a 3-way split does not crash."""
+    py_file3 = workspace / "third.py"
+    py_file3.write_text("z = 3\n")
+
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(160, 40)) as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        # Open second file in left
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
+        # Split right
+        await main.action_split_right()
+        await pilot.pause()
+
+        # Open third file in right
+        main._active_split = "right"
+        await main.action_open_code_editor(path=py_file3)
+        await pilot.pause()
+
+        # Split right again to create 3-way
+        await main.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(main._split_root)
+        assert len(leaves) >= 3, f"Expected 3+ leaves, got {len(leaves)}"
+
+        # Verify all DTCs have overlays
+        for leaf in leaves:
+            dtc = main.query_one(f"#{leaf.leaf_id}", DraggableTabbedContent)
+            dtc.query_one(DropTargetOverlay)  # should not raise

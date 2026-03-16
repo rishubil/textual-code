@@ -855,16 +855,6 @@ Tab.-dragging {
     text-style: bold;
 }
 
-/* Edge drop zone visual indicator */
-DraggableTabbedContent.-edge-hover {
-    outline-right: outer $accent;
-}
-
-/* Drop target highlight during cross-split tab drag */
-DraggableTabbedContent.-drop-target {
-    outline: tall $accent;
-}
-
 /* Split view layout */
 SplitContainer {
     width: 1fr;
@@ -882,6 +872,7 @@ SplitContainer.split-vertical {
 DraggableTabbedContent {
     width: 1fr;
     height: 1fr;
+    layers: default overlay;
 }
 
 SplitResizeHandle {
