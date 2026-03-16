@@ -12,6 +12,7 @@
 - [ ] Automatically reload when the `.editorconfig` file is modified.
 - [ ] Indent and unindent operations must follow the indentation settings configured in the code editor. Currently, it indents by 4 spaces even if the setting is 2 spaces.
 - [ ] Implement actual compliance with the `insert_final_newline`, `trim_trailing_whitespace` values from editorconfig.
+- [ ] Support VSCode like [alt, ctrl] + [up, down]
 
 ---
 
