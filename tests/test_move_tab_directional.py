@@ -3,7 +3,7 @@ Tests for directional tab move actions (left, right, up, down).
 
 Covers:
 - Move tab to adjacent split in each direction
-- No-op when no split exists in target direction
+- Auto-create split when no split exists in target direction
 - Source leaf auto-closes when its last tab is moved
 - Command registration in get_system_commands
 """
@@ -111,24 +111,88 @@ async def test_move_tab_left(
         assert py_file3 in left_leaf.opened_files
 
 
-# ── No-op when no split in direction ─────────────────────────────────────────
+# ── Auto-create split when none exists ────────────────────────────────────────
 
 
-async def test_move_tab_noop_no_split(workspace: Path, py_file: Path):
-    """Moving in a direction with no adjacent split is a no-op."""
+async def test_move_tab_creates_split_right_when_none_exists(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Moving right with no split creates a horizontal split and moves the tab."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        leaves_before = all_leaves(app.main_view._split_root)
-        active_before = app.main_view._active_leaf_id
+        # Open a second file so the source leaf keeps a tab after the move
+        await app.main_view.action_open_code_editor(py_file2)
+        await pilot.pause()
+
+        assert len(all_leaves(app.main_view._split_root)) == 1
+
+        # Move the active tab (py_file2) to the right — should create a split
+        await app.main_view.action_move_tab_right()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
+        # py_file2 should be in the new right leaf
+        assert py_file2 in leaves[-1].opened_files
+        # py_file stays in the original left leaf
+        assert py_file in leaves[0].opened_files
+
+
+async def test_move_tab_creates_split_left_when_none_exists(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Moving left with no split creates a horizontal split (before)."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        await app.main_view.action_open_code_editor(py_file2)
+        await pilot.pause()
 
         await app.main_view.action_move_tab_left()
         await pilot.pause()
 
-        # State unchanged
-        assert all_leaves(app.main_view._split_root) == leaves_before
-        assert app.main_view._active_leaf_id == active_before
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
+        # py_file2 should be in the new left leaf (position=before → first leaf)
+        assert py_file2 in leaves[0].opened_files
+
+
+async def test_move_tab_creates_split_down_when_none_exists(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Moving down with no split creates a vertical split and moves the tab."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        await app.main_view.action_open_code_editor(py_file2)
+        await pilot.pause()
+
+        await app.main_view.action_move_tab_down()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
+        assert py_file2 in leaves[-1].opened_files
+
+
+async def test_move_single_tab_is_noop(workspace: Path, py_file: Path):
+    """Moving the only tab is a no-op (would auto-close back to 1 leaf)."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        assert len(all_leaves(app.main_view._split_root)) == 1
+
+        await app.main_view.action_move_tab_right()
+        await pilot.pause()
+
+        remaining = all_leaves(app.main_view._split_root)
+        assert len(remaining) == 1
+        assert py_file in remaining[0].opened_files
 
 
 async def test_move_tab_noop_no_editor(workspace: Path):

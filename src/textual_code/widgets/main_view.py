@@ -40,6 +40,13 @@ log = logging.getLogger(__name__)
 
 PREVIEW_DEBOUNCE_DELAY = 0.3
 
+_DIRECTION_TO_SPLIT: dict[Direction, tuple[str, str]] = {
+    "left": ("horizontal", "before"),
+    "right": ("horizontal", "after"),
+    "up": ("vertical", "before"),
+    "down": ("vertical", "after"),
+}
+
 
 class MainView(Static):
     """
@@ -654,21 +661,7 @@ class MainView(Static):
         self, path: Path | None, direction: str, position: str = "after"
     ) -> None:
         """Create a new split in the given direction."""
-        if isinstance(self._split_root, LeafNode):
-            # First split: create a branch
-            new_root, new_leaf = split_leaf(
-                self._split_root, self._active_leaf_id, direction, position=position
-            )
-            self._split_root = new_root
-            await self._mount_new_split(new_leaf, direction, position=position)
-        else:
-            # Already split: create new leaf
-            new_root, new_leaf = split_leaf(
-                self._split_root, self._active_leaf_id, direction, position=position
-            )
-            old_root = self._split_root
-            self._split_root = new_root
-            await self._mount_new_split_in_existing(new_leaf, old_root)
+        new_leaf = await self._create_empty_split(direction, position)
 
         # Open editor in the new leaf and focus it
         self._active_leaf_id = new_leaf.leaf_id
@@ -977,6 +970,25 @@ class MainView(Static):
         tc.active = new_pane_id
         self._set_active_leaf(dest_leaf)
 
+    async def _create_empty_split(
+        self, direction: str, position: str = "after"
+    ) -> LeafNode:
+        """Create a new empty split pane (no editor). Returns the new LeafNode."""
+        if isinstance(self._split_root, LeafNode):
+            new_root, new_leaf = split_leaf(
+                self._split_root, self._active_leaf_id, direction, position=position
+            )
+            self._split_root = new_root
+            await self._mount_new_split(new_leaf, direction, position=position)
+        else:
+            old_root = self._split_root
+            new_root, new_leaf = split_leaf(
+                self._split_root, self._active_leaf_id, direction, position=position
+            )
+            self._split_root = new_root
+            await self._mount_new_split_in_existing(new_leaf, old_root)
+        return new_leaf
+
     async def _move_tab_directional(self, direction: Direction) -> None:
         """Move the active tab to the adjacent split in the given direction."""
         editor = self.get_active_code_editor()
@@ -985,11 +997,19 @@ class MainView(Static):
 
         dest = directional_leaf(self._split_root, self._active_leaf_id, direction)
         if dest is None:
-            log.debug("move_tab_%s: no split in that direction", direction)
-            return
+            split_dir, split_pos = _DIRECTION_TO_SPLIT[direction]
+            source_leaf = self._active_leaf
+            if len(source_leaf.pane_ids) < 2:
+                # Single tab: move would auto-close back to 1 leaf.
+                return
+            log.debug(
+                "move_tab_%s: creating split (%s, %s)", direction, split_dir, split_pos
+            )
+            dest = await self._create_empty_split(split_dir, split_pos)
 
         new_pane_id = await self._move_pane_to_leaf(editor.pane_id, dest)
         if new_pane_id is None:
+            await self._auto_close_split_if_empty()
             return
 
         # Tree may have changed due to auto-close; find the leaf holding the pane
