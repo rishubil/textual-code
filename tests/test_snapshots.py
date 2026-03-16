@@ -214,6 +214,20 @@ def test_snapshot_split_view_open(
     assert snap_compare(app, run_before=open_split, terminal_size=TERMINAL_SIZE)
 
 
+def test_snapshot_split_left_view_open(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """App with the left split panel open showing the same file."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+
+    async def open_split(pilot):
+        await pilot.pause()
+        await app.main_view.action_split_left()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=open_split, terminal_size=TERMINAL_SIZE)
+
+
 # ── Markdown preview ──────────────────────────────────────────────────────────
 
 

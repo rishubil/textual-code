@@ -632,25 +632,39 @@ class MainView(Static):
 
         await self._do_split(path, "horizontal")
 
+    async def action_split_left(self) -> None:
+        """Open the current file (or a new editor) in a new split to the left."""
+        active_editor = self.get_active_code_editor()
+        path = active_editor.path if active_editor else None
+        await self._do_split(path, "horizontal", position="before")
+
     async def action_split_down(self) -> None:
         """Open the current file (or a new editor) in a new split below."""
         active_editor = self.get_active_code_editor()
         path = active_editor.path if active_editor else None
         await self._do_split(path, "vertical")
 
-    async def _do_split(self, path: Path | None, direction: str) -> None:
+    async def action_split_up(self) -> None:
+        """Open the current file (or a new editor) in a new split above."""
+        active_editor = self.get_active_code_editor()
+        path = active_editor.path if active_editor else None
+        await self._do_split(path, "vertical", position="before")
+
+    async def _do_split(
+        self, path: Path | None, direction: str, position: str = "after"
+    ) -> None:
         """Create a new split in the given direction."""
         if isinstance(self._split_root, LeafNode):
             # First split: create a branch
             new_root, new_leaf = split_leaf(
-                self._split_root, self._active_leaf_id, direction
+                self._split_root, self._active_leaf_id, direction, position=position
             )
             self._split_root = new_root
-            await self._mount_new_split(new_leaf, direction)
+            await self._mount_new_split(new_leaf, direction, position=position)
         else:
             # Already split: create new leaf
             new_root, new_leaf = split_leaf(
-                self._split_root, self._active_leaf_id, direction
+                self._split_root, self._active_leaf_id, direction, position=position
             )
             old_root = self._split_root
             self._split_root = new_root
@@ -666,13 +680,18 @@ class MainView(Static):
         if editors:
             editors.first(CodeEditor).editor.focus()
 
-    async def _mount_new_split(self, new_leaf: LeafNode, direction: str) -> None:
+    async def _mount_new_split(
+        self, new_leaf: LeafNode, direction: str, position: str = "after"
+    ) -> None:
         """Mount a new split when going from 1 leaf to 2 (first split)."""
         leaves = all_leaves(self._split_root)
         assert len(leaves) == 2
 
-        # Get the existing DTC
-        existing_dtc = self.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+        # Find the existing DTC (the one that is NOT the new leaf)
+        existing_leaf = [lf for lf in leaves if lf.leaf_id != new_leaf.leaf_id][0]
+        existing_dtc = self.query_one(
+            f"#{existing_leaf.leaf_id}", DraggableTabbedContent
+        )
 
         # Create new DTC and handle
         new_dtc = DraggableTabbedContent(id=new_leaf.leaf_id)
@@ -692,8 +711,14 @@ class MainView(Static):
 
         # Re-apply CSS for new parent context and mount new children
         self.app.stylesheet.apply(existing_dtc)
-        await container.mount(handle)
-        await container.mount(new_dtc)
+        if position == "before":
+            # New leaf goes before existing: [new_dtc, handle, existing_dtc]
+            await container.mount(new_dtc, before=existing_dtc)
+            await container.mount(handle, before=existing_dtc)
+        else:
+            # New leaf goes after existing: [existing_dtc, handle, new_dtc]
+            await container.mount(handle)
+            await container.mount(new_dtc)
         container.refresh(layout=True)
 
     async def _mount_new_split_in_existing(
@@ -726,9 +751,22 @@ class MainView(Static):
                 isinstance(container, SplitContainer)
                 and container.direction == parent_node.direction
             ):
-                handle = SplitResizeHandle(child_index=len(parent_node.children) - 2)
-                await container.mount(handle)
-                await container.mount(new_dtc)
+                if idx == 0:
+                    # "before" case: new leaf is first child
+                    # Find the widget for the sibling (currently first in container)
+                    handle = SplitResizeHandle(child_index=0)
+                    # Increment existing handles' child_index
+                    for h in container.query(SplitResizeHandle):
+                        h._child_index += 1
+                    await container.mount(new_dtc, before=sibling_widget)
+                    await container.mount(handle, after=new_dtc)
+                else:
+                    # "after" case: new leaf appended at end
+                    handle = SplitResizeHandle(
+                        child_index=len(parent_node.children) - 2
+                    )
+                    await container.mount(handle)
+                    await container.mount(new_dtc)
             else:
                 handle = SplitResizeHandle(child_index=0)
                 old_widget = sibling_widget
@@ -743,8 +781,14 @@ class MainView(Static):
                 old_widget._attach(new_container)
                 new_container._nodes._append(old_widget)
                 self.app.stylesheet.apply(old_widget)
-                await new_container.mount(handle)
-                await new_container.mount(new_dtc)
+                if idx == 0:
+                    # "before" case: [new_dtc, handle, old_widget]
+                    await new_container.mount(new_dtc, before=old_widget)
+                    await new_container.mount(handle, before=old_widget)
+                else:
+                    # "after" case: [old_widget, handle, new_dtc]
+                    await new_container.mount(handle)
+                    await new_container.mount(new_dtc)
                 new_container.refresh(layout=True)
 
     async def action_close_split(self) -> None:

@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Drop target split pane highlight: when dragging a tab across split panes, the target pane shows an accent-colored border to preview the drop destination
 
+- Split left and split up commands: open the current file in a new split to the left or above the active editor, complementing the existing split right and split down; available via the command palette ("Split editor left" / "Split editor up")
+
 ### Changed
 
 - Footer path truncation indicator ("...") is now visually distinct from actual path dot characters: the ellipsis uses theme-aware dimmed foreground (`$foreground-darken-3`) and a lighter background (`$surface-lighten-2`) so it stands out from the rest of the path

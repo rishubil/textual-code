@@ -436,9 +436,19 @@ class TextualCode(App):
             self.action_split_right_cmd,
         )
         yield SystemCommand(
+            "Split editor left",
+            "Open current file in a new split to the left",
+            self.action_split_left_cmd,
+        )
+        yield SystemCommand(
             "Split editor down",
             "Open current file in a new split below",
             self.action_split_down_cmd,
+        )
+        yield SystemCommand(
+            "Split editor up",
+            "Open current file in a new split above",
+            self.action_split_up_cmd,
         )
         yield SystemCommand(
             "Close split",
@@ -860,9 +870,17 @@ class TextualCode(App):
         """Split editor right via command palette."""
         self.call_next(self.main_view.action_split_right)
 
+    def action_split_left_cmd(self) -> None:
+        """Split editor left via command palette."""
+        self.call_next(self.main_view.action_split_left)
+
     def action_split_down_cmd(self) -> None:
         """Split editor down via command palette."""
         self.call_next(self.main_view.action_split_down)
+
+    def action_split_up_cmd(self) -> None:
+        """Split editor up via command palette."""
+        self.call_next(self.main_view.action_split_up)
 
     def action_close_split_cmd(self) -> None:
         """Close split via command palette."""

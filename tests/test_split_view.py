@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import make_app
-from textual_code.widgets.split_tree import all_leaves
+from textual_code.widgets.split_tree import BranchNode, all_leaves
 
 # ── Fixtures ────────────────────────────────────────────────────────────────────
 
@@ -744,3 +744,152 @@ async def test_find_replace_bar_focus_keeps_active_split(
 
         # _active_split must still be "right"
         assert app.main_view._active_split == "right"
+
+
+# ── Group K — Split Left ─────────────────────────────────────────────────────
+
+
+async def test_split_left_creates_second_leaf(workspace: Path, py_file: Path):
+    """action_split_left creates a second leaf."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_left()
+        await pilot.pause()
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
+
+
+async def test_split_left_new_leaf_is_first(workspace: Path, py_file: Path):
+    """action_split_left places the new leaf at index 0 (left side)."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        original_leaf_id = all_leaves(app.main_view._split_root)[0].leaf_id
+        await app.main_view.action_split_left()
+        await pilot.pause()
+        leaves = all_leaves(app.main_view._split_root)
+        # The new leaf should be first; original should be second
+        assert leaves[1].leaf_id == original_leaf_id
+        assert leaves[0].leaf_id != original_leaf_id
+
+
+async def test_split_left_opens_same_file(workspace: Path, py_file: Path):
+    """action_split_left opens the current file in the new (left) panel."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_left()
+        await pilot.pause()
+        # The new leaf (index 0) should have the file open
+        leaves = all_leaves(app.main_view._split_root)
+        new_leaf = leaves[0]
+        assert py_file in new_leaf.opened_files
+
+
+# ── Group L — Split Up ───────────────────────────────────────────────────────
+
+
+async def test_split_up_creates_second_leaf(workspace: Path, py_file: Path):
+    """action_split_up creates a second leaf."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_up()
+        await pilot.pause()
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
+
+
+async def test_split_up_new_leaf_is_first(workspace: Path, py_file: Path):
+    """action_split_up places the new leaf at index 0 (top)."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        original_leaf_id = all_leaves(app.main_view._split_root)[0].leaf_id
+        await app.main_view.action_split_up()
+        await pilot.pause()
+        leaves = all_leaves(app.main_view._split_root)
+        assert leaves[1].leaf_id == original_leaf_id
+        assert leaves[0].leaf_id != original_leaf_id
+
+
+async def test_split_up_direction_is_vertical(workspace: Path, py_file: Path):
+    """Split up produces a vertical root branch."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_up()
+        await pilot.pause()
+        root = app.main_view._split_root
+        assert isinstance(root, BranchNode)
+        assert root.direction == "vertical"
+
+
+# ── Group M — Split Left Edge Cases ──────────────────────────────────────────
+
+
+async def test_split_left_twice_creates_three_leaves(workspace: Path, py_file: Path):
+    """Two split_left actions from the same leaf create 3 leaves."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(180, 30)) as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_left()
+        await pilot.pause()
+        assert len(all_leaves(app.main_view._split_root)) == 2
+
+        await app.main_view.action_split_left()
+        await pilot.pause()
+        assert len(all_leaves(app.main_view._split_root)) == 3
+
+
+async def test_split_left_then_close(workspace: Path, py_file: Path):
+    """split_left then close_split returns to 1 leaf."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_left()
+        await pilot.pause()
+        assert app.main_view._split_visible is True
+        await app.main_view.action_close_split()
+        await pilot.pause()
+        assert app.main_view._split_visible is False
+        assert len(all_leaves(app.main_view._split_root)) == 1
+
+
+async def test_split_right_then_split_left(workspace: Path, py_file: Path):
+    """split_right then split_left creates 3 leaves in correct order."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(180, 30)) as pilot:
+        await pilot.pause()
+        original_leaf_id = all_leaves(app.main_view._split_root)[0].leaf_id
+
+        await app.main_view.action_split_right()
+        await pilot.pause()
+        leaves = all_leaves(app.main_view._split_root)
+        right_leaf_id = leaves[1].leaf_id
+
+        # Now split left from the right leaf (which is active)
+        await app.main_view.action_split_left()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 3
+        # Order: original, new_left_of_right, right
+        assert leaves[0].leaf_id == original_leaf_id
+        assert leaves[2].leaf_id == right_leaf_id
+
+
+async def test_split_left_resize_handle_works(workspace: Path, py_file: Path):
+    """Split left creates a resize handle with correct child_index."""
+    from textual_code.widgets.split_resize_handle import SplitResizeHandle
+
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_left()
+        await pilot.pause()
+        handles = app.main_view.query(SplitResizeHandle)
+        assert len(handles) >= 1
+        # The handle should have child_index=0
+        assert handles.first(SplitResizeHandle).child_index == 0
