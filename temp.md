@@ -2,7 +2,6 @@
 - [ ] When splitting via mouse drag-and-drop, make the highlight textbox appear near the split location instead of the center, depending on where the split occurs.
 - [ ] In the sidebar search function, ensure the button label text is only displayed when the sidebar width is 40 or greater.
 - [ ] When moving a tab to another pane via mouse drag-and-drop or a command, focus on the destination pane and ultimately focus on the moved tab.
-- [ ] Make the file path in the footer area clickable, and have it copy the path when clicked.
 - [ ] Add a setting in the footer area to choose whether to display the file path as an absolute or relative path.
 - [ ] Add an option to the settings to show or hide hidden files in the Explorer. (Also add as a command)
 - [ ] Add an option to the settings to show or hide files ignored by gitignore in the Explorer. (Also add as a command)

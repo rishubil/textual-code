@@ -1198,6 +1198,11 @@ class MainView(Static):
         if editor := self.get_active_code_editor():
             editor.action_change_language()
 
+    @on(events.Click, "CodeEditorFooter #path")
+    def on_footer_path_click(self, event: events.Click) -> None:
+        event.stop()
+        self.app.action_copy_absolute_path()
+
     @on(CodeEditor.TextChanged)
     def on_code_editor_text_changed(self, event: CodeEditor.TextChanged) -> None:
         editor = event.code_editor

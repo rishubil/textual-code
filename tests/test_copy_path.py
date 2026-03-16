@@ -7,6 +7,7 @@ Covers:
 - Error cases: no file open, unsaved new file
 - Fallback: file outside workspace uses absolute path
 - Command palette entries
+- Click footer #path label to copy absolute path
 """
 
 from pathlib import Path
@@ -110,3 +111,65 @@ async def test_d01_copy_path_commands_in_system_commands(workspace):
         titles = [c.title for c in commands]
         assert "Copy relative path" in titles
         assert "Copy absolute path" in titles
+
+
+# ---------------------------------------------------------------------------
+# Group E: click footer #path label to copy absolute path
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_e01_click_path_copies_absolute_path(workspace, sample_py_file):
+    """Clicking the #path label in the footer copies the absolute path."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.click("CodeEditorFooter #path")
+        await pilot.pause()
+        assert app.clipboard == str(sample_py_file)
+
+
+@pytest.mark.asyncio
+async def test_e02_click_path_no_file_shows_error(workspace, monkeypatch):
+    """Clicking #path with no file open shows an error notification."""
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        notify_calls = []
+        monkeypatch.setattr(app, "notify", lambda *a, **kw: notify_calls.append(kw))
+        await pilot.click("CodeEditorFooter #path")
+        await pilot.pause()
+        assert any(kw.get("severity") == "error" for kw in notify_calls)
+
+
+@pytest.mark.asyncio
+async def test_e03_click_path_unsaved_file_shows_error(workspace, monkeypatch):
+    """Clicking #path with an unsaved new file shows an error notification."""
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_open_code_editor()
+        await pilot.pause()
+        notify_calls = []
+        monkeypatch.setattr(app, "notify", lambda *a, **kw: notify_calls.append(kw))
+        await pilot.click("CodeEditorFooter #path")
+        await pilot.pause()
+        assert any(kw.get("severity") == "error" for kw in notify_calls)
+
+
+@pytest.mark.asyncio
+async def test_e04_click_truncated_path_copies_full_path(workspace):
+    """Clicking a truncated path still copies the full absolute path."""
+    # Create a deeply nested file so the path exceeds the label width
+    deep_dir = workspace / "a" / "very" / "deeply" / "nested" / "directory"
+    deep_dir.mkdir(parents=True)
+    deep_file = deep_dir / "example_file.py"
+    deep_file.write_text("# deep\n")
+    app = make_app(workspace, open_file=deep_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.click("CodeEditorFooter #path")
+        await pilot.pause()
+        assert app.clipboard == str(deep_file)

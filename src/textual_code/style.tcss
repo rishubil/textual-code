@@ -61,6 +61,10 @@ CodeEditorFooter #path {
     background: $surface;
 }
 
+CodeEditorFooter #path:hover {
+    text-style: underline;
+}
+
 CodeEditorFooter #cursor_btn {
     text-align: center;
     width: auto;
