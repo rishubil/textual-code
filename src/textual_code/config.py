@@ -15,6 +15,7 @@ EDITOR_KEYS = {
     "warn_line_ending",
     "show_hidden_files",
     "path_display_mode",
+    "dim_gitignored",
 }
 
 DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
@@ -28,6 +29,7 @@ DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "warn_line_ending": True,
     "show_hidden_files": True,
     "path_display_mode": "absolute",
+    "dim_gitignored": True,
 }
 
 

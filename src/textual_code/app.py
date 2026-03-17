@@ -261,6 +261,7 @@ class TextualCode(App):
         self.default_show_hidden_files: bool = bool(
             settings.get("show_hidden_files", True)
         )
+        self.default_dim_gitignored: bool = bool(settings.get("dim_gitignored", True))
         mode = str(settings.get("path_display_mode", "absolute"))
         self.default_path_display_mode: str = (
             mode if mode in ("absolute", "relative") else "absolute"
@@ -276,6 +277,7 @@ class TextualCode(App):
         yield Sidebar(
             workspace_path=self.workspace_path,
             show_hidden_files=self.default_show_hidden_files,
+            dim_gitignored=self.default_dim_gitignored,
         )
         yield MainView()
         yield Footer()
@@ -577,6 +579,11 @@ class TextualCode(App):
             "Switch between absolute and relative path in footer",
             self._toggle_path_display_mode_cmd,
         )
+        yield SystemCommand(
+            "Toggle dim gitignored files",
+            "Dim or un-dim gitignored files in the explorer",
+            self._toggle_dim_gitignored_cmd,
+        )
 
     def action_find_in_workspace(self) -> None:
         """Open workspace search panel (Ctrl+Shift+F)."""
@@ -639,6 +646,7 @@ class TextualCode(App):
             "warn_line_ending": self.default_warn_line_ending,
             "show_hidden_files": self.default_show_hidden_files,
             "path_display_mode": self.default_path_display_mode,
+            "dim_gitignored": self.default_dim_gitignored,
         }
 
     def action_set_default_indentation(self) -> None:
@@ -816,6 +824,17 @@ class TextualCode(App):
         settings = self._build_editor_settings()
         save_user_editor_settings(settings, self._user_config_path)
         self.notify(f"Path display: {self.default_path_display_mode}")
+
+    def _toggle_dim_gitignored_cmd(self) -> None:
+        """Toggle dim gitignored files in the explorer and save to config."""
+        self.default_dim_gitignored = not self.default_dim_gitignored
+        tree = self.sidebar.explorer.directory_tree
+        tree.dim_gitignored = self.default_dim_gitignored
+        tree.reload()
+        settings = self._build_editor_settings()
+        save_user_editor_settings(settings, self._user_config_path)
+        state = "dimmed" if self.default_dim_gitignored else "normal"
+        self.notify(f"Gitignored files: {state}")
 
     @property
     def _resolved_user_config_path(self) -> Path:

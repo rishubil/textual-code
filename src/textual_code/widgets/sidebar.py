@@ -60,11 +60,17 @@ class Sidebar(Static):
     """
 
     def __init__(
-        self, workspace_path: Path, *args, show_hidden_files: bool = True, **kwargs
+        self,
+        workspace_path: Path,
+        *args,
+        show_hidden_files: bool = True,
+        dim_gitignored: bool = True,
+        **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
         self.workspace_path = workspace_path
         self._show_hidden_files = show_hidden_files
+        self._dim_gitignored = dim_gitignored
         self._compact_tabs: bool | None = None
         self._compact_buttons: bool | None = None
 
@@ -77,6 +83,7 @@ class Sidebar(Static):
                         yield Explorer(
                             workspace_path=self.workspace_path,
                             show_hidden_files=self._show_hidden_files,
+                            dim_gitignored=self._dim_gitignored,
                         )
                     else:
                         yield WorkspaceSearchPane(id="workspace_search")

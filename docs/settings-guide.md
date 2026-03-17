@@ -59,6 +59,7 @@ All editor settings go under the `[editor]` TOML table.
 | `ui_theme` | string | `"textual-dark"` | UI colour theme: `"textual-dark"` or `"textual-light"` |
 | `warn_line_ending` | boolean | `true` | Show warning toast when file uses non-LF line endings (CRLF, CR) |
 | `show_hidden_files` | boolean | `true` | Show dotfiles and dotfolders in the Explorer sidebar |
+| `dim_gitignored` | boolean | `true` | Dim files matching .gitignore patterns in the Explorer sidebar |
 
 ### Example: user settings file
 
