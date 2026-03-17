@@ -361,6 +361,29 @@ def _convert_line_ending(text: str, line_ending: str) -> str:
     return text
 
 
+def _trim_trailing_whitespace(text: str) -> str:
+    """Remove trailing whitespace from each line.
+
+    Operates on LF-normalized text (as stored in TextArea).
+    """
+    return "\n".join(line.rstrip(" \t") for line in text.split("\n"))
+
+
+def _insert_final_newline(text: str) -> str:
+    """Ensure text ends with a newline character.
+
+    If text is empty, return empty (do not add newline to empty content).
+    """
+    if not text or text.endswith("\n"):
+        return text
+    return text + "\n"
+
+
+def _remove_final_newline(text: str) -> str:
+    """Ensure text does NOT end with a newline character."""
+    return text.rstrip("\n")
+
+
 def _indent_display(indent_type: str, indent_size: int) -> str:
     """Return footer display label for indentation settings."""
     if indent_type == "tabs":
@@ -852,6 +875,9 @@ class CodeEditor(Static):
         self._warn_line_ending: bool = default_warn_line_ending
         # tracks the end offset of the last successful find for sequential search
         self._find_offset: int | None = None
+        # EditorConfig save-time transformations (None = not set)
+        self._trim_trailing_whitespace: bool | None = None
+        self._insert_final_newline: bool | None = None
 
         # if a path is provided, load the file content
         if path is not None:
@@ -908,6 +934,19 @@ class CodeEditor(Static):
             ec_eol = ec.get("end_of_line")
             if ec_eol and ec_eol != "unset" and ec_eol in ("lf", "crlf", "cr"):
                 self.set_reactive(CodeEditor.line_ending, ec_eol)
+
+            ec_trim = ec.get("trim_trailing_whitespace")
+            if ec_trim == "true":
+                self._trim_trailing_whitespace = True
+            elif ec_trim == "false":
+                self._trim_trailing_whitespace = False
+
+            ec_final_newline = ec.get("insert_final_newline")
+            if ec_final_newline == "true":
+                self._insert_final_newline = True
+            elif ec_final_newline == "false":
+                self._insert_final_newline = False
+
             self.set_reactive(CodeEditor.word_wrap, default_word_wrap)
         else:
             # Apply app-level defaults for new untitled files
@@ -1138,12 +1177,30 @@ class CodeEditor(Static):
             return
         self._reload_file()
 
+    def _apply_save_transformations(self, text: str) -> str:
+        """Apply EditorConfig save-time transformations to text.
+
+        Order: trim_trailing_whitespace first, then insert_final_newline.
+        Operates on LF-normalized text (before line ending conversion).
+        """
+        if self._trim_trailing_whitespace is True:
+            text = _trim_trailing_whitespace(text)
+        if self._insert_final_newline is True:
+            text = _insert_final_newline(text)
+        elif self._insert_final_newline is False:
+            text = _remove_final_newline(text)
+        return text
+
     def _write_to_disk(self) -> None:
         """Write current text to disk and update mtime. Requires self.path is set."""
         self._dismiss_external_change_notification()
         try:
-            content = _convert_line_ending(self.text, self.line_ending)
+            saved_text = self._apply_save_transformations(self.text)
+            content = _convert_line_ending(saved_text, self.line_ending)
             self.path.write_bytes(content.encode(self.encoding))
+            if saved_text != self.text:
+                self.text = saved_text
+                self.replace_editor_text(saved_text)
             self.initial_text = self.text
             with contextlib.suppress(OSError):
                 self._file_mtime = self.path.stat().st_mtime
@@ -1204,8 +1261,12 @@ class CodeEditor(Static):
                 return
 
             try:
-                content = _convert_line_ending(self.text, self.line_ending)
+                saved_text = self._apply_save_transformations(self.text)
+                content = _convert_line_ending(saved_text, self.line_ending)
                 new_path.write_bytes(content.encode(self.encoding))
+                if saved_text != self.text:
+                    self.text = saved_text
+                    self.replace_editor_text(saved_text)
                 self.initial_text = self.text
                 self.path = new_path
                 with contextlib.suppress(OSError):

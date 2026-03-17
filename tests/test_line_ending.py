@@ -14,6 +14,9 @@ from textual_code.widgets.code_editor import (
     CodeEditorFooter,
     _convert_line_ending,
     _detect_line_ending,
+    _insert_final_newline,
+    _remove_final_newline,
+    _trim_trailing_whitespace,
 )
 
 # ── _detect_line_ending unit tests ───────────────────────────────────────────
@@ -71,6 +74,90 @@ def test_convert_multiline_crlf():
 def test_convert_empty_string():
     """Empty string → empty string."""
     assert _convert_line_ending("", "crlf") == ""
+
+
+# ── _trim_trailing_whitespace unit tests ──────────────────────────────────────
+
+
+def test_trim_trailing_whitespace_spaces():
+    """Trailing spaces removed from each line."""
+    assert _trim_trailing_whitespace("hello   \nworld  \n") == "hello\nworld\n"
+
+
+def test_trim_trailing_whitespace_tabs():
+    """Trailing tabs removed from each line."""
+    assert _trim_trailing_whitespace("hello\t\nworld\t\n") == "hello\nworld\n"
+
+
+def test_trim_trailing_whitespace_mixed():
+    """Mixed trailing whitespace (spaces + tabs) removed."""
+    assert _trim_trailing_whitespace("hello \t \nworld\n") == "hello\nworld\n"
+
+
+def test_trim_trailing_whitespace_no_trailing():
+    """No trailing whitespace → unchanged."""
+    assert _trim_trailing_whitespace("hello\nworld\n") == "hello\nworld\n"
+
+
+def test_trim_trailing_whitespace_empty():
+    """Empty string → empty string."""
+    assert _trim_trailing_whitespace("") == ""
+
+
+def test_trim_trailing_whitespace_preserves_leading():
+    """Leading whitespace is preserved."""
+    assert _trim_trailing_whitespace("  hello  \n  world  \n") == "  hello\n  world\n"
+
+
+def test_trim_trailing_whitespace_blank_lines():
+    """Blank lines with only spaces become empty lines."""
+    assert _trim_trailing_whitespace("hello\n   \nworld\n") == "hello\n\nworld\n"
+
+
+# ── _insert_final_newline unit tests ─────────────────────────────────────────
+
+
+def test_insert_final_newline_missing():
+    """Text not ending with newline gets one appended."""
+    assert _insert_final_newline("hello") == "hello\n"
+
+
+def test_insert_final_newline_already_present():
+    """Text ending with newline → unchanged."""
+    assert _insert_final_newline("hello\n") == "hello\n"
+
+
+def test_insert_final_newline_empty():
+    """Empty string → empty string (no newline added)."""
+    assert _insert_final_newline("") == ""
+
+
+def test_insert_final_newline_only_newline():
+    """Single newline → unchanged."""
+    assert _insert_final_newline("\n") == "\n"
+
+
+# ── _remove_final_newline unit tests ─────────────────────────────────────────
+
+
+def test_remove_final_newline_present():
+    """Trailing newline removed."""
+    assert _remove_final_newline("hello\n") == "hello"
+
+
+def test_remove_final_newline_multiple():
+    """Multiple trailing newlines all removed."""
+    assert _remove_final_newline("hello\n\n\n") == "hello"
+
+
+def test_remove_final_newline_absent():
+    """No trailing newline → unchanged."""
+    assert _remove_final_newline("hello") == "hello"
+
+
+def test_remove_final_newline_empty():
+    """Empty string → empty string."""
+    assert _remove_final_newline("") == ""
 
 
 # ── Integration test app ──────────────────────────────────────────────────────

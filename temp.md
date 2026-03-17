@@ -10,7 +10,6 @@
 - [ ] Automatically refresh the explorer by detecting changes to files and folders within the workspace.
 - [ ] Highlight modified git files in the explorer with colors. (Including folders, only when a .git folder is present)
 - [ ] Automatically reload when the `.editorconfig` file is modified.
-- [ ] Implement actual compliance with the `insert_final_newline`, `trim_trailing_whitespace` values from editorconfig.
 - [ ] Support VSCode like [alt, ctrl] + [up, down]
 
 ---

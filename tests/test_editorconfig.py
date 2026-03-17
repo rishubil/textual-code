@@ -423,3 +423,257 @@ async def test_T32_unsupported_indent_size_ignored(tmp_path: Path):
         await pilot.pause()
         # indent_size 3 is not in (2, 4, 8) → ignored, default 4 stays
         assert app.code_editor.indent_size == 4
+
+
+# ── Group F: Save-time transformations ───────────────────────────────────────
+
+
+async def test_T33_insert_final_newline_true_adds_newline(tmp_path: Path):
+    """T-33: insert_final_newline=true → file ends with newline after save."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ninsert_final_newline = true\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+
+    assert f.read_bytes() == b"x = 1\n"
+
+
+async def test_T34_insert_final_newline_true_already_has_newline(tmp_path: Path):
+    """T-34: insert_final_newline=true + already has newline → unchanged."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ninsert_final_newline = true\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+
+    assert f.read_bytes() == b"x = 1\n"
+
+
+async def test_T35_insert_final_newline_false_removes_newline(tmp_path: Path):
+    """T-35: insert_final_newline=false → trailing newline removed after save."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ninsert_final_newline = false\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+
+    assert f.read_bytes() == b"x = 1"
+
+
+async def test_T36_insert_final_newline_true_empty_file(tmp_path: Path):
+    """T-36: insert_final_newline=true + empty file → stays empty."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ninsert_final_newline = true\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+
+    assert f.read_bytes() == b""
+
+
+async def test_T37_trim_trailing_whitespace_true(tmp_path: Path):
+    """T-37: trim_trailing_whitespace=true → trailing ws removed, leading kept."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ntrim_trailing_whitespace = true\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"  x = 1   \n  y = 2\t\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+
+    assert f.read_bytes() == b"  x = 1\n  y = 2\n"
+
+
+async def test_T38_trim_trailing_whitespace_false_no_change(tmp_path: Path):
+    """T-38: trim_trailing_whitespace=false → trailing whitespace preserved."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ntrim_trailing_whitespace = false\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1   \n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+
+    assert f.read_bytes() == b"x = 1   \n"
+
+
+async def test_T39_trim_and_insert_final_newline_combined(tmp_path: Path):
+    """T-39: Both transformations applied: trim first, then insert newline."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text(
+        "[*.py]\ntrim_trailing_whitespace = true\ninsert_final_newline = true\n"
+    )
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1   \ny = 2  ")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+
+    assert f.read_bytes() == b"x = 1\ny = 2\n"
+
+
+async def test_T40_insert_final_newline_unset_no_change(tmp_path: Path):
+    """T-40: insert_final_newline=unset → no transformation applied."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ninsert_final_newline = unset\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+
+    assert f.read_bytes() == b"x = 1"
+
+
+async def test_T41_editor_text_updated_after_trim_on_save(tmp_path: Path):
+    """T-41: After saving with trim, editor.text reflects trimmed content."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ntrim_trailing_whitespace = true\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1   \n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+        saved_text = app.code_editor.text
+
+    assert saved_text == "x = 1\n"
+
+
+async def test_T42_initial_text_matches_text_after_save(tmp_path: Path):
+    """T-42: After save with transforms, initial_text == text (no unsaved)."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ninsert_final_newline = true\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+        text = app.code_editor.text
+        initial_text = app.code_editor.initial_text
+
+    assert text == initial_text
+
+
+async def test_T43_insert_final_newline_with_crlf(tmp_path: Path):
+    """T-43: insert_final_newline=true + end_of_line=crlf → file ends with \\r\\n."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ninsert_final_newline = true\nend_of_line = crlf\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+
+    assert f.read_bytes() == b"x = 1\r\n"
+
+
+async def test_T44_insert_final_newline_false_empty_file(tmp_path: Path):
+    """T-44: insert_final_newline=false + empty file → stays empty."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ninsert_final_newline = false\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+
+    assert f.read_bytes() == b""
+
+
+async def test_T45_trim_and_insert_final_newline_false_combined(tmp_path: Path):
+    """T-45: trim=true + insert=false → trim whitespace, then remove final newline."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text(
+        "[*.py]\ntrim_trailing_whitespace = true\ninsert_final_newline = false\n"
+    )
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1   \ny = 2  \n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.code_editor.action_save()
+        await pilot.pause()
+
+    assert f.read_bytes() == b"x = 1\ny = 2"
+
+
+async def test_T46_textarea_updated_when_user_adds_trailing_ws(tmp_path: Path):
+    """T-46: User types trailing ws then saves → TextArea shows trimmed text.
+
+    Bug scenario: file starts clean, user types trailing whitespace via the
+    TextArea (which updates both TextArea and CodeEditor.text), then saves.
+    The trim reverts text to the original initial_text value, so the reactive
+    watcher on initial_text does not fire (same value), and the TextArea
+    stays stale unless explicitly updated.
+    """
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ntrim_trailing_whitespace = true\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")  # clean file, no trailing ws
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        textarea = editor.editor
+
+        # Simulate user typing: insert trailing spaces via TextArea
+        textarea.move_cursor_relative(columns=999, rows=0)
+        textarea.insert("   ")
+        await pilot.pause()
+        assert textarea.text == "x = 1   \n"
+
+        # Save — trim should revert to "x = 1\n"
+        editor.action_save()
+        await pilot.pause()
+
+        # The actual TextArea widget must reflect the trimmed content
+        textarea_text = textarea.text
+
+    assert textarea_text == "x = 1\n"

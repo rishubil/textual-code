@@ -113,7 +113,17 @@ Keys and values are normalized to lowercase.
 | `end_of_line=lf/crlf/cr` | `line_ending=...` |
 | any property `=unset` | ignored (auto-detect retained) |
 
-`trim_trailing_whitespace` and `insert_final_newline` are parsed but not applied (feature unsupported by the editor).
+### Save-time transformations: trim_trailing_whitespace, insert_final_newline
+
+| EditorConfig value | Behavior |
+|-------------------|----------|
+| `trim_trailing_whitespace=true` | Trailing spaces/tabs removed from all lines on save |
+| `trim_trailing_whitespace=false` | No trimming (default) |
+| `insert_final_newline=true` | Ensures file ends with newline on save (empty files stay empty) |
+| `insert_final_newline=false` | Ensures file does NOT end with newline on save |
+| either property `=unset` | No transformation applied |
+
+Transformations are applied in order: trim trailing whitespace first, then insert/remove final newline. The editor buffer is updated to reflect the saved content. These transformations apply at save time only (Ctrl+S or Save As) and do not modify text during editing.
 
 ### Override is applied once at open time
 
