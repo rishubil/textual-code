@@ -262,6 +262,9 @@ class TextualCode(App):
             settings.get("show_hidden_files", True)
         )
         self.default_dim_gitignored: bool = bool(settings.get("dim_gitignored", True))
+        self.default_dim_hidden_files: bool = bool(
+            settings.get("dim_hidden_files", False)
+        )
         mode = str(settings.get("path_display_mode", "absolute"))
         self.default_path_display_mode: str = (
             mode if mode in ("absolute", "relative") else "absolute"
@@ -278,6 +281,7 @@ class TextualCode(App):
             workspace_path=self.workspace_path,
             show_hidden_files=self.default_show_hidden_files,
             dim_gitignored=self.default_dim_gitignored,
+            dim_hidden_files=self.default_dim_hidden_files,
         )
         yield MainView()
         yield Footer()
@@ -584,6 +588,11 @@ class TextualCode(App):
             "Dim or un-dim gitignored files in the explorer",
             self._toggle_dim_gitignored_cmd,
         )
+        yield SystemCommand(
+            "Toggle dim hidden files",
+            "Dim or un-dim hidden files (dotfiles) in the explorer",
+            self._toggle_dim_hidden_files_cmd,
+        )
 
     def action_find_in_workspace(self) -> None:
         """Open workspace search panel (Ctrl+Shift+F)."""
@@ -647,6 +656,7 @@ class TextualCode(App):
             "show_hidden_files": self.default_show_hidden_files,
             "path_display_mode": self.default_path_display_mode,
             "dim_gitignored": self.default_dim_gitignored,
+            "dim_hidden_files": self.default_dim_hidden_files,
         }
 
     def action_set_default_indentation(self) -> None:
@@ -835,6 +845,17 @@ class TextualCode(App):
         save_user_editor_settings(settings, self._user_config_path)
         state = "dimmed" if self.default_dim_gitignored else "normal"
         self.notify(f"Gitignored files: {state}")
+
+    def _toggle_dim_hidden_files_cmd(self) -> None:
+        """Toggle dim hidden files in the explorer and save to config."""
+        self.default_dim_hidden_files = not self.default_dim_hidden_files
+        tree = self.sidebar.explorer.directory_tree
+        tree.dim_hidden_files = self.default_dim_hidden_files
+        tree.reload()
+        settings = self._build_editor_settings()
+        save_user_editor_settings(settings, self._user_config_path)
+        state = "dimmed" if self.default_dim_hidden_files else "normal"
+        self.notify(f"Hidden files: {state}")
 
     @property
     def _resolved_user_config_path(self) -> Path:

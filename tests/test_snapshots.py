@@ -847,3 +847,18 @@ def test_snapshot_explorer_hidden_files_visible(snap_compare, snapshot_workspace
     app = make_app(snapshot_workspace, user_config_path=config)
 
     assert snap_compare(app, terminal_size=TERMINAL_SIZE)
+
+
+# ── Dim hidden files ─────────────────────────────────────────────────────────
+
+
+def test_snapshot_explorer_dim_hidden_files(snap_compare, snapshot_workspace: Path):
+    """Explorer dims dotfiles and dotfolders when dim_hidden_files is enabled."""
+    (snapshot_workspace / "hello.py").write_text("print('hello')\n")
+    (snapshot_workspace / ".hidden_file").write_text("secret\n")
+    (snapshot_workspace / ".hidden_dir").mkdir()
+    config = snapshot_workspace / "settings.toml"
+    config.write_text("[editor]\ndim_hidden_files = true\n")
+    app = make_app(snapshot_workspace, user_config_path=config)
+
+    assert snap_compare(app, terminal_size=TERMINAL_SIZE)

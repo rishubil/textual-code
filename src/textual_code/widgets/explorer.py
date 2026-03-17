@@ -26,14 +26,17 @@ class FilteredDirectoryTree(DirectoryTree):
 
     COMPONENT_CLASSES = DirectoryTree.COMPONENT_CLASSES | {
         "directory-tree--gitignored",
+        "directory-tree--hidden",
     }
 
     DEFAULT_CSS = """
     FilteredDirectoryTree {
-        & > .directory-tree--gitignored {
+        & > .directory-tree--gitignored,
+        & > .directory-tree--hidden {
             text-style: dim;
         }
-        &:ansi > .directory-tree--gitignored {
+        &:ansi > .directory-tree--gitignored,
+        &:ansi > .directory-tree--hidden {
             color: ansi_default;
             text-style: dim;
         }
@@ -46,11 +49,13 @@ class FilteredDirectoryTree(DirectoryTree):
         *,
         show_hidden_files: bool = True,
         dim_gitignored: bool = True,
+        dim_hidden_files: bool = False,
         **kwargs,
     ):
         super().__init__(path, **kwargs)
         self.show_hidden_files = show_hidden_files
         self.dim_gitignored = dim_gitignored
+        self.dim_hidden_files = dim_hidden_files
         self._gitignore_specs: list[tuple[Path, pathspec.PathSpec]] | None = None
         self._gitignore_cache: dict[Path, bool] = {}
 
@@ -156,6 +161,15 @@ class FilteredDirectoryTree(DirectoryTree):
                         "directory-tree--gitignored", partial=True
                     )
                 )
+            # Dim hidden files (dotfiles/dotfolders) when enabled.
+            # Uses a separate component class so it doesn't conflict with
+            # gitignored dimming.
+            if is_dotfile and self.dim_hidden_files:
+                text.stylize_before(
+                    self.get_component_rich_style(
+                        "directory-tree--hidden", partial=True
+                    )
+                )
         return text
 
 
@@ -208,6 +222,7 @@ class Explorer(Static):
         *args,
         show_hidden_files: bool = True,
         dim_gitignored: bool = True,
+        dim_hidden_files: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -216,6 +231,7 @@ class Explorer(Static):
         self.workspace_path = workspace_path
         self._show_hidden_files = show_hidden_files
         self._dim_gitignored = dim_gitignored
+        self._dim_hidden_files = dim_hidden_files
         self._pending_path: Path | None = None
         self._pending_retries: int = 0
 
@@ -308,6 +324,7 @@ class Explorer(Static):
             self.workspace_path,
             show_hidden_files=self._show_hidden_files,
             dim_gitignored=self._dim_gitignored,
+            dim_hidden_files=self._dim_hidden_files,
         )
         directory_tree.show_root = False  # don't show the root directory
         yield directory_tree
