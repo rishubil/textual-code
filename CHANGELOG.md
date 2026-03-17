@@ -41,6 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix indent/unindent ignoring configured indent settings: Tab/Shift+Tab now respect `indent_size` and `indent_type` from EditorConfig and the Change Indentation modal; previously always inserted/removed 4 spaces regardless of the configured size, and always used spaces even when `indent_type` was set to tabs; also fixes Shift+Tab not removing leading tab characters
 
+- Fix focus not following moved tab: when moving a tab to another split pane (via command, directional move, or drag-and-drop), focus now correctly lands on the moved tab in the destination pane; previously, a deferred focus event from the source pane could steal focus back, leaving the user editing in the wrong split
+
 - Fix drag-and-drop tab movement layout jank and unreliable drop: drop-target highlight uses CSS `outline` on the pane directly (no overlay widget), eliminating layout reflow and ensuring content is visible through the highlight; cross-split tab drop now uses `target_dtc_id` to directly identify the destination leaf, fixing crashes in nested (3+ way) splits; edge-zone drag in single-split mode correctly creates a new split via `_move_pane_to_split` fallback
 
 - Fix tab not moving to the correct target in 3+ nested splits: `_in_edge_zone()` lacked a bounds check, causing it to always return `True` when the cursor was beyond the source pane's right edge; this triggered the edge-zone code path (which uses adjacent-leaf fallback) instead of the correct `target_dtc_id` path, so tabs landed in the wrong pane; also uses the tracked drop target (the highlighted pane) as the primary drop destination for consistency

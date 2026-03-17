@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from textual.widgets._tabbed_content import ContentTab, ContentTabs
 
-from tests.conftest import make_app
+from tests.conftest import assert_focus_on_leaf, make_app
 from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.draggable_tabs_content import (
     DraggableTabbedContent,
@@ -918,4 +918,142 @@ async def test_e2e_drag_tab_mixed_nested_split(
             f"Tab should have moved to leaf C. "
             f"C pane_ids before={pane_count_c_before}, "
             f"after={len(leaf_c_after.pane_ids)}"
+        )
+
+
+# ── Focus tests for cross-split moves ────────────────────────────────────────
+
+
+async def test_drag_cross_split_focuses_moved_tab(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """action_move_tab_to_other_split focuses the destination pane."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        # Open second file so left isn't empty after move
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
+        # Open right split
+        await main.action_split_right()
+        await pilot.pause()
+
+        # Focus left split, select py_file
+        leaves = all_leaves(main._split_root)
+        left_leaf = leaves[0]
+        main._set_active_leaf(left_leaf)
+        await pilot.pause()
+        pane_id = main._opened_files["left"][py_file]
+        tc_left = main.query_one(f"#{left_leaf.leaf_id}", DraggableTabbedContent)
+        tc_left.active = pane_id
+        await pilot.pause()
+
+        # Move to right via action
+        await main.action_move_tab_to_other_split()
+        await pilot.pause()
+
+        # Find where py_file landed
+        leaves = all_leaves(main._split_root)
+        dest_leaf = leaves[-1]
+        new_pane_id = dest_leaf.opened_files.get(py_file)
+        assert new_pane_id is not None
+        assert_focus_on_leaf(
+            app, main, dest_leaf, new_pane_id, "cross-split action move"
+        )
+
+
+async def test_drag_mouse_cross_split_focuses_moved_tab(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """E2E mouse drag from left to right focuses the moved tab in dest."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        main, left_dtc, right_dtc = await _setup_two_splits(
+            pilot, workspace, py_file, py_file2
+        )
+
+        # Record which file is being dragged (first tab in left)
+        left_tabs = list(left_dtc.get_child_by_type(ContentTabs).query(ContentTab))
+        drag_tab = left_tabs[0]
+        drag_pane_id = ContentTab.sans_prefix(drag_tab.id)
+        leaves_before = all_leaves(main._split_root)
+        left_leaf = leaves_before[0]
+        dragged_path = next(
+            (p for p, pid in left_leaf.opened_files.items() if pid == drag_pane_id),
+            None,
+        )
+        assert dragged_path is not None, "Could not find dragged file path"
+
+        await _start_drag(pilot, left_dtc)
+
+        # Drop on right split's tab bar
+        right_tabs = list(right_dtc.get_child_by_type(ContentTabs).query(ContentTab))
+        drop_tab = right_tabs[0]
+        drop_region = drop_tab.region
+        drop_x = drop_region.x + drop_region.width // 2
+        drop_y = drop_region.y + drop_region.height // 2
+        await pilot.mouse_up(
+            left_dtc,
+            offset=(drop_x - left_dtc.region.x, drop_y - left_dtc.region.y),
+        )
+        await pilot.pause()
+        await pilot.pause()
+
+        # Verify focus is on destination leaf with moved tab
+        leaves = all_leaves(main._split_root)
+        dest_leaf = None
+        for leaf in leaves:
+            if dragged_path in leaf.opened_files:
+                dest_leaf = leaf
+                break
+        assert dest_leaf is not None, "Dragged file not found in any leaf after move"
+        assert main._active_leaf_id == dest_leaf.leaf_id, (
+            "active leaf should be destination after mouse drag"
+        )
+
+
+async def test_drag_edge_zone_new_split_focuses_moved_tab(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Edge zone drag (TabMovedToOtherSplit with no target) focuses the new split."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        # Open second file so left isn't empty after edge drag
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+        assert main._split_visible is False
+
+        leaves = all_leaves(main._split_root)
+        left_tc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+        pane_id = leaves[0].opened_files[py_file]
+
+        # Post edge zone message (target_pane_id=None, target_dtc_id defaults to None)
+        left_tc.post_message(
+            DraggableTabbedContent.TabMovedToOtherSplit(pane_id, None, False)
+        )
+        await pilot.pause()
+
+        # Split should be created
+        assert main._split_visible is True
+        assert py_file in main._opened_files["right"]
+
+        # Focus should be on the new (right) leaf
+        leaves = all_leaves(main._split_root)
+        dest_leaf = leaves[-1]
+        new_pane_id = dest_leaf.opened_files.get(py_file)
+        assert new_pane_id is not None
+
+        assert main._active_leaf_id == dest_leaf.leaf_id, (
+            "active leaf should be dest leaf after edge zone drag"
+        )
+        tc_dest = main.query_one(f"#{dest_leaf.leaf_id}", DraggableTabbedContent)
+        assert tc_dest.active == new_pane_id, (
+            "active tab in dest TC should be the moved tab"
         )

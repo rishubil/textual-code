@@ -294,6 +294,7 @@ class MainView(Static):
         if isinstance(self._split_root, LeafNode):
             return
 
+        any_removed = False
         changed = True
         while changed:
             changed = False
@@ -313,14 +314,19 @@ class MainView(Static):
                         nearest = min(idx, len(remaining) - 1)
                         self._active_leaf_id = remaining[nearest].leaf_id
 
+                    any_removed = True
                     changed = True
                     break  # restart iteration since tree changed
 
-        # Focus active editor
-        active_leaf = self._active_leaf
-        editor = self._get_active_code_editor_in_leaf(active_leaf)
-        if editor:
-            editor.editor.focus()
+        # Focus active editor only when a leaf was actually removed.
+        # Focusing unconditionally would interfere with callers that
+        # set tc.active after this method returns (the deferred focus
+        # event can cause the TC to revert the active pane).
+        if any_removed:
+            active_leaf = self._active_leaf
+            editor = self._get_active_code_editor_in_leaf(active_leaf)
+            if editor:
+                editor.editor.focus()
 
     async def _collapse_leaf_widget(
         self, removed_leaf: LeafNode, new_root: LeafNode | BranchNode
@@ -1089,11 +1095,15 @@ class MainView(Static):
     async def on_tabbed_content_tab_activated(
         self, event: TabbedContent.TabActivated
     ) -> None:
-        # Update active leaf based on which TabbedContent fired
+        # Update active leaf only when focus is within the TC that fired.
+        # This prevents programmatic tab activations (e.g. auto-activate
+        # after closing a tab in a non-focused TC) from stealing focus.
         if isinstance(event.control, DraggableTabbedContent) and event.control.id:
             leaf = find_leaf(self._split_root, event.control.id)
             if leaf is not None:
-                self._active_leaf_id = leaf.leaf_id
+                focused = self.app.focused
+                if focused is not None and event.control in focused.ancestors_with_self:
+                    self._active_leaf_id = leaf.leaf_id
         self._sync_footer_to_active_editor()
         editor = self.get_active_code_editor()
         if editor is not None and editor.path is not None:

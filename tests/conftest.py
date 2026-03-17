@@ -107,6 +107,28 @@ def make_app(
     )
 
 
+def assert_focus_on_leaf(app, main, dest_leaf, new_pane_id, context=""):
+    """Assert that focus is correctly on dest_leaf and the moved tab."""
+    from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+    from textual_code.widgets.split_tree import all_leaves
+
+    tree_info = f" (leaves={[lf.leaf_id for lf in all_leaves(main._split_root)]})"
+    msg = f"{context}{tree_info}"
+    assert main._active_leaf_id == dest_leaf.leaf_id, (
+        f"active_leaf_id mismatch: {main._active_leaf_id} != {dest_leaf.leaf_id}{msg}"
+    )
+    tc = main.query_one(f"#{dest_leaf.leaf_id}", DraggableTabbedContent)
+    assert tc.active == new_pane_id, (
+        f"tc.active mismatch: {tc.active} != {new_pane_id}{msg}"
+    )
+    focused = app.focused
+    assert focused is not None, f"No focused widget{msg}"
+    is_descendant = any(ancestor is tc for ancestor in focused.ancestors_with_self)
+    assert is_descendant, (
+        f"focused widget {focused!r} is not a descendant of dest TC {tc.id}{msg}"
+    )
+
+
 @pytest.fixture()
 def restore_bindings():
     """Restore class-level BINDINGS after tests that patch them."""

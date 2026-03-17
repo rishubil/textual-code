@@ -11,13 +11,15 @@ Covers:
 - Move tab to other split
 - Edge drag creates split
 - DescendantFocus updates active leaf
+- Focus correctness after tab moves
 """
 
 from pathlib import Path
 
 import pytest
 
-from tests.conftest import make_app
+from tests.conftest import assert_focus_on_leaf, make_app
+from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 from textual_code.widgets.split_tree import BranchNode, all_leaves
 
 # ── Fixtures ────────────────────────────────────────────────────────────────────
@@ -893,3 +895,182 @@ async def test_split_left_resize_handle_works(workspace: Path, py_file: Path):
         assert len(handles) >= 1
         # The handle should have child_index=0
         assert handles.first(SplitResizeHandle).child_index == 0
+
+
+# ── Group N — Focus After Tab Move ───────────────────────────────────────────
+
+
+async def test_move_tab_focuses_destination_pane(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """action_move_tab_to_other_split focuses the destination pane and moved tab."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Open second file so left isn't empty after move
+        await app.main_view.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
+        # Focus py_file tab
+        pane_id = app.main_view._opened_files["left"][py_file]
+        app.main_view.focus_pane(pane_id)
+        await pilot.pause()
+
+        await app.main_view.action_move_tab_to_other_split()
+        await pilot.pause()
+
+        # py_file should now be in right split
+        assert py_file in app.main_view._opened_files["right"]
+        leaves = all_leaves(app.main_view._split_root)
+        dest_leaf = leaves[-1]
+        new_pane_id = app.main_view._opened_files["right"][py_file]
+        assert_focus_on_leaf(app, app.main_view, dest_leaf, new_pane_id, "L→R move")
+
+
+async def test_move_tab_focuses_moved_tab_when_split_collapses(
+    workspace: Path, py_file: Path
+):
+    """Moving the last tab from one split collapses it; focus on the moved tab."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Split right: py_file in both
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        # Now move py_file from right to left (right has 1 tab, will collapse)
+        assert app.main_view._active_split == "right"
+        await app.main_view.action_move_tab_to_other_split()
+        await pilot.pause()
+
+        # Right split should have collapsed
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 1, f"Expected 1 leaf after collapse, got {len(leaves)}"
+
+        # Focus should be on the remaining leaf with the moved tab
+        sole_leaf = leaves[0]
+        # The moved tab's pane_id is for py_file
+        moved_pane_id = sole_leaf.opened_files.get(py_file)
+        assert moved_pane_id is not None
+
+        # active_leaf_id should be the sole leaf
+        assert app.main_view._active_leaf_id == sole_leaf.leaf_id
+        # tc.active should be the moved tab
+        tc = app.main_view.query_one(f"#{sole_leaf.leaf_id}", DraggableTabbedContent)
+        assert tc.active == moved_pane_id
+
+
+async def test_move_tab_directional_focuses_destination(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """action_move_tab_right focuses the destination split and moved tab."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Open second file so left isn't empty after move
+        await app.main_view.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
+        # Create right split
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        # Focus back to left, select py_file2
+        leaves = all_leaves(app.main_view._split_root)
+        left_leaf = leaves[0]
+        app.main_view._set_active_leaf(left_leaf)
+        await pilot.pause()
+        py_file2_pane = left_leaf.opened_files[py_file2]
+        tc_left = app.main_view.query_one(
+            f"#{left_leaf.leaf_id}", DraggableTabbedContent
+        )
+        tc_left.active = py_file2_pane
+        await pilot.pause()
+
+        # Move tab right
+        await app.main_view.action_move_tab_right()
+        await pilot.pause()
+
+        # Find dest leaf (right)
+        leaves = all_leaves(app.main_view._split_root)
+        dest_leaf = leaves[-1]
+        new_pane_id = dest_leaf.opened_files.get(py_file2)
+        assert new_pane_id is not None, "py_file2 should be in right leaf"
+        assert_focus_on_leaf(
+            app, app.main_view, dest_leaf, new_pane_id, "directional move right"
+        )
+
+
+async def test_move_tab_directional_noop_single_tab(workspace: Path, py_file: Path):
+    """Directional move with a single tab in a single leaf is a no-op."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        leaves_before = all_leaves(app.main_view._split_root)
+        assert len(leaves_before) == 1
+        active_leaf_before = app.main_view._active_leaf_id
+
+        # Attempt to move right (no-op: single tab, can't create split without
+        # keeping the source non-empty)
+        await app.main_view.action_move_tab_right()
+        await pilot.pause()
+
+        # Nothing should change
+        leaves_after = all_leaves(app.main_view._split_root)
+        assert len(leaves_after) == 1
+        assert app.main_view._active_leaf_id == active_leaf_before
+
+
+async def test_move_tab_duplicate_file_focuses_existing(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """When dest already has the same file, focus goes to existing pane."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        # Open second file so left isn't empty after move
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
+        # Focus py_file so split_right copies it to the right split
+        leaves = all_leaves(main._split_root)
+        left_leaf = leaves[0]
+        pane_id_pyfile = left_leaf.opened_files[py_file]
+        tc_left = main.query_one(f"#{left_leaf.leaf_id}", DraggableTabbedContent)
+        tc_left.active = pane_id_pyfile
+        await pilot.pause()
+
+        # Split right copies the active file (py_file) to right
+        await main.action_split_right()
+        await pilot.pause()
+
+        # py_file now in both splits
+        assert py_file in main._opened_files["right"]
+        assert py_file in main._opened_files["left"]
+
+        # Focus left, select py_file
+        leaves = all_leaves(main._split_root)
+        left_leaf = leaves[0]
+        main._set_active_leaf(left_leaf)
+        await pilot.pause()
+        left_pane_id = main._opened_files["left"][py_file]
+        tc_left = main.query_one(f"#{left_leaf.leaf_id}", DraggableTabbedContent)
+        tc_left.active = left_pane_id
+        await pilot.pause()
+
+        # Move py_file from left to right (duplicate)
+        await main.action_move_tab_to_other_split()
+        await pilot.pause()
+
+        # Focus should be on the right split's existing py_file pane
+        leaves = all_leaves(main._split_root)
+        dest_leaf = leaves[-1]
+        existing_pane_id = dest_leaf.opened_files.get(py_file)
+        assert existing_pane_id is not None
+
+        assert main._active_leaf_id == dest_leaf.leaf_id, (
+            "active leaf should be dest leaf after duplicate move"
+        )
