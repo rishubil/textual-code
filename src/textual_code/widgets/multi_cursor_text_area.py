@@ -95,6 +95,10 @@ class MultiCursorTextArea(TextArea):
         Binding("ctrl+a", "select_all", "Select all", show=False),
         Binding("tab", "indent_line", "Indent", show=False),
         Binding("shift+tab", "dedent_line", "Dedent", show=False),
+        Binding("alt+up", "move_line_up", "Move line up", show=False),
+        Binding("alt+down", "move_line_down", "Move line down", show=False),
+        Binding("ctrl+up", "scroll_viewport_up", "Scroll up", show=False),
+        Binding("ctrl+down", "scroll_viewport_down", "Scroll down", show=False),
     ]
 
     # ── inner message ─────────────────────────────────────────────────────────
@@ -252,6 +256,97 @@ class MultiCursorTextArea(TextArea):
         new_start = (start_row, adjust(start_row, start_col))
         new_end = (end_row, adjust(end_row, end_col) if end_col > 0 else 0)
         self.selection = Selection(start=new_start, end=new_end)
+
+    # ── move line up/down ────────────────────────────────────────────────────
+
+    @staticmethod
+    def _row_range(loc_a: tuple[int, int], loc_b: tuple[int, int]) -> tuple[int, int]:
+        """Return (top_row, bottom_row) for a cursor/anchor pair.
+
+        If the pair spans multiple rows and the bottom location is at column 0,
+        the bottom row is excluded (VS Code / indent-dedent convention).
+        """
+        top_loc, bot_loc = min(loc_a, loc_b), max(loc_a, loc_b)
+        top, bot = top_loc[0], bot_loc[0]
+        if bot > top and bot_loc[1] == 0:
+            bot -= 1
+        return (top, bot)
+
+    def _move_lines(self, direction: int) -> None:
+        """Move line(s) at all cursors up (direction=-1) or down (+1)."""
+        from textual.widgets.text_area import Selection
+
+        lines = self.text.split("\n")
+        num_lines = len(lines)
+
+        # Collect row ranges from primary + extra cursors
+        sel = self.selection
+        ranges = [self._row_range(sel.start, sel.end)]
+        for cursor, anchor in zip(
+            self._extra_cursors, self._extra_anchors, strict=True
+        ):
+            ranges.append(self._row_range(cursor, anchor))
+
+        # Sort and merge overlapping/adjacent ranges
+        ranges.sort()
+        merged: list[list[int]] = [list(ranges[0])]
+        for s, e in ranges[1:]:
+            if s <= merged[-1][1] + 1:
+                merged[-1][1] = max(merged[-1][1], e)
+            else:
+                merged.append([s, e])
+
+        # Boundary check: all blocks must be movable
+        if direction == 1:  # down
+            if any(e >= num_lines - 1 for _, e in merged):
+                return
+        else:  # up
+            if any(s <= 0 for s, _ in merged):
+                return
+
+        # Relocate adjacent lines
+        if direction == 1:
+            for s, e in reversed(merged):
+                line_below = lines.pop(e + 1)
+                lines.insert(s, line_below)
+        else:
+            for s, e in merged:
+                line_above = lines.pop(s - 1)
+                lines.insert(e, line_above)
+
+        self.replace("\n".join(lines), self.document.start, self.document.end)
+
+        # Shift primary selection
+        self.selection = Selection(
+            start=(sel.start[0] + direction, sel.start[1]),
+            end=(sel.end[0] + direction, sel.end[1]),
+        )
+
+        # Shift extra cursors and anchors
+        if self._extra_cursors:
+            self._extra_cursors = [(r + direction, c) for r, c in self._extra_cursors]
+            self._extra_anchors = [(r + direction, c) for r, c in self._extra_anchors]
+            self._recompute_selection_ranges()
+            self._line_cache.clear()
+            self.refresh()
+
+    def action_move_line_up(self) -> None:
+        """Move selected line(s) up by one row."""
+        self._move_lines(-1)
+
+    def action_move_line_down(self) -> None:
+        """Move selected line(s) down by one row."""
+        self._move_lines(1)
+
+    # ── scroll viewport ──────────────────────────────────────────────────────
+
+    def action_scroll_viewport_up(self) -> None:
+        """Scroll viewport one line up without moving cursor."""
+        self.scroll_up(animate=False)
+
+    def action_scroll_viewport_down(self) -> None:
+        """Scroll viewport one line down without moving cursor."""
+        self.scroll_down(animate=False)
 
     # ── rendering ─────────────────────────────────────────────────────────────
 

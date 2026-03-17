@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Move line up/down with Alt+Up/Alt+Down: moves the current line or selected lines up or down, supporting multi-line selections and multi-cursor; follows the VS Code convention of excluding the last row when a selection ends at column 0
+
+- Scroll viewport with Ctrl+Up/Ctrl+Down: scrolls the editor viewport by one line without moving the cursor position
+
 - Dim hidden files in Explorer: dotfiles and dotfolders can be visually dimmed via the `dim_hidden_files` setting (default: `false`) or the "Toggle dim hidden files" command in the command palette; uses a `directory-tree--hidden` component class; the setting is persisted to user config on toggle
 
 - Dim gitignored files in Explorer: files and directories matching `.gitignore` patterns are visually dimmed via the `dim_gitignored` setting (default: `true`) or the "Toggle dim gitignored files" command in the command palette; hidden files (dotfiles) are exempt from dimming; uses a `directory-tree--gitignored` component class for consistent styling across terminal modes; the setting is persisted to user config on toggle
