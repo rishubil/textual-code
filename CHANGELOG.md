@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - EditorConfig `trim_trailing_whitespace` and `insert_final_newline` compliance: these properties are now applied at save time (Ctrl+S or Save As). `trim_trailing_whitespace=true` strips trailing spaces/tabs from all lines; `insert_final_newline=true` ensures the file ends with a newline; `insert_final_newline=false` removes trailing newlines. The editor buffer is updated to reflect the saved content.
 
-- Clickable footer file path: clicking the file path label in the footer copies the absolute path to clipboard; shows an underline on hover to indicate clickability
+- Clickable footer file path: clicking the file path label in the footer copies the displayed path to clipboard (respects path display mode); shows an underline on hover to indicate clickability
+
+- Path display mode setting: toggle between absolute and relative path display in the footer via the `path_display_mode` setting (default: `absolute`) or the "Toggle path display mode" command in the command palette; clicking the footer path copies the currently displayed path; the setting is persisted to user config on toggle
 
 - Tab reorder commands: reorder the active tab within its tab group via the command palette ("Reorder tab left/right"); includes a defensive underline indicator update to prevent animation race conditions with command palette dismissal
 

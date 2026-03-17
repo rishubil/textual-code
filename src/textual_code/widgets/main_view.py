@@ -1211,7 +1211,7 @@ class MainView(Static):
     @on(events.Click, "CodeEditorFooter #path")
     def on_footer_path_click(self, event: events.Click) -> None:
         event.stop()
-        self.app.action_copy_absolute_path()
+        self.app.action_copy_displayed_path()
 
     @on(CodeEditor.TextChanged)
     def on_code_editor_text_changed(self, event: CodeEditor.TextChanged) -> None:

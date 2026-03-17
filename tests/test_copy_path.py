@@ -7,7 +7,7 @@ Covers:
 - Error cases: no file open, unsaved new file
 - Fallback: file outside workspace uses absolute path
 - Command palette entries
-- Click footer #path label to copy absolute path
+- Click footer #path label to copy displayed path (respects path_display_mode)
 """
 
 from pathlib import Path
@@ -114,13 +114,13 @@ async def test_d01_copy_path_commands_in_system_commands(workspace):
 
 
 # ---------------------------------------------------------------------------
-# Group E: click footer #path label to copy absolute path
+# Group E: click footer #path label to copy displayed path
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
 async def test_e01_click_path_copies_absolute_path(workspace, sample_py_file):
-    """Clicking the #path label in the footer copies the absolute path."""
+    """Click #path in default (absolute) mode copies absolute path."""
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -159,17 +159,31 @@ async def test_e03_click_path_unsaved_file_shows_error(workspace, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_e04_click_truncated_path_copies_full_path(workspace):
-    """Clicking a truncated path still copies the full absolute path."""
-    # Create a deeply nested file so the path exceeds the label width
-    deep_dir = workspace / "a" / "very" / "deeply" / "nested" / "directory"
-    deep_dir.mkdir(parents=True)
-    deep_file = deep_dir / "example_file.py"
-    deep_file.write_text("# deep\n")
-    app = make_app(workspace, open_file=deep_file)
+async def test_e04_click_relative_mode_copies_relative_path(workspace, sample_py_file):
+    """Clicking #path in relative mode copies the relative path."""
+    app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         await pilot.pause()
+        app.default_path_display_mode = "relative"
         await pilot.click("CodeEditorFooter #path")
         await pilot.pause()
-        assert app.clipboard == str(deep_file)
+        assert app.clipboard == "hello.py"
+
+
+@pytest.mark.asyncio
+async def test_e05_click_relative_mode_outside_workspace_fallback(workspace):
+    """Click #path in relative mode outside workspace falls back to absolute."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as other_dir:
+        outside_file = Path(other_dir) / "outside.py"
+        outside_file.write_text("# outside\n")
+        app = make_app(workspace, open_file=outside_file)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await pilot.pause()
+            app.default_path_display_mode = "relative"
+            await pilot.click("CodeEditorFooter #path")
+            await pilot.pause()
+            assert app.clipboard == str(outside_file)

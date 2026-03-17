@@ -261,6 +261,10 @@ class TextualCode(App):
         self.default_show_hidden_files: bool = bool(
             settings.get("show_hidden_files", True)
         )
+        mode = str(settings.get("path_display_mode", "absolute"))
+        self.default_path_display_mode: str = (
+            mode if mode in ("absolute", "relative") else "absolute"
+        )
         self.theme = self.default_ui_theme
 
         # load and apply custom keybindings
@@ -278,6 +282,10 @@ class TextualCode(App):
 
     @on(Ready)
     async def on_ready(self, event: Ready):
+        from textual_code.widgets.code_editor import CodeEditorFooter
+
+        footer = self.main_view.query_one(CodeEditorFooter)
+        footer.path_display_mode = self.default_path_display_mode
         # open the file in the code editor if provided as with_open_file
         if self.with_open_file is not None:
             await self.main_view.action_open_code_editor(
@@ -564,6 +572,11 @@ class TextualCode(App):
             "Show or hide hidden files in the explorer",
             self._toggle_hidden_files_cmd,
         )
+        yield SystemCommand(
+            "Toggle path display mode",
+            "Switch between absolute and relative path in footer",
+            self._toggle_path_display_mode_cmd,
+        )
 
     def action_find_in_workspace(self) -> None:
         """Open workspace search panel (Ctrl+Shift+F)."""
@@ -625,6 +638,7 @@ class TextualCode(App):
             "ui_theme": self.default_ui_theme,
             "warn_line_ending": self.default_warn_line_ending,
             "show_hidden_files": self.default_show_hidden_files,
+            "path_display_mode": self.default_path_display_mode,
         }
 
     def action_set_default_indentation(self) -> None:
@@ -790,6 +804,19 @@ class TextualCode(App):
         state = "visible" if self.default_show_hidden_files else "hidden"
         self.notify(f"Hidden files: {state}")
 
+    def _toggle_path_display_mode_cmd(self) -> None:
+        """Toggle between absolute and relative path display in footer."""
+        from textual_code.widgets.code_editor import CodeEditorFooter
+
+        self.default_path_display_mode = (
+            "relative" if self.default_path_display_mode == "absolute" else "absolute"
+        )
+        footer = self.main_view.query_one(CodeEditorFooter)
+        footer.path_display_mode = self.default_path_display_mode
+        settings = self._build_editor_settings()
+        save_user_editor_settings(settings, self._user_config_path)
+        self.notify(f"Path display: {self.default_path_display_mode}")
+
     @property
     def _resolved_user_config_path(self) -> Path:
         """Return the effective user config path (custom or platform default)."""
@@ -817,6 +844,22 @@ class TextualCode(App):
             return
         self.copy_to_clipboard(str(code_editor.path))
         self.notify(f"Copied: {code_editor.path}")
+
+    def action_copy_displayed_path(self) -> None:
+        """Copy the currently displayed path (respects path_display_mode)."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is None or code_editor.path is None:
+            self.notify("No saved file open.", severity="error")
+            return
+        if self.default_path_display_mode == "relative":
+            try:
+                displayed = code_editor.path.relative_to(self.workspace_path).as_posix()
+            except ValueError:
+                displayed = str(code_editor.path)
+        else:
+            displayed = str(code_editor.path)
+        self.copy_to_clipboard(displayed)
+        self.notify(f"Copied: {displayed}")
 
     def action_open_user_settings(self) -> None:
         """Open user settings file in the editor."""

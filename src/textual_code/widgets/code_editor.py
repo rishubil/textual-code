@@ -480,9 +480,22 @@ class _PathLabel(Label):
 
     _raw: str = ""
 
-    def show(self, path: "Path | None") -> None:
+    def show(
+        self,
+        path: "Path | None",
+        workspace_path: "Path | None" = None,
+        mode: str = "absolute",
+    ) -> None:
         """Set the path and immediately render (uses current region if available)."""
-        self._raw = str(path) if path else ""
+        if path is None:
+            self._raw = ""
+        elif mode == "relative" and workspace_path is not None:
+            try:
+                self._raw = path.relative_to(workspace_path).as_posix()
+            except ValueError:
+                self._raw = str(path)
+        else:
+            self._raw = str(path)
         self._truncate()
 
     def _truncate(self) -> None:
@@ -544,6 +557,8 @@ class CodeEditorFooter(Static):
     indent_type: reactive[str] = reactive("spaces", init=False)
     # the indentation size (2, 4, or 8)
     indent_size: reactive[int] = reactive(4, init=False)
+    # path display mode ("absolute" or "relative")
+    path_display_mode: reactive[str] = reactive("absolute", init=False)
 
     def __init__(
         self,
@@ -566,7 +581,10 @@ class CodeEditorFooter(Static):
         self.set_reactive(CodeEditorFooter.indent_size, indent_size)
 
     def reset(self) -> None:
-        """Reset footer to empty/default state (no active editor)."""
+        """Reset footer to empty/default state (no active editor).
+
+        path_display_mode intentionally excluded — global setting, not per-editor state.
+        """
         self.path = None
         self.language = None
         self.cursor_location = (0, 0)
@@ -607,8 +625,15 @@ class CodeEditorFooter(Static):
             id="language",
         )
 
+    def _refresh_path_display(self) -> None:
+        ws = getattr(self.app, "workspace_path", None)
+        self.path_view.show(self.path, ws, self.path_display_mode)
+
     def watch_path(self, path: Path | None) -> None:
-        self.path_view.show(path)
+        self._refresh_path_display()
+
+    def watch_path_display_mode(self, mode: str) -> None:
+        self._refresh_path_display()
 
     def watch_language(self, language: str | None) -> None:
         self.language_button.label = language or "plain"

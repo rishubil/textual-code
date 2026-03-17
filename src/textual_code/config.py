@@ -14,6 +14,7 @@ EDITOR_KEYS = {
     "ui_theme",
     "warn_line_ending",
     "show_hidden_files",
+    "path_display_mode",
 }
 
 DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
@@ -26,6 +27,7 @@ DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "ui_theme": "textual-dark",
     "warn_line_ending": True,
     "show_hidden_files": True,
+    "path_display_mode": "absolute",
 }
 
 
