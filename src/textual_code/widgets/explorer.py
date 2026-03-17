@@ -135,27 +135,25 @@ class FilteredDirectoryTree(DirectoryTree):
         return super().reload()
 
     def render_label(self, node: TreeNode, base_style: Style, style: Style) -> Text:
-        """Override to fix dotfile italic and dim gitignored files.
+        """Override to strip extension italic and dim gitignored/hidden files.
 
-        Fixes two issues with the base DirectoryTree render_label:
-        1. Dotfiles (e.g. .gitignore) get italic from the extension regex
-           r\"\\..+$\" matching the entire name — neutralized with italic=False.
-        2. Gitignored files are dimmed using the same component-class mechanism
-           as hidden files for consistent appearance across terminal modes.
-           Italic is also stripped so dimmed files look uniformly dim.
+        The base DirectoryTree.render_label applies italic to file extensions
+        via highlight_regex(r\"\\..+$\") with the directory-tree--extension
+        component class.  This override strips italic unconditionally so no
+        filename or directory name is rendered in italic.
+
+        Gitignored files are dimmed using the same component-class mechanism
+        as hidden files for consistent appearance across terminal modes.
         """
         text = super().render_label(node, base_style, style)
         if node.data is not None:
             is_dotfile = node.data.path.name.startswith(".")
-            # Fix: the base class extension regex r"\..+$" matches entire
-            # dotfile names (e.g. ".gitignore"), applying unwanted italic.
-            if is_dotfile:
-                text.stylize(_NO_ITALIC)
+            # Strip italic from ALL nodes — the base class extension regex
+            # r"\..+$" applies unwanted italic to any name containing a dot.
+            text.stylize(_NO_ITALIC)
             # Apply gitignored dim via component class for consistency with
             # the hidden-file styling (both use CSS text-style: dim).
-            # Also strip italic so dimmed files appear uniformly dim.
             if not is_dotfile and self._is_gitignored(node.data.path):
-                text.stylize(_NO_ITALIC)
                 text.stylize_before(
                     self.get_component_rich_style(
                         "directory-tree--gitignored", partial=True

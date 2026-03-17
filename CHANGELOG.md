@@ -15,13 +15,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sidebar is now optional via `skip_sidebar` constructor parameter (used by test infrastructure for lighter app mounts)
 - Test suite optimized: lightweight app mode (`light=True`), direct Input value assignment, and redundant pause removal reduce overall test execution time by ~32%
 
+### Fixed
+
+- Explorer italic rendering: all filenames (not just dotfiles) had their extension portion rendered in italic due to the upstream DirectoryTree regex; italic is now stripped unconditionally for all file and directory nodes
+
 ### Added
 
 - Dim hidden files in Explorer: dotfiles and dotfolders can be visually dimmed via the `dim_hidden_files` setting (default: `false`) or the "Toggle dim hidden files" command in the command palette; uses a `directory-tree--hidden` component class; the setting is persisted to user config on toggle
 
 - Dim gitignored files in Explorer: files and directories matching `.gitignore` patterns are visually dimmed via the `dim_gitignored` setting (default: `true`) or the "Toggle dim gitignored files" command in the command palette; hidden files (dotfiles) are exempt from dimming; uses a `directory-tree--gitignored` component class for consistent styling across terminal modes; the setting is persisted to user config on toggle
-
-- Fix dotfile italic rendering in Explorer: dotfiles (e.g. `.gitignore`) were incorrectly rendered with italic text because the base DirectoryTree extension regex matched the entire filename; this is now neutralized; gitignored files also have italic stripped for uniform dim appearance
 
 - Toggle hidden files in Explorer: dotfiles and dotfolders can be shown or hidden via the `show_hidden_files` setting (default: `true`) or the "Toggle hidden files" command in the command palette; the setting is persisted to user config on toggle
 
