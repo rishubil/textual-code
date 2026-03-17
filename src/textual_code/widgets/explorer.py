@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -6,6 +7,19 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.message import Message
 from textual.widgets import DirectoryTree, Static
+
+
+class FilteredDirectoryTree(DirectoryTree):
+    """DirectoryTree subclass that can hide dotfiles."""
+
+    def __init__(self, path: str | Path, *, show_hidden_files: bool = True, **kwargs):
+        super().__init__(path, **kwargs)
+        self.show_hidden_files = show_hidden_files
+
+    def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
+        if self.show_hidden_files:
+            return paths
+        return [p for p in paths if not p.name.startswith(".")]
 
 
 class Explorer(Static):
@@ -51,11 +65,14 @@ class Explorer(Static):
 
     _MAX_SELECT_RETRIES = 10
 
-    def __init__(self, workspace_path: Path, *args, **kwargs) -> None:
+    def __init__(
+        self, workspace_path: Path, *args, show_hidden_files: bool = True, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
 
         # the path to open in the explorer
         self.workspace_path = workspace_path
+        self._show_hidden_files = show_hidden_files
         self._pending_path: Path | None = None
         self._pending_retries: int = 0
 
@@ -144,7 +161,9 @@ class Explorer(Static):
         self.call_after_refresh(self._retry_pending)
 
     def compose(self) -> ComposeResult:
-        directory_tree = DirectoryTree(self.workspace_path)
+        directory_tree = FilteredDirectoryTree(
+            self.workspace_path, show_hidden_files=self._show_hidden_files
+        )
         directory_tree.show_root = False  # don't show the root directory
         yield directory_tree
 
@@ -188,5 +207,5 @@ class Explorer(Static):
         )
 
     @property
-    def directory_tree(self) -> DirectoryTree:
-        return self.query_one(DirectoryTree)
+    def directory_tree(self) -> FilteredDirectoryTree:
+        return self.query_one(FilteredDirectoryTree)

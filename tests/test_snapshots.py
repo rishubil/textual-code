@@ -833,3 +833,17 @@ def test_snapshot_narrow_sidebar_icon_only(snap_compare, snapshot_workspace: Pat
         await pilot.pause()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
+
+
+# ── Hidden files toggle ──────────────────────────────────────────────────────
+
+
+def test_snapshot_explorer_hidden_files_visible(snap_compare, snapshot_workspace: Path):
+    """Explorer showing hidden files (default behavior)."""
+    (snapshot_workspace / "hello.py").write_text("print('hello')\n")
+    (snapshot_workspace / ".hidden_file").write_text("secret\n")
+    (snapshot_workspace / ".hidden_dir").mkdir()
+    config = snapshot_workspace / "settings.toml"
+    app = make_app(snapshot_workspace, user_config_path=config)
+
+    assert snap_compare(app, terminal_size=TERMINAL_SIZE)

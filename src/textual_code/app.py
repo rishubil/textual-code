@@ -258,6 +258,9 @@ class TextualCode(App):
         self.default_warn_line_ending: bool = bool(
             settings.get("warn_line_ending", True)
         )
+        self.default_show_hidden_files: bool = bool(
+            settings.get("show_hidden_files", True)
+        )
         self.theme = self.default_ui_theme
 
         # load and apply custom keybindings
@@ -266,7 +269,10 @@ class TextualCode(App):
         _apply_custom_keybindings(self._custom_keybindings)
 
     def compose(self) -> ComposeResult:
-        yield Sidebar(workspace_path=self.workspace_path)
+        yield Sidebar(
+            workspace_path=self.workspace_path,
+            show_hidden_files=self.default_show_hidden_files,
+        )
         yield MainView()
         yield Footer()
 
@@ -553,6 +559,11 @@ class TextualCode(App):
             "Select the UI theme",
             self.action_set_ui_theme,
         )
+        yield SystemCommand(
+            "Toggle hidden files",
+            "Show or hide hidden files in the explorer",
+            self._toggle_hidden_files_cmd,
+        )
 
     def action_find_in_workspace(self) -> None:
         """Open workspace search panel (Ctrl+Shift+F)."""
@@ -613,6 +624,7 @@ class TextualCode(App):
             "word_wrap": self.default_word_wrap,
             "ui_theme": self.default_ui_theme,
             "warn_line_ending": self.default_warn_line_ending,
+            "show_hidden_files": self.default_show_hidden_files,
         }
 
     def action_set_default_indentation(self) -> None:
@@ -766,6 +778,17 @@ class TextualCode(App):
                 do_change,
             )
         )
+
+    def _toggle_hidden_files_cmd(self) -> None:
+        """Toggle hidden files visibility in the explorer and save to config."""
+        self.default_show_hidden_files = not self.default_show_hidden_files
+        tree = self.sidebar.explorer.directory_tree
+        tree.show_hidden_files = self.default_show_hidden_files
+        tree.reload()
+        settings = self._build_editor_settings()
+        save_user_editor_settings(settings, self._user_config_path)
+        state = "visible" if self.default_show_hidden_files else "hidden"
+        self.notify(f"Hidden files: {state}")
 
     @property
     def _resolved_user_config_path(self) -> Path:

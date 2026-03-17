@@ -13,6 +13,7 @@ EDITOR_KEYS = {
     "word_wrap",
     "ui_theme",
     "warn_line_ending",
+    "show_hidden_files",
 }
 
 DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
@@ -24,6 +25,7 @@ DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "word_wrap": True,
     "ui_theme": "textual-dark",
     "warn_line_ending": True,
+    "show_hidden_files": True,
 }
 
 

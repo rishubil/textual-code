@@ -59,9 +59,12 @@ class Sidebar(Static):
     Sidebar widget for the Textual Code application.
     """
 
-    def __init__(self, workspace_path: Path, *args, **kwargs) -> None:
+    def __init__(
+        self, workspace_path: Path, *args, show_hidden_files: bool = True, **kwargs
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.workspace_path = workspace_path
+        self._show_hidden_files = show_hidden_files
         self._compact_tabs: bool | None = None
         self._compact_buttons: bool | None = None
 
@@ -71,7 +74,10 @@ class Sidebar(Static):
             for pane_id, (full, _icon) in _TAB_LABELS.items():
                 with TabPane(full, id=pane_id):
                     if pane_id == "explorer_pane":
-                        yield Explorer(workspace_path=self.workspace_path)
+                        yield Explorer(
+                            workspace_path=self.workspace_path,
+                            show_hidden_files=self._show_hidden_files,
+                        )
                     else:
                         yield WorkspaceSearchPane(id="workspace_search")
 
