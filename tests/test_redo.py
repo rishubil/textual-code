@@ -12,7 +12,7 @@ from tests.conftest import make_app
 
 async def test_redo_restores_text(workspace: Path, sample_py_file: Path):
     """T-01: Type text, undo with ctrl+z, redo with ctrl+shift+z restores text."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -43,7 +43,7 @@ async def test_redo_no_error_when_nothing_to_redo(
     workspace: Path, sample_py_file: Path
 ):
     """T-02: ctrl+shift+z with nothing to redo does not raise an error."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()

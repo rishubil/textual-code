@@ -38,7 +38,7 @@ def py_file3(workspace: Path) -> Path:
 
 async def test_three_way_horizontal_split(workspace, py_file, py_file2, py_file3):
     """Splitting twice horizontally creates 3 leaves."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
         await pilot.pause()
 
@@ -68,7 +68,7 @@ async def test_close_middle_split_collapses_correctly(
     workspace, py_file, py_file2, py_file3
 ):
     """Closing the middle split in a 3-way split preserves the outer two."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
         await pilot.pause()
 
@@ -90,7 +90,6 @@ async def test_close_middle_split_collapses_correctly(
         app.main_view._active_leaf_id = middle_leaf.leaf_id
         await app.main_view.action_close_split()
         await pilot.pause()
-        await pilot.pause()
 
         leaves_after = all_leaves(app.main_view._split_root)
         assert len(leaves_after) == 2
@@ -101,7 +100,7 @@ async def test_close_middle_split_collapses_correctly(
 
 async def test_focus_next_split(workspace, py_file):
     """action_focus_next_split moves to the next leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -119,7 +118,7 @@ async def test_focus_next_split(workspace, py_file):
 
 async def test_focus_prev_split(workspace, py_file):
     """action_focus_prev_split moves to the previous leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -137,7 +136,7 @@ async def test_focus_prev_split(workspace, py_file):
 
 async def test_focus_cycle_three_splits(workspace, py_file, py_file2, py_file3):
     """Focus cycles through 3 splits correctly."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
         await pilot.pause()
 
@@ -176,7 +175,7 @@ async def test_focus_cycle_three_splits(workspace, py_file, py_file2, py_file3):
 
 async def test_split_down_creates_vertical_split(workspace, py_file):
     """action_split_down creates a vertical split."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_down()
@@ -200,7 +199,7 @@ async def test_close_tab_in_3way_split_no_crash(workspace, py_file, py_file2, py
     when querying the active leaf's widget after collapsing an empty leaf.
     Uses action_close_code_editor (the actual crash path via CodeEditor.Closed).
     """
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
         await pilot.pause()
 
@@ -234,7 +233,7 @@ async def test_close_tab_nested_split_no_crash(workspace, py_file, py_file2):
     Reproduces the exact scenario from the user's traceback: vertical split
     with a horizontal sub-split, closing a tab in the sub-split collapses it.
     """
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
 
@@ -270,7 +269,7 @@ async def test_close_tab_nested_split_no_crash(workspace, py_file, py_file2):
 
 async def test_clicking_split_changes_active_leaf(workspace, py_file, py_file2):
     """Clicking in a split panel changes the active leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -299,7 +298,7 @@ async def test_split_down_then_right_has_nonzero_width(workspace, py_file):
     Reproduces a bug where the right split created after a down split has
     zero width, making it invisible.
     """
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
 
@@ -326,7 +325,7 @@ async def test_split_down_then_right_has_nonzero_width(workspace, py_file):
 
 async def test_split_right_focuses_new_leaf(workspace, py_file):
     """After split_right, _active_leaf_id and DOM focus should be on the new leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
 
@@ -349,7 +348,7 @@ async def test_split_right_focuses_new_leaf(workspace, py_file):
 
 async def test_split_right_then_split_down_splits_new_leaf(workspace, py_file):
     """split_right → split_down should split the RIGHT leaf (not the left)."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
 
@@ -380,7 +379,7 @@ async def test_split_right_then_split_down_splits_new_leaf(workspace, py_file):
 
 async def test_close_first_leaf_collapses_to_single(workspace, py_file):
     """2-way split: closing the first (left) leaf should collapse to 1 leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
 
@@ -407,7 +406,7 @@ async def test_close_first_leaf_collapses_to_single(workspace, py_file):
 
 async def test_close_middle_leaf_in_3way(workspace, py_file, py_file2, py_file3):
     """3-way split: closing middle leaf keeps 2 leaves."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
         await pilot.pause()
 
@@ -440,7 +439,7 @@ async def test_close_middle_leaf_in_3way(workspace, py_file, py_file2, py_file3)
 
 async def test_close_empty_first_leaf_picks_nearest_active(workspace, py_file):
     """When the active first leaf is closed, active moves to the nearest leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
 

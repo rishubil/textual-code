@@ -99,11 +99,13 @@ def make_app(
     workspace: Path,
     open_file: Path | None = None,
     user_config_path: Path | None = None,
+    light: bool = False,
 ) -> TextualCode:
     return TextualCode(
         workspace_path=workspace,
         with_open_file=open_file,
         user_config_path=user_config_path,
+        skip_sidebar=light,
     )
 
 

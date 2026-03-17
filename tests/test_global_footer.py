@@ -16,7 +16,7 @@ from textual_code.widgets.code_editor import CodeEditorFooter
 
 async def test_single_footer_in_app(workspace: Path, sample_py_file: Path):
     """G-01: app.query(CodeEditorFooter) returns exactly one widget."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         footers = app.query(CodeEditorFooter)
@@ -30,7 +30,7 @@ async def test_footer_parent_is_main_view(workspace: Path, sample_py_file: Path)
     """G-02: the global footer's parent is MainView."""
     from textual_code.widgets.main_view import MainView
 
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         footer = app.query_one(CodeEditorFooter)
@@ -44,7 +44,7 @@ async def test_one_footer_with_two_open_files(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
     """G-03: two open tabs still yield only one CodeEditorFooter."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(sample_json_file)
@@ -57,7 +57,7 @@ async def test_one_footer_with_two_open_files(
 
 async def test_footer_shows_active_editor_path(workspace: Path, sample_py_file: Path):
     """G-04: global footer path label contains the active file's path."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(240, 40)) as pilot:
         await pilot.pause()
         footer = app.query_one(CodeEditorFooter)
@@ -71,7 +71,7 @@ async def test_footer_updates_on_tab_switch(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
     """G-05: switching tab updates global footer to new active editor's path."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(240, 40)) as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(sample_json_file)
@@ -92,7 +92,7 @@ async def test_footer_updates_on_tab_switch(
 
 async def test_footer_updates_on_cursor_move(workspace: Path, multiline_file: Path):
     """G-06: moving cursor updates the footer's cursor button."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -110,7 +110,7 @@ async def test_footer_cursor_btn_click_opens_goto_modal(
     workspace: Path, sample_py_file: Path
 ):
     """G-07: clicking the global footer's #cursor_btn opens GotoLineModalScreen."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await pilot.click("CodeEditorFooter #cursor_btn")
@@ -125,7 +125,7 @@ async def test_footer_updates_on_split_switch(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
     """G-08: switching focus to the right split shows right editor's path."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(240, 40)) as pilot:
         await pilot.pause()
         # Create a split and open the json file in the new split
@@ -143,7 +143,7 @@ async def test_footer_updates_on_split_switch(
 
 async def test_footer_shows_cursor_count(workspace: Path, multiline_file: Path):
     """G-09: add_cursor() causes the footer to show '[2]'."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -161,7 +161,7 @@ async def test_footer_resets_when_last_editor_closed(
     workspace: Path, sample_py_file: Path
 ):
     """G-10: after the last editor is closed the footer shows empty path and 'plain'."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await pilot.press("ctrl+w")
@@ -183,7 +183,7 @@ async def test_footer_buttons_auto_size_to_content(
       (1 button-internal pad + 1 CSS pad on each side).
     Fails with fixed-column layout (line_ending col=8 even when label='LF'=6).
     """
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
         footer = app.query_one(CodeEditorFooter)
@@ -203,17 +203,15 @@ async def test_footer_path_widens_when_button_label_shortens(
     workspace: Path, sample_py_file: Path
 ):
     """G-12: switching line_ending CRLF→LF frees 2 cells; path column absorbs them."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
         footer = app.query_one(CodeEditorFooter)
         footer.line_ending = "crlf"
         await pilot.pause()
-        await pilot.pause()
         path_crlf = footer.path_view.region.width
 
         footer.line_ending = "lf"
-        await pilot.pause()
         await pilot.pause()
         path_lf = footer.path_view.region.width
 
@@ -228,7 +226,7 @@ async def test_footer_path_shrinks_first_on_narrow_screen(
     workspace: Path, sample_py_file: Path
 ):
     """G-13: on a narrow screen buttons maintain content width; path absorbs surplus."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(70, 40)) as pilot:
         await pilot.pause()
         footer = app.query_one(CodeEditorFooter)
@@ -246,7 +244,7 @@ async def test_footer_path_ellipsis_on_very_long_path(workspace: Path, tmp_path:
     """G-14: when path is too long to display fully, '...' + end of path is shown."""
     long_file = tmp_path / ("a" * 200 + ".py")
     long_file.touch()
-    app = make_app(workspace, open_file=long_file)
+    app = make_app(workspace, open_file=long_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
         footer = app.query_one(CodeEditorFooter)
@@ -264,7 +262,7 @@ async def test_footer_path_ellipsis_has_dim_style(workspace: Path, tmp_path: Pat
 
     long_file = tmp_path / ("a" * 200 + ".py")
     long_file.touch()
-    app = make_app(workspace, open_file=long_file)
+    app = make_app(workspace, open_file=long_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
         footer = app.query_one(CodeEditorFooter)
@@ -281,7 +279,7 @@ async def test_footer_path_ellipsis_has_dim_style(workspace: Path, tmp_path: Pat
 
 async def test_footer_cursor_btn_capped_width(workspace: Path, multiline_file: Path):
     """G-15: cursor_btn never exceeds max-width=28 even with many cursors."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()

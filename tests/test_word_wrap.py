@@ -73,7 +73,7 @@ async def test_c01_code_editor_word_wrap_reactive_exists(workspace):
 
 @pytest.mark.asyncio
 async def test_c02_new_file_uses_default_word_wrap_true(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     app.default_word_wrap = True
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -86,7 +86,7 @@ async def test_c02_new_file_uses_default_word_wrap_true(workspace):
 
 @pytest.mark.asyncio
 async def test_c03_word_wrap_true_sets_soft_wrap(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor()
@@ -108,7 +108,7 @@ async def test_c03_word_wrap_true_sets_soft_wrap(workspace):
 
 @pytest.mark.asyncio
 async def test_d01_action_toggle_word_wrap_exists(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor()
@@ -121,7 +121,7 @@ async def test_d01_action_toggle_word_wrap_exists(workspace):
 
 @pytest.mark.asyncio
 async def test_d02_toggle_word_wrap_false_to_true_to_false(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor()
@@ -139,7 +139,7 @@ async def test_d02_toggle_word_wrap_false_to_true_to_false(workspace):
 
 @pytest.mark.asyncio
 async def test_d03_command_palette_has_toggle_word_wrap(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
@@ -157,7 +157,7 @@ async def test_c04_existing_file_default_word_wrap_applied(workspace):
     """Existing file with default_word_wrap=True: editor.editor.soft_wrap is True."""
     f = workspace / "test.py"
     f.write_text("hello\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     app.default_word_wrap = True
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -169,7 +169,7 @@ async def test_c04_existing_file_default_word_wrap_applied(workspace):
 @pytest.mark.asyncio
 async def test_c05_on_mount_applies_word_wrap_false(workspace):
     """New file with default_word_wrap=False → editor.editor.soft_wrap is False."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     app.default_word_wrap = False
     async with app.run_test() as pilot:
         await pilot.pause()

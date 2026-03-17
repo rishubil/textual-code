@@ -22,7 +22,7 @@ from textual_code.modals import (
 
 async def test_file_mtime_set_on_open(workspace: Path, sample_py_file: Path):
     """T-01: _file_mtime is set when a file is opened."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -33,7 +33,7 @@ async def test_file_mtime_set_on_open(workspace: Path, sample_py_file: Path):
 
 async def test_file_mtime_updated_after_save(workspace: Path, sample_py_file: Path):
     """T-02: _file_mtime is updated after saving."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -50,7 +50,7 @@ async def test_file_mtime_updated_after_save(workspace: Path, sample_py_file: Pa
 
 async def test_file_mtime_none_for_untitled(workspace: Path):
     """T-03: _file_mtime is None for untitled (no path) editors."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
         await pilot.pause()
@@ -64,7 +64,7 @@ async def test_file_mtime_none_for_untitled(workspace: Path):
 
 async def test_reload_file_updates_editor_text(workspace: Path, sample_py_file: Path):
     """T-04: _reload_file() loads the latest content from disk."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -81,7 +81,7 @@ async def test_reload_file_updates_editor_text(workspace: Path, sample_py_file: 
 
 async def test_reload_file_clears_unsaved_state(workspace: Path, sample_py_file: Path):
     """T-05: After _reload_file(), text == initial_text (no unsaved changes)."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -99,7 +99,7 @@ async def test_reload_file_clears_unsaved_state(workspace: Path, sample_py_file:
 
 async def test_reload_file_updates_mtime(workspace: Path, sample_py_file: Path):
     """T-06: _reload_file() updates _file_mtime to the latest mtime."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -123,7 +123,7 @@ async def test_auto_reload_when_no_unsaved_changes(
     workspace: Path, sample_py_file: Path
 ):
     """T-07: When file changes externally and no unsaved changes, auto-reload occurs."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -144,7 +144,7 @@ async def test_no_auto_reload_when_unsaved_changes_exist(
     workspace: Path, sample_py_file: Path
 ):
     """T-08: When file changes externally and unsaved changes exist, only notify."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -170,7 +170,7 @@ async def test_poll_does_nothing_without_mtime_change(
     workspace: Path, sample_py_file: Path
 ):
     """T-09: _poll_file_change() does nothing if mtime hasn't changed."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -191,7 +191,7 @@ async def test_action_reload_file_no_unsaved_reloads_directly(
     workspace: Path, sample_py_file: Path
 ):
     """T-10: action_reload_file() with no unsaved changes reloads without modal."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -212,7 +212,7 @@ async def test_action_reload_file_with_unsaved_shows_modal(
     workspace: Path, sample_py_file: Path
 ):
     """T-11: action_reload_file() with unsaved changes shows DiscardAndReloadModal."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -229,14 +229,13 @@ async def test_action_reload_file_with_unsaved_shows_modal(
         # Confirm reload
         await pilot.click("#reload")
         await pilot.pause()
-        await pilot.pause()
 
         assert editor.text == "print('hello')\n"
 
 
 async def test_action_reload_file_no_path_shows_error(workspace: Path):
     """T-12: action_reload_file() with no path shows error notification."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
         await pilot.pause()
@@ -258,7 +257,7 @@ async def test_save_no_external_change_saves_directly(
     workspace: Path, sample_py_file: Path
 ):
     """T-13: action_save() with no external change saves without modal."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -277,7 +276,7 @@ async def test_save_external_change_shows_overwrite_modal(
     workspace: Path, sample_py_file: Path
 ):
     """T-14: action_save() when external change exists shows OverwriteConfirmModal."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -299,7 +298,7 @@ async def test_save_overwrite_confirmed_writes_file(
     workspace: Path, sample_py_file: Path
 ):
     """T-15: Confirming overwrite in the modal saves the editor content to disk."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -323,7 +322,7 @@ async def test_save_overwrite_cancelled_does_not_write(
     workspace: Path, sample_py_file: Path
 ):
     """T-16: Cancelling the overwrite modal does NOT write to disk."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -349,7 +348,7 @@ async def test_save_overwrite_cancelled_does_not_write(
 
 async def test_reload_preserves_cursor_position(workspace: Path, multiline_file: Path):
     """F-01: _reload_file() restores cursor position when file content unchanged."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -370,7 +369,7 @@ async def test_reload_clamps_cursor_row_when_file_shrinks(
     workspace: Path, multiline_file: Path
 ):
     """F-02: _reload_file() clamps cursor row when file shrinks."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -395,7 +394,7 @@ async def test_reload_clamps_cursor_col_when_line_shrinks(
     workspace: Path, sample_py_file: Path
 ):
     """F-03: _reload_file() clamps cursor col when line becomes shorter."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -418,7 +417,7 @@ async def test_auto_reload_preserves_cursor_position(
     workspace: Path, multiline_file: Path
 ):
     """F-04: _poll_file_change() auto-reload also preserves cursor position."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -443,7 +442,7 @@ async def test_auto_reload_preserves_cursor_position(
 
 async def test_toast_shown_once_on_first_poll(workspace: Path, sample_py_file: Path):
     """G-01: External change + unsaved → first poll sets notification reference."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -466,7 +465,7 @@ async def test_toast_not_repeated_on_subsequent_polls(
     workspace: Path, sample_py_file: Path
 ):
     """G-02: External change + unsaved → poll 3 times → same notification reference."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -493,7 +492,7 @@ async def test_toast_not_repeated_on_subsequent_polls(
 
 async def test_notification_cleared_after_reload(workspace: Path, sample_py_file: Path):
     """G-03: After reload, notification is None and removed from app._notifications."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -527,7 +526,7 @@ async def test_notification_cleared_after_reload(workspace: Path, sample_py_file
 
 async def test_notification_cleared_after_save(workspace: Path, sample_py_file: Path):
     """G-04: After save, notification is None and removed from app._notifications."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -554,7 +553,7 @@ async def test_new_notification_after_reload_then_change(
     workspace: Path, sample_py_file: Path
 ):
     """G-05: After reload clears notification, new external change shows new one."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -591,7 +590,7 @@ async def test_new_notification_after_save_then_change(
     workspace: Path, sample_py_file: Path
 ):
     """G-06: After save clears notification, new external change shows new one."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()

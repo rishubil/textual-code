@@ -125,7 +125,7 @@ def test_f1_binding_in_textualcode_bindings():
 
 @pytest.mark.asyncio
 async def test_command_palette_has_show_shortcuts(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
@@ -142,7 +142,7 @@ async def test_command_palette_has_show_shortcuts(workspace):
 async def test_show_shortcuts_screen_has_datatable(workspace):
     from textual.widgets import DataTable
 
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.action_show_shortcuts()
@@ -156,7 +156,7 @@ async def test_show_shortcuts_screen_has_datatable(workspace):
 async def test_show_shortcuts_screen_rows_include_save(workspace):
     from textual.widgets import DataTable
 
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.action_show_shortcuts()
@@ -188,7 +188,7 @@ def test_rebind_result_cancelled():
 async def test_rebind_screen_apply_disabled_until_key_pressed(workspace):
     from textual.widgets import Button
 
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.push_screen(RebindKeyScreen("save", "Save", "ctrl+s"))
@@ -202,7 +202,7 @@ async def test_rebind_screen_apply_disabled_until_key_pressed(workspace):
 async def test_rebind_screen_captures_key(workspace):
     from textual.widgets import Button, Label
 
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.push_screen(RebindKeyScreen("save", "Save", "ctrl+s"))
@@ -217,7 +217,7 @@ async def test_rebind_screen_captures_key(workspace):
 
 @pytest.mark.asyncio
 async def test_rebind_screen_escape_dismisses_screen(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.push_screen(RebindKeyScreen("save", "Save", "ctrl+s"))
@@ -232,7 +232,7 @@ async def test_rebind_screen_escape_dismisses_screen(workspace):
 async def test_rebind_screen_dismiss_returns_result(workspace):
     """Directly dismissing with a result works correctly."""
     results = []
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.push_screen(

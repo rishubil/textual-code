@@ -28,7 +28,7 @@ def py_file(workspace: Path) -> Path:
 
 async def test_handle_not_present_without_split(workspace, py_file):
     """SplitResizeHandle should not exist in the DOM when there is no split."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         handles = list(app.main_view.query(SplitResizeHandle))
@@ -37,7 +37,7 @@ async def test_handle_not_present_without_split(workspace, py_file):
 
 async def test_handle_visible_when_split_opened(workspace, py_file):
     """SplitResizeHandle should be visible after action_split_right()."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -48,7 +48,7 @@ async def test_handle_visible_when_split_opened(workspace, py_file):
 
 async def test_handle_removed_when_split_closes(workspace, py_file):
     """SplitResizeHandle should be removed when split is closed."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -61,7 +61,7 @@ async def test_handle_removed_when_split_closes(workspace, py_file):
 
 async def test_resize_split_to_sets_width(workspace, py_file):
     """resize_split_to() should set first leaf DTC's styles.width."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -82,7 +82,7 @@ async def test_resize_split_to_sets_width(workspace, py_file):
 
 async def test_resize_split_min_clamp(workspace, py_file):
     """resize_split_to() should clamp to SPLIT_MIN_SIZE when value is too small."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -102,7 +102,7 @@ async def test_resize_split_min_clamp(workspace, py_file):
 
 async def test_resize_split_max_clamp(workspace, py_file):
     """resize_split_to() should clamp to container_width - SPLIT_MIN_SIZE."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -122,7 +122,7 @@ async def test_resize_split_max_clamp(workspace, py_file):
 
 async def test_drag_flow(workspace, py_file):
     """Full drag: mouse_down + mouse_move + mouse_up should resize first leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -149,7 +149,7 @@ async def test_drag_flow(workspace, py_file):
 
 async def test_resize_split_vertical(workspace, py_file):
     """Vertical split: resize sets first leaf's styles.height."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()

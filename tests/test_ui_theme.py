@@ -86,7 +86,7 @@ def test_action_set_ui_theme_exists(tmp_path):
 
 @pytest.mark.asyncio
 async def test_app_applies_ui_theme_on_startup(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.theme == "textual-dark"

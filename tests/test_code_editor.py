@@ -76,7 +76,7 @@ async def test_language_detection(
 ):
     f = workspace / filename
     f.write_text("")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -88,7 +88,7 @@ async def test_custom_language_registered(workspace: Path):
     """Opening a Dockerfile registers 'dockerfile' as an available language."""
     f = workspace / "Dockerfile"
     f.write_text("FROM ubuntu:22.04\nRUN apt-get update\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -100,7 +100,7 @@ async def test_custom_language_registered(workspace: Path):
 
 
 async def test_title_untitled_when_no_path(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
         await pilot.pause()
@@ -110,7 +110,7 @@ async def test_title_untitled_when_no_path(workspace: Path):
 
 
 async def test_title_shows_filename(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -119,7 +119,7 @@ async def test_title_shows_filename(workspace: Path, sample_py_file: Path):
 
 
 async def test_title_has_asterisk_when_modified(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -130,7 +130,7 @@ async def test_title_has_asterisk_when_modified(workspace: Path, sample_py_file:
 
 
 async def test_title_asterisk_removed_after_save(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -148,7 +148,7 @@ async def test_title_asterisk_removed_after_save(workspace: Path, sample_py_file
 
 
 async def test_initial_text_loaded_from_file(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -158,7 +158,7 @@ async def test_initial_text_loaded_from_file(workspace: Path, sample_py_file: Pa
 
 
 async def test_text_reactive_reflects_edit(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -173,7 +173,7 @@ async def test_text_reactive_reflects_edit(workspace: Path, sample_py_file: Path
 
 
 async def test_save_writes_to_disk(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -186,7 +186,7 @@ async def test_save_writes_to_disk(workspace: Path, sample_py_file: Path):
 
 
 async def test_save_updates_initial_text(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -199,7 +199,7 @@ async def test_save_updates_initial_text(workspace: Path, sample_py_file: Path):
 
 
 async def test_save_without_path_triggers_save_as_modal(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
         await pilot.pause()
@@ -213,7 +213,7 @@ async def test_save_without_path_triggers_save_as_modal(workspace: Path):
 
 async def test_save_as_creates_new_file(workspace: Path, sample_py_file: Path):
     new_path = workspace / "new_file.py"
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -222,10 +222,9 @@ async def test_save_as_creates_new_file(workspace: Path, sample_py_file: Path):
         editor.action_save_as()
         await pilot.pause()
 
-        input_widget = app.query_one("#path")
-        await pilot.click(input_widget)
-        for ch in str(new_path):
-            await pilot.press(ch)
+        input_widget = app.screen.query_one("#path")
+        input_widget.value = str(new_path)
+        await pilot.pause()
         await pilot.click("#save")
         await pilot.pause()
 
@@ -236,7 +235,7 @@ async def test_save_as_creates_new_file(workspace: Path, sample_py_file: Path):
 
 
 async def test_close_clean_editor_with_ctrl_w(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
@@ -248,7 +247,7 @@ async def test_close_clean_editor_with_ctrl_w(workspace: Path, sample_py_file: P
 async def test_close_dirty_editor_shows_unsaved_modal(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -263,7 +262,7 @@ async def test_close_dirty_editor_shows_unsaved_modal(
 async def test_close_dirty_editor_dont_save_closes(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -281,7 +280,7 @@ async def test_close_dirty_editor_dont_save_closes(
 
 
 async def test_delete_without_path_shows_notification(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
         await pilot.pause()
@@ -293,7 +292,7 @@ async def test_delete_without_path_shows_notification(workspace: Path):
 
 
 async def test_delete_with_path_shows_modal(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -306,7 +305,7 @@ async def test_delete_with_path_shows_modal(workspace: Path, sample_py_file: Pat
 async def test_delete_confirm_removes_file_and_closes_tab(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -320,7 +319,7 @@ async def test_delete_confirm_removes_file_and_closes_tab(
 
 
 async def test_delete_cancel_keeps_file_and_tab(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -337,7 +336,7 @@ async def test_delete_cancel_keeps_file_and_tab(workspace: Path, sample_py_file:
 
 
 async def test_footer_shows_file_path(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test(size=(240, 40)) as pilot:
         await pilot.pause()
         path_label = app.query_one(CodeEditorFooter).path_view
@@ -345,7 +344,7 @@ async def test_footer_shows_file_path(workspace: Path, sample_py_file: Path):
 
 
 async def test_footer_shows_language(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         lang_button = app.query_one(CodeEditorFooter).language_button
@@ -353,7 +352,7 @@ async def test_footer_shows_language(workspace: Path, sample_py_file: Path):
 
 
 async def test_footer_plain_for_untitled(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
         await pilot.pause()
@@ -365,7 +364,7 @@ async def test_footer_plain_for_untitled(workspace: Path):
 
 
 async def test_footer_shows_cursor_position_initially(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
         await pilot.pause()
@@ -377,7 +376,7 @@ async def test_footer_cursor_position_updates_on_move(
     workspace: Path, sample_py_file: Path
 ):
     # sample_py_file contains "print('hello')\n"
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -395,7 +394,7 @@ async def test_footer_shows_ln1_col1_on_file_open(
     workspace: Path, sample_py_file: Path
 ):
     """Opening a file positions cursor at Ln 1, Col 1."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -405,7 +404,7 @@ async def test_footer_shows_ln1_col1_on_file_open(
 
 async def test_footer_cursor_second_line(workspace: Path, multiline_file: Path):
     """Moving to second line shows Ln 2, Col 1."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, light=True, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -420,7 +419,7 @@ async def test_footer_cursor_second_line(workspace: Path, multiline_file: Path):
 async def test_footer_cursor_end_of_line(workspace: Path, sample_py_file: Path):
     """Cursor at end of 'print('hello')' (14 chars) → Col 15."""
     # sample_py_file: "print('hello')\n" — 14 chars before \n
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -436,7 +435,7 @@ async def test_footer_cursor_updates_after_goto_line(
     workspace: Path, multiline_file: Path
 ):
     """After goto_line, footer reflects the new cursor position."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, light=True, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -460,7 +459,7 @@ async def test_footer_path_updates_on_tab_switch(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
     """Footer shows the correct path when switching between tabs."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test(size=(240, 40)) as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
@@ -484,7 +483,7 @@ async def test_footer_path_updates_on_tab_switch(
 
 
 async def test_ctrl_g_opens_goto_line_modal(workspace: Path, multiline_file: Path):
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, light=True, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         await pilot.press("ctrl+g")
@@ -493,7 +492,7 @@ async def test_ctrl_g_opens_goto_line_modal(workspace: Path, multiline_file: Pat
 
 
 async def test_goto_line_moves_cursor_to_line(workspace: Path, multiline_file: Path):
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, light=True, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -514,7 +513,7 @@ async def test_goto_line_moves_cursor_to_line(workspace: Path, multiline_file: P
 async def test_goto_line_with_column_moves_cursor(
     workspace: Path, multiline_file: Path
 ):
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, light=True, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -533,7 +532,7 @@ async def test_goto_line_with_column_moves_cursor(
 
 
 async def test_goto_line_cancel_keeps_cursor(workspace: Path, multiline_file: Path):
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, light=True, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -550,7 +549,7 @@ async def test_goto_line_cancel_keeps_cursor(workspace: Path, multiline_file: Pa
 
 
 async def test_goto_line_invalid_input_no_move(workspace: Path, multiline_file: Path):
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, light=True, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -574,7 +573,7 @@ async def test_goto_line_out_of_range_high_no_move(
     workspace: Path, multiline_file: Path
 ):
     """Line number beyond file length → notification, cursor unchanged."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, light=True, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -596,7 +595,7 @@ async def test_goto_line_out_of_range_high_no_move(
 
 async def test_goto_line_zero_is_out_of_range(workspace: Path, multiline_file: Path):
     """Line 0 is invalid (1-indexed); cursor should not move."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, light=True, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -618,7 +617,7 @@ async def test_goto_line_zero_is_out_of_range(workspace: Path, multiline_file: P
 
 async def test_goto_first_line(workspace: Path, multiline_file: Path):
     """Goto line 1 moves cursor to row 0."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, light=True, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -643,7 +642,7 @@ async def test_goto_first_line(workspace: Path, multiline_file: Path):
 async def test_goto_last_line(workspace: Path, multiline_file: Path):
     """Goto the last line (10th in multiline_file)."""
     # multiline_file has 10 lines ("line1" … "line10")
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, light=True, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -665,7 +664,7 @@ async def test_goto_line_col_zero_input_clamps_to_zero(
     workspace: Path, multiline_file: Path
 ):
     """Col input '0' (1-indexed 0 → 0-based -1) clamps to col 0."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, light=True, open_file=multiline_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -693,7 +692,7 @@ async def test_language_button_opens_change_language_modal(
 ):
     from textual_code.modals import ChangeLanguageModalScreen
 
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -708,7 +707,7 @@ async def test_change_language_action_opens_modal(
 ):
     from textual_code.modals import ChangeLanguageModalScreen
 
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -723,7 +722,7 @@ async def test_change_language_updates_editor_language(
 ):
     from textual.widgets import Select
 
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -743,7 +742,7 @@ async def test_change_language_updates_editor_language(
 async def test_change_language_to_plain(workspace: Path, sample_py_file: Path):
     from textual.widgets import Select
 
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -763,7 +762,7 @@ async def test_change_language_to_plain(workspace: Path, sample_py_file: Path):
 async def test_change_language_cancel_keeps_language(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -781,7 +780,7 @@ async def test_change_language_cancel_keeps_language(
 async def test_change_language_updates_footer(workspace: Path, sample_py_file: Path):
     from textual.widgets import Select
 
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()

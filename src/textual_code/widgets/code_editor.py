@@ -79,16 +79,6 @@ except ImportError:
     log.warning("tree-sitter-language-pack not available; custom languages disabled")
 
 
-def _apply_custom_languages(text_area: "MultiCursorTextArea") -> None:
-    """Register custom tree-sitter languages on the given TextArea instance."""
-    for lang_name, lang_obj in _CUSTOM_LANGUAGES.items():
-        query = _CUSTOM_LANGUAGE_QUERIES.get(lang_name, "")
-        try:
-            text_area.register_language(lang_name, lang_obj, query)
-        except Exception as e:
-            log.warning("Failed to register language %s: %s", lang_name, e)
-
-
 def _editorconfig_glob_to_pattern(glob: str) -> re.Pattern:
     """Convert an EditorConfig glob pattern to a compiled re.Pattern.
 
@@ -1001,9 +991,7 @@ class CodeEditor(Static):
     def on_mount(self, event: Mount) -> None:
         # update the title of the editor
         self.update_title()
-        # register custom languages before detecting language from path
-        _apply_custom_languages(self.editor)
-        # update the language of the editor
+        # update the language of the editor (triggers lazy language registration)
         self.load_language_from_path(self.path)
         # apply syntax highlighting theme
         self.editor.theme = self._syntax_theme
@@ -1014,8 +1002,9 @@ class CodeEditor(Static):
         self.editor.indent_type = self.indent_type
         # warn if the file has non-LF line endings
         self._notify_non_lf_if_needed()
-        # poll for external file changes every 2 seconds
-        self.set_interval(2.0, self._poll_file_change)
+        # poll for external file changes (disabled in headless/test mode)
+        if not self.app.is_headless:
+            self.set_interval(2.0, self._poll_file_change)
 
     def update_title(self) -> None:
         """
@@ -1097,6 +1086,20 @@ class CodeEditor(Static):
         self._notify_footer()
 
     def watch_language(self, language: str | None):
+        # lazily register custom tree-sitter language if needed
+        needs_register = (
+            language
+            and language in _CUSTOM_LANGUAGES
+            and language not in self.editor.available_languages
+        )
+        if needs_register:
+            query = _CUSTOM_LANGUAGE_QUERIES.get(language, "")
+            try:
+                self.editor.register_language(
+                    language, _CUSTOM_LANGUAGES[language], query
+                )
+            except Exception as e:
+                log.warning("Failed to register language %s: %s", language, e)
         # update the language in the editor
         self.editor.language = language
         self._notify_footer()

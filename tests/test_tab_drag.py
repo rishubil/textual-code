@@ -35,7 +35,7 @@ async def test_reorder_tab_moves_before(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
     """reorder_tab(A, B, before=True) puts A before B."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
@@ -58,7 +58,7 @@ async def test_reorder_tab_moves_after(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
     """reorder_tab(A, B, before=False) puts A after B."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
@@ -81,7 +81,7 @@ async def test_reorder_tab_correct_order_and_content(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
     """Tab order and editor text are both preserved after reorder."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
@@ -111,7 +111,7 @@ async def test_reorder_tab_same_id_noop(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
     """reorder_tab with same src and target is a no-op."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
@@ -130,7 +130,7 @@ async def test_reorder_tab_invalid_target_id_noop(
     workspace: Path, sample_py_file: Path
 ):
     """reorder_tab with non-existent pane_id does not raise and is a noop."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -151,7 +151,7 @@ async def test_drag_threshold_not_exceeded_no_capture(
     workspace: Path, sample_py_file: Path
 ):
     """Moving less than threshold keeps _dragging=False."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -194,7 +194,7 @@ async def test_drag_applies_dragging_class(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
     """Dragging a tab adds -dragging class; releasing removes it."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
@@ -244,7 +244,7 @@ async def test_drag_reorders_tabs(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
     """E2E: mouse_down → mouse_move (threshold exceeded) → mouse_up reorders tabs."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)

@@ -87,7 +87,7 @@ def test_find_next_invalid_regex_raises():
 
 async def test_regex_find_matches_dot_pattern(workspace: Path, regex_file: Path):
     """Pattern he.lo selects 'hello'."""
-    app = make_app(workspace, open_file=regex_file)
+    app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -114,7 +114,7 @@ async def test_regex_find_matches_dot_pattern(workspace: Path, regex_file: Path)
 
 async def test_regex_find_no_match_shows_warning(workspace: Path, regex_file: Path):
     """No-match regex → cursor does not move (not found)."""
-    app = make_app(workspace, open_file=regex_file)
+    app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -141,7 +141,7 @@ async def test_regex_find_no_match_shows_warning(workspace: Path, regex_file: Pa
 
 async def test_regex_find_wrap_around(workspace: Path, regex_file: Path):
     """Regex search from end of file → finds first match via wrap-around."""
-    app = make_app(workspace, open_file=regex_file)
+    app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -173,7 +173,7 @@ async def test_regex_find_wrap_around(workspace: Path, regex_file: Path):
 
 async def test_invalid_regex_find_shows_error(workspace: Path, regex_file: Path):
     """Invalid regex → error notification, no crash."""
-    app = make_app(workspace, open_file=regex_file)
+    app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -203,7 +203,7 @@ async def test_invalid_regex_find_shows_error(workspace: Path, regex_file: Path)
 async def test_regex_find_case_insensitive_inline(workspace: Path, regex_file: Path):
     """(?i)hello → also selects 'HELLO'."""
     # regex_file: "hello world\nHELLO WORLD\nfoo123 bar456\n"
-    app = make_app(workspace, open_file=regex_file)
+    app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -222,9 +222,7 @@ async def test_regex_find_case_insensitive_inline(workspace: Path, regex_file: P
         await pilot.click(checkbox)
 
         input_widget = editor.query_one("#find_input")
-        await pilot.click(input_widget)
-        for ch in "(?i)hello":
-            await pilot.press(ch)
+        input_widget.value = "(?i)hello"
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -236,7 +234,7 @@ async def test_regex_find_case_insensitive_inline(workspace: Path, regex_file: P
 
 async def test_plain_find_regression(workspace: Path, regex_file: Path):
     """Without checking use_regex → plain string search works as before."""
-    app = make_app(workspace, open_file=regex_file)
+    app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -262,7 +260,7 @@ async def test_plain_find_regression(workspace: Path, regex_file: Path):
 
 async def test_regex_replace_all_basic(workspace: Path, regex_file: Path):
     r"""\d+ → replace all occurrences with [NUM]."""
-    app = make_app(workspace, open_file=regex_file)
+    app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -293,7 +291,7 @@ async def test_regex_replace_all_capture_group(workspace: Path):
     r"""(\w+) → [\1] capture group replacement."""
     f = workspace / "capture.txt"
     f.write_text("hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -322,7 +320,7 @@ async def test_regex_replace_all_capture_group(workspace: Path):
 
 async def test_invalid_regex_replace_all_error(workspace: Path, regex_file: Path):
     """Invalid regex in replace_all → error notification, text unchanged."""
-    app = make_app(workspace, open_file=regex_file)
+    app = make_app(workspace, open_file=regex_file, light=True)
     original_text = regex_file.read_text()
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -355,7 +353,7 @@ async def test_regex_replace_single_match_replaces(workspace: Path):
     r"""Selection is a fullmatch → replace, then select next match."""
     f = workspace / "single_rep.txt"
     f.write_text("foo123 foo456\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -391,7 +389,7 @@ async def test_regex_replace_single_no_match_finds(workspace: Path):
     """Selection does not match → only selects the next regex match."""
     f = workspace / "no_match_sel.txt"
     f.write_text("hello foo123\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -423,7 +421,7 @@ async def test_regex_replace_single_no_match_finds(workspace: Path):
 
 async def test_invalid_regex_replace_single_error(workspace: Path, regex_file: Path):
     """Invalid regex in replace single → error notification, text unchanged."""
-    app = make_app(workspace, open_file=regex_file)
+    app = make_app(workspace, open_file=regex_file, light=True)
     original_text = regex_file.read_text()
     async with app.run_test() as pilot:
         await pilot.pause()

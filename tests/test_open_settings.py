@@ -22,7 +22,7 @@ from .conftest import make_app
 async def test_a01_open_user_settings_creates_file_if_missing(workspace, tmp_path):
     user_cfg = tmp_path / "cfg" / "settings.toml"
     assert not user_cfg.exists()
-    app = make_app(workspace, user_config_path=user_cfg)
+    app = make_app(workspace, user_config_path=user_cfg, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.action_open_user_settings()
@@ -33,11 +33,10 @@ async def test_a01_open_user_settings_creates_file_if_missing(workspace, tmp_pat
 @pytest.mark.asyncio
 async def test_a02_open_user_settings_opens_in_editor(workspace, tmp_path):
     user_cfg = tmp_path / "cfg" / "settings.toml"
-    app = make_app(workspace, user_config_path=user_cfg)
+    app = make_app(workspace, user_config_path=user_cfg, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.action_open_user_settings()
-        await pilot.pause()
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
@@ -53,7 +52,7 @@ async def test_a02_open_user_settings_opens_in_editor(workspace, tmp_path):
 async def test_b01_open_project_settings_creates_file_if_missing(workspace):
     project_cfg = get_project_config_path(workspace)
     assert not project_cfg.exists()
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.action_open_project_settings()
@@ -64,11 +63,10 @@ async def test_b01_open_project_settings_creates_file_if_missing(workspace):
 @pytest.mark.asyncio
 async def test_b02_open_project_settings_opens_in_editor(workspace):
     project_cfg = get_project_config_path(workspace)
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.action_open_project_settings()
-        await pilot.pause()
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
@@ -82,7 +80,7 @@ async def test_b02_open_project_settings_opens_in_editor(workspace):
 
 @pytest.mark.asyncio
 async def test_c01_settings_commands_in_system_commands(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))

@@ -419,7 +419,7 @@ async def test_change_indent_cmd_no_editor_notifies(workspace: Path):
     """No open file when command palette action triggered → error notification."""
     from tests.conftest import make_app
 
-    tc_app = make_app(workspace)
+    tc_app = make_app(workspace, light=True)
     notified: list[str] = []
 
     async with tc_app.run_test() as pilot:
@@ -453,7 +453,7 @@ async def test_tab_no_selection_inserts_spaces(workspace: Path):
 
     from tests.conftest import make_app
 
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor()
@@ -478,7 +478,7 @@ async def test_tab_multi_line_selection_indents_all(workspace: Path):
 
     f = workspace / "indent_test.py"
     f.write_text("def foo():\n    pass\n    return\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -503,7 +503,7 @@ async def test_tab_selection_end_col0_excludes_last_row(workspace: Path):
 
     f = workspace / "indent_test2.py"
     f.write_text("def foo():\n    pass\n    return\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -529,7 +529,7 @@ async def test_shift_tab_removes_leading_spaces(workspace: Path):
 
     f = workspace / "indent_test3.py"
     f.write_text("def foo():\n    pass\n    return\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -553,7 +553,7 @@ async def test_shift_tab_multi_line_dedents_all(workspace: Path):
 
     f = workspace / "indent_test4.py"
     f.write_text("def foo():\n    pass\n    return\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -578,7 +578,7 @@ async def test_shift_tab_no_leading_spaces_noop(workspace: Path):
 
     f = workspace / "indent_test5.py"
     f.write_text("def foo():\n    pass\n    return\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -608,7 +608,7 @@ async def test_tab_respects_indent_size_2(tmp_path: Path):
     f = tmp_path / "hello.py"
     f.write_text("x = 1\n")
 
-    app = make_app(tmp_path, open_file=f)
+    app = make_app(tmp_path, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -635,7 +635,7 @@ async def test_shift_tab_respects_indent_size_2(tmp_path: Path):
     f = tmp_path / "hello.py"
     f.write_text("    x = 1\n")
 
-    app = make_app(tmp_path, open_file=f)
+    app = make_app(tmp_path, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -662,7 +662,7 @@ async def test_tab_inserts_tab_char_when_indent_type_tabs(tmp_path: Path):
     f = tmp_path / "hello.py"
     f.write_text("x = 1\n")
 
-    app = make_app(tmp_path, open_file=f)
+    app = make_app(tmp_path, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -689,7 +689,7 @@ async def test_shift_tab_removes_tab_char(tmp_path: Path):
     f = tmp_path / "hello.py"
     f.write_text("\tx = 1\n")
 
-    app = make_app(tmp_path, open_file=f)
+    app = make_app(tmp_path, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -711,7 +711,7 @@ async def test_indent_size_reactive_syncs_to_textarea(tmp_path: Path):
     f = tmp_path / "hello.py"
     f.write_text("x = 1\n")
 
-    app = make_app(tmp_path, open_file=f)
+    app = make_app(tmp_path, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()

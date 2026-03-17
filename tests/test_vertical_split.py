@@ -26,7 +26,7 @@ async def test_toggle_split_vertical_command_exists(workspace: Path):
     """'Toggle split orientation' command is yielded by get_system_commands."""
     from unittest.mock import MagicMock
 
-    app = make_app(workspace, open_file=None)
+    app = make_app(workspace, open_file=None, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         screen_mock = MagicMock()
@@ -37,7 +37,7 @@ async def test_toggle_split_vertical_command_exists(workspace: Path):
 
 async def test_toggle_split_vertical_adds_css_class(workspace: Path, py_file: Path):
     """action_toggle_split_vertical toggles 'split-vertical' class on SplitContainer."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # First create a split so we have a SplitContainer
@@ -58,7 +58,7 @@ async def test_toggle_split_vertical_twice_removes_class(
     workspace: Path, py_file: Path
 ):
     """Calling action_toggle_split_vertical twice reverts to horizontal layout."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -80,7 +80,7 @@ async def test_horizontal_split_still_works_after_vertical_toggle(
     workspace: Path, py_file: Path
 ):
     """Horizontal split (Ctrl+\\) still works after toggling vertical orientation."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 

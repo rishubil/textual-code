@@ -394,7 +394,7 @@ async def test_encoding_cmd_no_editor(tmp_path: Path):
     """No open file → error notification."""
     from tests.conftest import make_app
 
-    tc_app = make_app(tmp_path)
+    tc_app = make_app(tmp_path, light=True)
     notified: list[str] = []
 
     async with tc_app.run_test() as pilot:
@@ -419,7 +419,7 @@ async def test_encoding_cmd_with_editor(tmp_path: Path):
     f = tmp_path / "test.txt"
     f.write_bytes(b"hello")
 
-    tc_app = make_app(tmp_path, open_file=f)
+    tc_app = make_app(tmp_path, open_file=f, light=True)
     async with tc_app.run_test() as pilot:
         await pilot.pause()
         tc_app.action_change_encoding_cmd()

@@ -247,7 +247,6 @@ async def test_search_result_cursor_position(tmp_path: Path) -> None:
             WorkspaceSearchPane.OpenFileAtLineRequested(file_path=target, line_number=3)
         )
         await pilot.pause()
-        await pilot.pause()
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None

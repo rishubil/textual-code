@@ -20,7 +20,7 @@ def py_file(workspace: Path) -> Path:
 
 async def test_f6_moves_focus(workspace: Path, py_file: Path):
     """F6 should move focus to a different widget."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         before = app.focused
@@ -32,7 +32,7 @@ async def test_f6_moves_focus(workspace: Path, py_file: Path):
 
 async def test_shift_f6_moves_focus_backward(workspace: Path, py_file: Path):
     """Shift+F6 should move focus backward."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         before = app.focused
@@ -44,7 +44,7 @@ async def test_shift_f6_moves_focus_backward(workspace: Path, py_file: Path):
 
 async def test_f6_escapes_editor(workspace: Path, py_file: Path):
     """F6 should move focus away from the editor (core use case)."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Ensure focus starts on a TextArea (editor)
@@ -64,7 +64,7 @@ async def test_f6_escapes_editor(workspace: Path, py_file: Path):
 
 async def test_f6_wraps_around(workspace: Path, py_file: Path):
     """Pressing F6 enough times should cycle back to the original widget."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         start = app.focused

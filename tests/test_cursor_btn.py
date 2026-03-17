@@ -24,7 +24,7 @@ from textual_code.widgets.code_editor import CodeEditorFooter
 @pytest.mark.asyncio
 async def test_footer_has_cursor_btn_not_label(workspace, multiline_file):
     """T-01: footer has a #cursor_btn Button (not a Label)."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         btn = app.query_one(CodeEditorFooter).query_one("#cursor_btn", Button)
@@ -34,7 +34,7 @@ async def test_footer_has_cursor_btn_not_label(workspace, multiline_file):
 @pytest.mark.asyncio
 async def test_cursor_btn_initial_label(workspace, multiline_file):
     """T-02: initial cursor_btn label is 'Ln 1, Col 1'."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         btn = app.query_one(CodeEditorFooter).cursor_button
@@ -47,7 +47,7 @@ async def test_cursor_btn_initial_label(workspace, multiline_file):
 @pytest.mark.asyncio
 async def test_cursor_btn_updates_on_cursor_move(workspace, multiline_file):
     """T-03: moving cursor updates cursor_btn label to 'Ln X, Col Y'."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -61,7 +61,7 @@ async def test_cursor_btn_updates_on_cursor_move(workspace, multiline_file):
 @pytest.mark.asyncio
 async def test_cursor_btn_label_is_one_based(workspace, multiline_file):
     """T-04: cursor_btn label starts at 1-based (row 0 → 'Ln 1, Col 1')."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -78,7 +78,7 @@ async def test_cursor_btn_label_is_one_based(workspace, multiline_file):
 @pytest.mark.asyncio
 async def test_cursor_btn_click_opens_goto_modal(workspace, multiline_file):
     """T-05: clicking #cursor_btn opens GotoLineModalScreen."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await pilot.click("#cursor_btn")
@@ -89,7 +89,7 @@ async def test_cursor_btn_click_opens_goto_modal(workspace, multiline_file):
 @pytest.mark.asyncio
 async def test_cursor_btn_click_opens_modal_untitled(workspace):
     """T-06: cursor_btn click opens modal even when editor has no file."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.action_new_editor()
@@ -105,7 +105,7 @@ async def test_cursor_btn_click_opens_modal_untitled(workspace):
 @pytest.mark.asyncio
 async def test_cursor_btn_click_goto_moves_cursor(workspace, multiline_file):
     """T-07: click cursor_btn → enter '3' in modal → cursor moves to line 3."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await pilot.click("#cursor_btn")
@@ -125,7 +125,7 @@ async def test_cursor_btn_click_goto_moves_cursor(workspace, multiline_file):
 @pytest.mark.asyncio
 async def test_cursor_btn_click_cancel_no_change(workspace, multiline_file):
     """T-08: click cursor_btn → cancel → cursor position unchanged."""
-    app = make_app(workspace, open_file=multiline_file)
+    app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -152,7 +152,7 @@ async def test_cursor_btn_col_10_label_visible(workspace):
     # Create a file with a line that is at least 10 characters long
     long_line_file = workspace / "long_line.txt"
     long_line_file.write_text("0123456789abcdef\n")
-    app = make_app(workspace, open_file=long_line_file)
+    app = make_app(workspace, open_file=long_line_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()

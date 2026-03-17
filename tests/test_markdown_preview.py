@@ -35,7 +35,7 @@ def py_file(workspace: Path) -> Path:
 
 async def test_preview_tab_opens_for_markdown_file(workspace: Path, md_file: Path):
     """Opening preview for a markdown file adds a new pane."""
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         initial_count = len(app.main_view.opened_pane_ids)
@@ -49,7 +49,7 @@ async def test_preview_tab_opens_for_markdown_file(workspace: Path, md_file: Pat
 
 async def test_preview_tab_not_opened_for_non_markdown(workspace: Path, py_file: Path):
     """Opening preview for a .py file is a no-op."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         initial_count = len(app.main_view.opened_pane_ids)
@@ -63,7 +63,7 @@ async def test_preview_tab_not_opened_for_non_markdown(workspace: Path, py_file:
 
 async def test_preview_tab_not_opened_without_open_file(workspace: Path):
     """Opening preview with no editor open is a no-op."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         initial_count = len(app.main_view.opened_pane_ids)
@@ -77,7 +77,7 @@ async def test_preview_tab_not_opened_without_open_file(workspace: Path):
 
 async def test_preview_tab_switch_to_existing(workspace: Path, md_file: Path):
     """Calling open preview twice does not create a duplicate tab."""
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_markdown_preview_tab()
@@ -93,7 +93,7 @@ async def test_preview_tab_switch_to_existing(workspace: Path, md_file: Path):
 
 async def test_preview_tab_title(workspace: Path, md_file: Path):
     """Preview tab label includes 'Preview:' and the filename."""
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_markdown_preview_tab()
@@ -111,7 +111,7 @@ async def test_preview_tab_title(workspace: Path, md_file: Path):
 
 async def test_ctrl_shift_m_opens_tab(workspace: Path, md_file: Path):
     """Ctrl+Shift+M opens a markdown preview tab."""
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         initial_count = len(app.main_view.opened_pane_ids)
@@ -127,7 +127,7 @@ async def test_preview_tab_updates_on_text_change(workspace: Path, md_file: Path
     """When editor text changes, the preview tab content updates."""
     from textual.widgets import Markdown as MarkdownWidget
 
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Get editor reference before opening preview (focus shifts after)
@@ -156,7 +156,7 @@ async def test_preview_tab_updates_on_text_change(workspace: Path, md_file: Path
 
 async def test_preview_no_update_when_tab_closed(workspace: Path, md_file: Path):
     """After the preview tab is closed, text changes do not cause errors."""
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_markdown_preview_tab()
@@ -174,7 +174,6 @@ async def test_preview_no_update_when_tab_closed(workspace: Path, md_file: Path)
         editor = app.main_view._get_active_code_editor_in_split("left")
         editor.text = "# Changed\n"
         await pilot.pause()
-        await pilot.pause()
         # No exception means pass
 
 
@@ -183,7 +182,7 @@ async def test_preview_no_update_when_tab_closed(workspace: Path, md_file: Path)
 
 async def test_preview_tab_closes_with_source(workspace: Path, md_file: Path):
     """Closing the source editor also closes the preview tab."""
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Capture source editor reference before preview tab steals focus
@@ -200,7 +199,6 @@ async def test_preview_tab_closes_with_source(workspace: Path, md_file: Path):
         # Close via CodeEditor.action_close() to trigger on_code_editor_closed
         editor.action_close()
         await pilot.pause()
-        await pilot.pause()
 
         assert not app.main_view.is_opened_pane(preview_pane_id)
         assert md_file not in app.main_view._preview_pane_ids
@@ -211,7 +209,7 @@ async def test_preview_tab_closes_with_source(workspace: Path, md_file: Path):
 
 async def test_ctrl_w_closes_preview_tab(workspace: Path, md_file: Path):
     """Ctrl+W closes a focused preview tab."""
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_markdown_preview_tab()
@@ -235,7 +233,7 @@ async def test_ctrl_w_closes_preview_tab(workspace: Path, md_file: Path):
 
 async def test_preview_tab_and_split_coexist(workspace: Path, md_file: Path):
     """Preview tab works correctly alongside a split view."""
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -259,7 +257,7 @@ async def test_clicking_preview_pane_updates_active_leaf(
     workspace: Path, md_file: Path
 ):
     """Clicking on MarkdownPreviewPane gives it focus."""
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Get editor reference before preview steals focus
@@ -299,7 +297,7 @@ async def test_preview_update_is_debounced(workspace: Path, md_file: Path):
 
     from textual.widgets import Markdown as MarkdownWidget
 
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view._get_active_code_editor_in_split("left")
@@ -344,7 +342,7 @@ async def test_preview_tab_focus_resets_footer(workspace: Path, md_file: Path):
     """Activating a preview tab resets the footer (no active code editor)."""
     from textual_code.widgets.code_editor import CodeEditorFooter
 
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Footer should have editor info initially
@@ -367,7 +365,7 @@ async def test_preview_tab_focus_resets_footer(workspace: Path, md_file: Path):
 
 async def test_preview_focus_does_not_shift_content(workspace: Path, md_file: Path):
     """Focus highlight must use outline (not border) so content doesn't shift."""
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_markdown_preview_tab()
@@ -399,7 +397,7 @@ async def test_preview_focus_does_not_shift_content(workspace: Path, md_file: Pa
 
 async def test_preview_tab_receives_focus_on_open(workspace: Path, md_file: Path):
     """Opening a preview tab should give focus to the MarkdownPreviewPane."""
-    app = make_app(workspace, open_file=md_file)
+    app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_markdown_preview_tab()
@@ -499,7 +497,7 @@ async def test_markdown_widget_renders_with_space(workspace: Path):
     bold_md_file = workspace / "bold_test.md"
     bold_md_file.write_text("# Hello\n\nThis is a **Markdown** preview.\n")
 
-    app = make_app(workspace, open_file=bold_md_file)
+    app = make_app(workspace, open_file=bold_md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_markdown_preview_tab()

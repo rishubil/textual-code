@@ -34,7 +34,7 @@ def replace_file(workspace: Path) -> Path:
 
 
 async def test_ctrl_h_opens_replace_bar(workspace: Path, replace_file: Path):
-    app = make_app(workspace, open_file=replace_file)
+    app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -48,7 +48,7 @@ async def test_ctrl_h_opens_replace_bar(workspace: Path, replace_file: Path):
 
 async def test_ctrl_h_with_no_open_file_does_nothing(workspace: Path):
     """Ctrl+H when no file is open does nothing."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await pilot.press("ctrl+h")
@@ -64,7 +64,7 @@ async def test_replace_all_replaces_all_occurrences(
     workspace: Path, replace_file: Path
 ):
     """Replace All changes every occurrence of the find_query."""
-    app = make_app(workspace, open_file=replace_file)
+    app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -87,7 +87,7 @@ async def test_replace_all_replaces_all_occurrences(
 
 async def test_replace_all_no_match_shows_warning(workspace: Path, replace_file: Path):
     """Replace All with no match shows a warning and leaves text unchanged."""
-    app = make_app(workspace, open_file=replace_file)
+    app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -110,7 +110,7 @@ async def test_replace_all_empty_find_query_does_nothing(
     workspace: Path, replace_file: Path
 ):
     """Replace All with empty find_query does nothing."""
-    app = make_app(workspace, open_file=replace_file)
+    app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -131,7 +131,7 @@ async def test_replace_all_count_notification(workspace: Path):
     """Replace All notifies the user with the replacement count."""
     f = workspace / "count.txt"
     f.write_text("aaa bbb aaa ccc aaa\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -160,7 +160,7 @@ async def test_replace_single_selection_matches_replaces_and_finds_next(
     """When selection matches find_query, it is replaced and next match is selected."""
     # replace_file: "hello world\nhello textual\nfoo bar\n"
     # two 'hello': (0,0)–(0,5) and (1,0)–(1,5)
-    app = make_app(workspace, open_file=replace_file)
+    app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -200,7 +200,7 @@ async def test_replace_single_selection_no_match_finds_next(
 ):
     """Selection doesn't match find_query — next occurrence is found, no replacement."""
     # replace_file: "hello world\nhello textual\nfoo bar\n"
-    app = make_app(workspace, open_file=replace_file)
+    app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -236,7 +236,7 @@ async def test_replace_cancel_leaves_text_unchanged(
     workspace: Path, replace_file: Path
 ):
     """Closing the replace bar leaves text and cursor unchanged."""
-    app = make_app(workspace, open_file=replace_file)
+    app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -262,7 +262,7 @@ async def test_replace_cancel_leaves_text_unchanged(
 
 async def test_replace_cmd_with_no_open_file_does_not_open_bar(workspace: Path):
     """action_replace_cmd when no file is open does nothing."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.action_replace_cmd()
@@ -278,7 +278,7 @@ async def test_replace_all_is_case_sensitive(workspace: Path):
     """Replace All is case-sensitive: 'Hello' doesn't match 'hello'."""
     f = workspace / "case.txt"
     f.write_text("Hello hello HELLO\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -307,7 +307,7 @@ async def test_replace_all_marks_file_as_unsaved(workspace: Path):
     """After Replace All, the editor is marked as having unsaved changes."""
     f = workspace / "unsaved.txt"
     f.write_text("foo foo foo\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -333,7 +333,7 @@ async def test_replace_all_empty_replacement_deletes_occurrences(workspace: Path
     """Replace All with empty replace_text removes all occurrences."""
     f = workspace / "del.txt"
     f.write_text("foo bar foo baz foo\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -360,7 +360,7 @@ async def test_replace_all_single_occurrence(workspace: Path):
     """Replace All on a file with exactly one match replaces it."""
     f = workspace / "one.txt"
     f.write_text("only one match here\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -390,7 +390,7 @@ async def test_replace_all_replacement_contains_search_string(workspace: Path):
     """
     f = workspace / "contain.txt"
     f.write_text("aa aa\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -417,7 +417,7 @@ async def test_replace_all_multiline_file(workspace: Path):
     """Replace All works across multiple lines."""
     f = workspace / "multi.txt"
     f.write_text("line one\nline two\nline three\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -443,7 +443,7 @@ async def test_replace_single_last_occurrence_no_next_selected(workspace: Path):
     """Replacing the last occurrence does not crash; no new selection is forced."""
     f = workspace / "last.txt"
     f.write_text("foo bar\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -477,7 +477,7 @@ async def test_replace_single_only_one_match_no_next(workspace: Path):
     """After replacing the only occurrence there is no next match to jump to."""
     f = workspace / "only.txt"
     f.write_text("unique word here\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -491,12 +491,10 @@ async def test_replace_single_only_one_match_no_next(workspace: Path):
         editor.action_replace()
         await pilot.pause()
 
-        await pilot.click("#find_input")
-        for ch in "unique":
-            await pilot.press(ch)
-        await pilot.click("#replace_input")
-        for ch in "common":
-            await pilot.press(ch)
+        find_input = editor.query_one("#find_input")
+        find_input.value = "unique"
+        replace_input = editor.query_one("#replace_input")
+        replace_input.value = "common"
         await pilot.click("#replace_btn")
         await pilot.pause()
 
@@ -512,7 +510,7 @@ async def test_replace_single_sequential_advances(workspace: Path):
     # file: "aa bb aa cc aa"
     f = workspace / "seq.txt"
     f.write_text("aa bb aa cc aa\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -564,7 +562,7 @@ async def test_replace_single_wraps_around_find(workspace: Path):
     """Cursor after all occurrences and no selection match — search wraps to start."""
     f = workspace / "wrap.txt"
     f.write_text("foo bar\nbaz qux\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -598,7 +596,7 @@ async def test_replace_single_wraps_around_find(workspace: Path):
 
 async def test_replace_single_on_untitled_file(workspace: Path):
     """Replace works on a new, unsaved file."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
         await pilot.pause()
@@ -637,7 +635,7 @@ async def test_replace_cmd_opens_bar_when_file_open(
     workspace: Path, replace_file: Path
 ):
     """action_replace_cmd opens FindReplaceBar in replace mode when a file is open."""
-    app = make_app(workspace, open_file=replace_file)
+    app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -656,7 +654,7 @@ async def test_replace_single_no_match_anywhere_shows_warning(
     workspace: Path, replace_file: Path
 ):
     """Replace single when find_query doesn't exist at all shows a warning."""
-    app = make_app(workspace, open_file=replace_file)
+    app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()

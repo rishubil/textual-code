@@ -477,7 +477,6 @@ async def test_e2e_drag_tab_left_to_right(
         )
         await pilot.mouse_up(left_dtc, offset=drop_offset_from_left)
         await pilot.pause()
-        await pilot.pause()
 
         # Right split should have gained a tab; left split unchanged or lost one
         assert (
@@ -613,7 +612,6 @@ async def test_e2e_drag_tab_drop_on_content_area(
         drop_offset = (content_x - left_dtc.region.x, content_y - left_dtc.region.y)
 
         await pilot.mouse_up(left_dtc, offset=drop_offset)
-        await pilot.pause()
         await pilot.pause()
 
         # Tab should have moved: left lost one OR right gained one
@@ -847,7 +845,6 @@ async def test_e2e_drag_tab_three_way_split_correct_target(
             offset=(drop_x - dtc_a.region.x, drop_y - dtc_a.region.y),
         )
         await pilot.pause()
-        await pilot.pause()
 
         # Tab must arrive in C (the last leaf)
         leaves_after = all_leaves(main._split_root)
@@ -908,7 +905,6 @@ async def test_e2e_drag_tab_mixed_nested_split(
             dtc_a,
             offset=(drop_x - dtc_a.region.x, drop_y - dtc_a.region.y),
         )
-        await pilot.pause()
         await pilot.pause()
 
         # Tab must arrive in C
@@ -1000,7 +996,6 @@ async def test_drag_mouse_cross_split_focuses_moved_tab(
             left_dtc,
             offset=(drop_x - left_dtc.region.x, drop_y - left_dtc.region.y),
         )
-        await pilot.pause()
         await pilot.pause()
 
         # Verify focus is on destination leaf with moved tab

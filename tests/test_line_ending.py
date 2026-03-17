@@ -317,7 +317,7 @@ async def test_change_line_ending_cmd_no_editor(tmp_path: Path):
     """No open file → error notification."""
     from tests.conftest import make_app
 
-    tc_app = make_app(tmp_path)
+    tc_app = make_app(tmp_path, light=True)
     notified: list[str] = []
 
     async with tc_app.run_test() as pilot:

@@ -104,7 +104,7 @@ def test_action_set_syntax_theme_exists(tmp_path):
 
 @pytest.mark.asyncio
 async def test_new_editor_uses_default_syntax_theme(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     app.default_syntax_theme = "dracula"
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -117,7 +117,7 @@ async def test_new_editor_uses_default_syntax_theme(workspace):
 
 @pytest.mark.asyncio
 async def test_new_editor_default_theme_is_monokai(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor()
@@ -135,7 +135,7 @@ async def test_new_editor_default_theme_is_monokai(workspace):
 @pytest.mark.asyncio
 async def test_all_editors_update_when_theme_changes(workspace):
     """Setting app.default_syntax_theme and updating all editors works."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Open two editors
@@ -163,7 +163,7 @@ async def test_all_editors_update_when_theme_changes(workspace):
 
 @pytest.mark.asyncio
 async def test_code_editor_syntax_theme_property(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor()
@@ -187,7 +187,7 @@ async def test_code_editor_syntax_theme_property(workspace):
 async def test_app_loads_syntax_theme_from_project_config(workspace):
     proj = workspace / ".textual-code.toml"
     proj.write_text('[editor]\nsyntax_theme = "vscode_dark"\n')
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.default_syntax_theme == "vscode_dark"

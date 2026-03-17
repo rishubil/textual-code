@@ -60,7 +60,7 @@ def word_file(workspace: Path) -> Path:
 
 async def test_double_click_selects_word(workspace: Path, word_file: Path):
     """Double-click on a word selects that full word."""
-    app = make_app(workspace, open_file=word_file)
+    app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -91,7 +91,7 @@ async def test_double_click_selects_word(workspace: Path, word_file: Path):
 
 async def test_double_click_whitespace_no_selection(workspace: Path, word_file: Path):
     """Double-click on whitespace does not change selection."""
-    app = make_app(workspace, open_file=word_file)
+    app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -123,7 +123,7 @@ async def test_double_click_whitespace_no_selection(workspace: Path, word_file: 
 
 async def test_double_click_eol_no_selection(workspace: Path, word_file: Path):
     """Double-click at EOL does not change selection."""
-    app = make_app(workspace, open_file=word_file)
+    app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -154,7 +154,7 @@ async def test_double_click_eol_no_selection(workspace: Path, word_file: Path):
 
 async def test_triple_click_selects_line(workspace: Path, word_file: Path):
     """Triple-click on a non-empty line selects the entire line."""
-    app = make_app(workspace, open_file=word_file)
+    app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -183,7 +183,7 @@ async def test_triple_click_selects_line(workspace: Path, word_file: Path):
 
 async def test_triple_click_empty_line(workspace: Path, workspace_with_empty: Path):
     """Triple-click on an empty line — cursor stays at (row, 0), no error."""
-    app = make_app(workspace, open_file=workspace_with_empty)
+    app = make_app(workspace, open_file=workspace_with_empty, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -220,7 +220,7 @@ def workspace_with_empty(workspace: Path) -> Path:
 
 async def test_double_click_clears_extra_cursors(workspace: Path, word_file: Path):
     """Double-click clears extra cursors and selects the word."""
-    app = make_app(workspace, open_file=word_file)
+    app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor

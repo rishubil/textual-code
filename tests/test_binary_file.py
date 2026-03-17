@@ -66,7 +66,7 @@ def empty_file(workspace: Path) -> Path:
 
 async def test_binary_file_shows_notice(workspace: Path, binary_file: Path):
     """Opening a binary file shows a binary notice Static, not CodeEditor."""
-    app = make_app(workspace, open_file=binary_file)
+    app = make_app(workspace, open_file=binary_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         main_view = app.main_view
@@ -83,7 +83,7 @@ async def test_binary_file_shows_notice(workspace: Path, binary_file: Path):
 
 async def test_binary_file_open_twice_single_tab(workspace: Path, binary_file: Path):
     """Opening the same binary file twice creates only one tab."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         main_view = app.main_view
@@ -101,7 +101,7 @@ async def test_binary_file_open_twice_single_tab(workspace: Path, binary_file: P
 
 async def test_empty_file_opens_as_editor(workspace: Path, empty_file: Path):
     """An empty file (0 bytes) opens as a normal CodeEditor, not binary notice."""
-    app = make_app(workspace, open_file=empty_file)
+    app = make_app(workspace, open_file=empty_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         main_view = app.main_view

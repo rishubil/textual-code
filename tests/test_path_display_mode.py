@@ -44,7 +44,7 @@ def test_a03_toml_round_trip(tmp_path):
 def test_a04_invalid_value_defaults_to_absolute(tmp_path):
     config_path = tmp_path / "settings.toml"
     config_path.write_text('[editor]\npath_display_mode = "foo"\n')
-    app = make_app(tmp_path, user_config_path=config_path)
+    app = make_app(tmp_path, user_config_path=config_path, light=True)
     assert app.default_path_display_mode == "absolute"
 
 
@@ -55,9 +55,8 @@ def test_a04_invalid_value_defaults_to_absolute(tmp_path):
 
 @pytest.mark.asyncio
 async def test_b01_footer_absolute_by_default(workspace, sample_py_file):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
         await pilot.pause()
         footer = app.main_view.query_one(CodeEditorFooter)
         assert footer.path_display_mode == "absolute"
@@ -66,9 +65,8 @@ async def test_b01_footer_absolute_by_default(workspace, sample_py_file):
 
 @pytest.mark.asyncio
 async def test_b02_toggle_to_relative(workspace, sample_py_file):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
         await pilot.pause()
         footer = app.main_view.query_one(CodeEditorFooter)
         footer.path_display_mode = "relative"
@@ -78,9 +76,8 @@ async def test_b02_toggle_to_relative(workspace, sample_py_file):
 
 @pytest.mark.asyncio
 async def test_b03_toggle_back_to_absolute(workspace, sample_py_file):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
         await pilot.pause()
         footer = app.main_view.query_one(CodeEditorFooter)
         footer.path_display_mode = "relative"
@@ -97,9 +94,8 @@ async def test_b04_relative_outside_workspace_fallback(workspace):
     with tempfile.TemporaryDirectory() as other_dir:
         outside_file = Path(other_dir) / "outside.py"
         outside_file.write_text("# outside\n")
-        app = make_app(workspace, open_file=outside_file)
+        app = make_app(workspace, open_file=outside_file, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
             await pilot.pause()
             footer = app.main_view.query_one(CodeEditorFooter)
             footer.path_display_mode = "relative"
@@ -114,9 +110,8 @@ async def test_b05_config_loads_relative_mode(tmp_path):
     save_user_editor_settings({"path_display_mode": "relative"}, config_path)
     sample = tmp_path / "test.py"
     sample.write_text("# test\n")
-    app = make_app(tmp_path, open_file=sample, user_config_path=config_path)
+    app = make_app(tmp_path, open_file=sample, user_config_path=config_path, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
         await pilot.pause()
         footer = app.main_view.query_one(CodeEditorFooter)
         assert footer.path_display_mode == "relative"
@@ -129,9 +124,8 @@ async def test_b06_tab_switch_preserves_mode(workspace):
     file1.write_text("# a\n")
     file2 = workspace / "b.py"
     file2.write_text("# b\n")
-    app = make_app(workspace, open_file=file1)
+    app = make_app(workspace, open_file=file1, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
         await pilot.pause()
         footer = app.main_view.query_one(CodeEditorFooter)
         footer.path_display_mode = "relative"
@@ -152,7 +146,7 @@ async def test_b06_tab_switch_preserves_mode(workspace):
 
 @pytest.mark.asyncio
 async def test_c01_system_command_exists(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
@@ -163,7 +157,7 @@ async def test_c01_system_command_exists(workspace):
 @pytest.mark.asyncio
 async def test_c02_toggle_saves_to_config(tmp_path):
     config_path = tmp_path / "settings.toml"
-    app = make_app(tmp_path, user_config_path=config_path)
+    app = make_app(tmp_path, user_config_path=config_path, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.default_path_display_mode == "absolute"

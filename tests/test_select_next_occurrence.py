@@ -79,7 +79,7 @@ async def test_ctrl_d_no_selection_selects_word(workspace: Path, occ_file: Path)
     """No selection, cursor on word → selects that word (primary selection only)."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -102,7 +102,7 @@ async def test_ctrl_d_with_selection_adds_cursor(workspace: Path, occ_file: Path
     """Selection exists → next occurrence added as extra cursor."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -125,7 +125,7 @@ async def test_ctrl_d_twice_adds_two_cursors(workspace: Path, three_occ_file: Pa
 
     # text = "foo bar foo\nfoo baz\n"
     # positions: (0,0), (0,8), (1,0)
-    app = make_app(workspace, open_file=three_occ_file)
+    app = make_app(workspace, open_file=three_occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -151,7 +151,7 @@ async def test_ctrl_d_all_selected_notification(workspace: Path, occ_file: Path)
     """After all occurrences selected, next Ctrl+D shows notification."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -177,7 +177,7 @@ async def test_ctrl_d_no_selection_non_word(workspace: Path, occ_file: Path):
     """Cursor on whitespace with no selection → no-op."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -201,7 +201,7 @@ async def test_ctrl_d_single_occurrence_notification(
     """Single occurrence: first Ctrl+D selects word, second notifies wrap-around."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=single_occ_file)
+    app = make_app(workspace, open_file=single_occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -222,7 +222,7 @@ async def test_ctrl_d_binding(workspace: Path, occ_file: Path):
     """Ctrl+D key binding triggers select_next_occurrence."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -245,7 +245,7 @@ async def test_ctrl_d_extra_cursor_has_selection(workspace: Path, occ_file: Path
 
     # occ_file: "foo bar\nfoo baz\nqux\n"
     # first "foo": (0,0)-(0,3), second "foo": (1,0)-(1,3)
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -267,7 +267,7 @@ async def test_ctrl_d_reverse_selection_adds_cursor(workspace: Path, occ_file: P
     from textual.widgets.text_area import Selection
 
     # occ_file: "foo bar\nfoo baz\nqux\n"
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -289,7 +289,7 @@ async def test_ctrl_d_reverse_selection_wrap_around(workspace: Path, occ_file: P
     from textual.widgets.text_area import Selection
 
     # occ_file: "foo bar\nfoo baz\nqux\n" — 2 "foo"s
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -315,7 +315,7 @@ async def test_ctrl_d_reverse_selection_twice(workspace: Path, three_occ_file: P
 
     # three_occ_file: "foo bar foo\nfoo baz\n"
     # positions: (0,0), (0,8), (1,0)
-    app = make_app(workspace, open_file=three_occ_file)
+    app = make_app(workspace, open_file=three_occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -341,7 +341,7 @@ async def test_ctrl_d_reverse_selection_twice(workspace: Path, three_occ_file: P
 
 async def test_ctrl_d_cmd_no_file(workspace: Path):
     """Command palette action when no file open → no crash."""
-    app = make_app(workspace, open_file=None)
+    app = make_app(workspace, open_file=None, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Should not raise an exception

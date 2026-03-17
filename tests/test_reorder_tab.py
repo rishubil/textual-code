@@ -63,7 +63,7 @@ async def test_reorder_tab_right(
     workspace: Path, py_file: Path, py_file2: Path, py_file3: Path
 ):
     """Move active tab one position one position to the right."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -100,7 +100,7 @@ async def test_reorder_tab_left(
     workspace: Path, py_file: Path, py_file2: Path, py_file3: Path
 ):
     """Move active tab one position one position to the left."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -132,7 +132,7 @@ async def test_reorder_tab_left(
 
 async def test_reorder_tab_right_at_end(workspace: Path, py_file: Path, py_file2: Path):
     """Forward at the last position is a no-op."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -158,7 +158,7 @@ async def test_reorder_tab_left_at_start(
     workspace: Path, py_file: Path, py_file2: Path
 ):
     """Backward at the first position is a no-op."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -185,7 +185,7 @@ async def test_reorder_tab_left_at_start(
 
 async def test_reorder_tab_single_tab(workspace: Path, py_file: Path):
     """Reorder is a no-op when only one tab is open."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -209,7 +209,7 @@ async def test_reorder_markdown_preview_tab(
     workspace: Path, py_file: Path, md_file: Path
 ):
     """MarkdownPreviewPane tabs can also be reordered."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -242,7 +242,7 @@ async def test_reorder_markdown_preview_tab(
 
 async def test_reorder_commands_registered(workspace: Path, py_file: Path):
     """Reorder tab commands are registered in get_system_commands."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = {cmd.title for cmd in app.get_system_commands(app.screen)}

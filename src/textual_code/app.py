@@ -233,9 +233,11 @@ class TextualCode(App):
         with_open_file: Path | None,
         *args,
         user_config_path: Path | None = None,
+        skip_sidebar: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
+        self._skip_sidebar = skip_sidebar
 
         # the workspace path to open the explorer
         self.workspace_path = workspace_path
@@ -277,12 +279,13 @@ class TextualCode(App):
         _apply_custom_keybindings(self._custom_keybindings)
 
     def compose(self) -> ComposeResult:
-        yield Sidebar(
-            workspace_path=self.workspace_path,
-            show_hidden_files=self.default_show_hidden_files,
-            dim_gitignored=self.default_dim_gitignored,
-            dim_hidden_files=self.default_dim_hidden_files,
-        )
+        if not self._skip_sidebar:
+            yield Sidebar(
+                workspace_path=self.workspace_path,
+                show_hidden_files=self.default_show_hidden_files,
+                dim_gitignored=self.default_dim_gitignored,
+                dim_hidden_files=self.default_dim_hidden_files,
+            )
         yield MainView()
         yield Footer()
 
@@ -811,16 +814,30 @@ class TextualCode(App):
             )
         )
 
+    def _toggle_explorer_tree_setting(
+        self, tree_attr: str, new_value: bool, label: str, on_text: str, off_text: str
+    ) -> None:
+        """Toggle an explorer tree setting, save config, and notify."""
+        sb = self.sidebar
+        if sb is not None:
+            tree = sb.explorer.directory_tree
+            setattr(tree, tree_attr, new_value)
+            tree.reload()
+        settings = self._build_editor_settings()
+        save_user_editor_settings(settings, self._user_config_path)
+        state = on_text if new_value else off_text
+        self.notify(f"{label}: {state}")
+
     def _toggle_hidden_files_cmd(self) -> None:
         """Toggle hidden files visibility in the explorer and save to config."""
         self.default_show_hidden_files = not self.default_show_hidden_files
-        tree = self.sidebar.explorer.directory_tree
-        tree.show_hidden_files = self.default_show_hidden_files
-        tree.reload()
-        settings = self._build_editor_settings()
-        save_user_editor_settings(settings, self._user_config_path)
-        state = "visible" if self.default_show_hidden_files else "hidden"
-        self.notify(f"Hidden files: {state}")
+        self._toggle_explorer_tree_setting(
+            "show_hidden_files",
+            self.default_show_hidden_files,
+            "Hidden files",
+            "visible",
+            "hidden",
+        )
 
     def _toggle_path_display_mode_cmd(self) -> None:
         """Toggle between absolute and relative path display in footer."""
@@ -838,24 +855,24 @@ class TextualCode(App):
     def _toggle_dim_gitignored_cmd(self) -> None:
         """Toggle dim gitignored files in the explorer and save to config."""
         self.default_dim_gitignored = not self.default_dim_gitignored
-        tree = self.sidebar.explorer.directory_tree
-        tree.dim_gitignored = self.default_dim_gitignored
-        tree.reload()
-        settings = self._build_editor_settings()
-        save_user_editor_settings(settings, self._user_config_path)
-        state = "dimmed" if self.default_dim_gitignored else "normal"
-        self.notify(f"Gitignored files: {state}")
+        self._toggle_explorer_tree_setting(
+            "dim_gitignored",
+            self.default_dim_gitignored,
+            "Gitignored files",
+            "dimmed",
+            "normal",
+        )
 
     def _toggle_dim_hidden_files_cmd(self) -> None:
         """Toggle dim hidden files in the explorer and save to config."""
         self.default_dim_hidden_files = not self.default_dim_hidden_files
-        tree = self.sidebar.explorer.directory_tree
-        tree.dim_hidden_files = self.default_dim_hidden_files
-        tree.reload()
-        settings = self._build_editor_settings()
-        save_user_editor_settings(settings, self._user_config_path)
-        state = "dimmed" if self.default_dim_hidden_files else "normal"
-        self.notify(f"Hidden files: {state}")
+        self._toggle_explorer_tree_setting(
+            "dim_hidden_files",
+            self.default_dim_hidden_files,
+            "Hidden files",
+            "dimmed",
+            "normal",
+        )
 
     @property
     def _resolved_user_config_path(self) -> Path:
@@ -1060,7 +1077,10 @@ class TextualCode(App):
         def on_result(result: SidebarResizeModalResult | None) -> None:
             if result is None or result.is_cancelled:
                 return
-            current_width = self.sidebar.size.width
+            sb = self.sidebar
+            if sb is None:
+                return
+            current_width = sb.size.width
             max_width = self.size.width - 5
             parsed = _parse_sidebar_resize(result.value or "", current_width, max_width)
             if parsed is None:
@@ -1070,7 +1090,7 @@ class TextualCode(App):
                     severity="error",
                 )
                 return
-            self.sidebar.styles.width = parsed
+            sb.styles.width = parsed
 
         self.call_next(lambda: self.push_screen(SidebarResizeModalScreen(), on_result))
 
@@ -1125,12 +1145,16 @@ class TextualCode(App):
         """
         Toggle the sidebar visibility.
         """
-        self.sidebar.display = not self.sidebar.display
+        sb = self.sidebar
+        if sb is not None:
+            sb.display = not sb.display
 
     def action_reload_explorer(self) -> None:
         """
         Reload the explorer directory tree.
         """
+        if self.sidebar is None:
+            return
         # call with call_next to ensure the command palette is closed
         self.call_next(self.sidebar.explorer.directory_tree.reload)
 
@@ -1345,7 +1369,8 @@ class TextualCode(App):
 
     @on(MainView.ActiveFileChanged)
     def on_active_file_changed(self, event: MainView.ActiveFileChanged) -> None:
-        self.sidebar.explorer.select_file(event.path)
+        if self.sidebar is not None:
+            self.sidebar.explorer.select_file(event.path)
 
     @on(Explorer.FileOpenRequested)
     async def on_file_open_requested(self, event: Explorer.FileOpenRequested):
@@ -1440,7 +1465,9 @@ class TextualCode(App):
         self.notify("Shortcut saved. Restart to apply changes.")
 
     @property
-    def sidebar(self) -> Sidebar:
+    def sidebar(self) -> Sidebar | None:
+        if self._skip_sidebar:
+            return None
         # Use the base screen so this works even when a modal is active
         return self.screen_stack[0].query_one(Sidebar)
 

@@ -27,7 +27,7 @@ async def _open_file(workspace: Path, content: str, name: str = "test.txt") -> P
 async def test_ctrl_c_copies_selected_text(workspace: Path):
     """Ctrl+C with a selection copies the selected text to the clipboard."""
     f = await _open_file(workspace, "hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -46,7 +46,7 @@ async def test_ctrl_c_copies_selected_text(workspace: Path):
 async def test_ctrl_c_no_selection_copies_current_line(workspace: Path):
     """Ctrl+C with no selection copies the current line (including newline)."""
     f = await _open_file(workspace, "hello world\nsecond line\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -62,7 +62,7 @@ async def test_ctrl_c_no_selection_copies_current_line(workspace: Path):
 async def test_ctrl_c_no_selection_copies_second_line(workspace: Path):
     """Ctrl+C on the second line copies that line."""
     f = await _open_file(workspace, "first\nsecond\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -80,7 +80,7 @@ async def test_ctrl_c_no_selection_copies_second_line(workspace: Path):
 async def test_ctrl_x_cuts_selected_text(workspace: Path):
     """Ctrl+X with a selection copies to clipboard AND removes the text."""
     f = await _open_file(workspace, "hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -100,7 +100,7 @@ async def test_ctrl_x_cuts_selected_text(workspace: Path):
 async def test_ctrl_x_no_selection_cuts_current_line(workspace: Path):
     """Ctrl+X with no selection cuts the current line."""
     f = await _open_file(workspace, "first\nsecond\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -120,7 +120,7 @@ async def test_ctrl_x_no_selection_cuts_current_line(workspace: Path):
 async def test_ctrl_c_with_multiple_cursors_preserves_extra_cursors(workspace: Path):
     """Ctrl+C while multi-cursor is active preserves extra cursors."""
     f = await _open_file(workspace, "line1\nline2\nline3\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()

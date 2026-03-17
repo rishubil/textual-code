@@ -25,14 +25,14 @@ from textual_code.widgets.code_editor import CodeEditor
 
 
 async def test_open_file_creates_tab(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
 
 
 async def test_duplicate_file_not_reopened(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
@@ -45,7 +45,7 @@ async def test_duplicate_file_not_reopened(workspace: Path, sample_py_file: Path
 async def test_multiple_different_files_open_multiple_tabs(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
@@ -61,7 +61,7 @@ async def test_multiple_different_files_open_multiple_tabs(
 async def test_close_pane_removes_from_opened_pane_ids(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
@@ -71,7 +71,7 @@ async def test_close_pane_removes_from_opened_pane_ids(
 
 
 async def test_close_nonexistent_pane_returns_false(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         result = await app.main_view.close_pane("nonexistent-pane-id")
@@ -82,7 +82,7 @@ async def test_close_nonexistent_pane_returns_false(workspace: Path):
 
 
 async def test_has_unsaved_pane_false_when_clean(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.main_view.has_unsaved_pane() is False
@@ -91,7 +91,7 @@ async def test_has_unsaved_pane_false_when_clean(workspace: Path, sample_py_file
 async def test_has_unsaved_pane_true_when_modified(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -102,7 +102,7 @@ async def test_has_unsaved_pane_true_when_modified(
 
 
 async def test_has_unsaved_pane_false_after_save(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -120,7 +120,7 @@ async def test_has_unsaved_pane_false_after_save(workspace: Path, sample_py_file
 
 
 async def test_focus_pane_returns_false_for_nonexistent(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         result = app.main_view.focus_pane("nonexistent-id")
@@ -130,7 +130,7 @@ async def test_focus_pane_returns_false_for_nonexistent(workspace: Path):
 async def test_focus_pane_switches_active_tab(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         py_pane_id = list(app.main_view.opened_pane_ids)[0]
@@ -149,7 +149,7 @@ async def test_focus_pane_switches_active_tab(
 
 
 async def test_save_all_noop_when_no_files_open(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Should not raise any error
@@ -158,7 +158,7 @@ async def test_save_all_noop_when_no_files_open(workspace: Path):
 
 
 async def test_save_all_noop_when_all_clean(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.main_view.has_unsaved_pane() is False
@@ -170,7 +170,7 @@ async def test_save_all_noop_when_all_clean(workspace: Path, sample_py_file: Pat
 async def test_save_all_saves_single_modified_file(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -188,7 +188,7 @@ async def test_save_all_saves_single_modified_file(
 async def test_save_all_saves_all_of_two_modified(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
@@ -215,7 +215,7 @@ async def test_save_all_saves_only_modified_among_three(workspace: Path):
     file_b.write_text("original_b\n")
     file_c.write_text("original_c\n")
 
-    app = make_app(workspace, open_file=file_a)
+    app = make_app(workspace, light=True, open_file=file_a)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=file_b)
@@ -250,7 +250,7 @@ async def test_save_all_saves_all_of_three_modified(workspace: Path):
     file_b.write_text("original_b\n")
     file_c.write_text("original_c\n")
 
-    app = make_app(workspace, open_file=file_a)
+    app = make_app(workspace, light=True, open_file=file_a)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=file_b)
@@ -273,7 +273,7 @@ async def test_save_all_saves_all_of_three_modified(workspace: Path):
 
 
 async def test_save_all_shows_save_as_for_single_untitled(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         pane_id = await app.main_view.open_code_editor_pane(path=None)
@@ -298,7 +298,7 @@ async def test_save_all_shows_save_as_for_single_untitled(workspace: Path):
 async def test_save_all_mixed_saves_file_then_shows_save_as(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -331,7 +331,7 @@ async def test_save_all_three_mixed_saves_two_files_shows_save_as(workspace: Pat
     file_a.write_text("original_a\n")
     file_b.write_text("original_b\n")
 
-    app = make_app(workspace, open_file=file_a)
+    app = make_app(workspace, light=True, open_file=file_a)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=file_b)
@@ -368,7 +368,7 @@ async def test_save_all_three_mixed_saves_two_files_shows_save_as(workspace: Pat
 
 
 async def test_save_all_sequential_multiple_untitled(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -413,7 +413,7 @@ async def test_save_all_sequential_multiple_untitled(workspace: Path):
 
 
 async def test_save_all_files_via_app_action(workspace: Path, sample_py_file: Path):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -430,7 +430,7 @@ async def test_save_all_files_via_app_action(workspace: Path, sample_py_file: Pa
 
 async def test_ctrl_shift_s_triggers_save_all(workspace: Path, sample_py_file: Path):
     """Ctrl+Shift+S saves all modified files."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -448,7 +448,7 @@ async def test_ctrl_shift_s_triggers_save_all(workspace: Path, sample_py_file: P
 
 async def test_save_all_clean_untitled_no_modal(workspace: Path):
     """A clean (unmodified) untitled file is skipped by save_all — no modal."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.open_code_editor_pane(path=None)
@@ -468,7 +468,7 @@ async def test_save_all_idempotent_on_already_saved(
     workspace: Path, sample_py_file: Path
 ):
     """Calling save_all twice on already-saved files has no side effects."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -491,7 +491,7 @@ async def test_save_all_idempotent_on_already_saved(
 
 
 async def test_close_all_noop_when_no_files_open(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.main_view.action_close_all()
@@ -502,7 +502,7 @@ async def test_close_all_noop_when_no_files_open(workspace: Path):
 async def test_close_all_closes_single_clean_file(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
@@ -520,7 +520,7 @@ async def test_close_all_closes_all_clean_files(workspace: Path):
     file_b.write_text("b\n")
     file_c.write_text("c\n")
 
-    app = make_app(workspace, open_file=file_a)
+    app = make_app(workspace, light=True, open_file=file_a)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=file_b)
@@ -537,7 +537,7 @@ async def test_close_all_closes_all_clean_files(workspace: Path):
 async def test_close_all_single_unsaved_shows_modal(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -559,7 +559,7 @@ async def test_close_all_single_unsaved_shows_modal(
 async def test_close_all_single_unsaved_save_closes(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -583,7 +583,7 @@ async def test_close_all_single_unsaved_save_closes(
 async def test_close_all_single_unsaved_dont_save_closes(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -606,7 +606,7 @@ async def test_close_all_single_unsaved_dont_save_closes(
 async def test_close_all_single_unsaved_cancel_stops(
     workspace: Path, sample_py_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -629,7 +629,7 @@ async def test_close_all_single_unsaved_cancel_stops(
 async def test_close_all_mixed_clean_and_dirty(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
@@ -667,7 +667,7 @@ async def test_close_all_cancel_stops_remaining(workspace: Path):
     file_b.write_text("b\n")
     file_c.write_text("c\n")
 
-    app = make_app(workspace, open_file=file_a)
+    app = make_app(workspace, light=True, open_file=file_a)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=file_b)
@@ -707,7 +707,7 @@ async def test_close_all_cancel_stops_remaining(workspace: Path):
 async def test_close_all_sequential_multiple_unsaved(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
@@ -743,7 +743,7 @@ async def test_close_all_sequential_multiple_unsaved(
 
 
 async def test_close_all_untitled_unsaved_save_shows_error(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         pane_id = await app.main_view.open_code_editor_pane(path=None)
@@ -767,7 +767,7 @@ async def test_close_all_untitled_unsaved_save_shows_error(workspace: Path):
 
 
 async def test_close_all_untitled_dont_save_closes(workspace: Path):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         pane_id = await app.main_view.open_code_editor_pane(path=None)
@@ -791,7 +791,7 @@ async def test_close_all_untitled_dont_save_closes(workspace: Path):
 
 async def test_ctrl_shift_w_triggers_close_all(workspace: Path, sample_py_file: Path):
     """Ctrl+Shift+W closes all clean files without prompting."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
@@ -805,7 +805,7 @@ async def test_close_all_clears_opened_files_dict(
     workspace: Path, sample_py_file: Path, sample_json_file: Path
 ):
     """After close_all, opened_files dict is empty."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
@@ -819,7 +819,7 @@ async def test_close_all_clears_opened_files_dict(
 
 async def test_close_all_allows_reopen_same_file(workspace: Path, sample_py_file: Path):
     """After close_all, the same file can be reopened."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
@@ -841,7 +841,7 @@ async def test_close_all_all_dirty_save_all_writes_to_disk(workspace: Path):
     file_a.write_text("original_a\n")
     file_b.write_text("original_b\n")
 
-    app = make_app(workspace, open_file=file_a)
+    app = make_app(workspace, light=True, open_file=file_a)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=file_b)

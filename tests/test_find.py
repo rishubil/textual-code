@@ -40,7 +40,7 @@ def search_file(workspace: Path) -> Path:
 
 
 async def test_ctrl_f_opens_find_bar(workspace: Path, search_file: Path):
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -57,7 +57,7 @@ async def test_ctrl_f_opens_find_bar(workspace: Path, search_file: Path):
 
 async def test_find_selects_first_match_from_start(workspace: Path, search_file: Path):
     """Searching for 'hello' from the start selects the first 'hello'."""
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -82,7 +82,7 @@ async def test_find_from_cursor_finds_next_occurrence(
     workspace: Path, search_file: Path
 ):
     """When cursor is past the first match, the second occurrence is selected."""
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -109,7 +109,7 @@ async def test_find_from_cursor_finds_next_occurrence(
 
 async def test_find_wraps_around_to_beginning(workspace: Path, search_file: Path):
     """When no match exists after cursor, wraps to the first match in file."""
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -136,7 +136,7 @@ async def test_find_wraps_around_to_beginning(workspace: Path, search_file: Path
 
 async def test_find_no_match_does_not_change_cursor(workspace: Path, search_file: Path):
     """When query is not found anywhere, cursor stays put."""
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -158,7 +158,7 @@ async def test_find_no_match_does_not_change_cursor(workspace: Path, search_file
 
 async def test_find_cancel_keeps_cursor(workspace: Path, search_file: Path):
     """Closing the find bar leaves the cursor unchanged."""
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -179,7 +179,7 @@ async def test_find_cancel_keeps_cursor(workspace: Path, search_file: Path):
 
 async def test_find_empty_query_does_nothing(workspace: Path, search_file: Path):
     """Submitting an empty query does not move the cursor."""
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -200,7 +200,7 @@ async def test_find_multiline_match(workspace: Path):
     """Search works across multi-line files and finds correct location."""
     f = workspace / "multi.py"
     f.write_text("def foo():\n    return 42\ndef bar():\n    return 0\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -265,7 +265,7 @@ def test_offset_to_location_empty_first_line():
 
 async def test_find_is_case_sensitive_no_match(workspace: Path, search_file: Path):
     """'Hello' (capital H) is not found in a file that only has 'hello'."""
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -289,7 +289,7 @@ async def test_find_is_case_sensitive_exact_match(workspace: Path):
     """Exact-case query matches correctly."""
     f = workspace / "mixed.txt"
     f.write_text("Hello World\nhello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -318,7 +318,7 @@ async def test_find_cursor_inside_match_skips_to_next(
 ):
     """When cursor is inside a match, that match is skipped; next is selected."""
     # search_file: "hello world\nhello textual\nfoo bar\n"
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -349,7 +349,7 @@ async def test_find_cursor_inside_match_skips_to_next(
 async def test_find_single_char_query(workspace: Path, search_file: Path):
     """A single-character query selects a one-character range."""
     # search_file: "hello world\nhello textual\nfoo bar\n"
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -375,7 +375,7 @@ async def test_find_single_char_query(workspace: Path, search_file: Path):
 async def test_find_multiword_query(workspace: Path, search_file: Path):
     """A multi-word query spanning a space is found correctly."""
     # search_file first line: "hello world"
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -385,9 +385,7 @@ async def test_find_multiword_query(workspace: Path, search_file: Path):
         await pilot.pause()
 
         input_widget = editor.query_one("#find_input")
-        await pilot.click(input_widget)
-        for ch in "hello world":
-            await pilot.press(ch)
+        input_widget.value = "hello world"
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -403,7 +401,7 @@ async def test_find_match_at_end_of_file(workspace: Path):
     """Match at the very end of the file is found and selected correctly."""
     f = workspace / "end.txt"
     f.write_text("line one\nfind me")  # no trailing newline
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -413,9 +411,7 @@ async def test_find_match_at_end_of_file(workspace: Path):
         await pilot.pause()
 
         input_widget = editor.query_one("#find_input")
-        await pilot.click(input_widget)
-        for ch in "find me":
-            await pilot.press(ch)
+        input_widget.value = "find me"
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -432,7 +428,7 @@ async def test_find_in_single_line_file(workspace: Path):
     """Search works correctly in a file with no newlines."""
     f = workspace / "oneline.txt"
     f.write_text("abcdefgh")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -456,7 +452,7 @@ async def test_find_wrap_in_single_line_file(workspace: Path):
     """Wrap-around works even in a single-line file."""
     f = workspace / "oneline2.txt"
     f.write_text("abc abc abc")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -488,7 +484,7 @@ async def test_find_file_without_trailing_newline(workspace: Path):
     """Find works on files that do not end with a newline."""
     f = workspace / "no_newline.txt"
     f.write_text("first line\nsecond line")  # no trailing \n
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -498,9 +494,7 @@ async def test_find_file_without_trailing_newline(workspace: Path):
         await pilot.pause()
 
         input_widget = editor.query_one("#find_input")
-        await pilot.click(input_widget)
-        for ch in "second":
-            await pilot.press(ch)
+        input_widget.value = "second"
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -518,7 +512,7 @@ async def test_find_sequential_opens_finds_next_each_time(
     """Clicking Next multiple times progresses through occurrences."""
     # search_file: "hello world\nhello textual\nfoo bar\n"
     # Two 'hello': (0,0)–(0,5) and (1,0)–(1,5)
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -548,7 +542,7 @@ async def test_find_sequential_opens_finds_next_each_time(
 
 async def test_find_works_on_untitled_file(workspace: Path):
     """Find works on a new, unsaved file after typing content via pilot."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
         await pilot.pause()
@@ -584,7 +578,7 @@ async def test_find_works_on_untitled_file(workspace: Path):
 
 async def test_find_enter_key_submits(workspace: Path, search_file: Path):
     """Pressing Enter in the query input triggers the find."""
-    app = make_app(workspace, open_file=search_file)
+    app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -610,7 +604,7 @@ async def test_find_enter_key_submits(workspace: Path, search_file: Path):
 
 async def test_ctrl_f_with_no_open_file_opens_no_bar(workspace: Path):
     """Ctrl+F when no file is open does not open a FindReplaceBar."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # No file opened — no CodeEditor, so no FindReplaceBar visible
@@ -622,7 +616,7 @@ async def test_ctrl_f_with_no_open_file_opens_no_bar(workspace: Path):
 
 async def test_find_cmd_with_no_open_file_does_nothing(workspace: Path):
     """action_find_cmd when no file is open does not crash."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.action_find_cmd()
@@ -639,7 +633,7 @@ async def test_find_entire_file_content_as_query(workspace: Path):
     content = "match me"
     f = workspace / "whole.txt"
     f.write_text(content)
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -649,9 +643,7 @@ async def test_find_entire_file_content_as_query(workspace: Path):
         await pilot.pause()
 
         input_widget = editor.query_one("#find_input")
-        await pilot.click(input_widget)
-        for ch in content:
-            await pilot.press(ch)
+        input_widget.value = content
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -667,7 +659,7 @@ async def test_case_insensitive_find_selects_uppercase_match(workspace: Path):
     """Case-insensitive find selects uppercase match for lowercase query."""
     f = workspace / "ci.txt"
     f.write_text("HELLO world\nhello\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -697,7 +689,7 @@ async def test_case_sensitive_find_does_not_match_different_case(workspace: Path
     """Case-sensitive find (default) does not match different-case text."""
     f = workspace / "cs.txt"
     f.write_text("HELLO world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()

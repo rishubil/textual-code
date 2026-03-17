@@ -48,7 +48,7 @@ def test_filename_in_dict(filename, expected):
 async def test_new_extension_detected(workspace, filename, expected_lang):
     f = workspace / filename
     f.write_text("content")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -67,7 +67,7 @@ async def test_new_extension_detected(workspace, filename, expected_lang):
 async def test_filename_detected(workspace, filename, expected_lang):
     f = workspace / filename
     f.write_text("content")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -99,7 +99,7 @@ async def test_filename_takes_priority_over_extension(workspace):
     """load_language_from_path checks filename before extension."""
     f = workspace / ".bashrc"
     f.write_text("export PATH=...")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -110,7 +110,7 @@ async def test_unknown_file_returns_none(workspace):
     """Unknown extension and filename -> language is None."""
     f = workspace / "unknown.xyz"
     f.write_text("content")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()

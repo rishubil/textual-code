@@ -34,7 +34,7 @@ def three_line_file(workspace: Path) -> Path:
 
 
 async def test_no_extra_cursors_initially(workspace: Path, two_line_file: Path):
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -43,7 +43,7 @@ async def test_no_extra_cursors_initially(workspace: Path, two_line_file: Path):
 
 
 async def test_add_cursor_adds_to_list(workspace: Path, two_line_file: Path):
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -52,7 +52,7 @@ async def test_add_cursor_adds_to_list(workspace: Path, two_line_file: Path):
 
 
 async def test_add_cursor_same_as_primary_is_noop(workspace: Path, two_line_file: Path):
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -62,7 +62,7 @@ async def test_add_cursor_same_as_primary_is_noop(workspace: Path, two_line_file
 
 
 async def test_add_cursor_duplicate_is_noop(workspace: Path, two_line_file: Path):
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -72,7 +72,7 @@ async def test_add_cursor_duplicate_is_noop(workspace: Path, two_line_file: Path
 
 
 async def test_clear_cursors_removes_all(workspace: Path, two_line_file: Path):
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -121,7 +121,7 @@ def test_new_positions_delete_same_row():
 
 
 async def test_ctrl_alt_down_adds_cursor_below(workspace: Path, two_line_file: Path):
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -134,7 +134,7 @@ async def test_ctrl_alt_down_adds_cursor_below(workspace: Path, two_line_file: P
 
 
 async def test_ctrl_alt_up_adds_cursor_above(workspace: Path, three_line_file: Path):
-    app = make_app(workspace, open_file=three_line_file)
+    app = make_app(workspace, light=True, open_file=three_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -150,7 +150,7 @@ async def test_ctrl_alt_up_adds_cursor_above(workspace: Path, three_line_file: P
 
 
 async def test_ctrl_alt_down_at_last_line_is_noop(workspace: Path, two_line_file: Path):
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -166,7 +166,7 @@ async def test_ctrl_alt_down_at_last_line_is_noop(workspace: Path, two_line_file
 
 
 async def test_ctrl_alt_up_at_first_line_is_noop(workspace: Path, two_line_file: Path):
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -181,7 +181,7 @@ async def test_ctrl_alt_up_at_first_line_is_noop(workspace: Path, two_line_file:
 
 
 async def test_escape_clears_extra_cursors(workspace: Path, two_line_file: Path):
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -199,7 +199,7 @@ async def test_escape_clears_extra_cursors(workspace: Path, two_line_file: Path)
 
 async def test_movement_key_clears_extra_cursors(workspace: Path, two_line_file: Path):
     """Movement key now moves all cursors (not clears). Extra cursor moved to (1,1)."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -218,7 +218,7 @@ async def test_movement_key_clears_extra_cursors(workspace: Path, two_line_file:
 
 async def test_typing_inserts_at_two_cursors(workspace: Path, two_line_file: Path):
     """Type 'X' with cursors on both lines inserts on both lines."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -239,7 +239,7 @@ async def test_typing_inserts_at_two_cursors(workspace: Path, two_line_file: Pat
 
 async def test_backspace_deletes_at_two_cursors(workspace: Path, two_line_file: Path):
     """Backspace with cursors at col>0 on both lines deletes from both."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -267,7 +267,7 @@ async def test_backspace_deletes_at_two_cursors(workspace: Path, two_line_file: 
 
 async def test_delete_deletes_at_two_cursors(workspace: Path, two_line_file: Path):
     """Delete (forward) with cursors at col<EOL on both lines deletes from both."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -295,7 +295,7 @@ async def test_delete_deletes_at_two_cursors(workspace: Path, two_line_file: Pat
 async def test_footer_shows_cursor_count_in_multicursor_mode(
     workspace: Path, two_line_file: Path
 ):
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -314,7 +314,7 @@ async def test_footer_shows_cursor_count_in_multicursor_mode(
 async def test_footer_hides_cursor_count_after_escape(
     workspace: Path, two_line_file: Path
 ):
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -344,7 +344,7 @@ def five_line_file(workspace: Path) -> Path:
 
 async def test_enter_splits_two_different_rows(workspace: Path, two_line_file: Path):
     """Enter with cursors on different rows splits both lines."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -370,7 +370,7 @@ async def test_enter_splits_two_different_rows(workspace: Path, two_line_file: P
 
 async def test_enter_splits_same_row_two_cursors(workspace: Path, two_line_file: Path):
     """Enter with two cursors on the same row splits into three pieces."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -396,7 +396,7 @@ async def test_enter_splits_same_row_three_cursors(
     workspace: Path, two_line_file: Path
 ):
     """Enter with three cursors on the same row produces four pieces."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -422,7 +422,7 @@ async def test_enter_splits_same_row_three_cursors(
 
 async def test_enter_at_col_0(workspace: Path, two_line_file: Path):
     """Enter at col 0 inserts a blank line before the current line."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -444,7 +444,7 @@ async def test_enter_at_col_0(workspace: Path, two_line_file: Path):
 
 async def test_enter_at_eol(workspace: Path, two_line_file: Path):
     """Enter at EOL inserts a blank line after the current line."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -468,7 +468,7 @@ async def test_enter_at_eol(workspace: Path, two_line_file: Path):
 
 async def test_enter_primary_position_correct(workspace: Path, two_line_file: Path):
     """Primary cursor ends at (row+1, 0) after Enter."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -490,7 +490,7 @@ async def test_enter_extra_cursor_positions_correct(
     workspace: Path, two_line_file: Path
 ):
     """Extra cursors end at (row+2, 0) (shifted by primary's newline) after Enter."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -510,7 +510,7 @@ async def test_enter_extra_cursor_positions_correct(
 
 async def test_enter_three_different_rows(workspace: Path, five_line_file: Path):
     """3 cursors on 3 different rows — all split correctly."""
-    app = make_app(workspace, open_file=five_line_file)
+    app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -538,7 +538,7 @@ async def test_enter_three_different_rows(workspace: Path, five_line_file: Path)
 
 async def test_enter_consecutive_rows(workspace: Path, five_line_file: Path):
     """Cursors on consecutive rows split correctly with row_offset tracking."""
-    app = make_app(workspace, open_file=five_line_file)
+    app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -567,7 +567,7 @@ async def test_enter_single_cursor_not_intercepted(
     workspace: Path, two_line_file: Path
 ):
     """With no extra cursors, Enter behaves normally (inserts newline via TextArea)."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -589,7 +589,7 @@ async def test_enter_single_cursor_not_intercepted(
 
 async def test_backspace_col0_two_cursors_merges(workspace: Path, five_line_file: Path):
     """Backspace at col 0 with 2 cursors merges both lines with the ones above."""
-    app = make_app(workspace, open_file=five_line_file)
+    app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -608,7 +608,7 @@ async def test_backspace_col0_two_cursors_merges(workspace: Path, five_line_file
 
 async def test_backspace_col0_document_content(workspace: Path, five_line_file: Path):
     """Verify exact merged document content after backspace at col 0."""
-    app = make_app(workspace, open_file=five_line_file)
+    app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -631,7 +631,7 @@ async def test_backspace_col0_document_content(workspace: Path, five_line_file: 
 
 async def test_backspace_col0_row0_stays(workspace: Path, two_line_file: Path):
     """Backspace at (0,0) is a no-op (can't merge above row 0)."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -652,7 +652,7 @@ async def test_backspace_col0_mixed_clears_cursors(
     workspace: Path, five_line_file: Path
 ):
     """Mixed cursors (some at col 0, some not): clears extra cursors and delegates."""
-    app = make_app(workspace, open_file=five_line_file)
+    app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -671,7 +671,7 @@ async def test_backspace_col0_mixed_clears_cursors(
 
 async def test_backspace_col0_primary_position(workspace: Path, five_line_file: Path):
     """Primary cursor ends at (prev_row, prev_len) after merge."""
-    app = make_app(workspace, open_file=five_line_file)
+    app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -690,7 +690,7 @@ async def test_backspace_col0_primary_position(workspace: Path, five_line_file: 
 
 async def test_backspace_col0_extra_positions(workspace: Path, five_line_file: Path):
     """Extra cursor ends at correct position after merge."""
-    app = make_app(workspace, open_file=five_line_file)
+    app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -713,7 +713,7 @@ async def test_backspace_col0_extra_positions(workspace: Path, five_line_file: P
 
 async def test_delete_eol_two_cursors_merges(workspace: Path, five_line_file: Path):
     """Delete at EOL with 2 cursors merges both lines with the ones below."""
-    app = make_app(workspace, open_file=five_line_file)
+    app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -732,7 +732,7 @@ async def test_delete_eol_two_cursors_merges(workspace: Path, five_line_file: Pa
 
 async def test_delete_eol_document_content(workspace: Path, five_line_file: Path):
     """Verify exact merged document after delete at EOL."""
-    app = make_app(workspace, open_file=five_line_file)
+    app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -753,7 +753,7 @@ async def test_delete_eol_document_content(workspace: Path, five_line_file: Path
 
 async def test_delete_eol_last_line_stays(workspace: Path, two_line_file: Path):
     """Delete at EOL of the last line is a no-op."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -774,7 +774,7 @@ async def test_delete_eol_last_line_stays(workspace: Path, two_line_file: Path):
 
 async def test_delete_eol_mixed_clears_cursors(workspace: Path, five_line_file: Path):
     """Mixed cursors (some at EOL, some not): clears extra cursors and delegates."""
-    app = make_app(workspace, open_file=five_line_file)
+    app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -792,7 +792,7 @@ async def test_delete_eol_mixed_clears_cursors(workspace: Path, five_line_file: 
 
 async def test_delete_eol_cursor_positions(workspace: Path, five_line_file: Path):
     """Cursor stays at EOL position (which is now mid-merged-line)."""
-    app = make_app(workspace, open_file=five_line_file)
+    app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -816,7 +816,7 @@ async def test_delete_eol_cursor_positions(workspace: Path, five_line_file: Path
 
 async def test_enter_regression_single_cursor(workspace: Path, two_line_file: Path):
     """Single cursor Enter still inserts a newline normally."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -835,7 +835,7 @@ async def test_backspace_col0_regression_single_cursor(
     workspace: Path, two_line_file: Path
 ):
     """Single cursor backspace at col 0 still merges with previous line normally."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -855,7 +855,7 @@ async def test_delete_eol_regression_single_cursor(
     workspace: Path, two_line_file: Path
 ):
     """Single cursor delete at EOL still merges with next line normally."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -875,7 +875,7 @@ async def test_delete_eol_regression_single_cursor(
 
 async def test_add_cursor_clears_line_cache(workspace: Path, two_line_file: Path):
     """add_cursor() must clear _line_cache so get_line() is called on next render."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -891,7 +891,7 @@ async def test_clear_extra_cursors_clears_line_cache(
     workspace: Path, two_line_file: Path
 ):
     """clear_extra_cursors() must clear _line_cache so stale highlights vanish."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -910,7 +910,7 @@ async def test_clear_extra_cursors_clears_line_cache(
 
 async def test_arrow_key_moves_all_cursors(workspace: Path, two_line_file: Path):
     """Right arrow with extra cursor: both cursors move right."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -929,7 +929,7 @@ async def test_arrow_key_moves_all_cursors(workspace: Path, two_line_file: Path)
 
 async def test_home_moves_all_cursors(workspace: Path, two_line_file: Path):
     """Home key moves all cursors to col 0."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -949,7 +949,7 @@ async def test_home_moves_all_cursors(workspace: Path, two_line_file: Path):
 
 async def test_ctrl_end_moves_all_cursors(workspace: Path, two_line_file: Path):
     """Ctrl+End moves all cursors to last line."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -973,7 +973,7 @@ async def test_ctrl_end_moves_all_cursors(workspace: Path, two_line_file: Path):
 
 async def test_shift_left_creates_extra_selection(workspace: Path, two_line_file: Path):
     """Shift+Left with extra cursor: extra cursor gets anchor != cursor."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -997,7 +997,7 @@ async def test_ctrl_shift_right_creates_word_selection(
     workspace: Path, two_line_file: Path
 ):
     """Ctrl+Shift+Right on extra cursor creates a word-level selection."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -1019,7 +1019,7 @@ async def test_ctrl_shift_left_creates_word_selection(
     workspace: Path, two_line_file: Path
 ):
     """Ctrl+Shift+Left on extra cursor creates a word-level selection leftward."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -1044,7 +1044,7 @@ async def test_ctrl_shift_left_creates_word_selection(
 
 async def test_add_cursor_with_anchor(workspace: Path, two_line_file: Path):
     """add_cursor(loc, anchor=a) stores the given anchor."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -1055,7 +1055,7 @@ async def test_add_cursor_with_anchor(workspace: Path, two_line_file: Path):
 
 async def test_extra_anchor_default_equals_cursor(workspace: Path, two_line_file: Path):
     """add_cursor(loc) without anchor → anchor == cursor (collapsed)."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -1068,7 +1068,7 @@ async def test_extra_anchor_default_equals_cursor(workspace: Path, two_line_file
 
 async def test_typing_with_selection_replaces(workspace: Path, two_line_file: Path):
     """Type 'X' with selection on extra cursor replaces the selection."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -1088,7 +1088,7 @@ async def test_typing_with_selection_replaces(workspace: Path, two_line_file: Pa
 
 async def test_backspace_with_selection_deletes(workspace: Path, two_line_file: Path):
     """Backspace with selection on extra cursor deletes the selection."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -1108,7 +1108,7 @@ async def test_backspace_with_selection_deletes(workspace: Path, two_line_file: 
 
 async def test_typing_with_overlapping_selections(workspace: Path, two_line_file: Path):
     """Overlapping selections deduped — text replaced once per region."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -1135,7 +1135,7 @@ async def test_typing_with_overlapping_selections(workspace: Path, two_line_file
 
 async def test_movement_deduplicates_cursors(workspace: Path, two_line_file: Path):
     """Home key: two cursors on same row both land at col 0 → deduplicated."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -1154,7 +1154,7 @@ async def test_movement_deduplicates_cursors(workspace: Path, two_line_file: Pat
 
 async def test_movement_primary_extra_collision(workspace: Path, two_line_file: Path):
     """No extra cursor equals primary cursor after movement."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -1257,7 +1257,7 @@ def test_loc_to_offset():
 
 async def test_movement_key_moves_not_clears(workspace: Path, two_line_file: Path):
     """Movement key now moves all cursors instead of clearing them."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -1278,7 +1278,7 @@ async def test_movement_key_moves_not_clears(workspace: Path, two_line_file: Pat
 
 async def test_ctrl_a_selects_all_text(workspace: Path, two_line_file: Path):
     """Ctrl+A selects the entire document text."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -1292,7 +1292,7 @@ async def test_ctrl_a_selects_all_text(workspace: Path, two_line_file: Path):
 
 async def test_ctrl_a_clears_extra_cursors(workspace: Path, two_line_file: Path):
     """Ctrl+A removes extra cursors."""
-    app = make_app(workspace, open_file=two_line_file)
+    app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor
@@ -1309,7 +1309,7 @@ async def test_ctrl_a_on_empty_document(workspace: Path):
     """Ctrl+A on an empty document doesn't raise."""
     empty = workspace / "empty.txt"
     empty.write_text("")
-    app = make_app(workspace, open_file=empty)
+    app = make_app(workspace, light=True, open_file=empty)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = app.main_view.get_active_code_editor().editor

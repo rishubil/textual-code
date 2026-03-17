@@ -15,7 +15,7 @@ async def test_delete_palette_file_message_opens_modal(
     workspace: Path, sample_py_file: Path
 ):
     """Posting DeletePathWithPaletteRequested(file) → DeleteFileModalScreen opens."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.post_message(
@@ -30,7 +30,7 @@ async def test_delete_palette_directory_message_opens_modal(workspace: Path):
     subdir = workspace / "subdir"
     subdir.mkdir()
 
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.post_message(TextualCode.DeletePathWithPaletteRequested(path=subdir))
@@ -42,7 +42,7 @@ async def test_delete_palette_file_confirm_deletes_file(
     workspace: Path, sample_py_file: Path
 ):
     """Confirming file deletion → file is actually deleted."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert sample_py_file.exists()
@@ -64,7 +64,7 @@ async def test_delete_palette_directory_confirm_deletes_directory(workspace: Pat
     subdir = workspace / "subdir"
     subdir.mkdir()
 
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert subdir.exists()
@@ -87,7 +87,7 @@ async def test_delete_palette_nonempty_directory_deletes_all_contents(workspace:
     (subdir / "nested").mkdir()
     (subdir / "nested" / "file2.txt").write_text("world")
 
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -103,7 +103,7 @@ async def test_delete_palette_nonempty_directory_deletes_all_contents(workspace:
 
 async def test_delete_palette_cancel_keeps_file(workspace: Path, sample_py_file: Path):
     """Cancel → file is preserved."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert sample_py_file.exists()
@@ -124,7 +124,7 @@ async def test_delete_palette_open_tab_file_closes_tab(
     workspace: Path, sample_py_file: Path
 ):
     """Deleting an open tab's file → tab is closed."""
-    app = make_app(workspace, open_file=sample_py_file)
+    app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
@@ -144,7 +144,7 @@ async def test_delete_palette_open_tab_file_closes_tab(
 
 async def test_get_system_commands_contains_delete_file_or_directory(workspace: Path):
     """get_system_commands() includes 'Delete file or directory'."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
@@ -156,7 +156,7 @@ async def test_action_delete_file_or_dir_with_command_palette_opens_palette(
     workspace: Path,
 ):
     """action_delete_file_or_dir_with_command_palette() → CommandPalette opens."""
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.action_delete_file_or_dir_with_command_palette()

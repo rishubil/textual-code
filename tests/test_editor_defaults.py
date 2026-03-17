@@ -131,7 +131,7 @@ def test_app_has_default_attr(tmp_path, attr, expected):
 )
 @pytest.mark.asyncio
 async def test_new_file_uses_custom_default(workspace, attr, value, editor_attr):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     setattr(app, attr, value)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -151,7 +151,7 @@ async def test_new_file_uses_custom_default(workspace, attr, value, editor_attr)
 async def test_app_loads_project_config_on_startup(workspace):
     proj = workspace / ".textual-code.toml"
     proj.write_text('[editor]\nline_ending = "crlf"\n')
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.default_line_ending == "crlf"
@@ -196,7 +196,7 @@ async def test_existing_file_ignores_app_defaults(workspace):
     proj.write_text('[editor]\nindent_type = "tabs"\nindent_size = 2\n')
     # The project config changes app defaults, but existing file should use
     # its own detected settings (not app defaults)
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -214,7 +214,7 @@ async def test_existing_file_ignores_app_defaults(workspace):
 
 @pytest.mark.asyncio
 async def test_changing_defaults_only_affects_new_files(workspace):
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_open_code_editor()
@@ -293,7 +293,7 @@ async def test_action_set_default_indentation_saves_to_project(workspace):
     """Selecting 'Project' save level → .textual-code.toml is written."""
     from textual.widgets import Input, Select
 
-    app = make_app(workspace)
+    app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.action_set_default_indentation()

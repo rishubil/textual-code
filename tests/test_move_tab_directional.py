@@ -46,7 +46,7 @@ async def test_move_tab_right(
     workspace: Path, py_file: Path, py_file2: Path, py_file3: Path
 ):
     """Move a tab from left split to right split."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -84,7 +84,7 @@ async def test_move_tab_left(
     workspace: Path, py_file: Path, py_file2: Path, py_file3: Path
 ):
     """Move a tab from right split to left split."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -118,7 +118,7 @@ async def test_move_tab_creates_split_right_when_none_exists(
     workspace: Path, py_file: Path, py_file2: Path
 ):
     """Moving right with no split creates a horizontal split and moves the tab."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -144,7 +144,7 @@ async def test_move_tab_creates_split_left_when_none_exists(
     workspace: Path, py_file: Path, py_file2: Path
 ):
     """Moving left with no split creates a horizontal split (before)."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -164,7 +164,7 @@ async def test_move_tab_creates_split_down_when_none_exists(
     workspace: Path, py_file: Path, py_file2: Path
 ):
     """Moving down with no split creates a vertical split and moves the tab."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -181,7 +181,7 @@ async def test_move_tab_creates_split_down_when_none_exists(
 
 async def test_move_single_tab_is_noop(workspace: Path, py_file: Path):
     """Moving the only tab is a no-op (would auto-close back to 1 leaf)."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -197,7 +197,7 @@ async def test_move_single_tab_is_noop(workspace: Path, py_file: Path):
 
 async def test_move_tab_noop_no_editor(workspace: Path):
     """Moving is a no-op when no editor is open."""
-    app = make_app(workspace, open_file=None)
+    app = make_app(workspace, open_file=None, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -214,7 +214,7 @@ async def test_move_only_tab_auto_closes_source(
     workspace: Path, py_file: Path, py_file2: Path, py_file3: Path
 ):
     """When the only tab in a leaf is moved, the source leaf auto-closes."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -258,7 +258,7 @@ async def test_move_only_tab_auto_closes_source(
 
 async def test_directional_move_commands_registered(workspace: Path, py_file: Path):
     """All 4 directional move commands are registered in get_system_commands."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = {cmd.title for cmd in app.get_system_commands(app.screen)}

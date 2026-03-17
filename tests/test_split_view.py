@@ -44,7 +44,7 @@ def py_file2(workspace: Path) -> Path:
 
 async def test_initial_state_single_leaf(workspace: Path, py_file: Path):
     """Initially there is exactly one leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         leaves = all_leaves(app.main_view._split_root)
@@ -53,7 +53,7 @@ async def test_initial_state_single_leaf(workspace: Path, py_file: Path):
 
 async def test_split_not_visible_initially(workspace: Path, py_file: Path):
     """_split_visible is False on startup."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.main_view._split_visible is False
@@ -61,7 +61,7 @@ async def test_split_not_visible_initially(workspace: Path, py_file: Path):
 
 async def test_active_split_initially_left(workspace: Path, py_file: Path):
     """_active_split is 'left' on startup."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.main_view._active_split == "left"
@@ -69,7 +69,7 @@ async def test_active_split_initially_left(workspace: Path, py_file: Path):
 
 async def test_initial_file_tracked_in_left_split(workspace: Path, py_file: Path):
     """File opened on startup is in the left split's tracking."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert py_file in app.main_view._opened_files["left"]
@@ -77,7 +77,7 @@ async def test_initial_file_tracked_in_left_split(workspace: Path, py_file: Path
 
 async def test_right_pane_ids_initially_empty(workspace: Path, py_file: Path):
     """Right split has no open panes on startup."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.main_view._pane_ids["right"] == set()
@@ -88,7 +88,7 @@ async def test_right_pane_ids_initially_empty(workspace: Path, py_file: Path):
 
 async def test_split_right_creates_second_leaf(workspace: Path, py_file: Path):
     """action_split_right creates a second leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -99,7 +99,7 @@ async def test_split_right_creates_second_leaf(workspace: Path, py_file: Path):
 
 async def test_split_right_sets_split_visible(workspace: Path, py_file: Path):
     """action_split_right sets _split_visible to True."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -109,7 +109,7 @@ async def test_split_right_sets_split_visible(workspace: Path, py_file: Path):
 
 async def test_split_right_opens_same_file(workspace: Path, py_file: Path):
     """action_split_right opens the current file in the right panel."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -119,7 +119,7 @@ async def test_split_right_opens_same_file(workspace: Path, py_file: Path):
 
 async def test_split_right_sets_active_split_to_right(workspace: Path, py_file: Path):
     """action_split_right switches focus to the right split."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -129,7 +129,7 @@ async def test_split_right_sets_active_split_to_right(workspace: Path, py_file: 
 
 async def test_split_right_with_no_file(workspace: Path):
     """action_split_right with no open file opens an empty editor in right."""
-    app = make_app(workspace, open_file=None)
+    app = make_app(workspace, open_file=None, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -142,7 +142,7 @@ async def test_split_right_twice_creates_three_way_split(
     workspace: Path, py_file: Path
 ):
     """A second action_split_right creates a third split (recursive splitting)."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -165,7 +165,7 @@ async def test_split_right_twice_creates_three_way_split(
 
 async def test_focus_left_split_updates_active_split(workspace: Path, py_file: Path):
     """action_focus_left_split sets _active_split to 'left'."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -178,7 +178,7 @@ async def test_focus_left_split_updates_active_split(workspace: Path, py_file: P
 
 async def test_focus_right_split_when_open(workspace: Path, py_file: Path):
     """action_focus_right_split switches to right when split is visible."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -193,7 +193,7 @@ async def test_focus_right_split_when_open(workspace: Path, py_file: Path):
 
 async def test_focus_right_split_noop_when_closed(workspace: Path, py_file: Path):
     """action_focus_right_split is a no-op when no split is open."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.main_view._active_split == "left"
@@ -207,7 +207,7 @@ async def test_focus_right_split_noop_when_closed(workspace: Path, py_file: Path
 
 async def test_close_split_returns_to_single_leaf(workspace: Path, py_file: Path):
     """action_close_split removes the active split and returns to single leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -219,7 +219,7 @@ async def test_close_split_returns_to_single_leaf(workspace: Path, py_file: Path
 
 async def test_close_split_sets_split_visible_false(workspace: Path, py_file: Path):
     """action_close_split sets _split_visible to False."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -231,20 +231,19 @@ async def test_close_split_sets_split_visible_false(workspace: Path, py_file: Pa
 
 async def test_close_split_focuses_left(workspace: Path, py_file: Path):
     """action_close_split sets _active_split back to 'left'."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
         await app.main_view.action_close_split()
         await pilot.pause()
-        await pilot.pause()
         assert app.main_view._active_split == "left"
 
 
 async def test_close_split_clears_right_pane_ids(workspace: Path, py_file: Path):
     """action_close_split removes all right pane tracking."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -257,7 +256,7 @@ async def test_close_split_clears_right_pane_ids(workspace: Path, py_file: Path)
 
 async def test_close_split_noop_when_not_open(workspace: Path, py_file: Path):
     """action_close_split does nothing when no split is visible."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert not app.main_view._split_visible
@@ -270,7 +269,7 @@ async def test_auto_close_split_when_last_right_tab_closed(
     workspace: Path, py_file: Path
 ):
     """Closing the last tab in the right split auto-hides the right panel."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -293,7 +292,7 @@ async def test_auto_close_split_when_last_right_tab_closed(
 
 async def test_open_file_goes_to_active_split(workspace: Path, py_file: Path):
     """Opening a file targets the active split."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # File is in left split
@@ -303,7 +302,7 @@ async def test_open_file_goes_to_active_split(workspace: Path, py_file: Path):
 
 async def test_same_file_can_be_open_in_both_splits(workspace: Path, py_file: Path):
     """The same file can be independently open in both splits."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -319,7 +318,7 @@ async def test_same_file_can_be_open_in_both_splits(workspace: Path, py_file: Pa
 
 async def test_split_of_pane_returns_correct_split(workspace: Path, py_file: Path):
     """_split_of_pane returns 'left' for left pane, 'right' for right pane."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         left_pane_id = app.main_view._opened_files["left"][py_file]
@@ -333,7 +332,7 @@ async def test_split_of_pane_returns_correct_split(workspace: Path, py_file: Pat
 
 async def test_split_of_pane_unknown_returns_none(workspace: Path):
     """_split_of_pane returns None for an unknown pane_id."""
-    app = make_app(workspace, open_file=None)
+    app = make_app(workspace, open_file=None, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.main_view._split_of_pane("nonexistent-pane-id") is None
@@ -341,7 +340,7 @@ async def test_split_of_pane_unknown_returns_none(workspace: Path):
 
 async def test_opened_pane_ids_combines_both_splits(workspace: Path, py_file: Path):
     """opened_pane_ids returns pane IDs from both splits combined."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         count_before = len(app.main_view.opened_pane_ids)
@@ -355,7 +354,7 @@ async def test_close_right_tab_removes_from_right_tracking(
     workspace: Path, py_file: Path
 ):
     """Closing a tab in the right split removes it from _pane_ids['right']."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -390,7 +389,7 @@ def test_ctrl_shift_backslash_binding_registered():
 
 async def test_ctrl_backslash_key_opens_split(workspace: Path, py_file: Path):
     """Pressing ctrl+backslash triggers action_split_right."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await pilot.press("ctrl+backslash")
@@ -400,7 +399,7 @@ async def test_ctrl_backslash_key_opens_split(workspace: Path, py_file: Path):
 
 async def test_split_right_cmd_no_file(workspace: Path):
     """action_split_right_cmd with no open editor still opens empty right split."""
-    app = make_app(workspace, open_file=None)
+    app = make_app(workspace, open_file=None, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Should not raise
@@ -421,7 +420,7 @@ def test_ctrl_alt_backslash_binding_registered():
 
 async def test_move_tab_left_to_right(workspace: Path, py_file: Path, py_file2: Path):
     """Moving a tab from left split places it in the right split."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Open a second file so left doesn't become empty after move
@@ -446,7 +445,7 @@ async def test_move_tab_left_to_right(workspace: Path, py_file: Path, py_file2: 
 
 async def test_move_tab_right_to_left(workspace: Path, py_file: Path):
     """Moving a tab from right split places it in the left split."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # First open a split and move to right
@@ -467,7 +466,7 @@ async def test_move_tab_creates_right_split(
     workspace: Path, py_file: Path, py_file2: Path
 ):
     """Moving a tab to the right auto-creates the right split if not open."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Open a second file so left doesn't become empty after move
@@ -488,7 +487,7 @@ async def test_move_tab_creates_right_split(
 
 async def test_move_tab_transfers_unsaved_content(workspace: Path, py_file: Path):
     """Unsaved content is preserved when a tab is moved to the other split."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -512,7 +511,7 @@ async def test_move_tab_transfers_unsaved_content(workspace: Path, py_file: Path
 
 async def test_move_tab_no_op_without_editor(workspace: Path):
     """action_move_tab_to_other_split is a no-op when no editor is open."""
-    app = make_app(workspace, open_file=None)
+    app = make_app(workspace, open_file=None, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Should not raise — no editor open
@@ -532,7 +531,7 @@ async def test_edge_drag_creates_right_split(
     """Posting TabMovedToOtherSplit with target_pane_id=None creates the right split."""
     from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Open a second file so left doesn't become empty after drag
@@ -561,7 +560,7 @@ async def test_edge_drag_two_tabs_moves_one(
     """Edge drag with 2 tabs moves one tab; one remains in left split."""
     from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Open second file in left split
@@ -591,7 +590,7 @@ async def test_edge_drag_two_tabs_moves_one(
 
 async def test_descendant_focus_updates_active_split(workspace: Path, py_file: Path):
     """Focusing editor content (not tab click) must update _active_split."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -618,7 +617,7 @@ async def test_descendant_focus_updates_active_split(workspace: Path, py_file: P
 
 async def test_ctrl_w_closes_focused_split_editor(workspace: Path, py_file: Path):
     """Ctrl+W closes the editor in the focused split, not the _active_split one."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -644,7 +643,7 @@ async def test_ctrl_w_closes_focused_split_editor(workspace: Path, py_file: Path
 
 async def test_ctrl_w_last_right_tab_auto_closes_split(workspace: Path, py_file: Path):
     """Ctrl+W on the last right tab auto-hides the right split."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -672,7 +671,7 @@ async def test_ctrl_w_last_right_tab_auto_closes_split(workspace: Path, py_file:
 
 async def test_split_editors_sync_live_edits(workspace: Path, py_file: Path):
     """Editing in the left editor syncs text to the right editor in real time."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -693,7 +692,7 @@ async def test_split_editors_sync_live_edits(workspace: Path, py_file: Path):
 
 async def test_split_editors_sync_on_save(workspace: Path, py_file: Path):
     """Saving the left editor updates initial_text and _file_mtime in sibling editor."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -719,7 +718,7 @@ async def test_find_replace_bar_focus_keeps_active_split(
     workspace: Path, py_file: Path
 ):
     """Opening find bar inside right split keeps _active_split as 'right'."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -753,7 +752,7 @@ async def test_find_replace_bar_focus_keeps_active_split(
 
 async def test_split_left_creates_second_leaf(workspace: Path, py_file: Path):
     """action_split_left creates a second leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_left()
@@ -764,7 +763,7 @@ async def test_split_left_creates_second_leaf(workspace: Path, py_file: Path):
 
 async def test_split_left_new_leaf_is_first(workspace: Path, py_file: Path):
     """action_split_left places the new leaf at index 0 (left side)."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         original_leaf_id = all_leaves(app.main_view._split_root)[0].leaf_id
@@ -778,7 +777,7 @@ async def test_split_left_new_leaf_is_first(workspace: Path, py_file: Path):
 
 async def test_split_left_opens_same_file(workspace: Path, py_file: Path):
     """action_split_left opens the current file in the new (left) panel."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_left()
@@ -794,7 +793,7 @@ async def test_split_left_opens_same_file(workspace: Path, py_file: Path):
 
 async def test_split_up_creates_second_leaf(workspace: Path, py_file: Path):
     """action_split_up creates a second leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_up()
@@ -805,7 +804,7 @@ async def test_split_up_creates_second_leaf(workspace: Path, py_file: Path):
 
 async def test_split_up_new_leaf_is_first(workspace: Path, py_file: Path):
     """action_split_up places the new leaf at index 0 (top)."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         original_leaf_id = all_leaves(app.main_view._split_root)[0].leaf_id
@@ -818,7 +817,7 @@ async def test_split_up_new_leaf_is_first(workspace: Path, py_file: Path):
 
 async def test_split_up_direction_is_vertical(workspace: Path, py_file: Path):
     """Split up produces a vertical root branch."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_up()
@@ -833,7 +832,7 @@ async def test_split_up_direction_is_vertical(workspace: Path, py_file: Path):
 
 async def test_split_left_twice_creates_three_leaves(workspace: Path, py_file: Path):
     """Two split_left actions from the same leaf create 3 leaves."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_left()
@@ -847,7 +846,7 @@ async def test_split_left_twice_creates_three_leaves(workspace: Path, py_file: P
 
 async def test_split_left_then_close(workspace: Path, py_file: Path):
     """split_left then close_split returns to 1 leaf."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_left()
@@ -861,7 +860,7 @@ async def test_split_left_then_close(workspace: Path, py_file: Path):
 
 async def test_split_right_then_split_left(workspace: Path, py_file: Path):
     """split_right then split_left creates 3 leaves in correct order."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
         await pilot.pause()
         original_leaf_id = all_leaves(app.main_view._split_root)[0].leaf_id
@@ -886,7 +885,7 @@ async def test_split_left_resize_handle_works(workspace: Path, py_file: Path):
     """Split left creates a resize handle with correct child_index."""
     from textual_code.widgets.split_resize_handle import SplitResizeHandle
 
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_left()
@@ -904,7 +903,7 @@ async def test_move_tab_focuses_destination_pane(
     workspace: Path, py_file: Path, py_file2: Path
 ):
     """action_move_tab_to_other_split focuses the destination pane and moved tab."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Open second file so left isn't empty after move
@@ -931,7 +930,7 @@ async def test_move_tab_focuses_moved_tab_when_split_collapses(
     workspace: Path, py_file: Path
 ):
     """Moving the last tab from one split collapses it; focus on the moved tab."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Split right: py_file in both
@@ -964,7 +963,7 @@ async def test_move_tab_directional_focuses_destination(
     workspace: Path, py_file: Path, py_file2: Path
 ):
     """action_move_tab_right focuses the destination split and moved tab."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Open second file so left isn't empty after move
@@ -1003,7 +1002,7 @@ async def test_move_tab_directional_focuses_destination(
 
 async def test_move_tab_directional_noop_single_tab(workspace: Path, py_file: Path):
     """Directional move with a single tab in a single leaf is a no-op."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
 
@@ -1026,7 +1025,7 @@ async def test_move_tab_duplicate_file_focuses_existing(
     workspace: Path, py_file: Path, py_file2: Path
 ):
     """When dest already has the same file, focus goes to existing pane."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         main = app.main_view

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Lazy tree-sitter language registration: custom languages are now registered on demand when a file of that type is opened, instead of eagerly registering all 10 languages on every editor mount
+- File watcher polling disabled in headless/test mode to reduce unnecessary timer activity
+- Refactored three explorer toggle commands (`_toggle_hidden_files_cmd`, `_toggle_dim_gitignored_cmd`, `_toggle_dim_hidden_files_cmd`) into a shared `_toggle_explorer_tree_setting` helper
+- Sidebar is now optional via `skip_sidebar` constructor parameter (used by test infrastructure for lighter app mounts)
+- Test suite optimized: lightweight app mode (`light=True`), direct Input value assignment, and redundant pause removal reduce overall test execution time by ~32%
+
 ### Added
 
 - Dim hidden files in Explorer: dotfiles and dotfolders can be visually dimmed via the `dim_hidden_files` setting (default: `false`) or the "Toggle dim hidden files" command in the command palette; uses a `directory-tree--hidden` component class; the setting is persisted to user config on toggle

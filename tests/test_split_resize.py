@@ -182,7 +182,7 @@ def py_file(workspace: Path) -> Path:
 
 
 async def test_resize_split_absolute_changes_width(workspace, py_file):
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -203,7 +203,7 @@ async def test_resize_split_absolute_changes_width(workspace, py_file):
 
 
 async def test_resize_split_relative_plus_changes_width(workspace, py_file):
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -226,7 +226,7 @@ async def test_resize_split_relative_plus_changes_width(workspace, py_file):
 
 
 async def test_resize_split_percentage_changes_width(workspace, py_file):
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -247,7 +247,7 @@ async def test_resize_split_percentage_changes_width(workspace, py_file):
 
 
 async def test_resize_split_invalid_shows_error(workspace, py_file):
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -271,7 +271,7 @@ async def test_resize_split_invalid_shows_error(workspace, py_file):
 
 
 async def test_resize_split_cancel_keeps_width(workspace, py_file):
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
@@ -293,7 +293,7 @@ async def test_resize_split_cancel_keeps_width(workspace, py_file):
 
 async def test_resize_split_no_split_visible_shows_error(workspace, py_file):
     """Resize split command is a no-op (shows error) when split is not visible."""
-    app = make_app(workspace, open_file=py_file)
+    app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         assert app.main_view._split_visible is False

@@ -103,7 +103,7 @@ async def test_get_query_text_uses_selection(workspace: Path, occ_file: Path):
     """If text is selected, _get_query_text returns selected_text."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -118,7 +118,7 @@ async def test_get_query_text_uses_word_under_cursor(workspace: Path, occ_file: 
     """If no selection, _get_query_text returns word under cursor."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -133,7 +133,7 @@ async def test_get_query_text_empty_on_whitespace(workspace: Path, occ_file: Pat
     """Cursor on whitespace with no selection → returns ''."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -151,7 +151,7 @@ async def test_select_all_occurrences_multiple_matches(workspace: Path, occ_file
     """With 2 matches, primary selection is set to first, extra cursor to second."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -177,7 +177,7 @@ async def test_select_all_occurrences_single_match(
     """Single match → only primary selection set, extra_cursors is empty."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=single_occ_file)
+    app = make_app(workspace, open_file=single_occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -199,7 +199,7 @@ async def test_select_all_occurrences_empty_query_is_noop(
     """Empty query (cursor on whitespace) → no selection change."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -224,7 +224,7 @@ async def test_select_all_occurrences_extra_cursor_count(
     """3 matches → extra_cursors has 2 entries (primary takes first)."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=multi_occ_file)
+    app = make_app(workspace, open_file=multi_occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -244,7 +244,7 @@ async def test_select_all_occurrences_clears_previous_cursors(
     """Previous extra cursors are cleared before setting new ones."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -271,7 +271,7 @@ async def test_select_all_occurrences_case_sensitive(workspace: Path):
 
     f = workspace / "case.txt"
     f.write_text("foo Foo FOO\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -292,7 +292,7 @@ async def test_select_all_occurrences_multiline(
     """Matches across multiple lines are all found."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=multiline_occ_file)
+    app = make_app(workspace, open_file=multiline_occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -316,7 +316,7 @@ async def test_select_all_occurrences_regex_special_chars(
     """Literal 'a.b' does not match 'axb' (re.escape used)."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=special_chars_file)
+    app = make_app(workspace, open_file=special_chars_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -338,7 +338,7 @@ async def test_select_all_occurrences_word_under_cursor(
     """No selection → uses word under cursor for query."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=word_file)
+    app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -359,7 +359,7 @@ async def test_ctrl_shift_l_triggers_select_all(workspace: Path, occ_file: Path)
     """Ctrl+Shift+L key binding triggers select_all_occurrences."""
     from textual.widgets.text_area import Selection
 
-    app = make_app(workspace, open_file=occ_file)
+    app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -378,7 +378,7 @@ async def test_ctrl_shift_l_triggers_select_all(workspace: Path, occ_file: Path)
 
 async def test_select_all_occurrences_cmd_no_file(workspace: Path):
     """Command palette action when no file is open → error notify, no crash."""
-    app = make_app(workspace, open_file=None)
+    app = make_app(workspace, open_file=None, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Should not raise an exception

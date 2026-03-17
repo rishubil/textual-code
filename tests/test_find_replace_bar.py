@@ -30,7 +30,7 @@ async def _open_file(workspace: Path, content: str, name: str = "test.txt") -> P
 async def test_ctrl_f_shows_bar_find_mode(workspace: Path):
     """Ctrl+F: bar visible, replace_mode=False."""
     f = await _open_file(workspace, "hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -45,7 +45,7 @@ async def test_ctrl_f_shows_bar_find_mode(workspace: Path):
 async def test_ctrl_h_shows_bar_replace_mode(workspace: Path):
     """Ctrl+H: bar visible, replace_mode=True."""
     f = await _open_file(workspace, "hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -60,7 +60,7 @@ async def test_ctrl_h_shows_bar_replace_mode(workspace: Path):
 async def test_escape_closes_bar(workspace: Path):
     """Escape while bar is focused closes the bar."""
     f = await _open_file(workspace, "hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -77,7 +77,7 @@ async def test_escape_closes_bar(workspace: Path):
 async def test_close_btn_hides_bar(workspace: Path):
     """Clicking ✕ hides the bar."""
     f = await _open_file(workspace, "hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -95,7 +95,7 @@ async def test_close_returns_focus_to_textarea(workspace: Path):
     from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
 
     f = await _open_file(workspace, "hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -113,7 +113,7 @@ async def test_close_returns_focus_to_textarea(workspace: Path):
 async def test_replace_row_hidden_in_find_mode(workspace: Path):
     """In find mode, the replace row is not displayed."""
     f = await _open_file(workspace, "hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -127,7 +127,7 @@ async def test_replace_row_hidden_in_find_mode(workspace: Path):
 async def test_replace_row_visible_in_replace_mode(workspace: Path):
     """In replace mode, the replace row is displayed."""
     f = await _open_file(workspace, "hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -141,7 +141,7 @@ async def test_replace_row_visible_in_replace_mode(workspace: Path):
 async def test_ctrl_h_after_ctrl_f_switches_to_replace_mode(workspace: Path):
     """Opening replace bar after find bar switches mode."""
     f = await _open_file(workspace, "hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -161,7 +161,7 @@ async def test_ctrl_h_after_ctrl_f_switches_to_replace_mode(workspace: Path):
 async def test_find_next_button_selects_match(workspace: Path):
     """Clicking Next selects the first match."""
     f = await _open_file(workspace, "hello world\nhello again\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -180,7 +180,7 @@ async def test_find_next_button_selects_match(workspace: Path):
 async def test_find_next_enter_key_selects_match(workspace: Path):
     """Pressing Enter in find_input triggers find next."""
     f = await _open_file(workspace, "hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -199,7 +199,7 @@ async def test_find_next_enter_key_selects_match(workspace: Path):
 async def test_sequential_find_stays_open(workspace: Path):
     """Bar stays open across multiple Next clicks."""
     f = await _open_file(workspace, "aa bb aa cc aa\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -227,7 +227,7 @@ async def test_sequential_find_stays_open(workspace: Path):
 async def test_find_next_empty_query_does_nothing(workspace: Path):
     """Empty query leaves cursor unchanged."""
     f = await _open_file(workspace, "hello world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -246,7 +246,7 @@ async def test_find_next_empty_query_does_nothing(workspace: Path):
 async def test_replace_all_btn_replaces_all(workspace: Path):
     """Replace All button replaces every occurrence."""
     f = await _open_file(workspace, "foo bar foo baz\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -266,7 +266,7 @@ async def test_replace_all_btn_replaces_all(workspace: Path):
 async def test_replace_btn_selection_matches_replaces_and_finds_next(workspace: Path):
     """Replace button: selection matches → replace and find next."""
     f = await _open_file(workspace, "hello hello\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -293,7 +293,7 @@ async def test_replace_btn_selection_matches_replaces_and_finds_next(workspace: 
 async def test_replace_btn_no_selection_match_finds_next(workspace: Path):
     """Replace button: selection doesn't match → find next without replacing."""
     f = await _open_file(workspace, "hello world\nhello again\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -327,7 +327,7 @@ async def test_case_insensitive_find_via_bar(workspace: Path):
     from textual.widgets import Checkbox
 
     f = await _open_file(workspace, "HELLO world\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -356,7 +356,7 @@ async def test_regex_on_disables_case_sensitive_checkbox(workspace: Path):
     from textual.widgets import Checkbox
 
     f = await _open_file(workspace, "hello\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -378,7 +378,7 @@ async def test_regex_on_get_case_sensitive_always_true(workspace: Path):
     from textual.widgets import Checkbox
 
     f = await _open_file(workspace, "hello\n")
-    app = make_app(workspace, open_file=f)
+    app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
