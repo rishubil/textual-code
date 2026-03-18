@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI**: `--version` flag to print the installed version and exit
 - **Editor**: Shift+PageUp/PageDown to select while paging up/down (single cursor and multi-cursor)
+- **Docs**: Troubleshooting section in README for keyboard shortcut issues (`textual keys`)
 
 ### Fixed
 

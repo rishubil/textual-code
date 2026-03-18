@@ -9,6 +9,19 @@ from textual_code.app import TextualCode
 err_console = Console(stderr=True)
 
 
+def version_callback(value: bool) -> None:
+    """Print version and exit when --version is passed."""
+    if value:
+        import importlib.metadata
+
+        try:
+            version = importlib.metadata.version("textual-code")
+        except importlib.metadata.PackageNotFoundError:
+            version = "unknown"
+        print(f"textual-code {version}")
+        raise typer.Exit()
+
+
 def typer_main(
     target_path: Annotated[
         Path | None,
@@ -26,6 +39,15 @@ def typer_main(
             "Defaults to the target file's parent or target directory.",
         ),
     ] = None,
+    version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            callback=version_callback,
+            is_eager=True,
+            help="Show version and exit.",
+        ),
+    ] = False,
 ):
     """
     Run Textual Code with the given target path.

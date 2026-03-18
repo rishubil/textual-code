@@ -39,6 +39,17 @@ It’s that simple.
 - Open files to tabs
 - Syntax highlighting
 
+## Troubleshooting
+
+### Keyboard shortcuts not working
+
+Some terminal emulators intercept certain key combinations before they reach the application.
+If a shortcut does not work as expected, run the following command and press the shortcut to verify that your terminal recognizes it:
+
+```bash
+uvx --from textual-dev textual keys
+```
+
 ## Installation
 
 ```bash
