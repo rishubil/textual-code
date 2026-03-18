@@ -98,6 +98,7 @@ class WorkspaceSearchPane(Static):
 
         results_list = self.query_one("#ws-results", ListView)
         results_list.clear()
+        results_list.loading = False
         self._result_data: list[tuple[Path, int]] = []
 
         if not query:
@@ -107,6 +108,7 @@ class WorkspaceSearchPane(Static):
         if workspace_path is None:
             return
 
+        results_list.loading = True
         self._search_worker(
             workspace_path,
             query,
@@ -117,7 +119,7 @@ class WorkspaceSearchPane(Static):
             files_to_exclude,
         )
 
-    @work(thread=True, exclusive=True)
+    @work(thread=True, exclusive=True, group="search", exit_on_error=False)
     def _search_worker(
         self,
         workspace_path: Path,
@@ -141,6 +143,7 @@ class WorkspaceSearchPane(Static):
 
     def _populate_results(self, results: list, workspace_path: Path) -> None:
         results_list = self.query_one("#ws-results", ListView)
+        results_list.loading = False
         results_list.clear()
         self._result_data = []
 
@@ -158,8 +161,11 @@ class WorkspaceSearchPane(Static):
             self._result_data.append((result.file_path, result.line_number))
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
+        if event.worker.group != "search":
+            return
         if event.state == WorkerState.ERROR:
             results_list = self.query_one("#ws-results", ListView)
+            results_list.loading = False
             results_list.append(ListItem(Label("Search failed")))
             self.app.log.error(f"Search worker error: {event.worker.error}")
 

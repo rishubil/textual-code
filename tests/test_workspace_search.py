@@ -542,3 +542,131 @@ async def test_workspace_search_no_clipping(tmp_path: Path) -> None:
         assert ws_exclude.outer_size.width == container_w, (
             f"ws-exclude outer width {ws_exclude.outer_size.width} != {container_w}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Loading indicator tests
+# ---------------------------------------------------------------------------
+
+
+def _patch_gated_search(monkeypatch):
+    """Patch search_workspace to block until the returned Event is set."""
+    import threading
+
+    import textual_code.widgets.workspace_search as ws_module
+
+    gate = threading.Event()
+    original_search = ws_module.search_workspace
+
+    def gated_search(*args, **kwargs):
+        if not gate.wait(timeout=5):
+            raise RuntimeError("Test gate timed out — search was never released")
+        return original_search(*args, **kwargs)
+
+    monkeypatch.setattr(ws_module, "search_workspace", gated_search)
+    return gate
+
+
+@pytest.mark.asyncio
+async def test_search_loading_indicator(tmp_path: Path, monkeypatch) -> None:
+    """Results ListView shows loading=True while search is running."""
+    from textual.widgets import Input, ListView
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "sample.txt").write_text("hello world\n")
+    gate = _patch_gated_search(monkeypatch)
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "hello"
+        await pilot.pause()
+
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_list = ws_pane.query_one("#ws-results", ListView)
+        assert results_list.loading is True
+
+        gate.set()
+        await pilot.pause()
+
+        assert results_list.loading is False
+
+
+@pytest.mark.asyncio
+async def test_search_error_clears_loading(tmp_path: Path, monkeypatch) -> None:
+    """Search error sets loading=False and shows 'Search failed'."""
+    from textual.widgets import Input, Label, ListView
+
+    import textual_code.widgets.workspace_search as ws_module
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "sample.txt").write_text("hello\n")
+
+    def exploding_search(*args, **kwargs):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(ws_module, "search_workspace", exploding_search)
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "hello"
+        await pilot.pause()
+
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_list = ws_pane.query_one("#ws-results", ListView)
+        assert results_list.loading is False
+        labels = [str(lbl.content) for lbl in results_list.query(Label)]
+        assert any("Search failed" in lbl for lbl in labels)
+
+
+@pytest.mark.asyncio
+async def test_empty_query_clears_loading(tmp_path: Path, monkeypatch) -> None:
+    """Re-searching with empty query clears loading state."""
+    from textual.widgets import Input, ListView
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "sample.txt").write_text("hello world\n")
+    gate = _patch_gated_search(monkeypatch)
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "hello"
+        await pilot.pause()
+
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_list = ws_pane.query_one("#ws-results", ListView)
+        assert results_list.loading is True
+
+        # Clear query and re-run search
+        ws_pane.query_one("#ws-query", Input).value = ""
+        ws_pane._run_search()
+        await pilot.pause()
+
+        assert results_list.loading is False
+
+        gate.set()  # Release the blocked worker

@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dim gitignored files in Explorer: files and directories matching `.gitignore` patterns are visually dimmed via the `dim_gitignored` setting (default: `true`) or the "Toggle dim gitignored files" command in the command palette; hidden files (dotfiles) are exempt from dimming; uses a `directory-tree--gitignored` component class for consistent styling across terminal modes; the setting is persisted to user config on toggle
 
+- Workspace search loading indicator: the results ListView now shows Textual's built-in `LoadingIndicator` (pulsating dots) while a background search is running; the indicator is cleared on results, errors, or empty-query re-search
+
 - Configurable sidebar width: the `sidebar_width` setting controls the initial sidebar width; accepts an integer for absolute cell count (min 5) or a percentage string like `"30%"` (1%-90%); defaults to `28`; invalid values fall back to the default with a warning notification
 
 - Toggle hidden files in Explorer: dotfiles and dotfolders can be shown or hidden via the `show_hidden_files` setting (default: `true`) or the "Toggle hidden files" command in the command palette; the setting is persisted to user config on toggle
