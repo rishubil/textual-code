@@ -1588,6 +1588,31 @@ class CodeEditor(Static):
         self._find_offset = None
         self.editor.focus()
 
+    def on_find_replace_bar_select_all(self, event: FindReplaceBar.SelectAll) -> None:
+        if not event.query:
+            return
+
+        text = self.text
+        flags = 0 if event.case_sensitive else re.IGNORECASE
+        try:
+            pattern = re.compile(
+                event.query if event.use_regex else re.escape(event.query), flags
+            )
+        except re.error as e:
+            self.notify(f"Invalid regex: {e}", severity="error")
+            return
+
+        matches = list(pattern.finditer(text))
+        count = self._apply_matches_as_cursors(matches, text)
+
+        self._find_offset = None
+        self.editor.focus()
+
+        if count == 0:
+            self.notify(f"'{event.query}' not found", severity="warning")
+        elif count >= 2:
+            self.notify(f"{count} occurrences selected")
+
     def action_change_language(self) -> None:
         """
         Open the Change Language modal and update the syntax highlighting language.
@@ -1710,27 +1735,19 @@ class CodeEditor(Static):
         row, col = self.editor.cursor_location
         return _get_word_at_location(self.text, row, col)
 
-    def action_select_all_occurrences(self) -> None:
-        """Select all occurrences of the current selection or word under cursor.
+    def _apply_matches_as_cursors(self, matches: list[re.Match], text: str) -> int:
+        """Set primary selection to first match, add extra cursors for the rest.
 
-        Sets the primary selection to the first match and adds extra cursors at
-        the start of each subsequent match. Uses plain-text (re.escape) search,
-        case-sensitive.
+        Zero-length matches are silently skipped.
+        Returns the number of matches applied.
         """
         from textual.widgets.text_area import Selection
 
-        query = self._get_query_text()
-        if not query:
-            return
-
-        text = self.text
-        matches = list(re.finditer(re.escape(query), text))
-
         self.editor.clear_extra_cursors()
 
+        matches = [m for m in matches if m.start() < m.end()]
         if not matches:
-            self.notify(f"'{query}' not found", severity="warning")
-            return
+            return 0
 
         first = matches[0]
         self.editor.selection = Selection(
@@ -1738,16 +1755,34 @@ class CodeEditor(Static):
             end=_text_offset_to_location(text, first.end()),
         )
 
-        if len(matches) == 1:
-            return
-
         for m in matches[1:]:
             self.editor.add_cursor(
                 _text_offset_to_location(text, m.end()),
                 anchor=_text_offset_to_location(text, m.start()),
             )
 
-        self.notify(f"{len(matches)} occurrences selected")
+        return len(matches)
+
+    def action_select_all_occurrences(self) -> None:
+        """Select all occurrences of the current selection or word under cursor.
+
+        Sets the primary selection to the first match and adds extra cursors at
+        the start of each subsequent match. Uses plain-text (re.escape) search,
+        case-sensitive.
+        """
+        query = self._get_query_text()
+        if not query:
+            return
+
+        text = self.text
+        matches = list(re.finditer(re.escape(query), text))
+        count = self._apply_matches_as_cursors(matches, text)
+        self._find_offset = None
+
+        if count == 0:
+            self.notify(f"'{query}' not found", severity="warning")
+        elif count >= 2:
+            self.notify(f"{count} occurrences selected")
 
     def action_select_next_occurrence(self) -> None:
         """Add a cursor at the next occurrence (VS Code Ctrl+D style)."""

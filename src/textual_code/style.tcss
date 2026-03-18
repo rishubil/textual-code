@@ -42,6 +42,7 @@ FindReplaceBar #replace_input {
 }
 
 FindReplaceBar #next_match,
+FindReplaceBar #select_all_btn,
 FindReplaceBar #replace_btn,
 FindReplaceBar #replace_all_btn {
     width: auto;

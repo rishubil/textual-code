@@ -46,6 +46,15 @@ class FindReplaceBar(Horizontal):
             self.use_regex = use_regex
             self.case_sensitive = case_sensitive
 
+    class SelectAll(Message):
+        """Emitted when the user requests select-all-matches."""
+
+        def __init__(self, query: str, use_regex: bool, case_sensitive: bool) -> None:
+            super().__init__()
+            self.query = query
+            self.use_regex = use_regex
+            self.case_sensitive = case_sensitive
+
     class Closed(Message):
         """Emitted when the bar is closed."""
 
@@ -55,6 +64,7 @@ class FindReplaceBar(Horizontal):
             yield Checkbox(".*", id="use_regex", value=False)
             yield Checkbox("Aa", id="case_sensitive", value=True)
             yield Button("↓ Next", id="next_match")
+            yield Button("Select All", id="select_all_btn")
             yield Button("✕", id="close_btn")
         with Horizontal(id="replace_row"):
             yield Input(placeholder="Replace with...", id="replace_input")
@@ -110,6 +120,14 @@ class FindReplaceBar(Horizontal):
         )
         # Return focus to input so the button can be clicked again
         self.query_one("#find_input", Input).focus()
+
+    @on(Button.Pressed, "#select_all_btn")
+    def _on_select_all(self) -> None:
+        self.post_message(
+            FindReplaceBar.SelectAll(
+                self._get_query(), self._get_use_regex(), self._get_case_sensitive()
+            )
+        )
 
     @on(Button.Pressed, "#replace_btn")
     def _on_replace_current(self) -> None:
