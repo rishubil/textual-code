@@ -16,7 +16,7 @@ from textual_code.widgets.draggable_tabs_content import (
     DropTargetScreen,
 )
 from textual_code.widgets.markdown_preview import MarkdownPreviewPane
-from textual_code.widgets.split_tree import all_leaves
+from textual_code.widgets.split_tree import all_leaves, find_leaf
 
 
 def _highlight_is_mode(app, dtc_id: str, mode: str) -> bool:
@@ -1120,3 +1120,97 @@ async def test_edge_zone_drag_split_down(
 ):
     """Edge zone drag with direction='down' creates vertical split below."""
     await _edge_zone_split_test(workspace, py_file, py_file2, "down")
+
+
+# ── Edge zone split from existing multi-leaf split ───────────────────────────
+
+
+async def _edge_zone_split_from_existing_split_test(
+    workspace, py_file, py_file2, initial_split_dir, edge_direction
+):
+    """Helper: from an existing split, edge-zone drag should create a new
+    sub-split, NOT move the tab to the adjacent existing pane."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test(size=(160, 40)) as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        # Open a second file so source pane has 2 tabs
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
+        # Create initial split
+        if initial_split_dir == "horizontal":
+            await main.action_split_right()
+        else:
+            await main.action_split_down()
+        await pilot.pause()
+
+        assert main._split_visible is True
+        leaves_before = all_leaves(main._split_root)
+        assert len(leaves_before) == 2
+
+        # Focus back to first leaf (the source) which has 2 tabs
+        source_leaf = leaves_before[0]
+        main._set_active_leaf(source_leaf)
+        tc = main.query_one(f"#{source_leaf.leaf_id}", DraggableTabbedContent)
+        pane_id = source_leaf.opened_files[py_file]
+        source_tab_count_before = len(source_leaf.pane_ids)
+
+        # Record adjacent leaf state
+        adj_leaf = leaves_before[1]
+        adj_pane_count_before = len(adj_leaf.pane_ids)
+
+        # Post edge zone message with explicit direction
+        tc.post_message(
+            DraggableTabbedContent.TabMovedToOtherSplit(
+                pane_id, None, False, split_direction=edge_direction
+            )
+        )
+        await pilot.pause()
+
+        # A new split should be created (3 leaves total)
+        leaves_after = all_leaves(main._split_root)
+        assert len(leaves_after) == 3, (
+            f"Expected 3 leaves after edge-zone split from existing split, "
+            f"got {len(leaves_after)}. Tab was likely moved to adjacent pane "
+            f"instead of creating a new split."
+        )
+
+        # The adjacent leaf should be untouched
+        adj_leaf_after = find_leaf(main._split_root, adj_leaf.leaf_id)
+        assert adj_leaf_after is not None
+        assert len(adj_leaf_after.pane_ids) == adj_pane_count_before, (
+            "Adjacent pane should not have received the tab"
+        )
+
+        # Source leaf should have 1 fewer tab
+        source_leaf_after = find_leaf(main._split_root, source_leaf.leaf_id)
+        assert source_leaf_after is not None
+        assert len(source_leaf_after.pane_ids) == source_tab_count_before - 1, (
+            "Source pane should have one fewer tab after the split"
+        )
+
+        # The dragged file should be in one of the new leaves
+        found = any(py_file in leaf.opened_files for leaf in leaves_after)
+        assert found, "Dragged file should exist in one of the leaves"
+
+
+async def test_edge_zone_split_down_from_horizontal_split(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Bug fix: edge-zone 'down' from a left|right split should create a vertical
+    sub-split below, NOT move the tab to the right pane."""
+    await _edge_zone_split_from_existing_split_test(
+        workspace, py_file, py_file2, "horizontal", "down"
+    )
+
+
+async def test_edge_zone_split_right_from_vertical_split(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Edge-zone 'right' from a top/bottom split should create a horizontal
+    sub-split to the right, NOT move the tab to the bottom pane."""
+    await _edge_zone_split_from_existing_split_test(
+        workspace, py_file, py_file2, "vertical", "right"
+    )

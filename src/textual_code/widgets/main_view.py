@@ -1131,8 +1131,8 @@ class MainView(Static):
             dest_leaf = find_leaf(self._split_root, event.target_dtc_id)
         elif event.target_pane_id:
             dest_leaf = find_leaf_for_pane(self._split_root, event.target_pane_id)
-        if dest_leaf is None:
-            # Fallback: pick adjacent leaf
+        if dest_leaf is None and event.split_direction is None:
+            # Fallback: pick adjacent leaf (only when no explicit split direction)
             leaves = all_leaves(self._split_root)
             src_idx = next((i for i, lf in enumerate(leaves) if lf is source_leaf), 0)
             adj_idx = src_idx - 1 if src_idx > 0 else src_idx + 1
