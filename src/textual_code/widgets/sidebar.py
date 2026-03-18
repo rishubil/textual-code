@@ -66,6 +66,7 @@ class Sidebar(Static):
         show_hidden_files: bool = True,
         dim_gitignored: bool = True,
         dim_hidden_files: bool = False,
+        sidebar_width: int | str = 28,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -73,8 +74,12 @@ class Sidebar(Static):
         self._show_hidden_files = show_hidden_files
         self._dim_gitignored = dim_gitignored
         self._dim_hidden_files = dim_hidden_files
+        self._sidebar_width = sidebar_width
         self._compact_tabs: bool | None = None
         self._compact_buttons: bool | None = None
+
+    def on_mount(self) -> None:
+        self.styles.width = self._sidebar_width
 
     def compose(self) -> ComposeResult:
         yield SidebarResizeHandle()

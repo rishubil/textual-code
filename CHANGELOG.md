@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dim gitignored files in Explorer: files and directories matching `.gitignore` patterns are visually dimmed via the `dim_gitignored` setting (default: `true`) or the "Toggle dim gitignored files" command in the command palette; hidden files (dotfiles) are exempt from dimming; uses a `directory-tree--gitignored` component class for consistent styling across terminal modes; the setting is persisted to user config on toggle
 
+- Configurable sidebar width: the `sidebar_width` setting controls the initial sidebar width; accepts an integer for absolute cell count (min 5) or a percentage string like `"30%"` (1%-90%); defaults to `28`; invalid values fall back to the default with a warning notification
+
 - Toggle hidden files in Explorer: dotfiles and dotfolders can be shown or hidden via the `show_hidden_files` setting (default: `true`) or the "Toggle hidden files" command in the command palette; the setting is persisted to user config on toggle
 
 - EditorConfig `trim_trailing_whitespace` and `insert_final_newline` compliance: these properties are now applied at save time (Ctrl+S or Save As). `trim_trailing_whitespace=true` strips trailing spaces/tabs from all lines; `insert_final_newline=true` ensures the file ends with a newline; `insert_final_newline=false` removes trailing newlines. The editor buffer is updated to reflect the saved content.

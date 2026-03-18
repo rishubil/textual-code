@@ -862,3 +862,13 @@ def test_snapshot_explorer_dim_hidden_files(snap_compare, snapshot_workspace: Pa
     app = make_app(snapshot_workspace, user_config_path=config)
 
     assert snap_compare(app, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_sidebar_custom_width(snap_compare, snapshot_workspace: Path):
+    """Sidebar rendered at configured width of 50 cells."""
+    (snapshot_workspace / "hello.py").write_text("print('hello')\n")
+    config = snapshot_workspace / "settings.toml"
+    config.write_text("[editor]\nsidebar_width = 50\n")
+    app = make_app(snapshot_workspace, user_config_path=config)
+
+    assert snap_compare(app, terminal_size=TERMINAL_SIZE)

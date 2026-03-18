@@ -61,6 +61,7 @@ All editor settings go under the `[editor]` TOML table.
 | `show_hidden_files` | boolean | `true` | Show dotfiles and dotfolders in the Explorer sidebar |
 | `dim_gitignored` | boolean | `true` | Dim files matching .gitignore patterns in the Explorer sidebar |
 | `dim_hidden_files` | boolean | `false` | Dim dotfiles and dotfolders in the Explorer sidebar |
+| `sidebar_width` | integer or string | `28` | Initial sidebar width: integer for cells (min 5), or `"30%"` for percentage (1%-90%) |
 
 ### Example: user settings file
 

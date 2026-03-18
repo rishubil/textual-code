@@ -18,6 +18,7 @@ from textual_code.commands import (
     create_open_file_command_provider,
 )
 from textual_code.config import (
+    DEFAULT_EDITOR_SETTINGS,
     get_keybindings_path,
     get_project_config_path,
     get_user_config_path,
@@ -59,6 +60,32 @@ from textual_code.widgets.workspace_search import WorkspaceSearchPane
 # Textual's built-in "Theme" command title — used to filter it out from command palette.
 # This string matches the title yielded by textual.app.App.get_system_commands().
 _TEXTUAL_BUILTIN_THEME_CMD = "Theme"
+
+
+def _validate_sidebar_width_setting(value: int | float | str) -> int | str | None:
+    """Validate a sidebar_width setting value (no runtime context needed).
+
+    Returns:
+      int   - absolute cell width (>= SIDEBAR_MIN_WIDTH)
+      str   - percentage string like "30%" (1% - 90%)
+      None  - invalid value
+    """
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        n = int(value)
+        return n if n >= SIDEBAR_MIN_WIDTH else None
+    if isinstance(value, str):
+        if value.endswith("%"):
+            try:
+                pct = int(value[:-1])
+            except ValueError:
+                return None
+            return value if 1 <= pct <= 90 else None
+        try:
+            n = int(value)
+        except ValueError:
+            return None
+        return n if n >= SIDEBAR_MIN_WIDTH else None
+    return None
 
 
 def _parse_sidebar_resize(
@@ -271,6 +298,18 @@ class TextualCode(App):
         self.default_path_display_mode: str = (
             mode if mode in ("absolute", "relative") else "absolute"
         )
+        _default_sw = DEFAULT_EDITOR_SETTINGS["sidebar_width"]
+        raw_sw = settings.get("sidebar_width", _default_sw)
+        validated_sw = _validate_sidebar_width_setting(raw_sw)
+        if validated_sw is not None:
+            self.default_sidebar_width: int | str = validated_sw
+        else:
+            self.default_sidebar_width = _default_sw
+            if raw_sw != _default_sw:
+                self._sidebar_width_warning = (
+                    f"Invalid sidebar_width in config: {raw_sw!r}. "
+                    f"Using default ({_default_sw})."
+                )
         self.theme = self.default_ui_theme
 
         # load and apply custom keybindings
@@ -285,6 +324,7 @@ class TextualCode(App):
                 show_hidden_files=self.default_show_hidden_files,
                 dim_gitignored=self.default_dim_gitignored,
                 dim_hidden_files=self.default_dim_hidden_files,
+                sidebar_width=self.default_sidebar_width,
             )
         yield MainView()
         yield Footer()
@@ -295,6 +335,8 @@ class TextualCode(App):
 
         footer = self.main_view.query_one(CodeEditorFooter)
         footer.path_display_mode = self.default_path_display_mode
+        if hasattr(self, "_sidebar_width_warning"):
+            self.notify(self._sidebar_width_warning, severity="warning")
         # open the file in the code editor if provided as with_open_file
         if self.with_open_file is not None:
             await self.main_view.action_open_code_editor(
@@ -660,6 +702,7 @@ class TextualCode(App):
             "path_display_mode": self.default_path_display_mode,
             "dim_gitignored": self.default_dim_gitignored,
             "dim_hidden_files": self.default_dim_hidden_files,
+            "sidebar_width": self.default_sidebar_width,
         }
 
     def action_set_default_indentation(self) -> None:
