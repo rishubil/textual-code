@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-03-18
+
 ### Added
 
 - **Editor**: multiple cursors with Ctrl+Alt+Up/Down, add next occurrence (Ctrl+D), select all occurrences (Ctrl+Shift+L); multi-cursor movement, selection, typing, and editing all work simultaneously; move line up/down (Alt+Up/Down), scroll viewport (Ctrl+Up/Down), select all (Ctrl+A), double/triple click word/line selection, Ctrl+C/X copies/cuts current line when no selection, Tab/Shift+Tab indent/dedent, Ctrl+Shift+Z redo
@@ -33,5 +35,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add basic text editing features
 
-[unreleased]: https://github.com/rishubil/textual-code/compare/v0.0.2...HEAD
-[0.0.2]: https://github.com/olivierlacan/keep-a-changelog/releases/tag/v0.0.2
+[unreleased]: https://github.com/rishubil/textual-code/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/rishubil/textual-code/compare/v0.0.2...v0.1.0
+[0.0.2]: https://github.com/rishubil/textual-code/releases/tag/v0.0.2
