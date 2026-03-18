@@ -138,6 +138,39 @@ Three clipboard copy commands are available via the command palette:
 
 ---
 
+## Shortcut Bar: deterministic key binding order via OrderedFooter
+
+The shortcut bar at the very bottom of the screen shows available key bindings. It uses `OrderedFooter`, a subclass of Textual's `Footer`, to enforce a fixed display order regardless of which widget is focused.
+
+### Why a custom footer
+
+Textual's built-in `Footer` renders bindings in the order they are collected from the active binding chain, which changes depending on focus (e.g., editor vs. explorer vs. modal). This causes shortcut labels to jump around unpredictably, making muscle-memory scanning difficult.
+
+`OrderedFooter` sorts bindings by a predefined priority list before rendering, so the most-used shortcuts always appear in the same position.
+
+### Display order
+
+| Priority | Action | Typical Key |
+|----------|--------|-------------|
+| 1 | Save | `Ctrl+S` |
+| 2 | Find | `Ctrl+F` |
+| 3 | Replace | `Ctrl+H` |
+| 4 | Goto line | `Ctrl+G` |
+| 5 | Close tab | `Ctrl+W` |
+| 6 | New file | `Ctrl+N` |
+| 7 | Toggle sidebar | `Ctrl+B` |
+| (last) | *(other bindings)* | *(original order)* |
+
+Bindings not in the priority list appear after the listed ones, preserving their original relative order (stable sort).
+
+### Context-sensitive bindings
+
+The shortcut bar still reflects the active widget's available bindings — only the *order* is fixed, not the *set*. When the explorer is focused, editor-only shortcuts disappear and explorer shortcuts (Create file, Delete, etc.) are shown instead, sorted by the same priority rules.
+
+**Implementation:** `widgets/ordered_footer.py`
+
+---
+
 ## Command-Line Interface: open files/folders, --workspace option
 
 The CLI is the primary entry point for launching Textual Code. It is built with Typer and registered as the `textual-code` console script.
