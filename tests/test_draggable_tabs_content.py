@@ -225,7 +225,9 @@ async def test_hide_drop_overlay_via_dtc():
 
 
 async def test_highlight_hint_centered_in_dtc_region():
-    """DropHintBox is centered within the DTC region."""
+    """DropHintBox is exactly centered within the DTC region in full mode."""
+    from textual_code.widgets.draggable_tabs_content import FULL_LABEL
+
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
@@ -239,6 +241,13 @@ async def test_highlight_hint_centered_in_dtc_region():
         hint_y = highlight.hint.styles.offset.y.value
         assert hint_x >= dtc.region.x
         assert hint_y >= dtc.region.y
+        # Exact centering check
+        box_w = len(FULL_LABEL) + 4
+        box_h = 3
+        expected_x = dtc.region.x + max(0, (dtc.region.width - box_w) // 2)
+        expected_y = dtc.region.y + max(0, (dtc.region.height - box_h) // 2)
+        assert hint_x == expected_x
+        assert hint_y == expected_y
 
 
 # ── Additional tests ──────────────────────────────────────────────────────────
@@ -468,3 +477,70 @@ async def test_show_edge_overlay_all_directions():
         for direction in ("left", "right", "up", "down"):
             dtc.show_edge_overlay(direction)
             assert screen._highlights[dtc.id].is_mode(f"edge-{direction}")
+
+
+async def test_hint_box_positioned_near_edge():
+    """DropHintBox is positioned near the corresponding edge in edge modes."""
+    from textual_code.widgets.draggable_tabs_content import EDGE_LABELS
+
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        screen = await _push_overlay(app, pilot)
+        region = dtc.region
+        highlight = screen._highlights[dtc.id]
+        box_h = 3
+        centered_y = region.y + max(0, (region.height - box_h) // 2)
+
+        # edge-left: near left edge, vertically centered
+        screen.show_highlight(dtc.id, region, "edge-left")
+        box_w = len(EDGE_LABELS["left"]) + 4
+        assert highlight.hint.styles.offset.x.value == region.x + 1
+        assert highlight.hint.styles.offset.y.value == centered_y
+
+        # edge-right: near right edge, vertically centered
+        screen.show_highlight(dtc.id, region, "edge-right")
+        box_w = len(EDGE_LABELS["right"]) + 4
+        assert (
+            highlight.hint.styles.offset.x.value == region.x + region.width - box_w - 1
+        )
+        assert highlight.hint.styles.offset.y.value == centered_y
+
+        # edge-up: horizontally centered, near top edge
+        screen.show_highlight(dtc.id, region, "edge-up")
+        box_w = len(EDGE_LABELS["up"]) + 4
+        centered_x = region.x + max(0, (region.width - box_w) // 2)
+        assert highlight.hint.styles.offset.x.value == centered_x
+        assert highlight.hint.styles.offset.y.value == region.y
+
+        # edge-down: horizontally centered, near bottom edge
+        screen.show_highlight(dtc.id, region, "edge-down")
+        box_w = len(EDGE_LABELS["down"]) + 4
+        centered_x = region.x + max(0, (region.width - box_w) // 2)
+        assert highlight.hint.styles.offset.x.value == centered_x
+        assert highlight.hint.styles.offset.y.value == region.y + region.height - box_h
+
+
+async def test_hint_box_clamped_in_small_region():
+    """DropHintBox stays within region bounds even for regions smaller than the box."""
+    from textual.geometry import Region
+
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        screen = await _push_overlay(app, pilot)
+        highlight = screen._highlights[dtc.id]
+        # Region smaller than any hint box (box_w ~14, box_h 3)
+        small = Region(5, 3, 10, 4)
+        for direction in ("left", "right", "up", "down"):
+            screen.show_highlight(dtc.id, small, f"edge-{direction}")
+            hint_x = highlight.hint.styles.offset.x.value
+            hint_y = highlight.hint.styles.offset.y.value
+            assert hint_x >= small.x, (
+                f"edge-{direction}: hint_x={hint_x} < region.x={small.x}"
+            )
+            assert hint_y >= small.y, (
+                f"edge-{direction}: hint_y={hint_y} < region.y={small.y}"
+            )

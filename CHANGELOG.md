@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactored three explorer toggle commands (`_toggle_hidden_files_cmd`, `_toggle_dim_gitignored_cmd`, `_toggle_dim_hidden_files_cmd`) into a shared `_toggle_explorer_tree_setting` helper
 - Sidebar is now optional via `skip_sidebar` constructor parameter (used by test infrastructure for lighter app mounts)
 - Test suite optimized: lightweight app mode (`light=True`), direct Input value assignment, and redundant pause removal reduce overall test execution time by ~32%
+- Drop target hint box positioning: when dragging a tab to an edge zone for splitting, the "Split left/right/up/down" hint box now appears near the corresponding edge instead of always centered; provides clearer visual feedback about where the split will occur
 
 ### Fixed
 

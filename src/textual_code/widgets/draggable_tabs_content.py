@@ -52,7 +52,7 @@ class DropHintBox(Static):
 
 
 class DropHighlight:
-    """Manages a DropHintBox widget centered over a DTC region."""
+    """Manages a DropHintBox widget positioned over a DTC region."""
 
     def __init__(self, dtc_id: str) -> None:
         self.dtc_id = dtc_id
@@ -64,7 +64,12 @@ class DropHighlight:
         return [self.hint]
 
     def show(self, region: Region, mode: str) -> None:
-        """Position and display the hint box centered in the given region."""
+        """Position and display the hint box in the given region.
+
+        For 'full' mode the box is centered.  For edge modes it is placed
+        near the corresponding edge so the user sees the hint close to
+        where the split will appear.
+        """
         self._mode = mode
         x, y, w, h = region.x, region.y, region.width, region.height
 
@@ -72,11 +77,24 @@ class DropHighlight:
             direction = mode.split("-", 1)[1]
             label = EDGE_LABELS[direction]
         else:
+            direction = None
             label = FULL_LABEL
         box_w = len(label) + 4  # 2 padding each side
         box_h = 3
         cx = x + max(0, (w - box_w) // 2)
         cy = y + max(0, (h - box_h) // 2)
+
+        if direction is not None:
+            margin_x = 1
+            margin_y = 0
+            if direction == "left":
+                cx = x + margin_x
+            elif direction == "right":
+                cx = max(x, x + w - box_w - margin_x)
+            elif direction == "up":
+                cy = y + margin_y
+            elif direction == "down":
+                cy = max(y, y + h - box_h - margin_y)
 
         self.hint.update(label)
         self.hint.styles.offset = (cx, cy)
