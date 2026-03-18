@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-03-18
+
 ### Fixed
 
 - Wheel build only included `.scm` grammar files, excluding all Python source — caused `ModuleNotFoundError` when installed via `pip install` or `uv tool install`
@@ -39,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add basic text editing features
 
-[unreleased]: https://github.com/rishubil/textual-code/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/rishubil/textual-code/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/rishubil/textual-code/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/rishubil/textual-code/compare/v0.0.2...v0.1.0
 [0.0.2]: https://github.com/rishubil/textual-code/releases/tag/v0.0.2
