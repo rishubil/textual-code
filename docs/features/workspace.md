@@ -254,6 +254,7 @@ Provides visual file navigation, file/folder management, and quick access to wor
 | `Ctrl+D` | Create directory | Explorer focused, or command palette |
 | `Delete` | Delete file/folder | Explorer focused (selected node) |
 
+- When creating a file or directory, the command palette input is pre-filled with the relative path of the currently selected folder in the explorer (or the parent folder if a file is selected). This works regardless of which widget is focused.
 - File/folder deletion shows a confirmation modal with the path and an undo warning.
 - Also accessible via command palette: "Create file", "Create directory", "Delete file or directory".
 

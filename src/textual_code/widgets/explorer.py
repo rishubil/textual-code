@@ -641,14 +641,31 @@ class Explorer(Static):
         directory_tree.show_root = False  # don't show the root directory
         yield directory_tree
 
-    def action_create_file(self) -> None:
+    def _get_selected_dir_relative(self) -> str:
+        """Return relative path of the selected directory (trailing '/')."""
+        node = self.directory_tree.cursor_node
+        if node is None or node.data is None:
+            return ""
+        path = node.data.path
+        if not node.allow_expand:
+            path = path.parent
+        if path == self.workspace_path:
+            return ""
+        try:
+            return str(path.relative_to(self.workspace_path)) + "/"
+        except ValueError:
+            return ""
+
+    async def action_create_file(self) -> None:
         """
         Create a new file at a path.
         """
         from textual_code.app import TextualCode
 
         assert isinstance(self.app, TextualCode)
-        self.app.action_create_file_with_command_palette()
+        await self.app.action_create_file_with_command_palette(
+            initial_path=self._get_selected_dir_relative()
+        )
 
     def action_delete_node(self) -> None:
         """
@@ -659,14 +676,16 @@ class Explorer(Static):
             return
         self.post_message(self.FileDeleteRequested(explorer=self, path=node.data.path))
 
-    def action_create_directory(self) -> None:
+    async def action_create_directory(self) -> None:
         """
         Create a new directory at a path.
         """
         from textual_code.app import TextualCode
 
         assert isinstance(self.app, TextualCode)
-        self.app.action_create_directory_with_command_palette()
+        await self.app.action_create_directory_with_command_palette(
+            initial_path=self._get_selected_dir_relative()
+        )
 
     @on(DirectoryTree.FileSelected)
     def on_file_selected(self, event: DirectoryTree.FileSelected):

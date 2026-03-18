@@ -940,3 +940,33 @@ def test_snapshot_sidebar_custom_width(snap_compare, snapshot_workspace: Path):
     app = make_app(snapshot_workspace, user_config_path=config)
 
     assert snap_compare(app, terminal_size=TERMINAL_SIZE)
+
+
+# ── Explorer create file pre-fill ─────────────────────────────────────────────
+
+
+def test_snapshot_explorer_create_file_prefilled(
+    snap_compare, snapshot_workspace: Path
+):
+    """CommandPalette shows pre-filled path when creating file from explorer."""
+    subdir = snapshot_workspace / "src"
+    subdir.mkdir()
+    (subdir / "main.py").write_text("# main\n")
+    app = make_app(snapshot_workspace)
+
+    async def run_before(pilot):
+        await pilot.pause()
+        explorer = app.sidebar.explorer
+        tree = explorer.directory_tree
+        # Select the "src" directory node
+        for node in tree.root.children:
+            if node.data and node.data.path == subdir:
+                tree.move_cursor(node)
+                break
+        await pilot.pause()
+        tree.focus()
+        await pilot.pause()
+        await pilot.press("ctrl+n")
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)

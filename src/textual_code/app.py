@@ -6,7 +6,8 @@ from pathlib import Path
 from textual import on
 from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding
-from textual.command import CommandPalette
+from textual.command import CommandInput, CommandPalette
+from textual.css.query import NoMatches
 from textual.events import Ready
 from textual.message import Message
 from textual.screen import Screen
@@ -1293,24 +1294,47 @@ class TextualCode(App):
             ),
         )
 
-    def action_create_file_with_command_palette(self) -> None:
+    def _get_explorer_selected_dir_relative(self) -> str:
+        """Get the relative path of the explorer's selected directory."""
+        sidebar = self.sidebar
+        if sidebar is None:
+            return ""
+        return sidebar.explorer._get_selected_dir_relative()
+
+    async def _push_palette_with_prefill(
+        self, palette: CommandPalette, initial_path: str = ""
+    ) -> None:
+        """Push a command palette and optionally pre-fill its input."""
+        if not initial_path:
+            initial_path = self._get_explorer_selected_dir_relative()
+        await self.push_screen(palette)
+        if initial_path:
+            try:
+                inp = palette.query_one(CommandInput)
+                inp.value = initial_path
+                inp.cursor_position = len(initial_path)
+            except NoMatches:
+                pass
+
+    async def action_create_file_with_command_palette(
+        self, initial_path: str = ""
+    ) -> None:
         """
         Create a new file with the command palette.
         """
-        self.push_screen(
-            CommandPalette(
-                providers=[
-                    create_create_file_or_dir_command_provider(
-                        self.workspace_path,
-                        is_dir=False,
-                        post_message_callback=lambda path: self.app.post_message(
-                            self.CreateFileOrDirRequested(path=path, is_dir=False)
-                        ),
-                    )
-                ],
-                placeholder="Enter file path...",
-            ),
+        palette = CommandPalette(
+            providers=[
+                create_create_file_or_dir_command_provider(
+                    self.workspace_path,
+                    is_dir=False,
+                    post_message_callback=lambda path: self.app.post_message(
+                        self.CreateFileOrDirRequested(path=path, is_dir=False)
+                    ),
+                )
+            ],
+            placeholder="Enter file path...",
         )
+        await self._push_palette_with_prefill(palette, initial_path)
 
     def action_delete_file_or_dir_with_command_palette(self) -> None:
         """
@@ -1330,24 +1354,25 @@ class TextualCode(App):
             ),
         )
 
-    def action_create_directory_with_command_palette(self) -> None:
+    async def action_create_directory_with_command_palette(
+        self, initial_path: str = ""
+    ) -> None:
         """
         Create a new directory with the command palette.
         """
-        self.push_screen(
-            CommandPalette(
-                providers=[
-                    create_create_file_or_dir_command_provider(
-                        self.workspace_path,
-                        is_dir=True,
-                        post_message_callback=lambda path: self.app.post_message(
-                            self.CreateFileOrDirRequested(path=path, is_dir=True)
-                        ),
-                    )
-                ],
-                placeholder="Enter directory path...",
-            ),
+        palette = CommandPalette(
+            providers=[
+                create_create_file_or_dir_command_provider(
+                    self.workspace_path,
+                    is_dir=True,
+                    post_message_callback=lambda path: self.app.post_message(
+                        self.CreateFileOrDirRequested(path=path, is_dir=True)
+                    ),
+                )
+            ],
+            placeholder="Enter directory path...",
         )
+        await self._push_palette_with_prefill(palette, initial_path)
 
     async def action_quit(self) -> None:
         """
