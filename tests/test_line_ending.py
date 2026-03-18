@@ -327,7 +327,7 @@ async def test_change_line_ending_cmd_no_editor(tmp_path: Path):
             notified.append(f"{severity}:{message}")
             return original_notify(message, severity=severity, **kwargs)
 
-        tc_app.notify = capture_notify  # type: ignore
+        tc_app.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
         tc_app.action_change_line_ending_cmd()
         await pilot.pause()
 
@@ -353,7 +353,7 @@ async def test_select_crlf_shows_warning_toast(tmp_path: Path):
             notified.append(f"{severity}:{message}")
             return original_notify(message, severity=severity, **kwargs)
 
-        editor.notify = capture_notify  # type: ignore
+        editor.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
 
         editor.action_change_line_ending()
         await pilot.pause()
@@ -383,7 +383,7 @@ async def test_select_lf_no_warning_toast(tmp_path: Path):
             notified.append(f"{severity}:{message}")
             return original_notify(message, severity=severity, **kwargs)
 
-        editor.notify = capture_notify  # type: ignore
+        editor.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
 
         editor.action_change_line_ending()
         await pilot.pause()
@@ -494,7 +494,7 @@ async def test_select_crlf_no_warning_when_disabled(tmp_path: Path):
             notified.append(f"{severity}:{message}")
             return original_notify(message, severity=severity, **kwargs)
 
-        editor.notify = capture_notify  # type: ignore
+        editor.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
 
         editor.action_change_line_ending()
         await pilot.pause()

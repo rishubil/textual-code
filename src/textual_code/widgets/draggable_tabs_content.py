@@ -4,11 +4,14 @@
 # Underline from textual.widgets._tabs
 from __future__ import annotations
 
+from typing import cast
+
 from textual import events
 from textual.css.query import NoMatches
 from textual.geometry import Region
 from textual.message import Message
 from textual.screen import Screen
+from textual.widget import Widget
 from textual.widgets import Static, TabbedContent
 from textual.widgets._content_switcher import ContentSwitcher  # internal
 from textual.widgets._tabbed_content import ContentTab, ContentTabs  # internal
@@ -56,7 +59,7 @@ class DropHighlight:
 
     def __init__(self, dtc_id: str) -> None:
         self.dtc_id = dtc_id
-        self.hint = DropHintBox(id=f"hl-hint-{dtc_id}")
+        self.hint: DropHintBox = DropHintBox(id=f"hl-hint-{dtc_id}")
         self._mode: str | None = None
 
     @property
@@ -105,7 +108,7 @@ class DropHighlight:
     def hide(self) -> None:
         """Hide the hint box."""
         self._mode = None
-        self.hint.styles.display = "none"
+        self.hint.styles.display = "none"  # type: ignore[assignment]  # ty cannot resolve StringEnumProperty generic descriptor
 
     def is_mode(self, mode: str) -> bool:
         """Check if this highlight is currently in the given mode."""
@@ -503,11 +506,16 @@ class DraggableTabbedContent(TabbedContent):
         )
 
         # Guard: any of these being None means invalid pane_id → noop
-        if None in (drag_tab, target_tab, drag_pane, target_pane):
+        if (
+            drag_tab is None
+            or target_tab is None
+            or drag_pane is None
+            or target_pane is None
+        ):
             return
 
         # ContentTab's actual parent is Horizontal(id='tabs-list') inside ContentTabs
-        tabs_list = drag_tab.parent
+        tabs_list = cast(Widget, drag_tab.parent)
 
         with self.app.batch_update():
             if before:

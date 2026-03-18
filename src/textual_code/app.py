@@ -1349,7 +1349,7 @@ class TextualCode(App):
             ),
         )
 
-    def action_quit(self) -> None:
+    async def action_quit(self) -> None:
         """
         Quit the app.
         """

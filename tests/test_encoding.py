@@ -404,7 +404,7 @@ async def test_encoding_cmd_no_editor(tmp_path: Path):
             notified.append(f"{severity}:{message}")
             return original_notify(message, severity=severity, **kwargs)
 
-        tc_app.notify = capture_notify  # type: ignore
+        tc_app.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
         tc_app.action_change_encoding_cmd()
         await pilot.pause()
 

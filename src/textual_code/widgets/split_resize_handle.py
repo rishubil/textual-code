@@ -34,7 +34,7 @@ class SplitResizeHandle(Widget):
             return self.parent.direction == "vertical"
         # Legacy: check parent classes
         try:
-            return "split-vertical" in self.parent.classes
+            return self.parent is not None and "split-vertical" in self.parent.classes
         except Exception:
             return False
 

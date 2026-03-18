@@ -13,3 +13,10 @@ repos:
         language: python
         types_or: [python, pyi, jupyter]
         additional_dependencies: [ruff]
+      - id: ty-check
+        name: ty check
+        entry: ty check
+        language: python
+        types_or: [python, pyi]
+        additional_dependencies: [ty]
+        pass_filenames: false

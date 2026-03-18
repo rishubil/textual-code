@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
 from textual import events, on
@@ -9,6 +10,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.message import Message
 from textual.timer import Timer
+from textual.widget import Widget
 from textual.widgets import Button, Static, TabbedContent, TabPane
 
 from textual_code.utils import is_binary_file
@@ -35,6 +37,9 @@ from textual_code.widgets.split_tree import (
     remove_leaf,
     split_leaf,
 )
+
+if TYPE_CHECKING:
+    from textual_code.app import TextualCode
 
 log = logging.getLogger(__name__)
 
@@ -701,7 +706,7 @@ class MainView(Static):
 
         # Create SplitContainer, mount after existing DTC, then reparent
         container = SplitContainer(direction=direction)
-        parent = existing_dtc.parent
+        parent = cast(Widget, existing_dtc.parent)
         await parent.mount(container, after=existing_dtc)
 
         # Reparent existing DTC into container via DOM manipulation
@@ -774,7 +779,7 @@ class MainView(Static):
                 old_widget = sibling_widget
                 new_container = SplitContainer(direction=parent_node.direction)
 
-                p = old_widget.parent
+                p = cast(Widget, old_widget.parent)
                 # Mount new container at old_widget's position, then reparent
                 await p.mount(new_container, after=old_widget)
                 # Reparent old_widget into new container via DOM manipulation
@@ -810,7 +815,10 @@ class MainView(Static):
                 self.app.call_later(self.action_close_code_editor, pane_id)
 
     def action_find_in_workspace(self) -> None:
-        sidebar = self.app.sidebar
+        app = cast("TextualCode", self.app)
+        sidebar = app.sidebar
+        if sidebar is None:
+            return
         sidebar.display = True
         sidebar.tabbed_content.active = "search_pane"
         sidebar.workspace_search.focus_query_input()
@@ -1221,7 +1229,7 @@ class MainView(Static):
     @on(events.Click, "CodeEditorFooter #path")
     def on_footer_path_click(self, event: events.Click) -> None:
         event.stop()
-        self.app.action_copy_displayed_path()
+        cast("TextualCode", self.app).action_copy_displayed_path()
 
     @on(CodeEditor.TextChanged)
     def on_code_editor_text_changed(self, event: CodeEditor.TextChanged) -> None:

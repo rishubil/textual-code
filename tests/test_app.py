@@ -154,7 +154,7 @@ async def test_create_existing_file_shows_notification(
         notifications.append(msg)
         return original_notify(msg, **kwargs)
 
-    app.notify = capture_notify  # type: ignore[method-assign]
+    app.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
 
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -173,7 +173,7 @@ async def test_quit_without_unsaved_exits(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_quit()
+        await app.action_quit()
         await pilot.pause()
 
 
@@ -186,7 +186,7 @@ async def test_quit_with_unsaved_shows_modal(workspace: Path, sample_py_file: Pa
         editor.text = "unsaved change\n"
         await pilot.pause()
 
-        app.action_quit()
+        await app.action_quit()
         await pilot.pause()
         assert isinstance(app.screen, UnsavedChangeQuitModalScreen)
 
@@ -202,7 +202,7 @@ async def test_quit_with_unsaved_quit_button_exits(
         editor.text = "unsaved\n"
         await pilot.pause()
 
-        app.action_quit()
+        await app.action_quit()
         await pilot.pause()
         await pilot.click("#quit")
         await pilot.pause()

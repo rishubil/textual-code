@@ -408,9 +408,10 @@ class MultiCursorTextArea(TextArea):
                         line.stylize(selection_style, start_col, end)
 
             # Render cursor positions
-            for row, col in self._extra_cursors:
-                if row == line_index and 0 <= col <= len(line.plain):
-                    line.stylize(cursor_style, col, col + 1)
+            if cursor_style:
+                for row, col in self._extra_cursors:
+                    if row == line_index and 0 <= col <= len(line.plain):
+                        line.stylize(cursor_style, col, col + 1)
 
         return line
 

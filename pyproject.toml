@@ -53,12 +53,18 @@ dev = [
     "pytest-xdist>=3.8.0",
     "ruff>=0.8.5",
     "textual-dev>=1.7.0",
+    "ty>=0.0.23",
 ]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 markers = [
     "serial: tests that must not run in parallel",
+]
+filterwarnings = [
+    # Textual internal: DirectoryTree.watch_path coroutine not awaited during teardown
+    "ignore:coroutine 'DirectoryTree.watch_path' was never awaited:RuntimeWarning",
+    "ignore:Exception ignored in.*DirectoryTree.watch_path:pytest.PytestUnraisableExceptionWarning",
 ]
 
 [tool.ruff.lint]

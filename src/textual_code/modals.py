@@ -1,11 +1,15 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 from textual import on
 from textual.app import ComposeResult
 from textual.containers import Grid, Vertical
 from textual.events import Key
 from textual.screen import ModalScreen
+from textual.widget import Widget
 from textual.widgets import (
     Button,
     Checkbox,
@@ -14,6 +18,9 @@ from textual.widgets import (
     Label,
     Select,
 )
+
+if TYPE_CHECKING:
+    from textual_code.app import TextualCode
 
 
 @dataclass
@@ -399,7 +406,7 @@ class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
         self._show_save_level = show_save_level
 
     def compose(self) -> ComposeResult:
-        children = [
+        children: list[Widget] = [
             Label("Change Indentation", id="title"),
             Select(
                 options=[("Spaces", "spaces"), ("Tabs", "tabs")],
@@ -496,7 +503,7 @@ class ChangeLineEndingModalScreen(ModalScreen[ChangeLineEndingModalResult]):
         self._show_save_level = show_save_level
 
     def compose(self) -> ComposeResult:
-        children = [
+        children: list[Widget] = [
             Label("Change Line Ending", id="title"),
             Select(
                 options=[
@@ -736,7 +743,7 @@ class ChangeEncodingModalScreen(ModalScreen[ChangeEncodingModalResult]):
         self._show_save_level = show_save_level
 
     def compose(self) -> ComposeResult:
-        children = [
+        children: list[Widget] = [
             Label("Change Encoding", id="title"),
             Select(
                 options=[
@@ -1171,7 +1178,9 @@ class ShowShortcutsScreen(ModalScreen[None]):
 
     def _on_rebind(self, result: RebindResult | None) -> None:
         if result and not result.is_cancelled and result.action_name and result.new_key:
-            self.app.set_keybinding(result.action_name, result.new_key)  # type: ignore[attr-defined]
+            cast("TextualCode", self.app).set_keybinding(
+                result.action_name, result.new_key
+            )
 
     @on(Button.Pressed, "#close")
     def on_close(self) -> None:

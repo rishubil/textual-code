@@ -621,6 +621,7 @@ class Explorer(Static):
                 self.call_after_refresh(self._retry_pending)
                 return
             if not child.is_expanded:
+                assert child.data is not None
                 self.log.debug("select_file: expanding %s", child.data.path)
                 child.expand()
                 self.call_after_refresh(self._retry_pending)

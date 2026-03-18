@@ -77,6 +77,7 @@ USER $USER_UID
 RUN echo 'export TERM="xterm-256color"' >> ~/.bashrc \
     && echo 'export COLORTERM="truecolor"' >> ~/.bashrc \
     && echo 'alias tc="uv run --project /project textual-code"' >> ~/.bashrc \
+    && echo 'alias claude="claude --plugin-dir .claude/plugins/python-lsp"' >> ~/.bashrc \
     && export TERM="xterm-256color" \
     && export COLORTERM="truecolor"
 

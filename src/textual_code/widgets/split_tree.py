@@ -152,7 +152,9 @@ def split_leaf(
         return replace_node(root, parent, new_branch), new_leaf
 
     # Create new BranchNode wrapping old leaf + new leaf
-    children = [leaf, new_leaf] if position == "after" else [new_leaf, leaf]
+    children: list[SplitNode] = (
+        [leaf, new_leaf] if position == "after" else [new_leaf, leaf]
+    )
     new_branch = BranchNode(
         direction=direction,
         children=children,

@@ -171,7 +171,7 @@ def test_snapshot_unsaved_quit_modal(
         assert editor is not None
         editor.text = "modified content\n"
         await pilot.pause()
-        app.action_quit()
+        await app.action_quit()
         await pilot.pause()
 
     assert snap_compare(app, run_before=modify_and_quit, terminal_size=TERMINAL_SIZE)

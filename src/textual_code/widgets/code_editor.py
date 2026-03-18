@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import contextlib
 import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from charset_normalizer import detect as _cn_detect
@@ -46,7 +49,10 @@ log = logging.getLogger(__name__)
 # Map custom language name -> highlight query string (loaded at import time)
 _CUSTOM_LANGUAGE_QUERIES: dict[str, str] = {}
 # Map custom language name -> tree-sitter Language object (loaded at import time)
-_CUSTOM_LANGUAGES: dict[str, object] = {}
+if TYPE_CHECKING:
+    from tree_sitter import Language
+
+_CUSTOM_LANGUAGES: dict[str, Language] = {}
 
 _CUSTOM_GRAMMAR_NAMES = [
     "dockerfile",
@@ -70,7 +76,7 @@ try:
         try:
             _scm_path = _GRAMMARS_DIR / f"{_lang_name}.scm"
             _query = _scm_path.read_text(encoding="utf-8")
-            _lang_obj = _get_ts_language(_lang_name)
+            _lang_obj = _get_ts_language(_lang_name)  # type: ignore[arg-type]  # str from runtime list; SupportedLanguage is a 173-literal union
             _CUSTOM_LANGUAGE_QUERIES[_lang_name] = _query
             _CUSTOM_LANGUAGES[_lang_name] = _lang_obj
         except Exception as _e:
@@ -498,8 +504,8 @@ class _PathLabel(Label):
 
     def show(
         self,
-        path: "Path | None",
-        workspace_path: "Path | None" = None,
+        path: Path | None,
+        workspace_path: Path | None = None,
         mode: str = "absolute",
     ) -> None:
         """Set the path and immediately render (uses current region if available)."""
@@ -812,10 +818,10 @@ class CodeEditor(Static):
         Message to notify that the title of the editor has changed.
         """
 
-        code_editor: "CodeEditor"
+        code_editor: CodeEditor
 
         @property
-        def control(self) -> "CodeEditor":
+        def control(self) -> CodeEditor:
             return self.code_editor
 
     @dataclass
@@ -824,10 +830,10 @@ class CodeEditor(Static):
         Message to notify that the file has been saved.
         """
 
-        code_editor: "CodeEditor"
+        code_editor: CodeEditor
 
         @property
-        def control(self) -> "CodeEditor":
+        def control(self) -> CodeEditor:
             return self.code_editor
 
     @dataclass
@@ -836,10 +842,10 @@ class CodeEditor(Static):
         Message to notify that the file has been saved as a new file.
         """
 
-        code_editor: "CodeEditor"
+        code_editor: CodeEditor
 
         @property
-        def control(self) -> "CodeEditor":
+        def control(self) -> CodeEditor:
             return self.code_editor
 
     @dataclass
@@ -848,10 +854,10 @@ class CodeEditor(Static):
         Message to notify that the editor has been closed.
         """
 
-        code_editor: "CodeEditor"
+        code_editor: CodeEditor
 
         @property
-        def control(self) -> "CodeEditor":
+        def control(self) -> CodeEditor:
             return self.code_editor
 
     @dataclass
@@ -860,30 +866,30 @@ class CodeEditor(Static):
         Message to notify that the file has been deleted.
         """
 
-        code_editor: "CodeEditor"
+        code_editor: CodeEditor
 
         @property
-        def control(self) -> "CodeEditor":
+        def control(self) -> CodeEditor:
             return self.code_editor
 
     @dataclass
     class TextChanged(Message):
         """Posted when the editor's text content changes."""
 
-        code_editor: "CodeEditor"
+        code_editor: CodeEditor
 
         @property
-        def control(self) -> "CodeEditor":
+        def control(self) -> CodeEditor:
             return self.code_editor
 
     @dataclass
     class FooterStateChanged(Message):
         """Posted when this editor's footer-relevant state changes."""
 
-        code_editor: "CodeEditor"
+        code_editor: CodeEditor
 
         @property
-        def control(self) -> "CodeEditor":
+        def control(self) -> CodeEditor:
             return self.code_editor
 
     @classmethod
@@ -1142,12 +1148,11 @@ class CodeEditor(Static):
 
     def watch_language(self, language: str | None):
         # lazily register custom tree-sitter language if needed
-        needs_register = (
+        if (
             language
             and language in _CUSTOM_LANGUAGES
             and language not in self.editor.available_languages
-        )
-        if needs_register:
+        ):
             query = _CUSTOM_LANGUAGE_QUERIES.get(language, "")
             try:
                 self.editor.register_language(
@@ -1293,6 +1298,7 @@ class CodeEditor(Static):
 
     def _write_to_disk(self) -> None:
         """Write current text to disk and update mtime. Requires self.path is set."""
+        assert self.path is not None
         self._dismiss_external_change_notification()
         try:
             saved_text = self._apply_save_transformations(self.text)
@@ -1451,7 +1457,7 @@ class CodeEditor(Static):
             )
             return
 
-        def do_delete(result: DeleteFileModalResult | None):
+        def do_delete(result: DeleteFileModalResult | None) -> None:
             if not result or result.is_cancelled:
                 return
             if not self.path:
@@ -1471,6 +1477,7 @@ class CodeEditor(Static):
                 except Exception as e:
                     self.notify(f"Error deleting file: {e}", severity="error")
 
+        assert self.path is not None
         self.app.push_screen(DeleteFileModalScreen(self.path), do_delete)
 
     def action_goto_line(self) -> None:
@@ -1715,6 +1722,8 @@ class CodeEditor(Static):
         def do_change(result: ChangeIndentModalResult | None) -> None:
             if result is None or result.is_cancelled:
                 return
+            if result.indent_type is None or result.indent_size is None:
+                return
             new_text = _convert_indentation(
                 self.text, result.indent_type, result.indent_size
             )
@@ -1737,6 +1746,8 @@ class CodeEditor(Static):
         def do_change(result: ChangeLineEndingModalResult | None) -> None:
             if result is None or result.is_cancelled:
                 return
+            if result.line_ending is None:
+                return
             self.line_ending = result.line_ending
             self._notify_non_lf_if_needed()
 
@@ -1754,6 +1765,8 @@ class CodeEditor(Static):
 
         def do_change(result: ChangeEncodingModalResult | None) -> None:
             if result is None or result.is_cancelled:
+                return
+            if result.encoding is None:
                 return
             self.encoding = result.encoding
 
