@@ -190,6 +190,11 @@ The first positional argument specifies what to open:
 - **Non-existent file:** if the target does not exist and is not a directory, the CLI attempts to create it with `touch()`. On failure, it prints an error and exits with code 1.
 - All paths are resolved to absolute form via `Path.resolve()`.
 
+### Version flag
+
+- **Flag:** `--version`
+- Prints the installed version of Textual Code and exits immediately.
+
 ### Workspace option
 
 - **Flag:** `--workspace` / `-w`
