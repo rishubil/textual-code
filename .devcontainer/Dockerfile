@@ -76,6 +76,7 @@ RUN uv python install 3.12 --default \
 USER $USER_UID
 RUN echo 'export TERM="xterm-256color"' >> ~/.bashrc \
     && echo 'export COLORTERM="truecolor"' >> ~/.bashrc \
+    && echo 'alias tc="uv run --project /project textual-code"' >> ~/.bashrc \
     && export TERM="xterm-256color" \
     && export COLORTERM="truecolor"
 
