@@ -6,6 +6,8 @@ Group B — Glob pattern matching (T-07 to T-16)
 Group C — Parsing edge cases (T-17 to T-22)
 Group D — Property value mapping (T-23 to T-28)
 Group E — Integration: CodeEditor file open (T-29 to T-32)
+Group F — Save-time transformations (T-33 to T-46)
+Group G — EditorConfig reload on modification (G-01 to G-12)
 """
 
 from pathlib import Path
@@ -25,8 +27,9 @@ def test_T01_no_editorconfig_returns_empty_dict(tmp_path: Path):
     """T-01: No .editorconfig file anywhere → returns empty dict."""
     f = tmp_path / "hello.py"
     f.write_text("x = 1\n")
-    result = _read_editorconfig(f)
+    result, dirs = _read_editorconfig(f)
     assert result == {}
+    assert len(dirs) > 0  # at least the file's parent dir
 
 
 def test_T02_reads_same_directory_editorconfig(tmp_path: Path):
@@ -35,8 +38,9 @@ def test_T02_reads_same_directory_editorconfig(tmp_path: Path):
     ec.write_text("[*.py]\nindent_style = space\n")
     f = tmp_path / "hello.py"
     f.write_text("x = 1\n")
-    result = _read_editorconfig(f)
+    result, dirs = _read_editorconfig(f)
     assert result.get("indent_style") == "space"
+    assert tmp_path in dirs
 
 
 def test_T03_reads_parent_directory_editorconfig(tmp_path: Path):
@@ -47,8 +51,10 @@ def test_T03_reads_parent_directory_editorconfig(tmp_path: Path):
     subdir.mkdir()
     f = subdir / "hello.py"
     f.write_text("x = 1\n")
-    result = _read_editorconfig(f)
+    result, dirs = _read_editorconfig(f)
     assert result.get("indent_size") == "2"
+    assert subdir in dirs
+    assert tmp_path in dirs
 
 
 def test_T04_root_true_stops_traversal(tmp_path: Path):
@@ -64,10 +70,13 @@ def test_T04_root_true_stops_traversal(tmp_path: Path):
     f = subdir / "hello.py"
     f.write_text("x = 1\n")
 
-    result = _read_editorconfig(f)
+    result, dirs = _read_editorconfig(f)
     # indent_style comes from child; indent_size from parent should NOT appear
     assert result.get("indent_style") == "tab"
     assert result.get("indent_size") is None
+    # root=true stops traversal — only subdir is in search dirs
+    assert subdir in dirs
+    assert tmp_path not in dirs
 
 
 def test_T05_closer_editorconfig_overrides_farther(tmp_path: Path):
@@ -83,7 +92,7 @@ def test_T05_closer_editorconfig_overrides_farther(tmp_path: Path):
     f = subdir / "hello.py"
     f.write_text("x = 1\n")
 
-    result = _read_editorconfig(f)
+    result, dirs = _read_editorconfig(f)
     assert result.get("indent_style") == "space"
 
 
@@ -93,7 +102,7 @@ def test_T06_later_section_in_same_file_wins(tmp_path: Path):
     ec.write_text("[*.py]\nindent_style = tab\n\n[*.py]\nindent_style = space\n")
     f = tmp_path / "hello.py"
     f.write_text("x = 1\n")
-    result = _read_editorconfig(f)
+    result, dirs = _read_editorconfig(f)
     assert result.get("indent_style") == "space"
 
 
@@ -192,7 +201,7 @@ def test_T17_line_start_hash_is_comment_inline_is_not(tmp_path: Path):
     ec.write_text("[*.py]\nindent_style = space # not a comment\n")
     f = tmp_path / "hello.py"
     f.write_text("")
-    result = _read_editorconfig(f)
+    result, _ = _read_editorconfig(f)
     # Value should include the trailing " # not a comment" text (no inline comment)
     assert "space" in result.get("indent_style", "")
 
@@ -203,7 +212,7 @@ def test_T18_semicolon_comment_ignored(tmp_path: Path):
     ec.write_text("; this is a comment\n[*.py]\nindent_style = space\n")
     f = tmp_path / "hello.py"
     f.write_text("")
-    result = _read_editorconfig(f)
+    result, _ = _read_editorconfig(f)
     assert result.get("indent_style") == "space"
 
 
@@ -213,7 +222,7 @@ def test_T19_keys_and_values_normalized_lowercase(tmp_path: Path):
     ec.write_text("[*.py]\nINDENT_STYLE = Space\n")
     f = tmp_path / "hello.py"
     f.write_text("")
-    result = _read_editorconfig(f)
+    result, _ = _read_editorconfig(f)
     assert result.get("indent_style") == "space"
 
 
@@ -230,7 +239,7 @@ def test_T20_root_in_section_is_ignored(tmp_path: Path):
     f = subdir / "hello.py"
     f.write_text("")
 
-    result = _read_editorconfig(f)
+    result, _ = _read_editorconfig(f)
     # Parent's indent_size should still be visible (root=true in section ignored)
     assert result.get("indent_size") == "8"
 
@@ -241,7 +250,7 @@ def test_T21_empty_editorconfig_returns_empty_dict(tmp_path: Path):
     ec.write_text("")
     f = tmp_path / "hello.py"
     f.write_text("")
-    result = _read_editorconfig(f)
+    result, _ = _read_editorconfig(f)
     assert result == {}
 
 
@@ -251,7 +260,7 @@ def test_T22_unknown_property_included_in_dict(tmp_path: Path):
     ec.write_text("[*.py]\nspelling_language = en_US\n")
     f = tmp_path / "hello.py"
     f.write_text("")
-    result = _read_editorconfig(f)
+    result, _ = _read_editorconfig(f)
     # Unknown property present in returned dict (caller decides what to use)
     assert "spelling_language" in result
 
@@ -677,3 +686,268 @@ async def test_T46_textarea_updated_when_user_adds_trailing_ws(tmp_path: Path):
         textarea_text = textarea.text
 
     assert textarea_text == "x = 1\n"
+
+
+# ── Group G: EditorConfig reload on modification ─────────────────────────────
+
+
+def _bump_ec_mtimes(editor: CodeEditor) -> None:
+    """Decrement stored editorconfig mtimes to simulate file change detection."""
+    for d in list(editor._ec_mtimes):
+        if editor._ec_mtimes[d] is not None:
+            editor._ec_mtimes[d] -= 1.0
+
+
+async def test_G01_modify_indent_style_detected(tmp_path: Path):
+    """G-01: Modify indent_style in .editorconfig → detected and re-applied."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\nindent_style = space\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        assert editor.indent_type == "spaces"
+
+        # Modify .editorconfig
+        ec.write_text("[*.py]\nindent_style = tab\n")
+        _bump_ec_mtimes(editor)
+
+        editor._poll_editorconfig_change()
+        await pilot.pause()
+        assert editor.indent_type == "tabs"
+
+
+async def test_G02_modify_indent_size_detected(tmp_path: Path):
+    """G-02: Modify indent_size in .editorconfig → detected and re-applied."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\nindent_size = 2\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        assert editor.indent_size == 2
+
+        ec.write_text("[*.py]\nindent_size = 8\n")
+        _bump_ec_mtimes(editor)
+
+        editor._poll_editorconfig_change()
+        await pilot.pause()
+        assert editor.indent_size == 8
+
+
+async def test_G03_modify_trim_trailing_whitespace(tmp_path: Path):
+    """G-03: Modify trim_trailing_whitespace → re-applied."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ntrim_trailing_whitespace = true\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        assert editor._trim_trailing_whitespace is True
+
+        ec.write_text("[*.py]\ntrim_trailing_whitespace = false\n")
+        _bump_ec_mtimes(editor)
+
+        editor._poll_editorconfig_change()
+        await pilot.pause()
+        assert editor._trim_trailing_whitespace is False
+
+
+async def test_G04_modify_insert_final_newline(tmp_path: Path):
+    """G-04: Modify insert_final_newline → re-applied."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ninsert_final_newline = true\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        assert editor._insert_final_newline is True
+
+        ec.write_text("[*.py]\ninsert_final_newline = false\n")
+        _bump_ec_mtimes(editor)
+
+        editor._poll_editorconfig_change()
+        await pilot.pause()
+        assert editor._insert_final_newline is False
+
+
+async def test_G05_charset_not_reapplied(tmp_path: Path):
+    """G-05: charset NOT re-applied on reload (safety — would corrupt text)."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\ncharset = utf-8\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        assert editor.encoding == "utf-8"
+
+        ec.write_text("[*.py]\ncharset = latin1\n")
+        _bump_ec_mtimes(editor)
+
+        editor._poll_editorconfig_change()
+        await pilot.pause()
+        # encoding must NOT change on reload
+        assert editor.encoding == "utf-8"
+
+
+async def test_G06_end_of_line_not_reapplied(tmp_path: Path):
+    """G-06: end_of_line NOT re-applied on reload (safety)."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\nend_of_line = lf\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        assert editor.line_ending == "lf"
+
+        ec.write_text("[*.py]\nend_of_line = crlf\n")
+        _bump_ec_mtimes(editor)
+
+        editor._poll_editorconfig_change()
+        await pilot.pause()
+        assert editor.line_ending == "lf"
+
+
+async def test_G07_new_editorconfig_appears(tmp_path: Path):
+    """G-07: New .editorconfig created → detected and applied."""
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        assert editor.indent_type == "spaces"  # default
+
+        # Create a NEW .editorconfig
+        ec = tmp_path / ".editorconfig"
+        ec.write_text("[*.py]\nindent_style = tab\n")
+        # Stored mtime is None; current is now a float → change detected
+
+        editor._poll_editorconfig_change()
+        await pilot.pause()
+        assert editor.indent_type == "tabs"
+
+
+async def test_G08_editorconfig_deleted_resets_save_settings(tmp_path: Path):
+    """G-08: .editorconfig deleted → save-time settings reset to None."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text(
+        "[*.py]\ntrim_trailing_whitespace = true\ninsert_final_newline = true\n"
+    )
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        assert editor._trim_trailing_whitespace is True
+        assert editor._insert_final_newline is True
+
+        # Delete .editorconfig
+        ec.unlink()
+        _bump_ec_mtimes(editor)
+
+        editor._poll_editorconfig_change()
+        await pilot.pause()
+        assert editor._trim_trailing_whitespace is None
+        assert editor._insert_final_newline is None
+
+
+async def test_G09_no_mtime_change_is_noop(tmp_path: Path):
+    """G-09: No mtime change → poll does nothing (no unnecessary re-apply)."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\nindent_style = space\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        assert editor.indent_type == "spaces"
+
+        # Do NOT modify .editorconfig or bump mtimes
+        editor._poll_editorconfig_change()
+        await pilot.pause()
+        assert editor.indent_type == "spaces"
+
+
+async def test_G10_parent_editorconfig_modified(tmp_path: Path):
+    """G-10: Parent .editorconfig modified → inherited settings update."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\nindent_size = 2\n")
+    subdir = tmp_path / "src"
+    subdir.mkdir()
+    f = subdir / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        assert editor.indent_size == 2
+
+        ec.write_text("[*.py]\nindent_size = 8\n")
+        _bump_ec_mtimes(editor)
+
+        editor._poll_editorconfig_change()
+        await pilot.pause()
+        assert editor.indent_size == 8
+
+
+async def test_G11_untitled_file_poll_noop(tmp_path: Path):
+    """G-11: Untitled file (path=None) → poll does nothing."""
+    app = _EditorConfigTestApp(path=None)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        # Should not raise any error
+        editor._poll_editorconfig_change()
+        await pilot.pause()
+
+
+async def test_G12_property_removed_indent_stays(tmp_path: Path):
+    """G-12: Property removed from .editorconfig → indent_type stays unchanged."""
+    ec = tmp_path / ".editorconfig"
+    ec.write_text("[*.py]\nindent_style = tab\nindent_size = 8\n")
+    f = tmp_path / "hello.py"
+    f.write_bytes(b"x = 1\n")
+
+    app = _EditorConfigTestApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.code_editor
+        assert editor.indent_type == "tabs"
+        assert editor.indent_size == 8
+
+        # Remove indent_style and indent_size from .editorconfig
+        ec.write_text("[*.py]\ntrim_trailing_whitespace = true\n")
+        _bump_ec_mtimes(editor)
+
+        editor._poll_editorconfig_change()
+        await pilot.pause()
+        # indent_type and indent_size stay at their current values
+        assert editor.indent_type == "tabs"
+        assert editor.indent_size == 8
+        # But trim_trailing_whitespace IS applied
+        assert editor._trim_trailing_whitespace is True

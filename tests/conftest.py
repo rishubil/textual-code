@@ -56,6 +56,7 @@ def init_git_repo(workspace: Path) -> None:
         return subprocess.run(
             args, cwd=workspace, check=True, capture_output=True, **kw
         )
+
     run(["git", "init"], env=git_env)
     run(["git", "config", "user.email", "test@test.com"], env=git_env)
     run(["git", "config", "user.name", "Test"], env=git_env)

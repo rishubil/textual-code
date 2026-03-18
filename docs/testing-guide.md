@@ -187,6 +187,10 @@ Each worker is a separate process with its own `tmp_path`, so tests are naturall
 (`app.is_headless`). Tests that verify file-change detection call `editor._poll_file_change()`
 directly rather than waiting for the timer.
 
+The same pattern applies to `_poll_editorconfig_change()`. To simulate an `.editorconfig`
+file modification, use the `_bump_ec_mtimes(editor)` helper (in `test_editorconfig.py`)
+which decrements stored mtimes to force mismatch detection on the next poll call.
+
 ## Tree-Sitter Language Registration in Tests
 
 Custom tree-sitter languages (dockerfile, typescript, etc.) are registered lazily in

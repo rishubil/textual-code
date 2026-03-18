@@ -209,20 +209,25 @@ def _parse_editorconfig_file(
     return is_root, result
 
 
-def _read_editorconfig(path: Path) -> dict[str, str]:
-    """Return EditorConfig properties that apply to *path*.
+def _read_editorconfig(path: Path) -> tuple[dict[str, str], list[Path]]:
+    """Return EditorConfig properties that apply to *path* and searched dirs.
 
     Traverses from path.parent upward, collecting .editorconfig files.
     Closer files take precedence over more distant ones.
     Stops at root=true (preamble only) or the filesystem root.
     All keys and values are lowercased.
+
+    Returns (properties, searched_dirs) where searched_dirs is the list of
+    directories checked for .editorconfig files (closest first).
     """
     result: dict[str, str] = {}
+    searched_dirs: list[Path] = []
 
     # Collect .editorconfig files from closest to farthest
     config_files: list[Path] = []
     directory = path.parent
     while True:
+        searched_dirs.append(directory)
         ec_file = directory / ".editorconfig"
         if ec_file.is_file():
             config_files.append(ec_file)
@@ -232,15 +237,36 @@ def _read_editorconfig(path: Path) -> dict[str, str]:
         directory = parent
 
     # Process closest first; closer keys win (not overwritten by farther)
+    root_dir: Path | None = None
     for ec_file in config_files:
         is_root, props = _parse_editorconfig_file(ec_file, path)
         for key, value in props.items():
             if key not in result:
                 result[key] = value
         if is_root:
+            root_dir = ec_file.parent
             break
 
-    return result
+    # Trim searched_dirs to stop at root=true boundary
+    if root_dir is not None:
+        try:
+            idx = searched_dirs.index(root_dir)
+            searched_dirs = searched_dirs[: idx + 1]
+        except ValueError:
+            pass
+
+    return result, searched_dirs
+
+
+def _snapshot_editorconfig_mtimes(dirs: list[Path]) -> dict[Path, float | None]:
+    """Return {dir: mtime_or_None} for .editorconfig in each directory."""
+    mtimes: dict[Path, float | None] = {}
+    for d in dirs:
+        try:
+            mtimes[d] = (d / ".editorconfig").stat().st_mtime
+        except OSError:
+            mtimes[d] = None
+    return mtimes
 
 
 _CHARSET_MAP: dict[str, str] = {
@@ -893,6 +919,9 @@ class CodeEditor(Static):
         # EditorConfig save-time transformations (None = not set)
         self._trim_trailing_whitespace: bool | None = None
         self._insert_final_newline: bool | None = None
+        # EditorConfig watch state
+        self._ec_search_dirs: list[Path] = []
+        self._ec_mtimes: dict[Path, float | None] = {}
 
         # if a path is provided, load the file content
         if path is not None:
@@ -920,26 +949,56 @@ class CodeEditor(Static):
                 self._file_mtime = path.stat().st_mtime
 
             # Apply EditorConfig overrides (after auto-detect)
-            ec = _read_editorconfig(path)
+            ec, self._ec_search_dirs = _read_editorconfig(path)
+            self._ec_mtimes = _snapshot_editorconfig_mtimes(self._ec_search_dirs)
+            self._apply_editorconfig(ec, init_all=True)
 
-            ec_indent_style = ec.get("indent_style")
+            self.set_reactive(CodeEditor.word_wrap, default_word_wrap)
+        else:
+            # Apply app-level defaults for new untitled files
+            self.set_reactive(CodeEditor.indent_type, default_indent_type)
+            self.set_reactive(CodeEditor.indent_size, default_indent_size)
+            self.set_reactive(CodeEditor.line_ending, default_line_ending)
+            self.set_reactive(CodeEditor.encoding, default_encoding)
+            self.set_reactive(CodeEditor.word_wrap, default_word_wrap)
+
+    def _apply_editorconfig(
+        self, ec: dict[str, str], *, init_all: bool = False
+    ) -> None:
+        """Apply editorconfig properties to editor state.
+
+        When init_all=True (first open), uses set_reactive (widget not mounted
+        yet, watchers cannot fire). Also applies charset and end_of_line.
+        When init_all=False (reload), uses direct assignment so that watchers
+        fire and the TextArea widget + footer are updated.
+        """
+        ec_indent_style = ec.get("indent_style")
+        if init_all:
             if ec_indent_style == "space":
                 self.set_reactive(CodeEditor.indent_type, "spaces")
             elif ec_indent_style == "tab":
                 self.set_reactive(CodeEditor.indent_type, "tabs")
+        else:
+            if ec_indent_style == "space":
+                self.indent_type = "spaces"
+            elif ec_indent_style == "tab":
+                self.indent_type = "tabs"
 
-            ec_indent = ec.get("indent_size")
-            if ec_indent == "tab":
-                ec_indent = ec.get("tab_width")
-            # When indent_style=tab and no indent_size, fall back to tab_width
-            if not ec_indent and ec_indent_style == "tab":
-                ec_indent = ec.get("tab_width")
-            if ec_indent and ec_indent != "unset":
-                with contextlib.suppress(ValueError):
-                    size = int(ec_indent)
-                    if size in (2, 4, 8):
+        ec_indent = ec.get("indent_size")
+        if ec_indent == "tab":
+            ec_indent = ec.get("tab_width")
+        if not ec_indent and ec_indent_style == "tab":
+            ec_indent = ec.get("tab_width")
+        if ec_indent and ec_indent != "unset":
+            with contextlib.suppress(ValueError):
+                size = int(ec_indent)
+                if size in (2, 4, 8):
+                    if init_all:
                         self.set_reactive(CodeEditor.indent_size, size)
+                    else:
+                        self.indent_size = size
 
+        if init_all:
             ec_charset = ec.get("charset")
             if ec_charset and ec_charset != "unset":
                 enc = _CHARSET_MAP.get(ec_charset)
@@ -950,26 +1009,21 @@ class CodeEditor(Static):
             if ec_eol and ec_eol != "unset" and ec_eol in ("lf", "crlf", "cr"):
                 self.set_reactive(CodeEditor.line_ending, ec_eol)
 
-            ec_trim = ec.get("trim_trailing_whitespace")
-            if ec_trim == "true":
-                self._trim_trailing_whitespace = True
-            elif ec_trim == "false":
-                self._trim_trailing_whitespace = False
+        ec_trim = ec.get("trim_trailing_whitespace")
+        if ec_trim == "true":
+            self._trim_trailing_whitespace = True
+        elif ec_trim == "false":
+            self._trim_trailing_whitespace = False
+        elif not init_all:
+            self._trim_trailing_whitespace = None
 
-            ec_final_newline = ec.get("insert_final_newline")
-            if ec_final_newline == "true":
-                self._insert_final_newline = True
-            elif ec_final_newline == "false":
-                self._insert_final_newline = False
-
-            self.set_reactive(CodeEditor.word_wrap, default_word_wrap)
-        else:
-            # Apply app-level defaults for new untitled files
-            self.set_reactive(CodeEditor.indent_type, default_indent_type)
-            self.set_reactive(CodeEditor.indent_size, default_indent_size)
-            self.set_reactive(CodeEditor.line_ending, default_line_ending)
-            self.set_reactive(CodeEditor.encoding, default_encoding)
-            self.set_reactive(CodeEditor.word_wrap, default_word_wrap)
+        ec_final_newline = ec.get("insert_final_newline")
+        if ec_final_newline == "true":
+            self._insert_final_newline = True
+        elif ec_final_newline == "false":
+            self._insert_final_newline = False
+        elif not init_all:
+            self._insert_final_newline = None
 
     def compose(self) -> ComposeResult:
         yield FindReplaceBar()
@@ -1005,6 +1059,7 @@ class CodeEditor(Static):
         # poll for external file changes (disabled in headless/test mode)
         if not self.app.is_headless:
             self.set_interval(2.0, self._poll_file_change)
+            self.set_interval(2.0, self._poll_editorconfig_change)
 
     def update_title(self) -> None:
         """
@@ -1155,6 +1210,23 @@ class CodeEditor(Static):
                 self.app.post_message(Notify(notification))
         else:
             self._reload_file()
+
+    def _poll_editorconfig_change(self) -> None:
+        """Check if any .editorconfig in the chain has changed; re-apply if so."""
+        if self.path is None or not self._ec_search_dirs:
+            return
+        current = _snapshot_editorconfig_mtimes(self._ec_search_dirs)
+        if current != self._ec_mtimes:
+            self._apply_editorconfig_changes()
+
+    def _apply_editorconfig_changes(self) -> None:
+        """Re-read and re-apply editorconfig properties (safe-to-change only)."""
+        if self.path is None:
+            return
+        ec, self._ec_search_dirs = _read_editorconfig(self.path)
+        self._ec_mtimes = _snapshot_editorconfig_mtimes(self._ec_search_dirs)
+        self._apply_editorconfig(ec, init_all=False)
+        self.notify("EditorConfig updated.", severity="information")
 
     def _dismiss_external_change_notification(self) -> None:
         """Dismiss the external-change toast if one is currently displayed."""

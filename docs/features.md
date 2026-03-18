@@ -125,9 +125,20 @@ Keys and values are normalized to lowercase.
 
 Transformations are applied in order: trim trailing whitespace first, then insert/remove final newline. The editor buffer is updated to reflect the saved content. These transformations apply at save time only (Ctrl+S or Save As) and do not modify text during editing.
 
-### Override is applied once at open time
+### Auto-reload on .editorconfig modification
 
-EditorConfig is read in `CodeEditor.__init__` after the auto-detect block (encoding, line endings). It does not re-apply on save or on `.editorconfig` file changes.
+EditorConfig is first read in `CodeEditor.__init__` after the auto-detect block. A 2-second mtime-based poll (`_poll_editorconfig_change`) watches every directory in the `.editorconfig` chain (from the file's parent up to `root=true` or filesystem root). When any `.editorconfig` file is created, modified, or deleted, safe-to-change properties are re-applied:
+
+| Property | Re-applied on change? | Why |
+|----------|----------------------|-----|
+| indent_type, indent_size | YES | Editor behavior, no text corruption |
+| trim_trailing_whitespace, insert_final_newline | YES | Save-time only |
+| charset/encoding | NO | Would corrupt in-memory text |
+| end_of_line | NO | Would cause inconsistency |
+
+When properties are removed from `.editorconfig`, indent settings stay at their current value (no "unset" concept for reactives), while save-time settings (`_trim_trailing_whitespace`, `_insert_final_newline`) reset to `None`.
+
+A notification ("EditorConfig updated.") is shown when changes are applied.
 
 ---
 
