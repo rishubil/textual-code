@@ -176,9 +176,9 @@ run_worktree() {
         exit 1
     fi
 
-    wt_project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    wt_project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
     local worktree_base
-    worktree_base="$(cd "${wt_project_root}/.." && pwd)/textual-code-worktrees"
+    worktree_base="$(cd "${wt_project_root}/.." && pwd -P)/textual-code-worktrees"
     wt_worktree_path="${worktree_base}/${wt_name}"
     wt_branch_name="worktree/${wt_name}"
     wt_override_file="/tmp/textual-code-worktree-${wt_name}.yml"
@@ -240,11 +240,24 @@ YAML
     echo "Exit to clean up worktree and database."
     echo ""
 
-    # Symlink host paths inside container so git worktree .git references resolve correctly.
+    # Fix git worktree path references inside the container.
     # Worktree's .git file contains "gitdir: <host_project_root>/.git/worktrees/<name>"
     # which must resolve inside the container where the repo is mounted at /project.
-    local symlink_cmd
-    symlink_cmd="sudo mkdir -p '$(dirname "$wt_project_root")' '$(dirname "$wt_worktree_path")' && sudo ln -sfn /project '$wt_project_root' && sudo ln -sfn /worktree '$wt_worktree_path'"
+    # Create symlinks so host paths resolve to container mount points.
+    # Uses positional args ($1..$4) to avoid shell injection from paths with special chars.
+    local fix_paths_cmd
+    fix_paths_cmd=$(cat << 'FIXSCRIPT'
+host_proj="$1"; host_wt="$2"; cont_proj="$3"; cont_wt="$4"
+if [ "$host_proj" != "$cont_proj" ]; then
+    sudo mkdir -p "$(dirname "$host_proj")" && sudo ln -sfn "$cont_proj" "$host_proj" \
+        || { echo "Error: failed to create symlink '$host_proj' -> '$cont_proj'" >&2; exit 1; }
+fi
+if [ "$host_wt" != "$cont_wt" ]; then
+    sudo mkdir -p "$(dirname "$host_wt")" && sudo ln -sfn "$cont_wt" "$host_wt" \
+        || { echo "Error: failed to create symlink '$host_wt' -> '$cont_wt'" >&2; exit 1; }
+fi
+FIXSCRIPT
+)
 
     local compose_args=(-f "$COMPOSE_FILE" -f "$wt_override_file")
 
@@ -256,11 +269,13 @@ YAML
     if [[ ${#command_args[@]} -eq 0 ]]; then
         echo "Starting interactive bash session in devcontainer..."
         sudo -E docker compose "${compose_args[@]}" run --rm --no-deps "$APP_SERVICE_NAME" \
-            bash -c "${symlink_cmd} && exec bash"
+            bash -c "$fix_paths_cmd && exec bash" \
+            -- "$wt_project_root" "$wt_worktree_path" /project /worktree
     else
         echo "Executing command in devcontainer: ${command_args[*]}"
         sudo -E docker compose "${compose_args[@]}" run --rm --no-deps "$APP_SERVICE_NAME" \
-            bash -c "${symlink_cmd} && exec \"\$@\"" -- "${command_args[@]}"
+            bash -c "$fix_paths_cmd && shift 4 && exec \"\$@\"" \
+            -- "$wt_project_root" "$wt_worktree_path" /project /worktree "${command_args[@]}"
     fi
 }
 
