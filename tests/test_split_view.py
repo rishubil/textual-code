@@ -214,6 +214,7 @@ async def test_close_split_returns_to_single_leaf(workspace: Path, py_file: Path
         await pilot.pause()
         await app.main_view.action_close_split()
         await pilot.pause()
+        await pilot.pause()
         assert app.main_view._split_visible is False
 
 
@@ -225,6 +226,7 @@ async def test_close_split_sets_split_visible_false(workspace: Path, py_file: Pa
         await app.main_view.action_split_right()
         await pilot.pause()
         await app.main_view.action_close_split()
+        await pilot.pause()
         await pilot.pause()
         assert app.main_view._split_visible is False
 
@@ -238,6 +240,7 @@ async def test_close_split_focuses_left(workspace: Path, py_file: Path):
         await pilot.pause()
         await app.main_view.action_close_split()
         await pilot.pause()
+        await pilot.pause()
         assert app.main_view._active_split == "left"
 
 
@@ -250,6 +253,7 @@ async def test_close_split_clears_right_pane_ids(workspace: Path, py_file: Path)
         await pilot.pause()
         assert len(app.main_view._pane_ids["right"]) > 0
         await app.main_view.action_close_split()
+        await pilot.pause()
         await pilot.pause()
         assert app.main_view._pane_ids["right"] == set()
 
@@ -853,6 +857,7 @@ async def test_split_left_then_close(workspace: Path, py_file: Path):
         await pilot.pause()
         assert app.main_view._split_visible is True
         await app.main_view.action_close_split()
+        await pilot.pause()
         await pilot.pause()
         assert app.main_view._split_visible is False
         assert len(all_leaves(app.main_view._split_root)) == 1
