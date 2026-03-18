@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Explorer**: create file/directory dialog pre-fills with the currently selected folder's relative path
 - **Docs**: Troubleshooting section in README for keyboard shortcut issues (`textual keys`)
 
+### Changed
+
+- **Footer**: shortcut bar now displays key bindings in a fixed, deterministic order (Save → Find → Replace → Goto line → Close tab → New file → Toggle sidebar) regardless of focus state
+
 ### Fixed
 
 - **Editor**: mouse click now clears multi-cursor mode (single, double, and triple click all dismiss extra cursors)
