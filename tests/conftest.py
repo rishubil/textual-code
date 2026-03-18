@@ -24,12 +24,45 @@ assignment is acceptable: those tests exercise the CodeEditor reactive layer
 in isolation and do not capture screenshots.
 """
 
+import os
+import shutil
+import subprocess
 from pathlib import Path
 
 import pytest
 from pytest_textual_snapshot import SVGImageExtension
 
 from textual_code.app import TextualCode
+
+requires_git = pytest.mark.skipif(
+    shutil.which("git") is None, reason="git not installed"
+)
+
+# Fixed git env for deterministic commits in tests
+_GIT_TEST_ENV = {
+    "GIT_AUTHOR_DATE": "2025-01-01T00:00:00+00:00",
+    "GIT_COMMITTER_DATE": "2025-01-01T00:00:00+00:00",
+}
+
+
+def init_git_repo(workspace: Path) -> None:
+    """Create a git repo with an initial commit containing committed.py.
+
+    Uses fixed author/committer dates for deterministic test output.
+    """
+    git_env = {**os.environ, **_GIT_TEST_ENV, "HOME": str(workspace)}
+
+    def run(args, **kw):
+        return subprocess.run(
+            args, cwd=workspace, check=True, capture_output=True, **kw
+        )
+    run(["git", "init"], env=git_env)
+    run(["git", "config", "user.email", "test@test.com"], env=git_env)
+    run(["git", "config", "user.name", "Test"], env=git_env)
+    (workspace / "committed.py").write_text("# committed\n")
+    run(["git", "add", "."], env=git_env)
+    run(["git", "commit", "-m", "init"], env=git_env)
+
 
 # pytest-textual-snapshot 1.0.0 sets _file_extension (underscore prefix) but
 # syrupy 5.x looks at file_extension (no prefix), so snapshots fall back to

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
+import os
+import shutil
+import subprocess
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import pathspec
 from rich.style import Style
@@ -15,10 +19,111 @@ from textual.message import Message
 from textual.widgets import DirectoryTree, Static
 
 if TYPE_CHECKING:
+    from textual.await_complete import AwaitComplete
     from textual.widgets._tree import TreeNode
 
 
 _NO_ITALIC = Style(italic=False)
+_log = logging.getLogger(__name__)
+
+# Git status constants — single source of truth for status strings.
+GIT_STATUS_MODIFIED = "modified"
+GIT_STATUS_UNTRACKED = "untracked"
+
+# Priority values for git statuses (higher = takes precedence)
+_GIT_STATUS_PRIORITY = {GIT_STATUS_UNTRACKED: 0, GIT_STATUS_MODIFIED: 1}
+
+
+class GitStatusResult(NamedTuple):
+    """Result from parsing git status output."""
+
+    status_map: dict[Path, str]
+    untracked_dirs: set[Path]
+    # Pre-computed string prefixes for fast child-of-untracked checks.
+    # Each entry ends with os.sep so "foo/" won't false-match "foobar/".
+    untracked_dir_prefixes: tuple[str, ...]
+
+
+def _parse_git_status_output(stdout: str, workspace: Path) -> GitStatusResult:
+    """Parse ``git status --porcelain -z -unormal`` output.
+
+    Returns a GitStatusResult with:
+    - status_map: mapping of absolute paths to status strings
+    - untracked_dirs: set of untracked directory paths (from -unormal)
+
+    Parent directories are propagated up to the workspace root so that
+    folders containing changed files inherit the highest-priority status.
+    """
+    status_map: dict[Path, str] = {}
+    untracked_dirs: set[Path] = set()
+
+    if not stdout:
+        return GitStatusResult(status_map, untracked_dirs, ())
+
+    entries = stdout.split("\0")
+    i = 0
+    while i < len(entries):
+        entry = entries[i]
+        if len(entry) < 4:
+            i += 1
+            continue
+
+        xy = entry[:2]
+        filepath_str = entry[3:]
+
+        # Classify status
+        status = GIT_STATUS_UNTRACKED if xy == "??" else GIT_STATUS_MODIFIED
+
+        # Handle renames/copies: with -z, the next entry is the destination
+        if xy[0] in ("R", "C"):
+            i += 1
+            if i < len(entries) and entries[i]:
+                filepath_str = entries[i]
+
+        # Detect untracked directories (-unormal shows them with trailing /)
+        if status == GIT_STATUS_UNTRACKED and filepath_str.endswith("/"):
+            dir_path = workspace / filepath_str.rstrip("/")
+            untracked_dirs.add(dir_path)
+            # Also add to status_map for the directory itself
+            _set_status(status_map, dir_path, status, workspace)
+            i += 1
+            continue
+
+        filepath = workspace / filepath_str
+        _set_status(status_map, filepath, status, workspace)
+
+        i += 1
+
+    # Pre-compute string prefixes with trailing separator for fast child checks.
+    prefixes = tuple(str(d) + os.sep for d in untracked_dirs)
+    return GitStatusResult(status_map, untracked_dirs, prefixes)
+
+
+def _set_status(
+    status_map: dict[Path, str],
+    filepath: Path,
+    status: str,
+    workspace: Path,
+) -> None:
+    """Set status for a path and propagate to parent directories."""
+    priority = _GIT_STATUS_PRIORITY.get(status, 0)
+
+    # Set file status (only upgrade, never downgrade)
+    existing = status_map.get(filepath)
+    if existing is None or _GIT_STATUS_PRIORITY.get(existing, 0) < priority:
+        status_map[filepath] = status
+
+    # Propagate to parent directories up to workspace root
+    parent = filepath.parent
+    while parent != workspace and parent.is_relative_to(workspace):
+        existing_parent = status_map.get(parent)
+        if (
+            existing_parent is not None
+            and _GIT_STATUS_PRIORITY.get(existing_parent, 0) >= priority
+        ):
+            break  # All ancestors already have equal or higher priority
+        status_map[parent] = status
+        parent = parent.parent
 
 
 class FilteredDirectoryTree(DirectoryTree):
@@ -27,6 +132,8 @@ class FilteredDirectoryTree(DirectoryTree):
     COMPONENT_CLASSES = DirectoryTree.COMPONENT_CLASSES | {
         "directory-tree--gitignored",
         "directory-tree--hidden",
+        "directory-tree--git-modified",
+        "directory-tree--git-untracked",
     }
 
     DEFAULT_CSS = """
@@ -35,10 +142,22 @@ class FilteredDirectoryTree(DirectoryTree):
         & > .directory-tree--hidden {
             text-style: dim;
         }
+        & > .directory-tree--git-modified {
+            color: $warning;
+        }
+        & > .directory-tree--git-untracked {
+            color: $success;
+        }
         &:ansi > .directory-tree--gitignored,
         &:ansi > .directory-tree--hidden {
             color: ansi_default;
             text-style: dim;
+        }
+        &:ansi > .directory-tree--git-modified {
+            color: ansi_yellow;
+        }
+        &:ansi > .directory-tree--git-untracked {
+            color: ansi_green;
         }
     }
     """
@@ -50,14 +169,18 @@ class FilteredDirectoryTree(DirectoryTree):
         show_hidden_files: bool = True,
         dim_gitignored: bool = True,
         dim_hidden_files: bool = False,
+        show_git_status: bool = True,
         **kwargs,
     ):
         super().__init__(path, **kwargs)
         self.show_hidden_files = show_hidden_files
         self.dim_gitignored = dim_gitignored
         self.dim_hidden_files = dim_hidden_files
+        self.show_git_status = show_git_status
         self._gitignore_specs: list[tuple[Path, pathspec.PathSpec]] | None = None
         self._gitignore_cache: dict[Path, bool] = {}
+        self._git_result: GitStatusResult | None = None
+        self._git_bin: str | None = shutil.which("git")
 
     def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
         if self.show_hidden_files:
@@ -128,14 +251,96 @@ class FilteredDirectoryTree(DirectoryTree):
         self._gitignore_cache[file_path] = result
         return result
 
-    def reload(self) -> AwaitComplete:  # noqa: F821
-        """Reload the tree and invalidate gitignore caches."""
+    # ── Git status support ───────────────────────────────────────────────
+
+    def _has_git_repo(self) -> bool:
+        """Check if .git directory exists at workspace root."""
+        return (Path(self.path) / ".git").is_dir()
+
+    def _load_git_status(self) -> GitStatusResult:
+        """Run git status and parse the output.
+
+        Returns empty result when:
+        - show_git_status is disabled
+        - No .git directory at workspace root
+        - git binary not found
+        - git command fails or times out
+        """
+        empty = GitStatusResult({}, set(), ())
+        if not self.show_git_status:
+            return empty
+        if self._git_bin is None:
+            _log.debug("git status: git binary not found")
+            return empty
+        if not self._has_git_repo():
+            _log.debug("git status: no .git directory at %s", self.path)
+            return empty
+
+        workspace = Path(self.path)
+        try:
+            result = subprocess.run(
+                [self._git_bin, "status", "--porcelain", "-z", "-unormal"],
+                capture_output=True,
+                text=True,
+                cwd=str(workspace),
+                timeout=5,
+            )
+        except subprocess.TimeoutExpired:
+            _log.warning("git status: timed out for %s", workspace)
+            return empty
+        except OSError as e:
+            _log.debug("git status: OS error: %s", e)
+            return empty
+
+        if result.returncode != 0:
+            _log.debug(
+                "git status: non-zero exit %d for %s",
+                result.returncode,
+                workspace,
+            )
+            return empty
+
+        return _parse_git_status_output(result.stdout, workspace)
+
+    def _ensure_git_status_loaded(self) -> GitStatusResult:
+        """Load git status cache if not already loaded."""
+        if self._git_result is None:
+            self._git_result = self._load_git_status()
+        return self._git_result
+
+    def _get_git_status(self, file_path: Path) -> str | None:
+        """Return the git status for a path, or None if clean/unknown.
+
+        Also checks if the path is inside an untracked directory
+        (from -unormal output where entire directories are listed).
+        """
+        result = self._ensure_git_status_loaded()
+
+        status = result.status_map.get(file_path)
+        if status is not None:
+            return status
+
+        # Check if the file is inside an untracked directory using
+        # pre-computed string prefixes (305x faster than is_relative_to).
+        if result.untracked_dir_prefixes:
+            path_str = str(file_path)
+            for prefix in result.untracked_dir_prefixes:
+                if path_str.startswith(prefix):
+                    # Cache the result so subsequent renders get O(1) dict hit.
+                    result.status_map[file_path] = GIT_STATUS_UNTRACKED
+                    return GIT_STATUS_UNTRACKED
+
+        return None
+
+    def reload(self) -> AwaitComplete:
+        """Reload the tree and invalidate gitignore + git status caches."""
         self._gitignore_specs = None
         self._gitignore_cache.clear()
+        self._git_result = None
         return super().reload()
 
     def render_label(self, node: TreeNode, base_style: Style, style: Style) -> Text:
-        """Override to strip extension italic and dim gitignored/hidden files.
+        """Override to strip italic and apply gitignored/hidden/git-status styles.
 
         The base DirectoryTree.render_label applies italic to file extensions
         via highlight_regex(r\"\\..+$\") with the directory-tree--extension
@@ -144,6 +349,7 @@ class FilteredDirectoryTree(DirectoryTree):
 
         Gitignored files are dimmed using the same component-class mechanism
         as hidden files for consistent appearance across terminal modes.
+        Git-modified files are colored with $warning, untracked with $success.
         """
         text = super().render_label(node, base_style, style)
         if node.data is not None:
@@ -166,6 +372,20 @@ class FilteredDirectoryTree(DirectoryTree):
                 text.stylize_before(
                     self.get_component_rich_style(
                         "directory-tree--hidden", partial=True
+                    )
+                )
+            # Apply git status color highlighting.
+            git_status = self._get_git_status(node.data.path)
+            if git_status == GIT_STATUS_MODIFIED:
+                text.stylize_before(
+                    self.get_component_rich_style(
+                        "directory-tree--git-modified", partial=True
+                    )
+                )
+            elif git_status == GIT_STATUS_UNTRACKED:
+                text.stylize_before(
+                    self.get_component_rich_style(
+                        "directory-tree--git-untracked", partial=True
                     )
                 )
         return text
@@ -221,6 +441,7 @@ class Explorer(Static):
         show_hidden_files: bool = True,
         dim_gitignored: bool = True,
         dim_hidden_files: bool = False,
+        show_git_status: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -230,6 +451,7 @@ class Explorer(Static):
         self._show_hidden_files = show_hidden_files
         self._dim_gitignored = dim_gitignored
         self._dim_hidden_files = dim_hidden_files
+        self._show_git_status = show_git_status
         self._pending_path: Path | None = None
         self._pending_retries: int = 0
 
@@ -323,6 +545,7 @@ class Explorer(Static):
             show_hidden_files=self._show_hidden_files,
             dim_gitignored=self._dim_gitignored,
             dim_hidden_files=self._dim_hidden_files,
+            show_git_status=self._show_git_status,
         )
         directory_tree.show_root = False  # don't show the root directory
         yield directory_tree

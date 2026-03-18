@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 from textual.widgets import Input
 
-from tests.conftest import make_app
+from tests.conftest import init_git_repo, make_app, requires_git
 from textual_code.modals import RebindKeyScreen
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -859,6 +859,19 @@ def test_snapshot_explorer_dim_hidden_files(snap_compare, snapshot_workspace: Pa
     (snapshot_workspace / ".hidden_dir").mkdir()
     config = snapshot_workspace / "settings.toml"
     config.write_text("[editor]\ndim_hidden_files = true\n")
+    app = make_app(snapshot_workspace, user_config_path=config)
+
+    assert snap_compare(app, terminal_size=TERMINAL_SIZE)
+
+
+@requires_git
+def test_snapshot_explorer_git_status(snap_compare, snapshot_workspace: Path):
+    """Explorer shows git status colors for modified and untracked files."""
+    init_git_repo(snapshot_workspace)
+    # Create modifications: modify one, add untracked
+    (snapshot_workspace / "committed.py").write_text("# modified\n")
+    (snapshot_workspace / "untracked.py").write_text("# untracked\n")
+    config = snapshot_workspace / "settings.toml"
     app = make_app(snapshot_workspace, user_config_path=config)
 
     assert snap_compare(app, terminal_size=TERMINAL_SIZE)

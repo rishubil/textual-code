@@ -4,6 +4,16 @@
 - Put the truth and the correct answer above all else. Feel free to criticize user's opinion, and do not use false empathy with the user. Keep a dry and realistic perspective.
 - Use qmd to check documentation on every task to maintain consistency
 - **Always run Python with `uv`**: never call `python` or `pip` directly; always use `uv run python`, `uv run pytest`, `uv run ruff`, etc.
+- **Avoid `$()` in Bash tool calls**: `$()` command substitution triggers extra user confirmation in Claude Code. Split into separate Bash tool calls instead:
+  ```
+  # BAD — single Bash call with nested $() requires extra confirmation
+  uv run pytest tests/ -n $(( $(nproc) * 2 )) -m "not serial"
+
+  # GOOD — two separate Bash tool calls
+  Call 1: nproc          → returns e.g. "4"
+  Call 2: uv run pytest tests/ -n 8 -m "not serial"
+  ```
+  Read the output of the first call and substitute the value directly into the second call.
 - Use WebFetch proactively. Always check the latest development docs and search for anything unclear.
 - All code comments, docstrings, and documentation (including files in `docs/`) must be written in **English**.
 

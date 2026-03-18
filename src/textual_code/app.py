@@ -294,6 +294,7 @@ class TextualCode(App):
         self.default_dim_hidden_files: bool = bool(
             settings.get("dim_hidden_files", False)
         )
+        self.default_show_git_status: bool = bool(settings.get("show_git_status", True))
         mode = str(settings.get("path_display_mode", "absolute"))
         self.default_path_display_mode: str = (
             mode if mode in ("absolute", "relative") else "absolute"
@@ -324,6 +325,7 @@ class TextualCode(App):
                 show_hidden_files=self.default_show_hidden_files,
                 dim_gitignored=self.default_dim_gitignored,
                 dim_hidden_files=self.default_dim_hidden_files,
+                show_git_status=self.default_show_git_status,
                 sidebar_width=self.default_sidebar_width,
             )
         yield MainView()
@@ -638,6 +640,11 @@ class TextualCode(App):
             "Dim or un-dim hidden files (dotfiles) in the explorer",
             self._toggle_dim_hidden_files_cmd,
         )
+        yield SystemCommand(
+            "Toggle git status highlighting",
+            "Show or hide git status colors in the explorer",
+            self._toggle_show_git_status_cmd,
+        )
 
     def action_find_in_workspace(self) -> None:
         """Open workspace search panel (Ctrl+Shift+F)."""
@@ -702,6 +709,7 @@ class TextualCode(App):
             "path_display_mode": self.default_path_display_mode,
             "dim_gitignored": self.default_dim_gitignored,
             "dim_hidden_files": self.default_dim_hidden_files,
+            "show_git_status": self.default_show_git_status,
             "sidebar_width": self.default_sidebar_width,
         }
 
@@ -915,6 +923,17 @@ class TextualCode(App):
             "Hidden files",
             "dimmed",
             "normal",
+        )
+
+    def _toggle_show_git_status_cmd(self) -> None:
+        """Toggle git status highlighting in the explorer and save to config."""
+        self.default_show_git_status = not self.default_show_git_status
+        self._toggle_explorer_tree_setting(
+            "show_git_status",
+            self.default_show_git_status,
+            "Git status highlighting",
+            "enabled",
+            "disabled",
         )
 
     @property

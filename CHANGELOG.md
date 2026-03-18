@@ -29,6 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dim gitignored files in Explorer: files and directories matching `.gitignore` patterns are visually dimmed via the `dim_gitignored` setting (default: `true`) or the "Toggle dim gitignored files" command in the command palette; hidden files (dotfiles) are exempt from dimming; uses a `directory-tree--gitignored` component class for consistent styling across terminal modes; the setting is persisted to user config on toggle
 
+- Git status highlighting in Explorer: modified files are highlighted in yellow and untracked files in green via the `show_git_status` setting (default: `true`) or the "Toggle git status highlighting" command in the command palette; parent folders containing changed files inherit the highlight; only activates when a `.git` directory is present at the workspace root; the setting is persisted to user config on toggle
+
 - Select All button in find bar: clicking "Select All" in the inline find bar (Ctrl+F) selects all matches with multi-cursors, respecting regex and case-sensitivity toggles; the bar stays open so the query can be refined; focus moves to the editor for immediate multi-cursor editing
 
 - Workspace search loading indicator: the results ListView now shows Textual's built-in `LoadingIndicator` (pulsating dots) while a background search is running; the indicator is cleared on results, errors, or empty-query re-search

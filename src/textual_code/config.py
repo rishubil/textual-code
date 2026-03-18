@@ -17,6 +17,7 @@ EDITOR_KEYS = {
     "path_display_mode",
     "dim_gitignored",
     "dim_hidden_files",
+    "show_git_status",
     "sidebar_width",
 }
 
@@ -33,6 +34,7 @@ DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "path_display_mode": "absolute",
     "dim_gitignored": True,
     "dim_hidden_files": False,
+    "show_git_status": True,
     "sidebar_width": 28,
 }
 
