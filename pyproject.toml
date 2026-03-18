@@ -42,7 +42,7 @@ build-backend = "hatchling.build"
 dev-mode-dirs = ["src"]
 
 [tool.hatch.build.targets.wheel]
-include = ["src/textual_code/grammars/*.scm"]
+packages = ["src/textual_code"]
 
 [dependency-groups]
 dev = [

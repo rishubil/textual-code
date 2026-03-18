@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Wheel build only included `.scm` grammar files, excluding all Python source — caused `ModuleNotFoundError` when installed via `pip install` or `uv tool install`
+
 ## [0.1.0] - 2026-03-18
 
 ### Added
