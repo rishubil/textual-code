@@ -61,6 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Drop target hint box: when dragging a tab across split panes, a centered hint box ("Move to this pane" / "Split right") appears on the target pane to preview the drop destination; uses a transparent `DropTargetScreen` overlay so pane content remains fully visible underneath
 
+- 4-direction split via drag-and-drop: dragging a tab to any edge (left, right, top, bottom) of its pane creates a split in the corresponding direction; the edge zone detects all four edges with fractional penetration depth to resolve corners; hint labels show "Split left/right/up/down" accordingly
+
 - Split left and split up commands: open the current file in a new split to the left or above the active editor, complementing the existing split right and split down; available via the command palette ("Split editor left" / "Split editor up")
 
 - Responsive emoji icons on sidebar tabs and search buttons: sidebar tabs show "📁 Explorer" and "🔍 Search" with emoji prefixes; workspace search buttons show "🔍 Search" and "🔄 Replace All"; when the sidebar is narrowed below a threshold, labels collapse to icon-only (2-stage: buttons collapse first at width < 40, tabs at width < 15)

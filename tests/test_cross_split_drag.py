@@ -690,7 +690,7 @@ async def test_drop_highlight_classes_on_dtc(workspace: Path, py_file: Path):
         leaves = all_leaves(main._split_root)
         dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
         assert not _highlight_is_mode(app, dtc.id, "full")
-        assert not _highlight_is_mode(app, dtc.id, "edge")
+        assert not _highlight_is_mode(app, dtc.id, "edge-right")
 
 
 async def test_e2e_drag_tab_three_way_split(
@@ -786,7 +786,7 @@ async def test_edge_highlight_not_shown_when_cursor_over_other_dtc(
         await pilot.pause()
 
         # Source DTC must NOT have edge overlay
-        assert not _highlight_is_mode(app, left_dtc.id, "edge")
+        assert not _highlight_is_mode(app, left_dtc.id, "edge-right")
 
         # Cleanup
         await pilot.mouse_up(
@@ -1029,9 +1029,11 @@ async def test_drag_edge_zone_new_split_focuses_moved_tab(
         left_tc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
         pane_id = leaves[0].opened_files[py_file]
 
-        # Post edge zone message (target_pane_id=None, target_dtc_id defaults to None)
+        # Post edge zone message with explicit right direction
         left_tc.post_message(
-            DraggableTabbedContent.TabMovedToOtherSplit(pane_id, None, False)
+            DraggableTabbedContent.TabMovedToOtherSplit(
+                pane_id, None, False, split_direction="right"
+            )
         )
         await pilot.pause()
 
@@ -1052,3 +1054,69 @@ async def test_drag_edge_zone_new_split_focuses_moved_tab(
         assert tc_dest.active == new_pane_id, (
             "active tab in dest TC should be the moved tab"
         )
+
+
+# ── Directional edge zone split tests ────────────────────────────────────────
+
+
+async def _edge_zone_split_test(workspace, py_file, py_file2, direction):
+    """Helper: post edge zone message with given direction and verify split."""
+    from textual_code.widgets.split_tree import BranchNode
+
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        await main.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+        assert main._split_visible is False
+
+        leaves = all_leaves(main._split_root)
+        tc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+        pane_id = leaves[0].opened_files[py_file]
+
+        tc.post_message(
+            DraggableTabbedContent.TabMovedToOtherSplit(
+                pane_id, None, False, split_direction=direction
+            )
+        )
+        await pilot.pause()
+
+        assert main._split_visible is True
+        root = main._split_root
+        assert isinstance(root, BranchNode)
+
+        expected_dir = "horizontal" if direction in ("left", "right") else "vertical"
+        assert root.direction == expected_dir, (
+            f"Expected {expected_dir} split for direction={direction}, "
+            f"got {root.direction}"
+        )
+
+        leaves = all_leaves(root)
+        assert len(leaves) == 2
+
+        # For "before" directions (left, up), the moved pane should be first
+        if direction in ("left", "up"):
+            assert py_file in leaves[0].opened_files
+        else:
+            assert py_file in leaves[1].opened_files
+
+
+async def test_edge_zone_drag_split_left(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Edge zone drag with direction='left' creates horizontal split before."""
+    await _edge_zone_split_test(workspace, py_file, py_file2, "left")
+
+
+async def test_edge_zone_drag_split_up(workspace: Path, py_file: Path, py_file2: Path):
+    """Edge zone drag with direction='up' creates vertical split above."""
+    await _edge_zone_split_test(workspace, py_file, py_file2, "up")
+
+
+async def test_edge_zone_drag_split_down(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Edge zone drag with direction='down' creates vertical split below."""
+    await _edge_zone_split_test(workspace, py_file, py_file2, "down")

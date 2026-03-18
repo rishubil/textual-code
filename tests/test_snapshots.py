@@ -862,7 +862,7 @@ def test_snapshot_drop_target_edge_highlight(
         content_tabs = left_dtc.get_child_by_type(ContentTabs)
         tabs = list(content_tabs.query(ContentTab))
         tabs[0].add_class("-dragging")
-        left_dtc.show_edge_overlay()
+        left_dtc.show_edge_overlay("right")
         await pilot.pause()
 
     assert snap_compare(app, run_before=setup_edge_overlay, terminal_size=TERMINAL_SIZE)

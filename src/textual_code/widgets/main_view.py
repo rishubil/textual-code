@@ -1133,14 +1133,24 @@ class MainView(Static):
         if dest_leaf is None or dest_leaf is source_leaf:
             # Edge zone drag with no adjacent leaf → create new split
             if event.target_pane_id is None and event.target_dtc_id is None:
-                leaves = all_leaves(self._split_root)
-                src_idx = next(
-                    (i for i, lf in enumerate(leaves) if lf is source_leaf), 0
-                )
-                dest_split = "left" if src_idx > 0 else "right"
-                new_pane_id = await self._move_pane_to_split(
-                    event.source_pane_id, dest_split
-                )
+                # Guard: don't create split from single-tab leaf
+                if len(source_leaf.pane_ids) < 2:
+                    event.stop()
+                    return
+                # Determine direction from event, fallback to heuristic
+                direction = event.split_direction
+                if direction is None:
+                    leaves = all_leaves(self._split_root)
+                    src_idx = next(
+                        (i for i, lf in enumerate(leaves) if lf is source_leaf),
+                        0,
+                    )
+                    direction = "left" if src_idx > 0 else "right"
+                split_dir, split_pos = _DIRECTION_TO_SPLIT[direction]
+                # Ensure split is created relative to source leaf
+                self._active_leaf_id = source_leaf.leaf_id
+                dest = await self._create_empty_split(split_dir, split_pos)
+                new_pane_id = await self._move_pane_to_leaf(event.source_pane_id, dest)
                 if new_pane_id is not None:
                     dest_leaf_now = self._leaf_of_pane(new_pane_id)
                     if dest_leaf_now is not None:

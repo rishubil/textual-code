@@ -14,12 +14,19 @@ from textual.widgets._content_switcher import ContentSwitcher  # internal
 from textual.widgets._tabbed_content import ContentTab, ContentTabs  # internal
 from textual.widgets._tabs import Underline  # internal
 
+from textual_code.widgets.split_tree import Direction
+
 DRAG_THRESHOLD = 3  # pixels (euclidean distance)
 EDGE_ZONE_FRACTION = 0.15  # fraction of widget size that counts as edge zone
 
 
 FULL_LABEL = "Move to this pane"
-EDGE_LABEL = "Split right"
+EDGE_LABELS: dict[str, str] = {
+    "left": "Split left",
+    "right": "Split right",
+    "up": "Split up",
+    "down": "Split down",
+}
 
 
 class DropHintBox(Static):
@@ -61,7 +68,11 @@ class DropHighlight:
         self._mode = mode
         x, y, w, h = region.x, region.y, region.width, region.height
 
-        label = FULL_LABEL if mode == "full" else EDGE_LABEL
+        if mode.startswith("edge-"):
+            direction = mode.split("-", 1)[1]
+            label = EDGE_LABELS[direction]
+        else:
+            label = FULL_LABEL
         box_w = len(label) + 4  # 2 padding each side
         box_h = 3
         cx = x + max(0, (w - box_w) // 2)
@@ -178,12 +189,14 @@ class DraggableTabbedContent(TabbedContent):
             target_pane_id: str | None,
             before: bool,
             target_dtc_id: str | None = None,
+            split_direction: Direction | None = None,
         ) -> None:
             super().__init__()
             self.source_pane_id = source_pane_id
             self.target_pane_id = target_pane_id
             self.before = before
             self.target_dtc_id = target_dtc_id
+            self.split_direction = split_direction
 
     def __init__(self, *args, split_side: str = "left", **kwargs):
         super().__init__(*args, **kwargs)
@@ -194,6 +207,7 @@ class DraggableTabbedContent(TabbedContent):
         self._dragging: bool = False
         self._drop_target: DraggableTabbedContent | None = None
         self._overlay_screen: DropTargetScreen | None = None
+        self._edge_direction: Direction | None = None
 
     # ── Drop highlight helpers ────────────────────────────────────────────────
 
@@ -202,10 +216,12 @@ class DraggableTabbedContent(TabbedContent):
         if self._overlay_screen:
             self._overlay_screen.show_highlight(self.id, self.region, "full")
 
-    def show_edge_overlay(self) -> None:
-        """Show right-edge drop zone highlight via overlay screen."""
+    def show_edge_overlay(self, direction: Direction = "right") -> None:
+        """Show edge drop zone highlight via overlay screen."""
         if self._overlay_screen:
-            self._overlay_screen.show_highlight(self.id, self.region, "edge")
+            self._overlay_screen.show_highlight(
+                self.id, self.region, f"edge-{direction}"
+            )
 
     def hide_drop_overlay(self) -> None:
         """Hide all drop highlight overlays."""
@@ -240,19 +256,50 @@ class DraggableTabbedContent(TabbedContent):
     # ── Edge zone helpers ──────────────────────────────────────────────────────
 
     def _edge_zone_width(self) -> int:
-        """Width (or height for vertical) of the edge drop zone in cells."""
+        """Width of the horizontal edge drop zone in cells."""
         size = self.region.width
         return max(5, min(15, int(size * EDGE_ZONE_FRACTION)))
 
-    def _in_edge_zone(self, screen_x: int, screen_y: int) -> bool:
-        """Return True if (screen_x, screen_y) is in the edge zone.
+    def _edge_zone_height(self) -> int:
+        """Height of the vertical edge drop zone in cells."""
+        size = self.region.height
+        return max(2, min(8, int(size * EDGE_ZONE_FRACTION)))
 
-        Edge zone is at the right side of this widget (for horizontal splits).
-        The cursor must be within this widget's region.
+    def _in_edge_zone(self, screen_x: int, screen_y: int) -> Direction | None:
+        """Return split direction if cursor is in an edge zone, else None.
+
+        Checks all 4 edges. On corner overlap, the edge with deeper fractional
+        penetration wins; horizontal (left/right) wins ties.
         """
         if not self.region.contains_point((screen_x, screen_y)):
-            return False
-        return screen_x >= self.region.right - self._edge_zone_width()
+            return None
+        region = self.region
+        edge_w = self._edge_zone_width()
+        edge_h = self._edge_zone_height()
+
+        candidates: list[tuple[Direction, float]] = []
+        # Only check an axis if edge zones don't overlap (cover center)
+        if edge_w * 2 < region.width:
+            dist_right = region.right - 1 - screen_x
+            if dist_right < edge_w:
+                candidates.append(("right", dist_right / edge_w))
+            dist_left = screen_x - region.x
+            if dist_left < edge_w:
+                candidates.append(("left", dist_left / edge_w))
+        if edge_h * 2 < region.height:
+            dist_bottom = region.bottom - 1 - screen_y
+            if dist_bottom < edge_h:
+                candidates.append(("down", dist_bottom / edge_h))
+            dist_top = screen_y - region.y
+            if dist_top < edge_h:
+                candidates.append(("up", dist_top / edge_h))
+
+        if not candidates:
+            return None
+        # Pick edge with smallest fractional depth (deepest penetration).
+        # Sort by fraction, then prefer horizontal (left/right) on tie.
+        candidates.sort(key=lambda c: (c[1], c[0] in ("up", "down")))
+        return candidates[0][0]
 
     def _find_ancestor_dtc(self, widget) -> DraggableTabbedContent | None:
         """Find the nearest DraggableTabbedContent ancestor."""
@@ -323,9 +370,12 @@ class DraggableTabbedContent(TabbedContent):
 
         # Update edge hover visual during drag
         if self._dragging:
-            if self._in_edge_zone(event.screen_x, event.screen_y):
-                self.show_edge_overlay()
+            edge_dir = self._in_edge_zone(event.screen_x, event.screen_y)
+            if edge_dir is not None:
+                self._edge_direction = edge_dir
+                self.show_edge_overlay(edge_dir)
             else:
+                self._edge_direction = None
                 self.hide_drop_overlay()
             self._update_drop_target(event.screen_x, event.screen_y)
 
@@ -336,9 +386,11 @@ class DraggableTabbedContent(TabbedContent):
             return
 
         drag_id = self._drag_pane_id
+        edge_direction = self._edge_direction
         self._drag_pane_id = None
         self._drag_start = None
         self._dragging = False
+        self._edge_direction = None
 
         # Remove visual feedback
         for tab in self.query(ContentTab):
@@ -362,12 +414,13 @@ class DraggableTabbedContent(TabbedContent):
             if not drag_id:
                 return
             # Edge zone → create new split by posting with target_pane_id=None
-            # Guard: don't move if it's the last tab
-            if (
-                self._in_edge_zone(event.screen_x, event.screen_y)
-                and len(list(self.query(ContentTab))) > 1
-            ):
-                self.post_message(self.TabMovedToOtherSplit(drag_id, None, False))
+            # Use stored _edge_direction (regions may shift after overlay pop)
+            if edge_direction is not None and len(list(self.query(ContentTab))) > 1:
+                self.post_message(
+                    self.TabMovedToOtherSplit(
+                        drag_id, None, False, split_direction=edge_direction
+                    )
+                )
                 return
             # Use tracked drop target (highlighted DTC) as primary,
             # fall back to hit-test

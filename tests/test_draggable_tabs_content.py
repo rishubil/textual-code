@@ -13,6 +13,10 @@ from textual_code.widgets.draggable_tabs_content import (
 class EdgeZoneApp(App):
     """Minimal app for testing DraggableTabbedContent edge zone helpers."""
 
+    CSS = """
+    DraggableTabbedContent { height: 1fr; }
+    """
+
     def __init__(self, split_side: str = "left"):
         super().__init__()
         self._split_side = split_side
@@ -44,7 +48,7 @@ async def test_split_side_right():
 
 
 async def test_in_edge_zone_left_right_edge_true():
-    """Left split: x near right boundary → _in_edge_zone returns True."""
+    """Left split: x near right boundary → _in_edge_zone returns 'right'."""
     app = EdgeZoneApp(split_side="left")
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
@@ -54,43 +58,43 @@ async def test_in_edge_zone_left_right_edge_true():
             dtc._in_edge_zone(
                 dtc.region.right - 1, dtc.region.y + dtc.region.height // 2
             )
-            is True
+            == "right"
         )
 
 
 async def test_in_edge_zone_left_center_false():
-    """Left split: x at center of widget → _in_edge_zone returns False."""
+    """Left split: x at center of widget → _in_edge_zone returns None."""
     app = EdgeZoneApp(split_side="left")
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         center_x = dtc.region.x + dtc.region.width // 2
         assert (
-            dtc._in_edge_zone(center_x, dtc.region.y + dtc.region.height // 2) is False
+            dtc._in_edge_zone(center_x, dtc.region.y + dtc.region.height // 2) is None
         )
 
 
-async def test_in_edge_zone_right_left_edge_false():
-    """x near left boundary returns False (edge zone is always right)."""
+async def test_in_edge_zone_left_edge_returns_left():
+    """x near left boundary → _in_edge_zone returns 'left'."""
     app = EdgeZoneApp(split_side="right")
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         assert (
             dtc._in_edge_zone(dtc.region.x + 1, dtc.region.y + dtc.region.height // 2)
-            is False
+            == "left"
         )
 
 
-async def test_in_edge_zone_right_center_false():
-    """Right split: x at center → _in_edge_zone returns False."""
+async def test_in_edge_zone_right_center_none():
+    """Right split: x at center → _in_edge_zone returns None."""
     app = EdgeZoneApp(split_side="right")
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         center_x = dtc.region.x + dtc.region.width // 2
         assert (
-            dtc._in_edge_zone(center_x, dtc.region.y + dtc.region.height // 2) is False
+            dtc._in_edge_zone(center_x, dtc.region.y + dtc.region.height // 2) is None
         )
 
 
@@ -144,15 +148,15 @@ async def test_show_highlight_full_mode():
 
 
 async def test_show_highlight_edge_mode():
-    """show_highlight with 'edge' mode shows only right bar."""
+    """show_highlight with 'edge-right' mode shows edge highlight."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
-        screen.show_highlight(dtc.id, dtc.region, "edge")
+        screen.show_highlight(dtc.id, dtc.region, "edge-right")
         highlight = screen._highlights[dtc.id]
-        assert highlight.is_mode("edge")
+        assert highlight.is_mode("edge-right")
         assert not highlight.is_mode("full")
 
 
@@ -181,7 +185,7 @@ async def test_clear_all_highlights():
         screen.clear_all()
         for h in screen._highlights.values():
             assert not h.is_mode("full")
-            assert not h.is_mode("edge")
+            assert not h.is_mode("edge-right")
 
 
 async def test_show_drop_overlay_via_dtc():
@@ -202,8 +206,8 @@ async def test_show_edge_overlay_via_dtc():
         await pilot.pause()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
-        dtc.show_edge_overlay()
-        assert screen._highlights[dtc.id].is_mode("edge")
+        dtc.show_edge_overlay("right")
+        assert screen._highlights[dtc.id].is_mode("edge-right")
 
 
 async def test_hide_drop_overlay_via_dtc():
@@ -217,7 +221,7 @@ async def test_hide_drop_overlay_via_dtc():
         dtc.hide_drop_overlay()
         highlight = screen._highlights[dtc.id]
         assert not highlight.is_mode("full")
-        assert not highlight.is_mode("edge")
+        assert not highlight.is_mode("edge-right")
 
 
 async def test_highlight_hint_centered_in_dtc_region():
@@ -250,11 +254,11 @@ async def test_hide_highlight_is_idempotent():
         # Never shown — hide should be a no-op
         screen.hide_highlight(dtc.id)
         assert not screen._highlights[dtc.id].is_mode("full")
-        assert not screen._highlights[dtc.id].is_mode("edge")
+        assert not screen._highlights[dtc.id].is_mode("edge-right")
 
 
 async def test_show_then_switch_mode():
-    """Switching from full to edge mode updates correctly."""
+    """Switching from full to edge-right mode updates correctly."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
@@ -262,14 +266,14 @@ async def test_show_then_switch_mode():
         screen = await _push_overlay(app, pilot)
         screen.show_highlight(dtc.id, dtc.region, "full")
         assert screen._highlights[dtc.id].is_mode("full")
-        screen.show_highlight(dtc.id, dtc.region, "edge")
-        assert screen._highlights[dtc.id].is_mode("edge")
+        screen.show_highlight(dtc.id, dtc.region, "edge-right")
+        assert screen._highlights[dtc.id].is_mode("edge-right")
         assert not screen._highlights[dtc.id].is_mode("full")
 
 
 async def test_hint_box_label_matches_mode():
     """DropHintBox shows correct label text for each mode."""
-    from textual_code.widgets.draggable_tabs_content import EDGE_LABEL, FULL_LABEL
+    from textual_code.widgets.draggable_tabs_content import EDGE_LABELS, FULL_LABEL
 
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
@@ -281,10 +285,14 @@ async def test_hint_box_label_matches_mode():
         hint = screen._highlights[dtc.id].hint
         await pilot.pause()
         assert FULL_LABEL in str(hint.render())
-        # Edge mode
-        screen.show_highlight(dtc.id, dtc.region, "edge")
+        # Edge-right mode
+        screen.show_highlight(dtc.id, dtc.region, "edge-right")
         await pilot.pause()
-        assert EDGE_LABEL in str(hint.render())
+        assert EDGE_LABELS["right"] in str(hint.render())
+        # Edge-down mode
+        screen.show_highlight(dtc.id, dtc.region, "edge-down")
+        await pilot.pause()
+        assert EDGE_LABELS["down"] in str(hint.render())
 
 
 async def test_overlay_screen_no_dtc_ids():
@@ -308,7 +316,7 @@ async def test_show_drop_overlay_noop_without_screen():
         assert dtc._overlay_screen is None
         # Should not raise
         dtc.show_drop_overlay()
-        dtc.show_edge_overlay()
+        dtc.show_edge_overlay("right")
         dtc.hide_drop_overlay()
 
 
@@ -381,3 +389,82 @@ async def test_tab_moved_message_target_none_allowed():
     assert msg.source_pane_id == "some-pane"
     assert msg.target_pane_id is None
     assert msg.before is False
+
+
+async def test_tab_moved_message_with_split_direction():
+    """TabMovedToOtherSplit stores split_direction."""
+    msg = DraggableTabbedContent.TabMovedToOtherSplit(
+        "pane-1", None, False, split_direction="down"
+    )
+    assert msg.split_direction == "down"
+    # Default is None
+    msg2 = DraggableTabbedContent.TabMovedToOtherSplit("pane-1", None, False)
+    assert msg2.split_direction is None
+
+
+# ── 4-direction edge zone tests ───────────────────────────────────────────────
+
+
+async def test_in_edge_zone_top_edge_returns_up():
+    """Cursor near top boundary → _in_edge_zone returns 'up'."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        center_x = dtc.region.x + dtc.region.width // 2
+        assert dtc._in_edge_zone(center_x, dtc.region.y) == "up"
+
+
+async def test_in_edge_zone_bottom_edge_returns_down():
+    """Cursor near bottom boundary → _in_edge_zone returns 'down'."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        center_x = dtc.region.x + dtc.region.width // 2
+        assert dtc._in_edge_zone(center_x, dtc.region.bottom - 1) == "down"
+
+
+async def test_in_edge_zone_corner_picks_deeper_axis():
+    """Corner: edge with deeper fractional penetration wins."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        # Right edge zone width ~12, bottom edge zone height ~3.
+        # At (right - 3, bottom - 1): fraction_right = 2/12 ≈ 0.17,
+        # fraction_down = 0/3 = 0.0. "down" wins (deeper penetration).
+        result = dtc._in_edge_zone(dtc.region.right - 3, dtc.region.bottom - 1)
+        assert result == "down"
+        # At (right - 1, bottom - 1): both at exact edge (fraction 0).
+        # Tie-break: horizontal wins → "right"
+        result = dtc._in_edge_zone(dtc.region.right - 1, dtc.region.bottom - 1)
+        assert result == "right"
+
+
+async def test_in_edge_zone_small_pane():
+    """Edge zone detection works with small pane dimensions."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(20, 10)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        # Right edge should still work on small pane
+        result = dtc._in_edge_zone(
+            dtc.region.right - 1, dtc.region.y + dtc.region.height // 2
+        )
+        assert result == "right"
+        # Left edge
+        result = dtc._in_edge_zone(dtc.region.x, dtc.region.y + dtc.region.height // 2)
+        assert result == "left"
+
+
+async def test_show_edge_overlay_all_directions():
+    """show_edge_overlay with each direction shows the correct mode."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        screen = await _push_overlay(app, pilot)
+        for direction in ("left", "right", "up", "down"):
+            dtc.show_edge_overlay(direction)
+            assert screen._highlights[dtc.id].is_mode(f"edge-{direction}")
