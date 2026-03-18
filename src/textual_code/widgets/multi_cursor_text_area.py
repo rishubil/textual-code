@@ -68,6 +68,8 @@ def _is_movement_key(event: events.Key) -> bool:
         "shift+right",
         "shift+home",
         "shift+end",
+        "shift+pageup",
+        "shift+pagedown",
         "ctrl+shift+left",
         "ctrl+shift+right",
         "ctrl+shift+home",
@@ -99,6 +101,18 @@ class MultiCursorTextArea(TextArea):
         Binding("alt+down", "move_line_down", "Move line down", show=False),
         Binding("ctrl+up", "scroll_viewport_up", "Scroll up", show=False),
         Binding("ctrl+down", "scroll_viewport_down", "Scroll down", show=False),
+        Binding(
+            "shift+pageup",
+            "cursor_page_up_select",
+            "Select page up",
+            show=False,
+        ),
+        Binding(
+            "shift+pagedown",
+            "cursor_page_down_select",
+            "Select page down",
+            show=False,
+        ),
     ]
 
     # ── inner message ─────────────────────────────────────────────────────────
@@ -347,6 +361,33 @@ class MultiCursorTextArea(TextArea):
     def action_scroll_viewport_down(self) -> None:
         """Scroll viewport one line down without moving cursor."""
         self.scroll_down(animate=False)
+
+    # ── shift+page up/down (select while paging) ─────────────────────────────
+
+    def _cursor_page_select(self, direction: int) -> None:
+        """Move cursor one page up (-1) or down (+1) while extending selection."""
+        if not self.show_cursor:
+            if direction < 0:
+                self.scroll_page_up()
+            else:
+                self.scroll_page_down()
+            return
+        height = max(1, self.content_size.height)
+        _, cursor_location = self.selection
+        target = self.navigator.get_location_at_y_offset(
+            cursor_location,
+            direction * height,
+        )
+        self.scroll_relative(y=direction * height, animate=False)
+        self.move_cursor(target, select=True)
+
+    def action_cursor_page_up_select(self) -> None:
+        """Move cursor one page up while extending selection."""
+        self._cursor_page_select(-1)
+
+    def action_cursor_page_down_select(self) -> None:
+        """Move cursor one page down while extending selection."""
+        self._cursor_page_select(1)
 
     # ── rendering ─────────────────────────────────────────────────────────────
 

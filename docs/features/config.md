@@ -320,6 +320,8 @@ Keybindings are defined across three classes: `TextualCode` (app-level), `MainVi
 | Alt+Down | Move line down | Text Area |
 | Ctrl+Up | Scroll viewport up | Text Area |
 | Ctrl+Down | Scroll viewport down | Text Area |
+| Shift+PageUp | Select page up | Text Area |
+| Shift+PageDown | Select page down | Text Area |
 
 Additional shortcuts inherited from Textual's `TextArea`: Ctrl+C (copy), Ctrl+X (cut), Ctrl+V (paste), Ctrl+Z (undo), Ctrl+Y (redo).
 

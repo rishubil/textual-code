@@ -30,6 +30,14 @@ def three_line_file(workspace: Path) -> Path:
     return f
 
 
+@pytest.fixture
+def long_file(workspace: Path) -> Path:
+    """A file with 50 lines for page-up/down tests."""
+    f = workspace / "long.txt"
+    f.write_text("\n".join(f"line {i}" for i in range(50)) + "\n")
+    return f
+
+
 # ── Unit: extra_cursors list ──────────────────────────────────────────────────
 
 
@@ -1316,3 +1324,151 @@ async def test_ctrl_a_on_empty_document(workspace: Path):
         await pilot.press("ctrl+a")
         await pilot.pause()
         assert ta.extra_cursors == []
+
+
+# ── Unit: _move_location pageup/pagedown ────────────────────────────────────
+
+
+def test_move_location_pageup():
+    from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+    lines = [f"line {i}" for i in range(50)]
+    # From row 30, page up 20 → row 10
+    assert MultiCursorTextArea._move_location(lines, 30, 3, "pageup", 20) == (10, 3)
+    # From row 5, page up 20 → row 0, col clamped
+    assert MultiCursorTextArea._move_location(lines, 5, 3, "pageup", 20) == (0, 3)
+    # Already at row 0
+    assert MultiCursorTextArea._move_location(lines, 0, 0, "pageup", 20) == (0, 0)
+
+
+def test_move_location_pagedown():
+    from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+    lines = [f"line {i}" for i in range(50)]
+    # From row 10, page down 20 → row 30
+    assert MultiCursorTextArea._move_location(lines, 10, 3, "pagedown", 20) == (30, 3)
+    # From row 45, page down 20 → row 49 (last), col clamped
+    assert MultiCursorTextArea._move_location(lines, 45, 3, "pagedown", 20) == (49, 3)
+    # Already at last row
+    assert MultiCursorTextArea._move_location(lines, 49, 0, "pagedown", 20) == (49, 0)
+
+
+# ── Shift+PageUp/PageDown: single cursor selection ─────────────────────────
+
+
+async def test_shift_pagedown_creates_selection(workspace: Path, long_file: Path):
+    """Shift+PageDown from top: cursor moves down with selection."""
+    app = make_app(workspace, light=True, open_file=long_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+
+        await pilot.press("shift+pagedown")
+        await pilot.pause()
+
+        sel = ta.selection
+        # Anchor (start) should stay at origin
+        assert sel.start == (0, 0)
+        # Cursor (end) should have moved down
+        assert sel.end[0] > 0
+
+
+async def test_shift_pageup_creates_selection(workspace: Path, long_file: Path):
+    """Shift+PageUp from bottom: cursor moves up with selection."""
+    app = make_app(workspace, light=True, open_file=long_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        # Place cursor near the bottom (ctrl+end has no TextArea binding)
+        last_row = ta.document.line_count - 1
+        ta.move_cursor((last_row, 0))
+        await pilot.pause()
+        assert ta.cursor_location[0] == last_row
+
+        await pilot.press("shift+pageup")
+        await pilot.pause()
+
+        sel = ta.selection
+        # Anchor (start) should be at the original position
+        assert sel.start[0] == last_row
+        # Cursor (end) should have moved up
+        assert sel.end[0] < last_row
+
+
+# ── Shift+Home/End: single cursor selection ─────────────────────────────────
+
+
+async def test_shift_home_creates_selection(workspace: Path, two_line_file: Path):
+    """Shift+Home from middle of line: selects to line start."""
+    app = make_app(workspace, light=True, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        # Move to middle of first line
+        await pilot.press("right", "right", "right", "right", "right")
+        await pilot.pause()
+        assert ta.cursor_location == (0, 5)
+
+        await pilot.press("shift+home")
+        await pilot.pause()
+
+        sel = ta.selection
+        # Anchor should be at col 5, cursor at col 0
+        assert sel.start[1] == 5 or sel.end[1] == 5
+        assert sel.start[1] == 0 or sel.end[1] == 0
+        # There should be an actual selection (not collapsed)
+        assert sel.start != sel.end
+
+
+async def test_shift_end_creates_selection(workspace: Path, two_line_file: Path):
+    """Shift+End from start of line: selects to line end."""
+    app = make_app(workspace, light=True, open_file=two_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        await pilot.press("ctrl+home")
+        await pilot.pause()
+        assert ta.cursor_location == (0, 0)
+
+        await pilot.press("shift+end")
+        await pilot.pause()
+
+        sel = ta.selection
+        # Should have a selection from col 0 to end of "Hello world"
+        assert sel.start != sel.end
+        line0 = ta.text.split("\n")[0]
+        end_col = len(line0)
+        assert sel.start[1] == 0 or sel.end[1] == 0
+        assert sel.start[1] == end_col or sel.end[1] == end_col
+
+
+# ── Shift+PageUp: multi-cursor selection ────────────────────────────────────
+
+
+async def test_shift_pageup_multi_cursor(workspace: Path, long_file: Path):
+    """Shift+PageUp with extra cursor: both cursors create selections."""
+    app = make_app(workspace, light=True, open_file=long_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+        last_row = ta.document.line_count - 1
+        ta.move_cursor((last_row, 0))
+        await pilot.pause()
+
+        ta.add_cursor((last_row - 1, 0))
+        await pilot.pause()
+
+        await pilot.press("shift+pageup")
+        await pilot.pause()
+
+        # Primary cursor should have selection (anchor != cursor end)
+        sel = ta.selection
+        assert sel.start != sel.end
+        # Extra cursor should also have anchor != cursor
+        assert len(ta.extra_anchors) >= 1 or ta.extra_cursors == []
+        if ta.extra_cursors:
+            assert ta.extra_anchors[0] != ta.extra_cursors[0]

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Editor**: Shift+PageUp/PageDown to select while paging up/down (single cursor and multi-cursor)
+
 ### Fixed
 
 - **Editor**: mouse click now clears multi-cursor mode (single, double, and triple click all dismiss extra cursors)
