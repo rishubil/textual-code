@@ -21,6 +21,7 @@ from textual.widgets import Input
 
 from tests.conftest import init_git_repo, make_app, requires_git
 from textual_code.modals import RebindKeyScreen
+from textual_code.widgets.split_tree import all_leaves
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
 pytestmark = pytest.mark.serial
@@ -243,6 +244,60 @@ def test_snapshot_markdown_preview_open(snap_compare, snapshot_workspace: Path):
         await pilot.pause()
 
     assert snap_compare(app, run_before=open_preview, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_readme_preview(snap_compare, snapshot_workspace: Path):
+    """README showcase: editor left, markdown preview right, git status off."""
+    # Workspace files for sidebar variety
+    (snapshot_workspace / "src").mkdir()
+    (snapshot_workspace / "src" / "app.py").write_text("class App:\n    pass\n")
+    (snapshot_workspace / "tests").mkdir()
+    (snapshot_workspace / "tests" / "test_app.py").write_text("def test_app(): pass\n")
+    (snapshot_workspace / "docs").mkdir()
+    (snapshot_workspace / "docs" / "guide.md").write_text("# Guide\n")
+    (snapshot_workspace / "pyproject.toml").write_text(
+        '[project]\nname = "my-project"\nversion = "0.1.0"\n'
+    )
+    (snapshot_workspace / ".gitignore").write_text("__pycache__/\n*.pyc\n")
+    readme = snapshot_workspace / "README.md"
+    readme.write_text(
+        "# Textual Code\n\n"
+        "A modern TUI code editor.\n\n"
+        "## Features\n\n"
+        "- Syntax highlighting\n"
+        "- Multiple cursors\n"
+        "- Find and replace\n"
+        "- Split view\n\n"
+        "## Installation\n\n"
+        "```bash\npip install textual-code\n```\n\n"
+        "## Usage\n\n"
+        "```python\nimport textual_code\ntextual_code.run()\n```\n"
+    )
+
+    # Disable git status highlighting
+    config = snapshot_workspace / "settings.toml"
+    config.write_text("[editor]\nshow_git_status = false\n")
+
+    app = make_app(snapshot_workspace, open_file=readme, user_config_path=config)
+
+    async def setup_preview_split(pilot):
+        await pilot.pause()
+        # Open markdown preview (tab in left/only leaf)
+        await app.main_view.action_open_markdown_preview_tab()
+        await pilot.pause()
+        # Move preview to a new right split
+        preview_pane_id = app.main_view._preview_pane_ids[readme]
+        new_leaf = await app.main_view._create_empty_split("horizontal", "after")
+        await app.main_view._move_pane_to_leaf(preview_pane_id, new_leaf)
+        await pilot.pause()
+        # Focus back to left editor
+        left_leaf = all_leaves(app.main_view._split_root)[0]
+        app.main_view._set_active_leaf(left_leaf)
+        await pilot.pause()
+
+    assert snap_compare(
+        app, run_before=setup_preview_split, terminal_size=TERMINAL_SIZE
+    )
 
 
 def test_snapshot_overwrite_confirm_modal(

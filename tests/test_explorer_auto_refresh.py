@@ -172,9 +172,12 @@ class TestPollWorkspaceChangeDir:
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
             tree._git_ref_mtimes = tree._get_git_ref_mtimes()
 
-            with patch.object(
-                FilteredDirectoryTree, "reload", wraps=tree.reload
-            ) as mock_reload, patch.object(tree, "refresh") as mock_refresh:
+            with (
+                patch.object(
+                    FilteredDirectoryTree, "reload", wraps=tree.reload
+                ) as mock_reload,
+                patch.object(tree, "refresh") as mock_refresh,
+            ):
                 tree._poll_workspace_change()
                 mock_reload.assert_not_called()
                 mock_refresh.assert_not_called()
@@ -257,9 +260,12 @@ class TestPollWorkspaceChangeGit:
                 env=git_env,
             )
 
-            with patch.object(
-                FilteredDirectoryTree, "reload", wraps=tree.reload
-            ) as mock_reload, patch.object(tree, "refresh") as mock_refresh:
+            with (
+                patch.object(
+                    FilteredDirectoryTree, "reload", wraps=tree.reload
+                ) as mock_reload,
+                patch.object(tree, "refresh") as mock_refresh,
+            ):
                 tree._poll_workspace_change()
                 # Should refresh (git-only), NOT full reload
                 mock_reload.assert_not_called()
