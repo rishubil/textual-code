@@ -10,7 +10,6 @@ from textual.command import CommandPalette
 from textual.events import Ready
 from textual.message import Message
 from textual.screen import Screen
-from textual.widgets import Footer
 
 from textual_code.commands import (
     create_create_file_or_dir_command_provider,
@@ -54,6 +53,7 @@ from textual_code.modals import (
 from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.explorer import Explorer
 from textual_code.widgets.main_view import MainView
+from textual_code.widgets.ordered_footer import OrderedFooter
 from textual_code.widgets.sidebar import SIDEBAR_MIN_WIDTH, Sidebar
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -329,7 +329,7 @@ class TextualCode(App):
                 sidebar_width=self.default_sidebar_width,
             )
         yield MainView()
-        yield Footer()
+        yield OrderedFooter()
 
     @on(Ready)
     async def on_ready(self, event: Ready):
@@ -1534,8 +1534,8 @@ class TextualCode(App):
         return self.screen_stack[0].query_one(Sidebar)
 
     @property
-    def footer(self) -> Footer:
-        return self.query_one(Footer)
+    def footer(self) -> OrderedFooter:
+        return self.query_one(OrderedFooter)
 
 
 def _apply_custom_keybindings(custom: dict[str, str]) -> None:

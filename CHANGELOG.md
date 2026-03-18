@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Editor**: Shift+PageUp/PageDown to select while paging up/down (single cursor and multi-cursor)
 
+### Changed
+
+- **Footer**: shortcut bar now displays key bindings in a fixed, deterministic order (Save → Find → Replace → Goto line → Close tab → New file → Toggle sidebar) regardless of focus state
+
 ### Fixed
 
 - **Editor**: mouse click now clears multi-cursor mode (single, double, and triple click all dismiss extra cursors)

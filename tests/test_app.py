@@ -371,3 +371,127 @@ async def test_toggle_sidebar_with_file_open_preserves_editor(
         await pilot.pause()
         assert app.sidebar.display is True
         assert editor.text == original_text
+
+
+# ── Footer shortcut order ──────────────────────────────────────────────────
+
+
+def _footer_descriptions(app) -> list[str]:
+    """Return visible FooterKey descriptions (excluding command palette)."""
+    from textual.widgets._footer import FooterKey
+
+    return [
+        fk.description
+        for fk in app.footer.query(FooterKey)
+        if fk.description and "-command-palette" not in fk.classes
+    ]
+
+
+async def test_footer_shortcut_order_is_deterministic(
+    workspace: Path, sample_py_file: Path
+):
+    """Footer shortcuts appear in priority order: Save first, then Find, etc."""
+    from textual.widgets._footer import FooterKey
+
+    app = make_app(workspace, open_file=sample_py_file, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.editor.focus()
+        await pilot.pause()
+
+        descriptions = _footer_descriptions(app)
+        expected = [
+            "Save",
+            "Find",
+            "Replace",
+            "Goto line",
+            "Close tab",
+            "New file",
+            "Toggle sidebar",
+        ]
+        assert descriptions == expected
+
+        # Command palette key should also be present
+        palette_keys = [
+            fk for fk in app.footer.query(FooterKey) if "-command-palette" in fk.classes
+        ]
+        assert len(palette_keys) == 1
+
+
+async def test_footer_order_stable_across_focus(workspace: Path, sample_py_file: Path):
+    """Footer order is consistent when focus moves between editor and sidebar."""
+    app = make_app(workspace, open_file=sample_py_file)  # with sidebar
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Focus editor
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.editor.focus()
+        await pilot.pause()
+        editor_descs = _footer_descriptions(app)
+
+        # Focus sidebar
+        sidebar = app.sidebar
+        assert sidebar is not None
+        sidebar.focus()
+        await pilot.pause()
+        sidebar_descs = _footer_descriptions(app)
+
+        # Editor-focused: full set of shortcuts
+        assert editor_descs == [
+            "Save",
+            "Find",
+            "Replace",
+            "Goto line",
+            "Close tab",
+            "New file",
+            "Toggle sidebar",
+        ]
+
+        # Sidebar-focused: at minimum app-level bindings in correct order
+        assert "New file" in sidebar_descs
+        assert "Toggle sidebar" in sidebar_descs
+        # Common bindings must share the same relative order
+        common = [d for d in editor_descs if d in sidebar_descs]
+        common_sidebar = [d for d in sidebar_descs if d in common]
+        assert common == common_sidebar
+
+
+async def test_footer_shortcut_order_empty_app(workspace: Path):
+    """Footer shows bindings in correct order when no file is open."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        descriptions = _footer_descriptions(app)
+        # Even without a file, MainView is in the DOM so its bindings appear.
+        # Verify exact order matches the full expected set.
+        assert descriptions == [
+            "Save",
+            "Find",
+            "Replace",
+            "Goto line",
+            "Close tab",
+            "New file",
+            "Toggle sidebar",
+        ]
+
+
+async def test_action_order_covers_all_visible_bindings():
+    """ACTION_ORDER includes every show=True action from all BINDINGS sources."""
+    from textual_code.widgets.main_view import MainView
+    from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+    from textual_code.widgets.ordered_footer import OrderedFooter
+
+    visible_actions: set[str] = set()
+    for cls in (TextualCode, MainView, MultiCursorTextArea):
+        for binding in cls.BINDINGS:
+            if binding.show:
+                visible_actions.add(binding.action)
+
+    missing = visible_actions - set(OrderedFooter.ACTION_ORDER)
+    assert not missing, f"ACTION_ORDER is missing actions: {missing}"
+
+    stale = set(OrderedFooter.ACTION_ORDER) - visible_actions
+    assert not stale, f"ACTION_ORDER has stale actions: {stale}"
