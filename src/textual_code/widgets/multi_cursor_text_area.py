@@ -394,8 +394,11 @@ class MultiCursorTextArea(TextArea):
         return None
 
     def on_click(self, event: events.Click) -> None:
-        """Handle double/triple click for word/line selection."""
+        """Handle click for cursor clear and word/line selection."""
         from textual.widgets.text_area import Selection
+
+        if self._extra_cursors:
+            self.clear_extra_cursors()
 
         if event.chain == 1:
             return  # single click: TextArea handles normally
@@ -403,18 +406,14 @@ class MultiCursorTextArea(TextArea):
         row, col = self.cursor_location
 
         if event.chain == 2:
-            # Double-click: clear extra cursors, then select word at cursor
-            if self._extra_cursors:
-                self.clear_extra_cursors()
+            # Double-click: select word at cursor
             bounds = self._word_bounds_at(self.text, row, col)
             if bounds is not None:
                 start, end = bounds
                 self.selection = Selection((row, start), (row, end))
 
         elif event.chain == 3:
-            # Triple-click: clear extra cursors, then select entire line
-            if self._extra_cursors:
-                self.clear_extra_cursors()
+            # Triple-click: select entire line
             lines = self.text.split("\n")
             line = lines[row] if row < len(lines) else ""
             self.selection = Selection((row, 0), (row, len(line)))

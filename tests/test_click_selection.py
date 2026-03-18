@@ -3,10 +3,28 @@
 from pathlib import Path
 
 import pytest
+from textual import events
 from textual.widgets.text_area import Selection
 
 from tests.conftest import make_app
 from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+
+def _make_click(chain: int = 1) -> events.Click:
+    """Create a Click event for testing with the given chain count."""
+    return events.Click(
+        None,
+        x=0,
+        y=0,
+        delta_x=0,
+        delta_y=0,
+        button=1,
+        shift=False,
+        meta=False,
+        ctrl=False,
+        chain=chain,
+    )
+
 
 # ── Unit: _word_bounds_at ────────────────────────────────────────────────────
 
@@ -67,23 +85,7 @@ async def test_double_click_selects_word(workspace: Path, word_file: Path):
 
         # Place cursor on 'world' (col 6 of row 0), then simulate double-click
         ta.cursor_location = (0, 6)
-        from textual import events
-
-        # Simulate double-click (chain=2) at cursor position
-        ta.on_click(
-            events.Click(
-                None,
-                x=0,
-                y=0,
-                delta_x=0,
-                delta_y=0,
-                button=1,
-                shift=False,
-                meta=False,
-                ctrl=False,
-                chain=2,
-            )
-        )
+        ta.on_click(_make_click(chain=2))
         await pilot.pause()
 
         assert ta.selection == Selection((0, 6), (0, 11))
@@ -99,22 +101,7 @@ async def test_double_click_whitespace_no_selection(workspace: Path, word_file: 
         # Place cursor on space between 'hello' and 'world' (col 5)
         ta.cursor_location = (0, 5)
         original_sel = ta.selection
-        from textual import events
-
-        ta.on_click(
-            events.Click(
-                None,
-                x=0,
-                y=0,
-                delta_x=0,
-                delta_y=0,
-                button=1,
-                shift=False,
-                meta=False,
-                ctrl=False,
-                chain=2,
-            )
-        )
+        ta.on_click(_make_click(chain=2))
         await pilot.pause()
 
         # Selection should be unchanged (collapsed at (0,5))
@@ -130,22 +117,7 @@ async def test_double_click_eol_no_selection(workspace: Path, word_file: Path):
 
         # Place cursor at EOL
         ta.cursor_location = (0, 11)
-        from textual import events
-
-        ta.on_click(
-            events.Click(
-                None,
-                x=0,
-                y=0,
-                delta_x=0,
-                delta_y=0,
-                button=1,
-                shift=False,
-                meta=False,
-                ctrl=False,
-                chain=2,
-            )
-        )
+        ta.on_click(_make_click(chain=2))
         await pilot.pause()
 
         # Selection stays collapsed at EOL
@@ -160,22 +132,7 @@ async def test_triple_click_selects_line(workspace: Path, word_file: Path):
         ta = app.main_view.get_active_code_editor().editor
 
         ta.cursor_location = (0, 3)
-        from textual import events
-
-        ta.on_click(
-            events.Click(
-                None,
-                x=0,
-                y=0,
-                delta_x=0,
-                delta_y=0,
-                button=1,
-                shift=False,
-                meta=False,
-                ctrl=False,
-                chain=3,
-            )
-        )
+        ta.on_click(_make_click(chain=3))
         await pilot.pause()
 
         assert ta.selection == Selection((0, 0), (0, 11))
@@ -190,22 +147,7 @@ async def test_triple_click_empty_line(workspace: Path, workspace_with_empty: Pa
 
         # Line 1 is empty
         ta.cursor_location = (1, 0)
-        from textual import events
-
-        ta.on_click(
-            events.Click(
-                None,
-                x=0,
-                y=0,
-                delta_x=0,
-                delta_y=0,
-                button=1,
-                shift=False,
-                meta=False,
-                ctrl=False,
-                chain=3,
-            )
-        )
+        ta.on_click(_make_click(chain=3))
         await pilot.pause()
 
         assert ta.selection == Selection((1, 0), (1, 0))
@@ -231,23 +173,46 @@ async def test_double_click_clears_extra_cursors(workspace: Path, word_file: Pat
 
         # Double-click on 'hello'
         ta.cursor_location = (0, 2)
-        from textual import events
-
-        ta.on_click(
-            events.Click(
-                None,
-                x=0,
-                y=0,
-                delta_x=0,
-                delta_y=0,
-                button=1,
-                shift=False,
-                meta=False,
-                ctrl=False,
-                chain=2,
-            )
-        )
+        ta.on_click(_make_click(chain=2))
         await pilot.pause()
 
         assert ta.extra_cursors == []
         assert ta.selection == Selection((0, 0), (0, 5))
+
+
+async def test_single_click_clears_extra_cursors(workspace: Path, word_file: Path):
+    """Single click clears extra cursors."""
+    app = make_app(workspace, open_file=word_file, light=True)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        # Add an extra cursor
+        ta.add_cursor((1, 0))
+        assert ta.extra_cursors != []
+
+        # Simulate single click
+        ta.on_click(_make_click(chain=1))
+        await pilot.pause()
+
+        assert ta.extra_cursors == []
+
+
+async def test_single_click_clears_extra_cursors_integration(
+    workspace: Path, word_file: Path
+):
+    """Single click via pilot.click clears extra cursors (full event flow)."""
+    app = make_app(workspace, open_file=word_file, light=True)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        ta = app.main_view.get_active_code_editor().editor
+
+        # Add an extra cursor
+        ta.add_cursor((1, 0))
+        assert ta.extra_cursors != []
+
+        # Click via pilot (triggers _on_mouse_down → on_click)
+        await pilot.click(type(ta))
+        await pilot.pause()
+
+        assert ta.extra_cursors == []

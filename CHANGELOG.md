@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Editor**: mouse click now clears multi-cursor mode (single, double, and triple click all dismiss extra cursors)
+- **Editor**: Ctrl+D (add next occurrence) now scrolls the viewport to show the newly added cursor when it is off-screen
+
 ## [0.1.1] - 2026-03-18
 
 ### Fixed

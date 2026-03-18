@@ -1908,6 +1908,19 @@ class CodeEditor(Static):
             else (match_end, match_start)
         )
         self.editor.add_cursor(cursor, anchor=anchor)
+        self._scroll_to_location(cursor)
+
+    def _scroll_to_location(self, location: tuple[int, int]) -> None:
+        """Scroll the editor viewport to make *location* visible."""
+        from textual.geometry import Region, Spacing
+
+        x, y = self.editor.wrapped_document.location_to_offset(location)
+        self.editor.scroll_to_region(
+            Region(x, y, width=3, height=1),
+            spacing=Spacing(right=self.editor.gutter_width),
+            animate=False,
+            force=True,
+        )
 
     @property
     def editor(self) -> MultiCursorTextArea:

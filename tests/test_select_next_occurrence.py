@@ -339,6 +339,116 @@ async def test_ctrl_d_reverse_selection_twice(workspace: Path, three_occ_file: P
         assert editor.editor.extra_anchors == [(0, 11), (1, 3)]
 
 
+# ── Scroll on Ctrl+D ──────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def long_file_with_occurrences(workspace: Path) -> Path:
+    """File with 'target' at line 0 and line 80, plus filler lines."""
+    lines = ["target filler"]
+    for i in range(1, 80):
+        lines.append(f"line {i}")
+    lines.append("target again")
+    for i in range(81, 100):
+        lines.append(f"line {i}")
+    f = workspace / "long_occ.txt"
+    f.write_text("\n".join(lines) + "\n")
+    return f
+
+
+@pytest.fixture
+def short_file_with_occurrences(workspace: Path) -> Path:
+    """File with 'target' at line 0 and line 3, both visible in a 10-row terminal."""
+    f = workspace / "short_occ.txt"
+    f.write_text("target one\nfiller a\nfiller b\ntarget two\n")
+    return f
+
+
+async def test_ctrl_d_scrolls_to_new_cursor(
+    workspace: Path, long_file_with_occurrences: Path
+):
+    """Ctrl+D on off-screen occurrence scrolls viewport to show new cursor."""
+    from textual.widgets.text_area import Selection
+
+    app = make_app(workspace, open_file=long_file_with_occurrences, light=True)
+    async with app.run_test(size=(80, 10)) as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        ta = editor.editor
+
+        # Select "target" on line 0
+        ta.selection = Selection(start=(0, 0), end=(0, 6))
+        await pilot.pause()
+
+        assert ta.scroll_y == 0
+
+        # Ctrl+D: should find "target" at line 80 and scroll to it
+        editor.action_select_next_occurrence()
+        await pilot.pause()
+
+        assert len(ta.extra_cursors) == 1
+        # Viewport should have scrolled to make line 80 visible
+        assert ta.scroll_y >= 70
+
+
+async def test_ctrl_d_on_screen_does_not_scroll(
+    workspace: Path, short_file_with_occurrences: Path
+):
+    """Ctrl+D with next occurrence already visible does not jump viewport."""
+    from textual.widgets.text_area import Selection
+
+    app = make_app(workspace, open_file=short_file_with_occurrences, light=True)
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        ta = editor.editor
+
+        # Select "target" on line 0
+        ta.selection = Selection(start=(0, 0), end=(0, 6))
+        await pilot.pause()
+
+        assert ta.scroll_y == 0
+
+        # Ctrl+D: "target" at line 3 is already visible
+        editor.action_select_next_occurrence()
+        await pilot.pause()
+
+        assert len(ta.extra_cursors) == 1
+        assert ta.scroll_y == 0
+
+
+async def test_ctrl_d_wrap_around_scrolls(
+    workspace: Path, long_file_with_occurrences: Path
+):
+    """Ctrl+D wrapping around to top of file scrolls viewport back."""
+    from textual.widgets.text_area import Selection
+
+    app = make_app(workspace, open_file=long_file_with_occurrences, light=True)
+    async with app.run_test(size=(80, 10)) as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        ta = editor.editor
+
+        # Select "target" at line 80 (second occurrence) as primary
+        ta.selection = Selection(start=(80, 0), end=(80, 6))
+        await pilot.pause()
+
+        # Scroll should be near line 80
+        scroll_before = ta.scroll_y
+        assert scroll_before > 0
+
+        # Ctrl+D wraps around to line 0
+        editor.action_select_next_occurrence()
+        await pilot.pause()
+
+        assert len(ta.extra_cursors) == 1
+        # Viewport should have scrolled back toward top
+        assert ta.scroll_y < scroll_before
+
+
 async def test_ctrl_d_cmd_no_file(workspace: Path):
     """Command palette action when no file open → no crash."""
     app = make_app(workspace, open_file=None, light=True)
