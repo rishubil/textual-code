@@ -19,3 +19,31 @@ jobs:
       - uses: astral-sh/setup-uv@v3
       - run: uv build
       - run: uv publish --trusted-publishing always
+
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          # Extract the section for this version from CHANGELOG.md
+          body=$(awk -v ver="$version" '
+            /^## \[/ {
+              if (found) exit
+              if (index($0, "[" ver "]")) found=1
+              next
+            }
+            found { print }
+          ' CHANGELOG.md)
+          # Write to file to preserve newlines
+          echo "$body" > release_body.md
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: release_body.md
+          generate_release_notes: false
