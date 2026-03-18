@@ -39,6 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Toggle hidden files in Explorer: dotfiles and dotfolders can be shown or hidden via the `show_hidden_files` setting (default: `true`) or the "Toggle hidden files" command in the command palette; the setting is persisted to user config on toggle
 
+- Auto-refresh Explorer on workspace changes: the Explorer sidebar now polls every 2 seconds to detect file/folder creation, deletion, or rename in expanded directories; git status colors also auto-update when `.git/index` or `.git/HEAD` change (e.g., after `git add`, `git commit`, or branch switch); expanded directory state and cursor position are preserved across refreshes; polling is disabled in headless/test mode
+
 - EditorConfig auto-reload: when any `.editorconfig` file in the directory chain is created, modified, or deleted, safe-to-change properties (indent_type, indent_size, trim_trailing_whitespace, insert_final_newline) are automatically re-applied to open editors via 2-second mtime-based polling; charset and end_of_line are not re-applied to avoid corrupting in-memory text; a notification is shown when changes are applied
 
 - EditorConfig `trim_trailing_whitespace` and `insert_final_newline` compliance: these properties are now applied at save time (Ctrl+S or Save As). `trim_trailing_whitespace=true` strips trailing spaces/tabs from all lines; `insert_final_newline=true` ensures the file ends with a newline; `insert_final_newline=false` removes trailing newlines. The editor buffer is updated to reflect the saved content.

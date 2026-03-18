@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import shutil
@@ -14,12 +15,12 @@ from rich.style import Style
 from rich.text import Text
 from textual import on
 from textual.app import ComposeResult
+from textual.await_complete import AwaitComplete
 from textual.binding import Binding
 from textual.message import Message
 from textual.widgets import DirectoryTree, Static
 
 if TYPE_CHECKING:
-    from textual.await_complete import AwaitComplete
     from textual.widgets._tree import TreeNode
 
 
@@ -181,6 +182,23 @@ class FilteredDirectoryTree(DirectoryTree):
         self._gitignore_cache: dict[Path, bool] = {}
         self._git_result: GitStatusResult | None = None
         self._git_bin: str | None = shutil.which("git")
+        # Workspace polling state for auto-refresh
+        self._dir_mtimes: dict[Path, float | None] = {}
+        self._git_ref_mtimes: tuple[float | None, float | None] = (
+            None,
+            None,
+        )  # (index_mtime, head_mtime)
+        self._ws_polling_paused: bool = False
+
+    def on_mount(self) -> None:
+        self.call_after_refresh(self._init_ws_polling)
+
+    def _init_ws_polling(self) -> None:
+        """Initialize workspace polling snapshot and start timer."""
+        self._dir_mtimes = self._collect_expanded_dir_mtimes()
+        self._git_ref_mtimes = self._get_git_ref_mtimes()
+        if not self.app.is_headless:
+            self.set_interval(2.0, self._poll_workspace_change)
 
     def filter_paths(self, paths: Iterable[Path]) -> Iterable[Path]:
         if self.show_hidden_files:
@@ -333,11 +351,83 @@ class FilteredDirectoryTree(DirectoryTree):
         return None
 
     def reload(self) -> AwaitComplete:
-        """Reload the tree and invalidate gitignore + git status caches."""
+        """Reload the tree, invalidate caches, and re-snapshot for polling."""
+        self._ws_polling_paused = True
         self._gitignore_specs = None
         self._gitignore_cache.clear()
         self._git_result = None
-        return super().reload()
+        parent_awaitable = super().reload()
+
+        async def _reload_then_resume():
+            try:
+                await parent_awaitable
+            finally:
+                self._dir_mtimes = self._collect_expanded_dir_mtimes()
+                self._git_ref_mtimes = self._get_git_ref_mtimes()
+                self._ws_polling_paused = False
+
+        return AwaitComplete(_reload_then_resume())
+
+    # ── Workspace auto-refresh polling ──────────────────────────────────
+
+    def _collect_expanded_dir_mtimes(self) -> dict[Path, float | None]:
+        """Stat workspace root and all expanded directories in the tree."""
+        result: dict[Path, float | None] = {}
+        workspace = Path(self.path)
+        try:
+            result[workspace] = workspace.stat().st_mtime
+        except OSError:
+            result[workspace] = None
+
+        def walk(node):
+            for child in node.children:
+                if (
+                    child.data is not None
+                    and child.is_expanded
+                    and child.data.path.is_dir()
+                ):
+                    try:
+                        result[child.data.path] = child.data.path.stat().st_mtime
+                    except OSError:
+                        result[child.data.path] = None
+                    walk(child)
+
+        walk(self.root)
+        return result
+
+    def _get_git_ref_mtimes(self) -> tuple[float | None, float | None]:
+        """Stat .git/index and .git/HEAD for git change detection."""
+        git_dir = Path(self.path) / ".git"
+        if not git_dir.is_dir():
+            return (None, None)
+        index_mtime = None
+        head_mtime = None
+        with contextlib.suppress(OSError):
+            index_mtime = (git_dir / "index").stat().st_mtime
+        with contextlib.suppress(OSError):
+            head_mtime = (git_dir / "HEAD").stat().st_mtime
+        return (index_mtime, head_mtime)
+
+    def _poll_workspace_change(self) -> None:
+        """Check for workspace dir changes and git ref changes."""
+        if self._ws_polling_paused:
+            return
+
+        new_dir_mtimes = self._collect_expanded_dir_mtimes()
+        dir_changed = new_dir_mtimes != self._dir_mtimes
+
+        new_git_mtimes = self._get_git_ref_mtimes()
+        git_changed = new_git_mtimes != self._git_ref_mtimes
+
+        if dir_changed:
+            _log.debug("workspace dir change detected, reloading explorer")
+            self._git_ref_mtimes = new_git_mtimes
+            self.reload()
+        elif git_changed:
+            _log.debug("git ref change detected, refreshing explorer labels")
+            self._git_ref_mtimes = new_git_mtimes
+            self._git_result = None
+            self.refresh()
 
     def render_label(self, node: TreeNode, base_style: Style, style: Style) -> Text:
         """Override to strip italic and apply gitignored/hidden/git-status styles.
