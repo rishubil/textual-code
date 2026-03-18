@@ -9,6 +9,8 @@
 
 ## Test Strategy: Red-Green TDD
 
+> See `docs/testing-guide.md` for test patterns, best practices, and gotchas (`make_app(light=True)`, `pilot.pause()` rules, snapshot conventions, etc.)
+
 **Before starting work, check and run existing tests:**
 
 1. **Find test files**: use Glob/Grep to find test files related to the code you are modifying

@@ -75,11 +75,11 @@ uv run textual run --dev textual_code:main
 
 ### Running Tests
 
-Always run tests in parallel with `-n auto`. Running `uv run pytest` without flags is slow (~10 min) and not recommended.
+See [docs/testing-guide.md](docs/testing-guide.md) for patterns, best practices, and gotchas.
 
 ```bash
-# Unit/integration tests — parallel (~1.5 min)
-uv run pytest tests/ -n auto -m "not serial"
+# Unit/integration tests — parallel (~2.5 min)
+uv run pytest tests/ -n $(( $(nproc) * 2 )) -m "not serial"
 
 # Snapshot tests — must run serially
 uv run pytest tests/ -m serial
