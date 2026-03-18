@@ -1,0 +1,341 @@
+# Workspace Features
+
+## Workspace Search: find in workspace, replace all, regex, gitignore, include/exclude filters
+
+Workspace Search allows searching across all text files in the current workspace directory. It is accessible from the sidebar Search panel or via keyboard shortcut.
+
+### Purpose
+
+Provides project-wide text search and batch replace without leaving the editor. Equivalent to "Find in Files" in GUI editors. All search operations run in a background thread so the UI remains responsive during large searches.
+
+### Behavior
+
+**Opening the search panel:**
+
+- `Ctrl+Shift+F` opens the sidebar (if hidden), switches to the Search tab, and focuses the query input.
+- Also accessible via command palette: "Find in Workspace".
+
+**Search execution:**
+
+- Type a query and press Enter or click the Search button.
+- The search runs in a background thread using a Textual `@work(thread=True, exclusive=True)` worker. A new search cancels any in-progress search.
+- While the search is running, the results list shows a pulsating dots loading indicator (Textual's built-in `LoadingIndicator`).
+- Results are capped at 500 matches (`max_results=500`).
+- Each result shows `relative/path:line_number  line content`.
+- If no matches are found, "No results" is displayed. If the worker errors, "Search failed" is shown.
+
+**Result navigation:**
+
+- Click any result item to open the file at the matched line. The file opens in the active split pane and the cursor moves to the matched line number (1-based).
+
+**Replace All:**
+
+- Enter a replacement string in the "Replace with..." input and click "Replace All" or press Enter in the replace input.
+- Replace runs synchronously (not in a background thread) and modifies files on disk directly.
+- A status line shows "Replaced N occurrence(s) in M file(s)" after completion.
+- Supports regex capture groups when regex mode is enabled (e.g., replace `(\w+)` with `\1_suffix`).
+
+**Search options (checkboxes):**
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `.*` (Regex) | Off | Interpret the query as a regular expression. Invalid regex returns empty results. |
+| `Aa` (Case sensitive) | On | When off, matching is case-insensitive for both plain text and regex. |
+| `Gitignore` | On | Respect `.gitignore` files found at any directory level. Nested `.gitignore` files are applied relative to their own directory. |
+
+**Include/exclude filters:**
+
+- "Include files" input: comma-separated glob patterns (e.g., `src/**`, `*.py`). Only files matching at least one pattern are searched. Uses gitignore-style pattern syntax via the `pathspec` library.
+- "Exclude files" input: comma-separated glob patterns (e.g., `node_modules`, `dist`). Files matching any pattern are skipped. Directory names without globs match at any depth.
+- Both filters apply to the relative path from the workspace root.
+
+**Files skipped during search:**
+
+- Hidden files and directories (any path component starting with `.`).
+- Binary files (detected by null byte in the first 8 KiB).
+- Files that cannot be decoded as UTF-8.
+
+**Responsive button labels:**
+
+- At normal sidebar width: buttons show "Search" and "Replace All" with emoji icons.
+- When sidebar width drops below 40 cells: buttons collapse to icon-only (emoji only).
+
+### Keybindings
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+Shift+F` | Open Find in Workspace (sidebar Search tab) |
+
+### Known Limitations
+
+- No incremental/live search: results do not update as you type. You must press Enter or click Search.
+- Results do not auto-update when files change on disk. Re-run the search manually.
+- No search history or saved queries.
+- Replace All writes directly to disk; there is no undo for workspace-wide replacements.
+- Maximum 500 results per search.
+
+**Implementation:** `workspace_search.py`, `search.py`, `sidebar.py`, `app.py`
+
+## Split View: split right/left/up/down, recursive N-way tree, focus navigation, resize, text sync
+
+Split View allows opening the same file (or different files) side-by-side in multiple panes. The split layout uses a recursive tree data structure supporting unlimited nesting.
+
+### Purpose
+
+Enables comparing or referencing multiple files simultaneously without switching tabs. Edits to the same file in different splits are synchronized in real-time.
+
+### Behavior
+
+**Creating splits:**
+
+- `Ctrl+\` splits the active pane to the right, opening the current file (or a new editor if no file is open) in the new pane.
+- Split left, up, and down are available via the command palette ("Split editor left", "Split editor up", "Split editor down").
+- After splitting, focus and `_active_leaf_id` both move to the newly created pane.
+
+**Closing splits:**
+
+- `Ctrl+Shift+\` closes the active split pane. All tabs in that pane are closed (with unsaved-change prompts).
+- When a split is closed and its parent branch has only one remaining child, the parent collapses (the remaining child replaces it).
+- Also accessible via command palette: "Close split".
+
+**Recursive N-way split tree:**
+
+- The split layout is a tree of `BranchNode` and `LeafNode` instances (pure data, no Textual dependency).
+- A `BranchNode` has a direction (`"horizontal"` or `"vertical"`) and a list of children with associated ratios.
+- A `LeafNode` holds a set of `pane_ids` and a map of `opened_files`.
+- When splitting in the same direction as the parent branch, the new leaf is inserted as a sibling (flattening). Otherwise, a new `BranchNode` wraps the old leaf and the new leaf.
+- There is no hard limit on nesting depth or number of splits.
+- Closing a leaf from an N-child branch (N > 2) removes the child and redistributes ratios proportionally.
+
+**Focus navigation:**
+
+- Focus next split: cycles to the next leaf in visual order (left-to-right, top-to-bottom), wrapping around.
+- Focus previous split: cycles in reverse.
+- Focus left split: jumps to the first (leftmost) leaf.
+- Focus right split: jumps to the second leaf (if it exists).
+- All focus commands are available via command palette ("Focus next split", "Focus previous split").
+- Directional focus uses `directional_leaf()` which walks up the tree to find the nearest sibling in the requested axis, then descends to the closest leaf within that subtree.
+
+**Toggle orientation:**
+
+- Via command palette: "Toggle split orientation" switches the top-level `SplitContainer` between horizontal (side-by-side) and vertical (top-and-bottom) layout.
+- Toggles the CSS class `split-vertical` on the container and updates `_direction`.
+
+**Drag resize:**
+
+- A `SplitResizeHandle` widget is placed between every pair of adjacent panes in a `SplitContainer`.
+- Dragging the handle resizes the child at `child_index` by setting its `styles.width` (horizontal) or `styles.height` (vertical) to the clamped screen position.
+- Minimum size per pane: `SPLIT_MIN_SIZE = 10` cells.
+- Handles support N-way splits: each handle tracks its `child_index` and accounts for preceding children's sizes.
+
+**Command palette resize:**
+
+- "Resize split" command accepts: absolute cells (`50`), relative offset (`+10`, `-5`), or percentage (`40%`).
+- Percentage range: 10% to 90%. Absolute range: 10 to (total - 10) cells.
+- Shows error notification for invalid or out-of-range input.
+
+**Live text sync:**
+
+- When the same file is open in two split panes, edits in one editor are immediately propagated to the other via `sync_text()`.
+- The `on_code_editor_text_changed` handler iterates all leaves, finds other panes with the same file path, and calls `sync_text()` on them.
+- When saving in one editor, the sibling editor's `initial_text` and `_file_mtime` are updated so no false "file changed externally" warnings appear.
+
+### Keybindings
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+\` | Split editor right |
+| `Ctrl+Shift+\` | Close split |
+| `Ctrl+Alt+\` | Move tab to other split |
+
+### Known Limitations
+
+- No named or labeled splits.
+- Split layout is not persisted across sessions. Restarting the editor resets to a single pane.
+- No per-split settings (e.g., different themes or font sizes per split).
+- Toggle orientation only affects the top-level container, not nested containers.
+- Resize via command palette operates on the left panel width only.
+
+**Implementation:** `main_view.py`, `split_tree.py`, `split_container.py`, `split_resize_handle.py`, `app.py`
+
+## Tab Management: reorder, drag-and-drop, directional move, edge-drag split creation
+
+Tab Management covers all operations for rearranging tabs within and across split panes, including drag-and-drop interactions.
+
+### Purpose
+
+Enables flexible organization of open files across the workspace. Tabs can be reordered within a pane, dragged to another pane, or dragged to a pane edge to create a new split.
+
+### Behavior
+
+**Tab reorder by drag (same pane):**
+
+- Drag a tab header left/right to reorder within the pane. Insertion position is determined by which half of the target tab the cursor lands on.
+- Editor state (cursor position, content, unsaved changes) is fully preserved.
+
+**Cross-split tab drag:**
+
+- Drag a tab to a different split pane to move it there. If the same file is already open in the destination pane, focus moves to the existing tab instead of creating a duplicate.
+- Unsaved content is preserved during cross-split moves.
+
+**Edge-drag to create split:**
+
+- Dragging a tab to a pane edge (15% of width/height) creates a new split in that direction.
+- Requires at least 2 tabs in the source pane (the last tab is protected from being moved out).
+- For visual feedback details (hint boxes, overlay, edge zone sizing), see [ui.md#drag-and-drop](ui.md#drag-and-drop-visual-feedback-drop-hints-target-highlights-edge-zone-indicators).
+
+**Directional tab move (command palette):**
+
+- "Move tab left/right/up/down": moves the active tab to the adjacent split pane in the specified direction.
+- Uses `directional_leaf()` to find the target pane by walking the split tree spatially.
+- If no adjacent pane exists in the requested direction, a new split is auto-created in that direction (as long as the source pane has more than one tab).
+- After moving, focus lands on the moved tab in the destination pane.
+
+**Tab reorder commands (command palette):**
+
+- "Reorder tab left" / "Reorder tab right": moves the active tab one position within its tab group.
+- Uses `reorder_active_tab_by_delta()` with delta -1 (left) or +1 (right).
+- No-op at the boundary (first tab cannot go left, last tab cannot go right).
+- Includes a defensive underline indicator update to prevent animation race conditions with command palette dismissal.
+
+**Move tab to other split:**
+
+- `Ctrl+Alt+\` moves the active tab to the "other" split pane (first leaf if current is not first, last leaf otherwise).
+- If only one leaf exists, a new split is auto-created to the right.
+
+**Same file protection:**
+
+- When moving a tab to a pane that already has the same file open, the move is skipped and focus moves to the existing tab instead of duplicating.
+
+### Keybindings
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+Alt+\` | Move tab to other split |
+| `Ctrl+W` | Close tab |
+
+### Known Limitations
+
+- No tab pinning or tab grouping.
+- No tab close button in the tab header (use `Ctrl+W`).
+- No tab preview on hover.
+- Drag threshold is 3 pixels; shorter movements are interpreted as clicks.
+
+**Implementation:** `draggable_tabs_content.py`, `main_view.py`, `app.py`
+
+## Sidebar & File Explorer: directory tree, git status, hidden files, resize, auto-refresh
+
+The sidebar provides file exploration and workspace search in a collapsible panel docked to the left side of the editor.
+
+### Purpose
+
+Provides visual file navigation, file/folder management, and quick access to workspace search. The explorer shows a directory tree with git status indicators and gitignore-aware dimming.
+
+### Behavior
+
+**Sidebar structure:**
+
+- The sidebar contains a `TabbedContent` with two tabs: Explorer (`explorer_pane`) and Search (`search_pane`).
+- A `SidebarResizeHandle` is docked at the right border for drag resizing.
+- Toggle visibility with `Ctrl+B` or command palette: "Toggle sidebar".
+
+**Directory tree:**
+
+- The `FilteredDirectoryTree` extends Textual's `DirectoryTree` with filtering and styling capabilities.
+- The workspace root is not shown (`show_root = False`); only its children are displayed.
+- Folders are expandable with file/folder icons.
+- Clicking a file opens it in the active editor pane.
+
+**File creation and deletion:**
+
+| Key | Action | Context |
+|-----|--------|---------|
+| `Ctrl+N` | Create file | Explorer focused, or command palette |
+| `Ctrl+D` | Create directory | Explorer focused, or command palette |
+| `Delete` | Delete file/folder | Explorer focused (selected node) |
+
+- File/folder deletion shows a confirmation modal with the path and an undo warning.
+- Also accessible via command palette: "Create file", "Create directory", "Delete file or directory".
+
+**Hidden files:**
+
+- `show_hidden_files` setting (default: `true`): when `false`, files and directories starting with `.` are filtered out of the tree entirely.
+- `dim_hidden_files` setting (default: `false`): when `true`, dotfiles/dotfolders are visually dimmed using the `directory-tree--hidden` CSS component class.
+- Both toggleable via command palette: "Toggle hidden files", "Toggle dim hidden files".
+- Settings are persisted to user config on toggle.
+
+**Gitignore dimming:**
+
+- `dim_gitignored` setting (default: `true`): files and directories matching `.gitignore` patterns are visually dimmed.
+- Uses the `directory-tree--gitignored` CSS component class with `text-style: dim`.
+- `.gitignore` files are loaded from the workspace recursively, skipping those inside hidden directories (e.g., `.git/`).
+- Hidden files (dotfiles) are exempt from gitignore dimming.
+- Gitignore specs are cached and invalidated on tree reload.
+- Toggleable via command palette: "Toggle dim gitignored files".
+
+**Git status highlighting:**
+
+- `show_git_status` setting (default: `true`): requires a `.git` directory at the workspace root.
+- Modified files: highlighted in yellow (`$warning` / `ansi_yellow`) via `directory-tree--git-modified`.
+- Untracked files: highlighted in green (`$success` / `ansi_green`) via `directory-tree--git-untracked`.
+- Parent directories inherit the highest-priority status from their children. Priority: `modified` > `untracked`.
+- Status is obtained by running `git status --porcelain -z -unormal` with a 5-second timeout.
+- Untracked directories from `-unormal` output are detected (trailing `/`) and their children inherit the untracked status via pre-computed string prefix matching.
+- Toggleable via command palette: "Toggle git status highlighting".
+
+**Sidebar resize:**
+
+- Drag the right border handle: width clamped between `SIDEBAR_MIN_WIDTH = 5` cells and `screen_width - 5` cells.
+- Command palette: "Resize sidebar" accepts absolute cells (`30`), relative offset (`+5`, `-3`), or percentage (`30%`).
+  - Percentage range: 1% to 90%.
+  - Absolute range: 5 to (app width - 5) cells.
+- `sidebar_width` setting: configurable initial width. Accepts an integer for absolute cells or a percentage string like `"30%"`. Default: `28`.
+
+**Auto-refresh:**
+
+- The explorer polls every 2 seconds for changes (timer disabled in headless/test mode).
+- **Directory change detection**: stats the workspace root and all expanded directories. If any mtime changes (file/folder created, deleted, or renamed), the entire tree is reloaded.
+- **Git status change detection**: stats `.git/index` and `.git/HEAD`. If either mtime changes (e.g., after `git add`, `git commit`, or branch switch), git status labels are refreshed without a full tree reload.
+- Polling is paused during a reload to avoid cascading refreshes.
+- Expanded directory state and cursor position are preserved across refreshes.
+
+**Explorer cursor sync:**
+
+- When switching between editor tabs, the explorer cursor moves to the corresponding file.
+- If the file is inside a collapsed folder, the folder is expanded automatically (with retry logic up to 10 attempts).
+
+**Responsive design (3-stage collapse):**
+
+1. Full width: tabs show "Explorer" and "Search" with emoji prefixes; buttons show full text with icons.
+2. Width < 40 cells: search buttons collapse to icon-only (emoji only).
+3. Width < 15 cells: tab labels collapse to icon-only (emoji only).
+
+**Reload explorer:**
+
+- The command palette offers "Reload explorer" to manually refresh the directory tree. This re-reads all expanded directories and updates git status indicators.
+
+**Italic rendering fix:**
+
+- The upstream `DirectoryTree` applies italic to file extensions via a regex highlight. This is stripped unconditionally for all file and directory nodes so no name is rendered in italic.
+
+### Keybindings
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+B` | Toggle sidebar visibility |
+| `Ctrl+N` | Create file (explorer focused) |
+| `Ctrl+D` | Create directory (explorer focused) |
+| `Delete` | Delete selected file/folder (explorer focused) |
+| `F6` | Focus next widget (cycle between sidebar, editor, etc.) |
+| `Shift+F6` | Focus previous widget |
+
+### Known Limitations
+
+- No file or folder rename from the explorer.
+- No drag-and-drop file/folder move within the explorer.
+- Git status is limited to modified and untracked. No staged, conflict, or ignored status indicators.
+- No folder-level git diff.
+- Auto-refresh polling interval is fixed at 2 seconds and is not configurable.
+- Gitignore pattern caching means newly created `.gitignore` files are not picked up until the next tree reload.
+
+**Implementation:** `explorer.py`, `sidebar.py`, `app.py`

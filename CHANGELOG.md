@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Comprehensive feature specification: restructured `docs/features.md` into `docs/features/` folder with 6 files (index.md, editor.md, workspace.md, config.md, ui.md, internals.md) covering all features with detailed behavior, keybindings, scope/limitations, and implementation references; added missing `path_display_mode` setting to settings-guide.md
+
 ### Changed
 
 - Lazy tree-sitter language registration: custom languages are now registered on demand when a file of that type is opened, instead of eagerly registering all 10 languages on every editor mount

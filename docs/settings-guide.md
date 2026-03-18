@@ -62,6 +62,7 @@ All editor settings go under the `[editor]` TOML table.
 | `dim_gitignored` | boolean | `true` | Dim files matching .gitignore patterns in the Explorer sidebar |
 | `dim_hidden_files` | boolean | `false` | Dim dotfiles and dotfolders in the Explorer sidebar |
 | `show_git_status` | boolean | `true` | Highlight modified and untracked git files in the Explorer sidebar (requires `.git` directory) |
+| `path_display_mode` | string | `"absolute"` | File path display in footer: `"absolute"` or `"relative"` (relative to workspace root) |
 | `sidebar_width` | integer or string | `28` | Initial sidebar width: integer for cells (min 5), or `"30%"` for percentage (1%-90%) |
 
 ### Example: user settings file
