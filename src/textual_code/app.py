@@ -2,6 +2,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
+from typing import Literal
 
 from textual import on
 from textual.app import App, ComposeResult, SystemCommand
@@ -89,6 +90,41 @@ def _validate_sidebar_width_setting(value: int | float | str) -> int | str | Non
             return None
         return n if n >= SIDEBAR_MIN_WIDTH else None
     return None
+
+
+_MAX_COPY_SUFFIX = 1000
+
+
+def _resolve_paste_name(target_dir: Path, name: str) -> Path:
+    """Return a non-conflicting path in *target_dir* for *name*.
+
+    If ``target_dir/name`` does not exist, returns it directly.
+    Otherwise appends " copy", " copy 2", " copy 3", etc.
+    For files with extensions the suffix is inserted before the extension:
+      "file.py" → "file copy.py" → "file copy 2.py"
+    """
+    candidate = target_dir / name
+    if not candidate.exists():
+        return candidate
+
+    stem = Path(name).stem
+    suffix = Path(name).suffix  # e.g. ".py", or "" for dirs
+
+    copy_name = f"{stem} copy{suffix}"
+    candidate = target_dir / copy_name
+    if not candidate.exists():
+        return candidate
+
+    for counter in range(2, _MAX_COPY_SUFFIX + 1):
+        copy_name = f"{stem} copy {counter}{suffix}"
+        candidate = target_dir / copy_name
+        if not candidate.exists():
+            return candidate
+
+    raise RuntimeError(
+        f"Could not find a free name for '{name}' in '{target_dir}' "
+        f"after {_MAX_COPY_SUFFIX} attempts"
+    )
 
 
 def _parse_sidebar_resize(
@@ -343,6 +379,9 @@ class TextualCode(App):
                 )
         self.theme = self.default_ui_theme
 
+        # File clipboard for copy/cut/paste in explorer
+        self._file_clipboard: tuple[Literal["copy", "cut"], Path] | None = None
+
         # load and apply custom keybindings
         kb_path = get_keybindings_path(user_config_path) if user_config_path else None
         self._custom_keybindings: dict[str, str] = load_keybindings(kb_path)
@@ -499,6 +538,21 @@ class TextualCode(App):
             "Move file or directory",
             "Move a file or directory to a different path",
             self.action_move_file_or_dir_with_command_palette,
+        )
+        yield SystemCommand(
+            "Copy file or directory",
+            "Copy the selected file or directory in the explorer (Ctrl+C)",
+            self.action_copy_explorer_node,
+        )
+        yield SystemCommand(
+            "Cut file or directory",
+            "Cut the selected file or directory in the explorer (Ctrl+X)",
+            self.action_cut_explorer_node,
+        )
+        yield SystemCommand(
+            "Paste file or directory",
+            "Paste the copied/cut file or directory (Ctrl+V)",
+            self.action_paste_explorer_node,
         )
         yield SystemCommand(
             "Change Indentation",
@@ -1514,6 +1568,24 @@ class TextualCode(App):
             ),
         )
 
+    def action_copy_explorer_node(self) -> None:
+        """Copy the selected explorer node via command palette."""
+        if self.sidebar is None:
+            return
+        self.sidebar.explorer.action_copy_node()
+
+    def action_cut_explorer_node(self) -> None:
+        """Cut the selected explorer node via command palette."""
+        if self.sidebar is None:
+            return
+        self.sidebar.explorer.action_cut_node()
+
+    def action_paste_explorer_node(self) -> None:
+        """Paste from clipboard to the explorer location via command palette."""
+        if self.sidebar is None:
+            return
+        self.sidebar.explorer.action_paste_node()
+
     def _handle_move_path(self, path: Path) -> None:
         """Open directory picker CommandPalette for moving a file or directory."""
         from textual_code.commands import create_move_destination_command_provider
@@ -1766,6 +1838,104 @@ class TextualCode(App):
         self, event: MovePathWithPaletteRequested
     ) -> None:
         self._handle_move_path(event.path)
+
+    @on(Explorer.FileCopyRequested)
+    def on_explorer_file_copy_requested(
+        self, event: Explorer.FileCopyRequested
+    ) -> None:
+        self._file_clipboard = ("copy", event.path)
+        self.log.info("File copied to clipboard: %s", event.path)
+        self.notify(f"Copied: {event.path.name}")
+
+    @on(Explorer.FileCutRequested)
+    def on_explorer_file_cut_requested(self, event: Explorer.FileCutRequested) -> None:
+        self._file_clipboard = ("cut", event.path)
+        self.log.info("File cut to clipboard: %s", event.path)
+        self.notify(f"Cut: {event.path.name}")
+
+    @on(Explorer.FilePasteRequested)
+    def on_explorer_file_paste_requested(
+        self, event: Explorer.FilePasteRequested
+    ) -> None:
+        import shutil
+
+        if self._file_clipboard is None:
+            self.notify("Nothing to paste.", severity="warning")
+            return
+
+        operation, source_path = self._file_clipboard
+        target_dir = event.target_dir
+
+        # Validate source still exists
+        if not source_path.exists():
+            self.log.warning("Paste failed: source no longer exists: %s", source_path)
+            self.notify(
+                f"Source no longer exists: {source_path.name}", severity="error"
+            )
+            self._file_clipboard = None
+            return
+
+        is_directory = source_path.is_dir()
+        ws_resolved = self.workspace_path.resolve()
+
+        # Validate destination is within workspace
+        try:
+            target_dir.resolve().relative_to(ws_resolved)
+        except ValueError:
+            self.log.warning(
+                "Paste rejected: target '%s' is outside workspace", target_dir
+            )
+            self.notify("Destination must be within the workspace.", severity="error")
+            return
+
+        # Prevent pasting a directory into itself
+        if is_directory:
+            try:
+                target_dir.resolve().relative_to(source_path.resolve())
+                self.log.warning(
+                    "Paste rejected: cannot paste '%s' into itself", source_path.name
+                )
+                self.notify(
+                    f"Cannot paste '{source_path.name}' into itself.",
+                    severity="error",
+                )
+                return
+            except ValueError:
+                pass  # not a subtree — OK
+
+        # Resolve destination name (handle conflicts)
+        dest_path = _resolve_paste_name(target_dir, source_path.name)
+
+        self.log.info("Paste %s: %s → %s", operation, source_path, dest_path)
+
+        try:
+            if operation == "copy":
+                if is_directory:
+                    shutil.copytree(str(source_path), str(dest_path))
+                else:
+                    shutil.copy2(str(source_path), str(dest_path))
+                # Copy keeps clipboard intact (can paste again)
+            else:  # cut
+                shutil.move(str(source_path), str(dest_path))
+                self._update_open_tabs_after_rename(
+                    source_path, dest_path, is_directory
+                )
+                self._file_clipboard = None
+        except Exception as e:
+            self.log.warning("Paste failed: %s → %s: %s", source_path, dest_path, e)
+            self.notify(f"Error pasting: {e}", severity="error")
+            return
+
+        self.action_reload_explorer()
+        try:
+            dest_relative = str(dest_path.relative_to(self.workspace_path))
+        except ValueError:
+            dest_relative = str(dest_path)
+
+        if operation == "copy":
+            self.notify(f"Copied to '{dest_relative}'", severity="information")
+        else:
+            self.notify(f"Moved to '{dest_relative}'", severity="information")
 
     @on(MainView.ActiveFileChanged)
     def on_active_file_changed(self, event: MainView.ActiveFileChanged) -> None:

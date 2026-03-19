@@ -491,6 +491,9 @@ class Explorer(Static):
         Binding("ctrl+d", "create_directory", "Create directory"),
         Binding("delete", "delete_node", "Delete"),
         Binding("f2", "rename_node", "Rename"),
+        Binding("ctrl+c", "copy_node", "Copy", show=False),
+        Binding("ctrl+x", "cut_node", "Cut", show=False),
+        Binding("ctrl+v", "paste_node", "Paste", show=False),
     ]
 
     @dataclass
@@ -548,6 +551,45 @@ class Explorer(Static):
 
         # the path to the file or directory to move.
         path: Path
+
+        @property
+        def control(self) -> Explorer:
+            return self.explorer
+
+    @dataclass
+    class FileCopyRequested(Message):
+        """Message to request copying a file or directory to clipboard."""
+
+        explorer: Explorer
+
+        # the path to the file or directory to copy.
+        path: Path
+
+        @property
+        def control(self) -> Explorer:
+            return self.explorer
+
+    @dataclass
+    class FileCutRequested(Message):
+        """Message to request cutting a file or directory to clipboard."""
+
+        explorer: Explorer
+
+        # the path to the file or directory to cut.
+        path: Path
+
+        @property
+        def control(self) -> Explorer:
+            return self.explorer
+
+    @dataclass
+    class FilePasteRequested(Message):
+        """Message to request pasting from the file clipboard."""
+
+        explorer: Explorer
+
+        # the target directory to paste into.
+        target_dir: Path
 
         @property
         def control(self) -> Explorer:
@@ -672,14 +714,23 @@ class Explorer(Static):
         directory_tree.show_root = False  # don't show the root directory
         yield directory_tree
 
-    def _get_selected_dir_relative(self) -> str:
-        """Return relative path of the selected directory (trailing '/')."""
+    def _get_selected_dir(self) -> Path:
+        """Return the absolute directory path of the selected node.
+
+        If a file is selected, returns its parent directory.
+        Falls back to the workspace root when nothing is selected.
+        """
         node = self.directory_tree.cursor_node
         if node is None or node.data is None:
-            return ""
+            return self.workspace_path
         path = node.data.path
-        if not node.allow_expand:
+        if not node.allow_expand:  # it's a file
             path = path.parent
+        return path
+
+    def _get_selected_dir_relative(self) -> str:
+        """Return relative path of the selected directory (trailing '/')."""
+        path = self._get_selected_dir()
         if path == self.workspace_path:
             return ""
         try:
@@ -724,6 +775,25 @@ class Explorer(Static):
         if node is None or node.data is None:
             return
         self.post_message(self.FileMoveRequested(explorer=self, path=node.data.path))
+
+    def action_copy_node(self) -> None:
+        """Copy the currently focused file or directory to clipboard."""
+        node = self.directory_tree.cursor_node
+        if node is None or node.data is None:
+            return
+        self.post_message(self.FileCopyRequested(explorer=self, path=node.data.path))
+
+    def action_cut_node(self) -> None:
+        """Cut the currently focused file or directory to clipboard."""
+        node = self.directory_tree.cursor_node
+        if node is None or node.data is None:
+            return
+        self.post_message(self.FileCutRequested(explorer=self, path=node.data.path))
+
+    def action_paste_node(self) -> None:
+        """Paste from clipboard into the currently focused directory."""
+        target = self._get_selected_dir()
+        self.post_message(self.FilePasteRequested(explorer=self, target_dir=target))
 
     async def action_create_directory(self) -> None:
         """

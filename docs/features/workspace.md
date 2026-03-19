@@ -246,7 +246,7 @@ Provides visual file navigation, file/folder management, and quick access to wor
 - Folders are expandable with file/folder icons.
 - Clicking a file opens it in the active editor pane.
 
-**File creation and deletion:**
+**File creation, deletion, and clipboard operations:**
 
 | Key | Action | Context |
 |-----|--------|---------|
@@ -254,12 +254,16 @@ Provides visual file navigation, file/folder management, and quick access to wor
 | `Ctrl+D` | Create directory | Explorer focused, or command palette |
 | `Delete` | Delete file/folder | Explorer focused (selected node) |
 | `F2` | Rename file/folder | Explorer focused, editor focused, or command palette |
+| `Ctrl+C` | Copy file/folder | Explorer focused (selected node) |
+| `Ctrl+X` | Cut file/folder | Explorer focused (selected node) |
+| `Ctrl+V` | Paste file/folder | Explorer focused (target directory) |
 
 - When creating a file or directory, the command palette input is pre-filled with the relative path of the currently selected folder in the explorer (or the parent folder if a file is selected). This works regardless of which widget is focused.
 - File/folder deletion shows a confirmation modal with the path and an undo warning.
 - File/folder renaming opens a modal pre-filled with the current name, with the filename stem (before the extension) pre-selected. Renaming a directory updates the paths of all open tabs under that directory. Path separator characters are rejected to prevent accidental file moves.
 - File/folder moving opens a command palette showing all workspace directories with fuzzy search, including dot-prefixed directories (e.g. `.github/`, `.vscode/`) but excluding `.git` directories and their subtrees. The user selects a destination folder and the file or directory is moved there, keeping its original name. The workspace root is listed as `"."`. Moving a directory updates the paths of all open tabs under that directory. Destination must be within the workspace boundary.
-- Also accessible via command palette: "Create file", "Create directory", "Delete file or directory", "Rename file or directory", "Rename file", "Move file", "Move file or directory".
+- File/folder copy/cut/paste uses an app-level file clipboard. Copy (`Ctrl+C`) stores the selected path; the clipboard persists so the user can paste multiple times. Cut (`Ctrl+X`) stores the path and clears the clipboard after paste. Paste (`Ctrl+V`) duplicates (copy) or moves (cut) the file/folder into the currently selected directory. Name conflicts are auto-resolved with a " copy" suffix (e.g. `file.py` → `file copy.py` → `file copy 2.py`). Cutting an open file updates the editor tab path. Pasting a directory into itself is prevented. These bindings only activate when the Explorer has focus; when the editor has focus, `Ctrl+C/X/V` perform text copy/cut/paste as usual.
+- Also accessible via command palette: "Create file", "Create directory", "Delete file or directory", "Rename file or directory", "Rename file", "Move file", "Move file or directory", "Copy file or directory", "Cut file or directory", "Paste file or directory".
 
 **Hidden files:**
 

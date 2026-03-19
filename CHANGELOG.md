@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Explorer**: create file/directory dialog pre-fills with the currently selected folder's relative path
 - **Explorer/Editor**: rename files and folders with F2 key, command palette, or "Rename file" system command; stem pre-selected in modal; directory rename updates all open tabs
 - **Explorer**: move files and folders to different paths via command palette ("Move file", "Move file or directory"); destination folder selected via fuzzy-searchable directory picker that includes dot-prefixed directories (`.github/`, `.vscode/`, etc.) but excludes `.git`; file/folder keeps its original name; workspace boundary validation; directory move updates all open tabs
+- **Explorer**: copy/cut/paste files and folders with Ctrl+C/X/V when explorer is focused; also accessible via command palette ("Copy file or directory", "Cut file or directory", "Paste file or directory"); name conflicts auto-resolved with " copy" suffix; cut updates open tabs; copy preserves clipboard for repeated paste
 - **Docs**: Troubleshooting section in README for keyboard shortcut issues (`textual keys`)
 
 ### Changed
