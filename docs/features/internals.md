@@ -54,11 +54,46 @@ Keys and values are normalized to lowercase.
 When properties are removed from `.editorconfig`, indent settings stay at their current value
 (no "unset" concept for reactives), while save-time settings reset to `None`.
 
+## Tab Performance: lazy mounting, central poll timer, footer batch update
+
+Three architectural choices keep per-tab overhead constant:
+
+### Lazy tab mounting: only the active CodeEditor is in the DOM
+
+When a tab is deactivated, its `CodeEditor` is removed from the DOM and its full state
+(text, cursor, scroll, encoding, EditorConfig caches, etc.) is serialized into an `EditorState`
+dataclass stored in `MainView._editor_states[pane_id]`. On re-activation the editor is
+re-mounted from that state, skipping all file I/O.
+
+Binary-file panes and Markdown preview panes are exempt — they have no `CodeEditor` to
+unmount and must stay mounted so event propagation (`TextChanged`, `Closed`) continues.
+
+The swap runs inside `app.batch_update()` to suppress intermediate repaints.
+
+`_prev_active_pane_ids[leaf_id]` tracks the last active pane per split leaf so the outgoing
+editor can be identified precisely when `TabbedContent.TabActivated` fires.
+
+### Central polling timer
+
+A single `set_interval(2.0, …)` in `MainView.on_mount()` calls `_poll_active_editor()`,
+which polls only the currently active editor's `_poll_file_change()` and
+`_poll_editorconfig_change()`. No per-editor timers exist.
+
+The timer is skipped in headless mode (`if not self.app.is_headless`) to keep tests fast
+and deterministic — tests call the poll methods directly.
+
+### Footer batch update
+
+`_sync_footer_to_active_editor()` uses `set_reactive()` (bypasses watchers) to assign all
+eight footer reactive properties, then calls `footer.refresh_all_buttons()` once. This
+produces a single `refresh(layout=True)` instead of up to eight on each tab switch.
+
 ## File Watcher: why mtime polling instead of watchdog
 
 No additional dependency needed — the existing `pyproject.toml` only has `textual[syntax]` and `typer`.
-`set_interval` runs inside Textual's single-threaded event loop, so there is no race condition
-with reactive updates or `notify` calls. `Path.stat().st_mtime` has negligible I/O cost on a 2-second interval.
+The central poll timer (see above) runs inside Textual's single-threaded event loop, so
+there is no race condition with reactive updates or `notify` calls.
+`Path.stat().st_mtime` has negligible I/O cost on a 2-second interval.
 
 ### _file_mtime tracking rules
 

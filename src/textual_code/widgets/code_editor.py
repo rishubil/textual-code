@@ -497,6 +497,31 @@ _LINE_ENDING_WARNING = (
 )
 
 
+@dataclass
+class EditorState:
+    """Serialized state of a CodeEditor for lazy unmounting."""
+
+    pane_id: str
+    path: Path | None
+    text: str
+    initial_text: str
+    language: str | None
+    encoding: str
+    line_ending: str
+    indent_type: str
+    indent_size: int
+    word_wrap: bool
+    cursor_end: tuple[int, int]
+    scroll_offset: tuple[int, int]
+    file_mtime: float | None
+    ec_search_dirs: list[Path]
+    ec_mtimes: dict[Path, float | None]
+    trim_trailing_whitespace: bool | None
+    insert_final_newline: bool | None
+    syntax_theme: str
+    warn_line_ending: bool
+
+
 class _PathLabel(Label):
     """Label that front-truncates its content to fit the available width."""
 
@@ -668,13 +693,28 @@ class CodeEditorFooter(Static):
     def watch_cursor_count(self, count: int) -> None:
         self._update_cursor_button()
 
-    def _update_cursor_button(self) -> None:
+    def _update_cursor_button_label(self) -> None:
+        """Update cursor button label only (no refresh)."""
         row, col = self.cursor_location
         label = f"Ln {row + 1}, Col {col + 1}"
         if self.cursor_count > 1:
             label += f" [{self.cursor_count}]"
         self.cursor_button.label = label
+
+    def _update_cursor_button(self) -> None:
+        self._update_cursor_button_label()
         self.cursor_button.refresh(layout=True)
+        self.refresh(layout=True)
+
+    def refresh_all_buttons(self) -> None:
+        """Update all button labels from current reactive values and refresh once."""
+        self._refresh_path_display()
+        self._update_cursor_button_label()
+        self.cursor_button.refresh(layout=True)
+        self.line_ending_button.label = self.line_ending.upper()
+        self.encoding_button.label = _ENCODING_DISPLAY.get(self.encoding, self.encoding)
+        self.indent_button.label = _indent_display(self.indent_type, self.indent_size)
+        self.language_button.label = self.language or "plain"
         self.refresh(layout=True)
 
     def watch_line_ending(self, line_ending: str) -> None:
@@ -911,6 +951,7 @@ class CodeEditor(Static):
         default_syntax_theme: str = "monokai",
         default_word_wrap: bool = False,
         default_warn_line_ending: bool = True,
+        _from_state: EditorState | None = None,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -928,6 +969,34 @@ class CodeEditor(Static):
         # EditorConfig watch state
         self._ec_search_dirs: list[Path] = []
         self._ec_mtimes: dict[Path, float | None] = {}
+        # cursor/scroll positions to restore after mount (lazy remount)
+        self._restore_cursor: tuple[int, int] | None = None
+        self._restore_scroll: tuple[int, int] | None = None
+        self._is_restoring: bool = False
+
+        if _from_state is not None:
+            # Restore from captured state — skip file I/O
+            self.set_reactive(CodeEditor.pane_id, _from_state.pane_id)
+            self.set_reactive(CodeEditor.path, _from_state.path)
+            self.set_reactive(CodeEditor.initial_text, _from_state.initial_text)
+            self.set_reactive(CodeEditor.text, _from_state.text)
+            self.set_reactive(CodeEditor.language, _from_state.language)
+            self.set_reactive(CodeEditor.encoding, _from_state.encoding)
+            self.set_reactive(CodeEditor.line_ending, _from_state.line_ending)
+            self.set_reactive(CodeEditor.indent_type, _from_state.indent_type)
+            self.set_reactive(CodeEditor.indent_size, _from_state.indent_size)
+            self.set_reactive(CodeEditor.word_wrap, _from_state.word_wrap)
+            self._file_mtime = _from_state.file_mtime
+            self._ec_search_dirs = list(_from_state.ec_search_dirs)
+            self._ec_mtimes = dict(_from_state.ec_mtimes)
+            self._trim_trailing_whitespace = _from_state.trim_trailing_whitespace
+            self._insert_final_newline = _from_state.insert_final_newline
+            self._syntax_theme = _from_state.syntax_theme
+            self._warn_line_ending = _from_state.warn_line_ending
+            self._restore_cursor = _from_state.cursor_end
+            self._restore_scroll = _from_state.scroll_offset
+            self._is_restoring = True
+            return
 
         # if a path is provided, load the file content
         if path is not None:
@@ -1034,7 +1103,7 @@ class CodeEditor(Static):
     def compose(self) -> ComposeResult:
         yield FindReplaceBar()
         yield MultiCursorTextArea.code_editor(
-            text=self.initial_text,
+            text=self.text,
             language=self.language,
             tab_behavior="focus",
         )
@@ -1051,8 +1120,6 @@ class CodeEditor(Static):
     def on_mount(self, event: Mount) -> None:
         # update the title of the editor
         self.update_title()
-        # update the language of the editor (triggers lazy language registration)
-        self.load_language_from_path(self.path)
         # apply syntax highlighting theme
         self.editor.theme = self._syntax_theme
         # apply word wrap (reactive init=False, so set manually)
@@ -1060,12 +1127,22 @@ class CodeEditor(Static):
         # apply indent settings (reactive init=False, so set manually)
         self.editor.indent_width = self.indent_size
         self.editor.indent_type = self.indent_type
-        # warn if the file has non-LF line endings
-        self._notify_non_lf_if_needed()
-        # poll for external file changes (disabled in headless/test mode)
-        if not self.app.is_headless:
-            self.set_interval(2.0, self._poll_file_change)
-            self.set_interval(2.0, self._poll_editorconfig_change)
+        if self._is_restoring:
+            # Language was set via set_reactive; apply it to the editor widget
+            self.watch_language(self.language)
+            if self._restore_cursor is not None:
+                self.editor.cursor_location = self._restore_cursor
+                self._restore_cursor = None
+            if self._restore_scroll is not None:
+                x, y = self._restore_scroll
+                self.editor.scroll_to(x, y, animate=False)
+                self._restore_scroll = None
+            self._is_restoring = False
+        else:
+            # update the language of the editor (triggers lazy language registration)
+            self.load_language_from_path(self.path)
+            # warn if the file has non-LF line endings
+            self._notify_non_lf_if_needed()
 
     def update_title(self) -> None:
         """
@@ -1949,3 +2026,73 @@ class CodeEditor(Static):
         """Set the syntax highlighting theme and update the editor."""
         self._syntax_theme = theme
         self.editor.theme = theme
+
+    def capture_state(self) -> EditorState:
+        """Serialize current editor state for lazy unmounting."""
+        try:
+            scroll = (int(self.editor.scroll_x), int(self.editor.scroll_y))
+            cursor = self.editor.selection.end
+        except Exception:
+            scroll = (0, 0)
+            cursor = (0, 0)
+        state = EditorState(
+            pane_id=self.pane_id,
+            path=self.path,
+            text=self.text,
+            initial_text=self.initial_text,
+            language=self.language,
+            encoding=self.encoding,
+            line_ending=self.line_ending,
+            indent_type=self.indent_type,
+            indent_size=self.indent_size,
+            word_wrap=self.word_wrap,
+            cursor_end=cursor,
+            scroll_offset=scroll,
+            file_mtime=self._file_mtime,
+            ec_search_dirs=list(self._ec_search_dirs),
+            ec_mtimes=dict(self._ec_mtimes),
+            trim_trailing_whitespace=self._trim_trailing_whitespace,
+            insert_final_newline=self._insert_final_newline,
+            syntax_theme=self._syntax_theme,
+            warn_line_ending=self._warn_line_ending,
+        )
+        log.debug("capture_state: pane=%s path=%s", state.pane_id, state.path)
+        return state
+
+    @classmethod
+    def from_state(cls, state: EditorState) -> CodeEditor:
+        """Create a CodeEditor from a captured EditorState (no file I/O)."""
+        log.debug("from_state: pane=%s path=%s", state.pane_id, state.path)
+        return cls(
+            pane_id=state.pane_id,
+            path=state.path,
+            _from_state=state,
+        )
+
+    @staticmethod
+    def save_from_state(state: EditorState) -> None:
+        """Save an unmounted editor's state to disk.
+
+        Applies save-time transformations and updates state.initial_text
+        and state.file_mtime in place.
+        """
+        if state.path is None:
+            return
+        try:
+            text = state.text
+            if state.trim_trailing_whitespace is True:
+                text = _trim_trailing_whitespace(text)
+            if state.insert_final_newline is True:
+                text = _insert_final_newline(text)
+            elif state.insert_final_newline is False:
+                text = _remove_final_newline(text)
+            content = _convert_line_ending(text, state.line_ending)
+            state.path.write_bytes(content.encode(state.encoding))
+            if text != state.text:
+                state.text = text
+            state.initial_text = state.text
+            with contextlib.suppress(OSError):
+                state.file_mtime = state.path.stat().st_mtime
+            log.debug("save_from_state: saved %s", state.path)
+        except Exception as e:
+            log.error("save_from_state: error saving %s: %s", state.path, e)

@@ -99,9 +99,17 @@ async def test_reorder_tab_correct_order_and_content(
         order_after = _tab_order(dtc)
         assert order_after == [json_id, py_id]
 
-        # Editor content should still be intact
+        # Editor content should still be intact.
+        # json tab is active (mounted); py tab is lazily unmounted.
+        # Switch to py to mount its editor, then check content.
+        dtc.active = py_id
+        await pilot.pause()
+
         py_editor = app.main_view.query_one(f"#{py_id} CodeEditor", CodeEditor)
         assert "print" in py_editor.text
+
+        dtc.active = json_id
+        await pilot.pause()
 
         json_editor = app.main_view.query_one(f"#{json_id} CodeEditor", CodeEditor)
         assert "key" in json_editor.text

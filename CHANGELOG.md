@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Footer**: shortcut bar now displays key bindings in a fixed, deterministic order (Save → Find → Replace → Goto line → Close tab → New file → Toggle sidebar) regardless of focus state
+- **Performance**: footer status bar now batches all reactive property updates into a single layout refresh on tab switch, reducing redundant repaints (Fix #4)
+- **Performance**: file-change and EditorConfig polling centralized to one shared timer; only the active editor is polled regardless of how many tabs are open (Fix #4)
+- **Performance**: inactive editor tabs are lazily unmounted from the DOM; DOM widget count stays constant regardless of tab count, eliminating per-tab keystroke latency growth (Fix #4)
 
 ### Fixed
 

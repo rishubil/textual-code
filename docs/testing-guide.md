@@ -183,13 +183,31 @@ Each worker is a separate process with its own `tmp_path`, so tests are naturall
 
 ## File Watcher Polling in Tests
 
-`CodeEditor.set_interval(2.0, self._poll_file_change)` is disabled in headless mode
-(`app.is_headless`). Tests that verify file-change detection call `editor._poll_file_change()`
-directly rather than waiting for the timer.
+The central poll timer in `MainView.on_mount()` is skipped in headless mode
+(`if not self.app.is_headless`). Tests that verify file-change detection call
+`editor._poll_file_change()` directly rather than waiting for the timer.
 
 The same pattern applies to `_poll_editorconfig_change()`. To simulate an `.editorconfig`
 file modification, use the `_bump_ec_mtimes(editor)` helper (in `test_editorconfig.py`)
 which decrements stored mtimes to force mismatch detection on the next poll call.
+
+## Lazy Tab Mounting: Accessing Editors and Modifying Text
+
+Inactive tabs have their `CodeEditor` removed from the DOM (see internals.md for
+details). Tests that need to modify an editor's text — regardless of whether it is
+currently mounted — should use the `set_editor_text(main, pane_id, text)` helper
+from `conftest.py` instead of accessing `editor.text` directly:
+
+```python
+from tests.conftest import set_editor_text
+
+set_editor_text(app.main_view, py_pane_id, "new content\n")
+await pilot.pause()
+```
+
+`set_editor_text` updates the mounted editor's `text` reactive (if the editor is in the
+DOM) or directly patches `_editor_states[pane_id].text` (if unmounted), keeping both
+paths consistent.
 
 ## Tree-Sitter Language Registration in Tests
 
@@ -210,3 +228,5 @@ a file with the appropriate extension.
 | `test_modals.py` | Modal screens in isolation (lightweight apps) |
 | `test_file_watcher.py` | External file change detection |
 | `test_light_app.py` | Lightweight app mode (skip_sidebar) validation |
+| `test_tab_drag.py` | DraggableTabbedContent: tab reordering via drag |
+| `test_tab_performance.py` | Tab performance: lazy mounting, central poll, footer batch |

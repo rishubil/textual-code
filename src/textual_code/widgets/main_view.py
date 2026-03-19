@@ -14,7 +14,7 @@ from textual.widget import Widget
 from textual.widgets import Button, Static, TabbedContent, TabPane
 
 from textual_code.utils import is_binary_file
-from textual_code.widgets.code_editor import CodeEditor, CodeEditorFooter
+from textual_code.widgets.code_editor import CodeEditor, CodeEditorFooter, EditorState
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 from textual_code.widgets.markdown_preview import (
     MARKDOWN_EXTENSIONS,
@@ -132,10 +132,26 @@ class MainView(Static):
         self._preview_pane_ids: dict[Path, str] = {}
         # Debounce timers for preview updates, keyed by source file path
         self._preview_update_timers: dict[Path, Timer] = {}
+        # Lazy tab mounting: pane_id → saved EditorState for unmounted editors
+        self._editor_states: dict[str, EditorState] = {}
+        # Lazy tab mounting: leaf_id → previously active pane_id (for unmounting)
+        self._prev_active_pane_ids: dict[str, str | None] = {}
 
     def compose(self) -> ComposeResult:
         yield build_split_widgets(self._split_root)
         yield CodeEditorFooter()
+
+    def on_mount(self) -> None:
+        # Central polling timer: only the active editor is polled (Fix 2)
+        if not self.app.is_headless:
+            self.set_interval(2.0, self._poll_active_editor)
+
+    def _poll_active_editor(self) -> None:
+        """Poll only the active editor for file and editorconfig changes."""
+        editor = self.get_active_code_editor()
+        if editor is not None:
+            editor._poll_file_change()
+            editor._poll_editorconfig_change()
 
     # ── Compatibility properties ─────────────────────────────────────────────
     # These provide backward-compatible access for tests and app.py
@@ -338,6 +354,7 @@ class MainView(Static):
         self, removed_leaf: LeafNode, new_root: LeafNode | BranchNode
     ) -> None:
         """Remove widgets for collapsed leaf and restructure."""
+        self._prev_active_pane_ids.pop(removed_leaf.leaf_id, None)
         removed_widget = self.query_one(
             f"#{removed_leaf.leaf_id}", DraggableTabbedContent
         )
@@ -489,6 +506,13 @@ class MainView(Static):
 
     def has_unsaved_pane(self) -> bool:
         for pane_id in list(self.opened_pane_ids):
+            # Check unmounted editor state (lazy mounting)
+            if pane_id in self._editor_states:
+                state = self._editor_states[pane_id]
+                if state.text != state.initial_text:
+                    return True
+                continue
+            # Check mounted editor
             tc = self._tc_for_pane(pane_id)
             if tc is None:
                 continue
@@ -520,6 +544,7 @@ class MainView(Static):
     async def action_close_code_editor(
         self, pane_id: str, *, auto_close_split: bool = True
     ) -> None:
+        self._editor_states.pop(pane_id, None)
         leaf = self._leaf_of_pane(pane_id)
         await self.close_pane(pane_id)
         if leaf:
@@ -538,6 +563,12 @@ class MainView(Static):
     def action_save_all(self) -> None:
         editors = []
         for pane_id in list(self.opened_pane_ids):
+            # Save unmounted editors directly from state (lazy mounting)
+            if pane_id in self._editor_states:
+                state = self._editor_states[pane_id]
+                if state.text != state.initial_text and state.path is not None:
+                    CodeEditor.save_from_state(state)
+                continue
             tc = self._tc_for_pane(pane_id)
             if tc is None:
                 continue
@@ -630,7 +661,12 @@ class MainView(Static):
         if code_editor is not None:
             code_editor.action_select_next_occurrence()
 
-    def action_close_all(self) -> None:
+    async def action_close_all(self) -> None:
+        # Close unmounted editors directly (no modal — they aren't visible)
+        for pane_id in list(self.opened_pane_ids):
+            if pane_id in self._editor_states:
+                await self.action_close_code_editor(pane_id)
+        # Close mounted editors (may show save modal for dirty ones)
         editors: list[CodeEditor] = []
         for pane_id in list(self.opened_pane_ids):
             tc = self._tc_for_pane(pane_id)
@@ -873,10 +909,17 @@ class MainView(Static):
                 source_pane_id, preview_results.first(), dest_leaf
             )
 
-        editor = pane.query_one(CodeEditor)
-        path = editor.path
-        text = editor.text
-        has_unsaved = text != editor.initial_text
+        # Get editor info from state store (unmounted) or mounted editor
+        if source_pane_id in self._editor_states:
+            _state = self._editor_states[source_pane_id]
+            path = _state.path
+            text = _state.text
+            has_unsaved = text != _state.initial_text
+        else:
+            editor = pane.query_one(CodeEditor)
+            path = editor.path
+            text = editor.text
+            has_unsaved = text != editor.initial_text
 
         # Check for duplicate file in destination
         if path is not None and path in dest_leaf.opened_files:
@@ -1087,14 +1130,21 @@ class MainView(Static):
         if editor is None:
             footer.reset()
             return
-        footer.path = editor.path
-        footer.language = editor.language
-        footer.line_ending = editor.line_ending
-        footer.encoding = editor.encoding
-        footer.indent_type = editor.indent_type
-        footer.indent_size = editor.indent_size
-        footer.cursor_location = editor.editor.selection.end
-        footer.cursor_count = 1 + len(editor.editor.extra_cursors)
+        # Use set_reactive to bypass per-property watchers (each watcher calls
+        # refresh(layout=True)), then do a single refresh_all_buttons() call.
+        footer.set_reactive(CodeEditorFooter.path, editor.path)
+        footer.set_reactive(CodeEditorFooter.language, editor.language)
+        footer.set_reactive(CodeEditorFooter.line_ending, editor.line_ending)
+        footer.set_reactive(CodeEditorFooter.encoding, editor.encoding)
+        footer.set_reactive(CodeEditorFooter.indent_type, editor.indent_type)
+        footer.set_reactive(CodeEditorFooter.indent_size, editor.indent_size)
+        footer.set_reactive(
+            CodeEditorFooter.cursor_location, editor.editor.selection.end
+        )
+        footer.set_reactive(
+            CodeEditorFooter.cursor_count, 1 + len(editor.editor.extra_cursors)
+        )
+        footer.refresh_all_buttons()
 
     # ── Event handlers ───────────────────────────────────────────────────────
 
@@ -1120,10 +1170,82 @@ class MainView(Static):
                 focused = self.app.focused
                 if focused is not None and event.control in focused.ancestors_with_self:
                     self._active_leaf_id = leaf.leaf_id
+        # Lazy tab mounting: unmount outgoing editor, mount incoming editor
+        leaf_id = (
+            event.control.id
+            if isinstance(event.control, DraggableTabbedContent)
+            else None
+        )
+        new_pane_id = event.pane.id if event.pane else None
+        if leaf_id and new_pane_id:
+            await self._lazy_swap_editor(leaf_id, new_pane_id)
         self._sync_footer_to_active_editor()
         editor = self.get_active_code_editor()
         if editor is not None and editor.path is not None:
             self.post_message(self.ActiveFileChanged(editor.path))
+
+    async def _lazy_swap_editor(self, leaf_id: str, new_pane_id: str) -> None:
+        """Unmount the outgoing editor and mount the incoming one (lazy mounting).
+
+        Only swaps when the destination is a CodeEditor pane (not preview/binary).
+        This preserves mounted editors when switching to lightweight non-editor panes.
+        """
+        old_pane_id = self._prev_active_pane_ids.get(leaf_id)
+        self._prev_active_pane_ids[leaf_id] = new_pane_id
+
+        if old_pane_id == new_pane_id:
+            return
+
+        try:
+            tc = self.query_one(f"#{leaf_id}", TabbedContent)
+        except Exception:
+            return
+
+        # Only perform lazy swap when the destination is a CodeEditor pane.
+        # Preview and binary tabs are lightweight; keeping the old CodeEditor
+        # mounted avoids breaking event propagation for source-preview pairs.
+        try:
+            new_is_code_editor = new_pane_id in self._editor_states or bool(
+                tc.get_pane(new_pane_id).query(CodeEditor)
+            )
+        except Exception:
+            # Pane was removed before this event was processed; nothing to do.
+            return
+        if not new_is_code_editor:
+            return
+
+        with self.app.batch_update():
+            # Unmount outgoing editor and save its state
+            if old_pane_id and old_pane_id in self.opened_pane_ids:
+                try:
+                    old_pane = tc.get_pane(old_pane_id)
+                    query = old_pane.query(CodeEditor)
+                    if query:
+                        old_editor = query.first(CodeEditor)
+                        state = old_editor.capture_state()
+                        self._editor_states[old_pane_id] = state
+                        log.debug(
+                            "lazy unmount: pane=%s path=%s", old_pane_id, state.path
+                        )
+                        await old_editor.remove()
+                except Exception as e:
+                    log.debug("lazy unmount: error for pane %s: %s", old_pane_id, e)
+
+            # Mount incoming editor if it has saved state
+            if new_pane_id in self._editor_states:
+                try:
+                    new_pane = tc.get_pane(new_pane_id)
+                    if not new_pane.query(CodeEditor):
+                        new_state = self._editor_states.pop(new_pane_id)
+                        new_editor = CodeEditor.from_state(new_state)
+                        log.debug(
+                            "lazy mount: pane=%s path=%s",
+                            new_pane_id,
+                            new_state.path,
+                        )
+                        await new_pane.mount(new_editor)
+                except Exception as e:
+                    log.debug("lazy mount: error for pane %s: %s", new_pane_id, e)
 
     @on(DraggableTabbedContent.TabMovedToOtherSplit)
     async def on_tab_moved_to_other_split(
@@ -1250,6 +1372,10 @@ class MainView(Static):
                 other_pane_id = leaf.opened_files.get(path)
                 if other_pane_id is None or other_pane_id == editor.pane_id:
                     continue
+                # Update unmounted editor state directly (lazy mounting)
+                if other_pane_id in self._editor_states:
+                    self._editor_states[other_pane_id].text = new_text
+                    continue
                 try:
                     other_editor = self.query_one(
                         f"#{other_pane_id}", TabPane
@@ -1291,6 +1417,11 @@ class MainView(Static):
         for leaf in all_leaves(self._split_root):
             other_pane_id = leaf.opened_files.get(saved.path)
             if other_pane_id is None or other_pane_id == saved.pane_id:
+                continue
+            # Update unmounted editor state directly (lazy mounting)
+            if other_pane_id in self._editor_states:
+                self._editor_states[other_pane_id].initial_text = saved.text
+                self._editor_states[other_pane_id].file_mtime = saved._file_mtime
                 continue
             try:
                 other_editor = self.query_one(f"#{other_pane_id}", TabPane).query_one(
