@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editor**: Shift+PageUp/PageDown to select while paging up/down (single cursor and multi-cursor)
 - **Explorer**: create file/directory dialog pre-fills with the currently selected folder's relative path
 - **Explorer/Editor**: rename files and folders with F2 key, command palette, or "Rename file" system command; stem pre-selected in modal; directory rename updates all open tabs
+- **Explorer**: move files and folders to different paths via command palette ("Move file", "Move file or directory"); parent directories created automatically; workspace boundary validation; directory move updates all open tabs
 - **Docs**: Troubleshooting section in README for keyboard shortcut issues (`textual keys`)
 
 ### Changed

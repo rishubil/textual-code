@@ -538,6 +538,21 @@ class Explorer(Static):
         def control(self) -> Explorer:
             return self.explorer
 
+    @dataclass
+    class FileMoveRequested(Message):
+        """
+        Message to request moving a file or directory.
+        """
+
+        explorer: Explorer
+
+        # the path to the file or directory to move.
+        path: Path
+
+        @property
+        def control(self) -> Explorer:
+            return self.explorer
+
     _MAX_SELECT_RETRIES = 10
 
     def __init__(
@@ -700,6 +715,15 @@ class Explorer(Static):
         if node is None or node.data is None:
             return
         self.post_message(self.FileRenameRequested(explorer=self, path=node.data.path))
+
+    def action_move_node(self) -> None:
+        """
+        Move the currently focused file or directory.
+        """
+        node = self.directory_tree.cursor_node
+        if node is None or node.data is None:
+            return
+        self.post_message(self.FileMoveRequested(explorer=self, path=node.data.path))
 
     async def action_create_directory(self) -> None:
         """

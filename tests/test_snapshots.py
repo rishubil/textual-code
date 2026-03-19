@@ -984,3 +984,17 @@ def test_snapshot_rename_modal(
         ),
         terminal_size=TERMINAL_SIZE,
     )
+
+
+def test_snapshot_move_modal(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """MoveModalScreen open via app._handle_move_path()."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+    assert snap_compare(
+        app,
+        run_before=_open_app_modal(
+            app, lambda a: a._handle_move_path(snapshot_py_file)
+        ),
+        terminal_size=TERMINAL_SIZE,
+    )

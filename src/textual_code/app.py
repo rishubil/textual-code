@@ -15,6 +15,7 @@ from textual.screen import Screen
 from textual_code.commands import (
     create_create_file_or_dir_command_provider,
     create_delete_path_command_provider,
+    create_move_path_command_provider,
     create_open_file_command_provider,
     create_rename_path_command_provider,
 )
@@ -247,6 +248,15 @@ class TextualCode(App):
         # the path to the file or directory to rename.
         path: Path
 
+    @dataclass
+    class MovePathWithPaletteRequested(Message):
+        """
+        Message to request moving a file or directory via command palette.
+        """
+
+        # the path to the file or directory to move.
+        path: Path
+
     CSS_PATH = "style.tcss"
 
     BINDINGS = [
@@ -470,6 +480,16 @@ class TextualCode(App):
             "Rename file or directory",
             "Rename a file or directory in the workspace (F2)",
             self.action_rename_file_or_dir_with_command_palette,
+        )
+        yield SystemCommand(
+            "Move file",
+            "Move the current file to a different path",
+            self.action_move_active_file,
+        )
+        yield SystemCommand(
+            "Move file or directory",
+            "Move a file or directory to a different path",
+            self.action_move_file_or_dir_with_command_palette,
         )
         yield SystemCommand(
             "Change Indentation",
@@ -1459,6 +1479,86 @@ class TextualCode(App):
 
         self.push_screen(RenameModalScreen(current_name), do_rename)
 
+    def action_move_active_file(self) -> None:
+        """Move the active file in the editor to a new path."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is None or code_editor.path is None:
+            self.notify(
+                "No file to move. Please save the file first.", severity="error"
+            )
+            return
+        self._handle_move_path(code_editor.path)
+
+    def action_move_file_or_dir_with_command_palette(self) -> None:
+        """Move a file or directory with the command palette."""
+        self.push_screen(
+            CommandPalette(
+                providers=[
+                    create_move_path_command_provider(
+                        self.workspace_path,
+                        post_message_callback=lambda path: self.app.post_message(
+                            self.MovePathWithPaletteRequested(path=path)
+                        ),
+                    )
+                ],
+                placeholder="Move file or directory...",
+            ),
+        )
+
+    def _handle_move_path(self, path: Path) -> None:
+        """Open move modal and perform the move on confirmation."""
+        import shutil
+
+        from textual_code.modals import MoveModalResult, MoveModalScreen
+
+        is_directory = path.is_dir()
+        ws_resolved = self.workspace_path.resolve()
+
+        def do_move(result: MoveModalResult | None) -> None:
+            if not result or result.is_cancelled or not result.new_relative_path:
+                return
+            new_relative = result.new_relative_path.strip()
+            if not new_relative:
+                return
+            new_path = (self.workspace_path / new_relative).resolve()
+            # Validate destination is within workspace
+            try:
+                new_path.relative_to(ws_resolved)
+            except ValueError:
+                self.log.warning(
+                    "Move rejected: destination '%s' is outside workspace", new_relative
+                )
+                self.notify(
+                    "Destination must be within the workspace.", severity="error"
+                )
+                return
+            if new_path == path.resolve():
+                return  # no-op
+            if new_path.exists():
+                self.log.warning(
+                    "Move rejected: destination '%s' already exists", new_path
+                )
+                self.notify(f"'{new_relative}' already exists.", severity="error")
+                return
+            try:
+                new_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(path), str(new_path))
+            except Exception as e:
+                self.log.warning("Move failed: %s → %s: %s", path, new_path, e)
+                self.notify(f"Error moving: {e}", severity="error")
+                return
+
+            self._update_open_tabs_after_rename(path, new_path, is_directory)
+            self.action_reload_explorer()
+            self.log.info("Moved: %s → %s", path, new_path)
+            self.notify(f"Moved to '{new_relative}'", severity="information")
+
+        try:
+            current_relative = str(path.relative_to(self.workspace_path))
+        except ValueError:
+            current_relative = str(path)
+        self.push_screen(MoveModalScreen(current_relative), do_move)
+
     def _update_open_tabs_after_rename(
         self, old_path: Path, new_path: Path, is_directory: bool
     ) -> None:
@@ -1601,6 +1701,18 @@ class TextualCode(App):
         self, event: RenamePathWithPaletteRequested
     ) -> None:
         self._handle_rename_path(event.path)
+
+    @on(Explorer.FileMoveRequested)
+    def on_explorer_file_move_requested(
+        self, event: Explorer.FileMoveRequested
+    ) -> None:
+        self._handle_move_path(event.path)
+
+    @on(MovePathWithPaletteRequested)
+    def on_move_path_with_palette_requested(
+        self, event: MovePathWithPaletteRequested
+    ) -> None:
+        self._handle_move_path(event.path)
 
     @on(MainView.ActiveFileChanged)
     def on_active_file_changed(self, event: MainView.ActiveFileChanged) -> None:

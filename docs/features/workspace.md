@@ -258,7 +258,8 @@ Provides visual file navigation, file/folder management, and quick access to wor
 - When creating a file or directory, the command palette input is pre-filled with the relative path of the currently selected folder in the explorer (or the parent folder if a file is selected). This works regardless of which widget is focused.
 - File/folder deletion shows a confirmation modal with the path and an undo warning.
 - File/folder renaming opens a modal pre-filled with the current name, with the filename stem (before the extension) pre-selected. Renaming a directory updates the paths of all open tabs under that directory. Path separator characters are rejected to prevent accidental file moves.
-- Also accessible via command palette: "Create file", "Create directory", "Delete file or directory", "Rename file or directory", "Rename file".
+- File/folder moving opens a modal pre-filled with the current relative path. The user can change the path to move the file or directory to a new location within the workspace. Parent directories are created automatically if they don't exist. Moving a directory updates the paths of all open tabs under that directory. Destination must be within the workspace boundary.
+- Also accessible via command palette: "Create file", "Create directory", "Delete file or directory", "Rename file or directory", "Rename file", "Move file", "Move file or directory".
 
 **Hidden files:**
 
@@ -335,7 +336,7 @@ Provides visual file navigation, file/folder management, and quick access to wor
 
 ### Known Limitations
 
-- No drag-and-drop file/folder move within the explorer.
+- No drag-and-drop file/folder move within the explorer (use command palette "Move file or directory" instead).
 - Git status is limited to modified and untracked. No staged, conflict, or ignored status indicators.
 - No folder-level git diff.
 - Auto-refresh polling interval is fixed at 2 seconds and is not configurable.

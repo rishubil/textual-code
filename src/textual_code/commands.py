@@ -121,6 +121,15 @@ def create_rename_path_command_provider(
     )
 
 
+def create_move_path_command_provider(
+    workspace_path: Path,
+    post_message_callback: Callable[[Path], Any],
+) -> type[Provider]:
+    return _create_path_action_command_provider(
+        workspace_path, post_message_callback, "Move"
+    )
+
+
 class BaseCreatePathCommandProvider(Provider):
     """
     Base class for CreatePathCommandProvider
