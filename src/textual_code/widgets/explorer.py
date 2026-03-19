@@ -490,6 +490,7 @@ class Explorer(Static):
         Binding("ctrl+n", "create_file", "Create file"),
         Binding("ctrl+d", "create_directory", "Create directory"),
         Binding("delete", "delete_node", "Delete"),
+        Binding("f2", "rename_node", "Rename"),
     ]
 
     @dataclass
@@ -516,6 +517,21 @@ class Explorer(Static):
         explorer: Explorer
 
         # the path to the file or directory to delete.
+        path: Path
+
+        @property
+        def control(self) -> Explorer:
+            return self.explorer
+
+    @dataclass
+    class FileRenameRequested(Message):
+        """
+        Message to request renaming a file or directory.
+        """
+
+        explorer: Explorer
+
+        # the path to the file or directory to rename.
         path: Path
 
         @property
@@ -675,6 +691,15 @@ class Explorer(Static):
         if node is None or node.data is None:
             return
         self.post_message(self.FileDeleteRequested(explorer=self, path=node.data.path))
+
+    def action_rename_node(self) -> None:
+        """
+        Rename the currently focused file or directory.
+        """
+        node = self.directory_tree.cursor_node
+        if node is None or node.data is None:
+            return
+        self.post_message(self.FileRenameRequested(explorer=self, path=node.data.path))
 
     async def action_create_directory(self) -> None:
         """

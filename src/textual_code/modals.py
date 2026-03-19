@@ -179,6 +179,58 @@ class DeleteFileModalScreen(ModalScreen[DeleteFileModalResult]):
 
 
 @dataclass
+class RenameModalResult:
+    """
+    The result of the Rename modal dialog.
+    """
+
+    # Whether the dialog was cancelled.
+    is_cancelled: bool
+    # The new name, or None if the dialog was cancelled.
+    new_name: str | None
+
+
+class RenameModalScreen(ModalScreen[RenameModalResult]):
+    """
+    Modal dialog for renaming a file or directory.
+    """
+
+    def __init__(self, current_name: str) -> None:
+        super().__init__()
+        self.current_name = current_name
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Rename", id="title"),
+            Input(value=self.current_name, id="new_name"),
+            Button("Rename", variant="primary", id="rename"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    def on_mount(self) -> None:
+        from textual.widgets._input import Selection
+
+        inp = self.query_one(Input)
+        dot_pos = self.current_name.rfind(".")
+        if dot_pos > 0:
+            inp.selection = Selection(0, dot_pos)
+        else:
+            inp.selection = Selection(0, len(self.current_name))
+
+    @on(Input.Submitted, "#new_name")
+    @on(Button.Pressed, "#rename")
+    def on_rename(self) -> None:
+        self.dismiss(
+            RenameModalResult(is_cancelled=False, new_name=self.query_one(Input).value)
+        )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(RenameModalResult(is_cancelled=True, new_name=None))
+
+
+@dataclass
 class GotoLineModalResult:
     """
     The result of the Goto Line modal dialog.

@@ -16,6 +16,8 @@ from textual_code.modals import (
     DeleteFileModalScreen,
     GotoLineModalResult,
     GotoLineModalScreen,
+    RenameModalResult,
+    RenameModalScreen,
     SaveAsModalResult,
     SaveAsModalScreen,
     UnsavedChangeModalResult,
@@ -841,3 +843,72 @@ def test_show_shortcuts_screen_has_center_align():
     from textual_code.modals import ShowShortcutsScreen
 
     assert "align: center middle" in ShowShortcutsScreen.DEFAULT_CSS
+
+
+# ── RenameModalScreen ────────────────────────────────────────────────────────
+
+
+class _RenameApp(App):
+    def __init__(self, current_name: str):
+        super().__init__()
+        self._current_name = current_name
+        self.result: RenameModalResult | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(RenameModalScreen(self._current_name), self._on_result)
+
+    def _on_result(self, result: RenameModalResult | None) -> None:
+        self.result = result
+
+
+async def test_rename_modal_rename_button():
+    app = _RenameApp("hello.py")
+    async with app.run_test() as pilot:
+        inp = app.screen.query_one("#new_name")
+        await pilot.click(inp)
+        from textual.widgets import Input
+
+        app.screen.query_one(Input).value = "world.py"
+        await pilot.click("#rename")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.new_name == "world.py"
+
+
+async def test_rename_modal_cancel_button():
+    app = _RenameApp("hello.py")
+    async with app.run_test() as pilot:
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.new_name is None
+
+
+async def test_rename_modal_enter_submits():
+    app = _RenameApp("hello.py")
+    async with app.run_test() as pilot:
+        from textual.widgets import Input
+
+        app.screen.query_one(Input).value = "renamed.py"
+        await pilot.press("enter")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.new_name == "renamed.py"
+
+
+async def test_rename_modal_input_prefilled():
+    app = _RenameApp("hello.py")
+    async with app.run_test():
+        from textual.widgets import Input
+
+        inp = app.screen.query_one(Input)
+        assert inp.value == "hello.py"

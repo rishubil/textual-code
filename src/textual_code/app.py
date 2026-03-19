@@ -16,6 +16,7 @@ from textual_code.commands import (
     create_create_file_or_dir_command_provider,
     create_delete_path_command_provider,
     create_open_file_command_provider,
+    create_rename_path_command_provider,
 )
 from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
@@ -237,6 +238,15 @@ class TextualCode(App):
         # the path to the file or directory to delete.
         path: Path
 
+    @dataclass
+    class RenamePathWithPaletteRequested(Message):
+        """
+        Message to request renaming a file or directory via command palette.
+        """
+
+        # the path to the file or directory to rename.
+        path: Path
+
     CSS_PATH = "style.tcss"
 
     BINDINGS = [
@@ -401,6 +411,11 @@ class TextualCode(App):
             "Delete file", "Delete the current file", self.action_delete_file
         )
         yield SystemCommand(
+            "Rename file",
+            "Rename the current file (F2)",
+            self.action_rename_active_file,
+        )
+        yield SystemCommand(
             "Copy relative path",
             "Copy the relative file path to clipboard",
             self.action_copy_relative_path,
@@ -450,6 +465,11 @@ class TextualCode(App):
             "Delete file or directory",
             "Delete a file or directory from the workspace",
             self.action_delete_file_or_dir_with_command_palette,
+        )
+        yield SystemCommand(
+            "Rename file or directory",
+            "Rename a file or directory in the workspace (F2)",
+            self.action_rename_file_or_dir_with_command_palette,
         )
         yield SystemCommand(
             "Change Indentation",
@@ -1374,6 +1394,122 @@ class TextualCode(App):
         )
         await self._push_palette_with_prefill(palette, initial_path)
 
+    def action_rename_file_or_dir_with_command_palette(self) -> None:
+        """
+        Rename a file or directory with the command palette.
+        """
+        self.push_screen(
+            CommandPalette(
+                providers=[
+                    create_rename_path_command_provider(
+                        self.workspace_path,
+                        post_message_callback=lambda path: self.app.post_message(
+                            self.RenamePathWithPaletteRequested(path=path)
+                        ),
+                    )
+                ],
+                placeholder="Rename file or directory...",
+            ),
+        )
+
+    def action_rename_active_file(self) -> None:
+        """Rename the active file in the editor."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is None or code_editor.path is None:
+            self.notify(
+                "No file to rename. Please save the file first.", severity="error"
+            )
+            return
+        self._handle_rename_path(code_editor.path)
+
+    def _handle_rename_path(self, path: Path) -> None:
+        """Open rename modal and perform the rename on confirmation."""
+        from textual_code.modals import RenameModalResult, RenameModalScreen
+
+        current_name = path.name
+        is_directory = path.is_dir()
+
+        def do_rename(result: RenameModalResult | None) -> None:
+            if not result or result.is_cancelled or not result.new_name:
+                return
+            new_name = result.new_name.strip()
+            if not new_name or new_name == current_name:
+                return
+            # Reject path separators and traversal
+            new_path = path.parent / new_name
+            if new_name != new_path.name:
+                self.notify(
+                    "Invalid name: must not contain path separators.",
+                    severity="error",
+                )
+                return
+            if new_path.exists():
+                self.notify(f"'{new_name}' already exists.", severity="error")
+                return
+            try:
+                path.rename(new_path)
+            except Exception as e:
+                self.notify(f"Error renaming '{current_name}': {e}", severity="error")
+                return
+
+            self._update_open_tabs_after_rename(path, new_path, is_directory)
+            self.action_reload_explorer()
+            self.log.info("Renamed: %s → %s", path, new_path)
+            self.notify(f"Renamed to '{new_name}'", severity="information")
+
+        self.push_screen(RenameModalScreen(current_name), do_rename)
+
+    def _update_open_tabs_after_rename(
+        self, old_path: Path, new_path: Path, is_directory: bool
+    ) -> None:
+        """Update open tabs and preview panes after a rename."""
+        from textual_code.widgets.split_tree import all_leaves
+
+        updated = 0
+        for leaf in all_leaves(self.main_view._split_root):
+            updates: list[tuple[Path, Path, str]] = []
+            for file_path, pane_id in list(leaf.opened_files.items()):
+                if is_directory:
+                    try:
+                        rel = file_path.relative_to(old_path)
+                        updates.append((file_path, new_path / rel, pane_id))
+                    except ValueError:
+                        continue
+                else:
+                    if file_path == old_path:
+                        updates.append((file_path, new_path, pane_id))
+            for old_fp, new_fp, pane_id in updates:
+                del leaf.opened_files[old_fp]
+                leaf.opened_files[new_fp] = pane_id
+                tc = self.main_view._tc_for_pane(pane_id)
+                if tc is not None:
+                    pane = tc.get_pane(pane_id)
+                    editors = pane.query(CodeEditor)
+                    if editors:
+                        editors.first(CodeEditor).path = new_fp
+                updated += 1
+
+        # Update preview pane tracking
+        preview_updates: dict[Path, Path] = {}
+        for fp in list(self.main_view._preview_pane_ids):
+            if is_directory:
+                try:
+                    rel = fp.relative_to(old_path)
+                    preview_updates[fp] = new_path / rel
+                except ValueError:
+                    continue
+            elif fp == old_path:
+                preview_updates[fp] = new_path
+        for old_fp, new_fp in preview_updates.items():
+            pid = self.main_view._preview_pane_ids.pop(old_fp)
+            self.main_view._preview_pane_ids[new_fp] = pid
+            # Also remap pending debounce timers
+            timer = self.main_view._preview_update_timers.pop(old_fp, None)
+            if timer is not None:
+                self.main_view._preview_update_timers[new_fp] = timer
+
+        self.log.info("Updated %d open tab(s) after rename", updated)
+
     async def action_quit(self) -> None:
         """
         Quit the app.
@@ -1453,6 +1589,18 @@ class TextualCode(App):
             self.notify(f"Deleted: {path.name}", severity="information")
 
         self.push_screen(DeleteFileModalScreen(path), do_delete)
+
+    @on(Explorer.FileRenameRequested)
+    def on_explorer_file_rename_requested(
+        self, event: Explorer.FileRenameRequested
+    ) -> None:
+        self._handle_rename_path(event.path)
+
+    @on(RenamePathWithPaletteRequested)
+    def on_rename_path_with_palette_requested(
+        self, event: RenamePathWithPaletteRequested
+    ) -> None:
+        self._handle_rename_path(event.path)
 
     @on(MainView.ActiveFileChanged)
     def on_active_file_changed(self, event: MainView.ActiveFileChanged) -> None:

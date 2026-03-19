@@ -253,10 +253,12 @@ Provides visual file navigation, file/folder management, and quick access to wor
 | `Ctrl+N` | Create file | Explorer focused, or command palette |
 | `Ctrl+D` | Create directory | Explorer focused, or command palette |
 | `Delete` | Delete file/folder | Explorer focused (selected node) |
+| `F2` | Rename file/folder | Explorer focused, editor focused, or command palette |
 
 - When creating a file or directory, the command palette input is pre-filled with the relative path of the currently selected folder in the explorer (or the parent folder if a file is selected). This works regardless of which widget is focused.
 - File/folder deletion shows a confirmation modal with the path and an undo warning.
-- Also accessible via command palette: "Create file", "Create directory", "Delete file or directory".
+- File/folder renaming opens a modal pre-filled with the current name, with the filename stem (before the extension) pre-selected. Renaming a directory updates the paths of all open tabs under that directory. Path separator characters are rejected to prevent accidental file moves.
+- Also accessible via command palette: "Create file", "Create directory", "Delete file or directory", "Rename file or directory", "Rename file".
 
 **Hidden files:**
 
@@ -327,12 +329,12 @@ Provides visual file navigation, file/folder management, and quick access to wor
 | `Ctrl+N` | Create file (explorer focused) |
 | `Ctrl+D` | Create directory (explorer focused) |
 | `Delete` | Delete selected file/folder (explorer focused) |
+| `F2` | Rename file/folder (explorer or editor focused) |
 | `F6` | Focus next widget (cycle between sidebar, editor, etc.) |
 | `Shift+F6` | Focus previous widget |
 
 ### Known Limitations
 
-- No file or folder rename from the explorer.
 - No drag-and-drop file/folder move within the explorer.
 - Git status is limited to modified and untracked. No staged, conflict, or ignored status indicators.
 - No folder-level git diff.

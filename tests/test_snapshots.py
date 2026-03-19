@@ -970,3 +970,17 @@ def test_snapshot_explorer_create_file_prefilled(
         await pilot.pause()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_rename_modal(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """RenameModalScreen open via app._handle_rename_path()."""
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+    assert snap_compare(
+        app,
+        run_before=_open_app_modal(
+            app, lambda a: a._handle_rename_path(snapshot_py_file)
+        ),
+        terminal_size=TERMINAL_SIZE,
+    )

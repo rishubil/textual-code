@@ -55,28 +55,29 @@ def create_open_file_command_provider(
     return OpenFileCommandProvider
 
 
-def create_delete_path_command_provider(
+def _read_workspace_paths(workspace_path: Path) -> list[Path]:
+    """Return all non-hidden files and directories under workspace_path."""
+    return [
+        p
+        for p in workspace_path.rglob("*")
+        if not any(part.startswith(".") for part in p.relative_to(workspace_path).parts)
+    ]
+
+
+def _create_path_action_command_provider(
     workspace_path: Path,
     post_message_callback: Callable[[Path], Any],
+    action_verb: str,
 ) -> type[Provider]:
+    """Create a command provider that lists workspace paths for an action."""
     passed_workspace_path = workspace_path
     passed_post_message_callback = post_message_callback
+    passed_action_verb = action_verb
 
-    class DeletePathCommandProvider(Provider):
-        """A command provider to delete a file or directory."""
-
-        def read_paths(self, workspace_path: Path) -> list[Path]:
-            return [
-                p
-                for p in workspace_path.rglob("*")
-                if not any(
-                    part.startswith(".") for part in p.relative_to(workspace_path).parts
-                )
-            ]
-
+    class PathActionCommandProvider(Provider):
         async def startup(self) -> None:
             worker = self.app.run_worker(
-                partial(self.read_paths, passed_workspace_path), thread=True
+                partial(_read_workspace_paths, passed_workspace_path), thread=True
             )
             self.paths = await worker.wait()
 
@@ -88,17 +89,36 @@ def create_delete_path_command_provider(
                     relative = path.relative_to(passed_workspace_path)
                     score = matcher.match(str(relative))
                     if score > 0:
+                        kind = "directory" if path.is_dir() else "file"
                         yield Hit(
                             score,
                             matcher.highlight(str(relative)),
                             partial(passed_post_message_callback, path),
-                            help="Delete directory" if path.is_dir() else "Delete file",
+                            help=f"{passed_action_verb} {kind}",
                         )
 
             for hit in heapq.nlargest(20, hits(), key=lambda hit: hit.score):
                 yield hit
 
-    return DeletePathCommandProvider
+    return PathActionCommandProvider
+
+
+def create_delete_path_command_provider(
+    workspace_path: Path,
+    post_message_callback: Callable[[Path], Any],
+) -> type[Provider]:
+    return _create_path_action_command_provider(
+        workspace_path, post_message_callback, "Delete"
+    )
+
+
+def create_rename_path_command_provider(
+    workspace_path: Path,
+    post_message_callback: Callable[[Path], Any],
+) -> type[Provider]:
+    return _create_path_action_command_provider(
+        workspace_path, post_message_callback, "Rename"
+    )
 
 
 class BaseCreatePathCommandProvider(Provider):

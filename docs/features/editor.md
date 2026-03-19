@@ -72,7 +72,7 @@ When saving (Ctrl+S), if the file's `mtime` on disk differs from the last known 
 ### Known Limitations
 
 - No auto-save feature.
-- No file rename from within the editor (must use the file system directly).
+- File rename is available via F2 or the command palette "Rename file" command.
 - Binary files cannot be edited; they are display-only with a warning notice.
 - Save As rejects paths that already exist (no overwrite option in Save As).
 - Untitled files are skipped by Save All.

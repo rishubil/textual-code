@@ -116,6 +116,7 @@ class MainView(Static):
             "Move tab to other split",
             show=False,
         ),
+        Binding("f2", "rename_file", "Rename", show=False),
     ]
 
     def __init__(self, *args, **kwargs) -> None:
@@ -586,6 +587,13 @@ class MainView(Static):
                 await self.close_pane(pane_id)
                 await self._auto_close_split_if_empty()
                 self._sync_footer_to_active_editor()
+
+    def action_rename_file(self) -> None:
+        """Rename the active file via the app's rename handler."""
+        from textual_code.app import TextualCode
+
+        assert isinstance(self.app, TextualCode)
+        self.app.action_rename_active_file()
 
     def action_goto_line(self) -> None:
         code_editor = self.get_active_code_editor()
