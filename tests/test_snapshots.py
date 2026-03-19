@@ -989,7 +989,11 @@ def test_snapshot_rename_modal(
 def test_snapshot_move_modal(
     snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
 ):
-    """MoveModalScreen open via app._handle_move_path()."""
+    """Move directory picker CommandPalette via app._handle_move_path()."""
+    # Create subdirectories for visual richness in the snapshot
+    (snapshot_workspace / "src").mkdir(exist_ok=True)
+    (snapshot_workspace / "lib").mkdir(exist_ok=True)
+    (snapshot_workspace / "tests").mkdir(exist_ok=True)
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
     assert snap_compare(
         app,

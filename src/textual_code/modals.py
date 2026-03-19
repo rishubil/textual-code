@@ -231,55 +231,6 @@ class RenameModalScreen(ModalScreen[RenameModalResult]):
 
 
 @dataclass
-class MoveModalResult:
-    """
-    The result of the Move modal dialog.
-    """
-
-    # Whether the dialog was cancelled.
-    is_cancelled: bool
-    # The new relative path from workspace, or None if cancelled.
-    new_relative_path: str | None
-
-
-class MoveModalScreen(ModalScreen[MoveModalResult]):
-    """
-    Modal dialog for moving a file or directory to a new path.
-    """
-
-    def __init__(self, current_relative_path: str) -> None:
-        super().__init__()
-        self.current_relative_path = current_relative_path
-
-    def compose(self) -> ComposeResult:
-        yield Grid(
-            Label("Move", id="title"),
-            Input(value=self.current_relative_path, id="new_path"),
-            Button("Move", variant="primary", id="move"),
-            Button("Cancel", variant="default", id="cancel"),
-            id="dialog",
-        )
-
-    def on_mount(self) -> None:
-        inp = self.query_one(Input)
-        inp.action_select_all()
-
-    @on(Input.Submitted, "#new_path")
-    @on(Button.Pressed, "#move")
-    def on_move(self) -> None:
-        self.dismiss(
-            MoveModalResult(
-                is_cancelled=False,
-                new_relative_path=self.query_one(Input).value,
-            )
-        )
-
-    @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
-        self.dismiss(MoveModalResult(is_cancelled=True, new_relative_path=None))
-
-
-@dataclass
 class GotoLineModalResult:
     """
     The result of the Goto Line modal dialog.

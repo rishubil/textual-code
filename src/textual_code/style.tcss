@@ -352,38 +352,6 @@ RenameModalScreen Button {
     width: 100%;
 }
 
-MoveModalScreen {
-    align: center middle;
-}
-
-MoveModalScreen #dialog {
-    grid-size: 2 3;
-    grid-gutter: 1 2;
-    grid-rows: 1fr 3 3;
-    padding: 0 1;
-    max-width: 60;
-    max-height: 11;
-    border: thick $background 80%;
-    background: $surface;
-}
-
-MoveModalScreen #title {
-    column-span: 2;
-    height: 1fr;
-    width: 1fr;
-    content-align: center middle;
-}
-
-MoveModalScreen #new_path {
-    column-span: 2;
-    height: 1fr;
-    width: 1fr;
-    content-align: center middle;
-}
-
-MoveModalScreen Button {
-    width: 100%;
-}
 
 GotoLineModalScreen {
     align: center middle;

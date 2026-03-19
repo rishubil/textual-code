@@ -1,23 +1,65 @@
 """
 Explorer move integration tests.
 
-Tests for the feature: move files/folders to different paths
+Tests for the feature: move files/folders to different destination folders
 via the sidebar DirectoryTree and command palette.
+The move dialog uses a CommandPalette-based directory picker with fuzzy search.
 """
 
 from pathlib import Path
 
-from textual.widgets import Input
+from textual.command import CommandPalette
 
 from tests.conftest import make_app
-from textual_code.modals import MoveModalScreen
+from textual_code.app import TextualCode
+from textual_code.commands import _read_workspace_directories
 from textual_code.widgets.explorer import Explorer
 
-# ── FileMoveRequested message standalone tests ────────────────────────────────
+# ── _read_workspace_directories unit tests ────────────────────────────────────
 
 
-async def test_file_move_requested_message_posts(workspace: Path, sample_py_file: Path):
-    """Posting FileMoveRequested directly → modal opens."""
+def test_read_workspace_directories_returns_only_dirs(tmp_path: Path):
+    """Only directories (+ root) are returned, not files."""
+    (tmp_path / "file.py").write_text("x")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "main.py").write_text("x")
+    (tmp_path / "lib").mkdir()
+
+    dirs = _read_workspace_directories(tmp_path)
+    assert tmp_path in dirs  # root
+    assert tmp_path / "src" in dirs
+    assert tmp_path / "lib" in dirs
+    # Files must NOT be included
+    assert tmp_path / "file.py" not in dirs
+    assert tmp_path / "src" / "main.py" not in dirs
+
+
+def test_read_workspace_directories_includes_root(tmp_path: Path):
+    """Workspace root is always in results, even with no subdirectories."""
+    dirs = _read_workspace_directories(tmp_path)
+    assert tmp_path in dirs
+    assert len(dirs) == 1  # only root
+
+
+def test_read_workspace_directories_excludes_hidden(tmp_path: Path):
+    """Hidden directories (starting with '.') are excluded."""
+    (tmp_path / ".hidden").mkdir()
+    (tmp_path / ".hidden" / "sub").mkdir()
+    (tmp_path / "visible").mkdir()
+
+    dirs = _read_workspace_directories(tmp_path)
+    assert tmp_path / "visible" in dirs
+    assert tmp_path / ".hidden" not in dirs
+    assert tmp_path / ".hidden" / "sub" not in dirs
+
+
+# ── FileMoveRequested message → CommandPalette ────────────────────────────────
+
+
+async def test_file_move_requested_opens_command_palette(
+    workspace: Path, sample_py_file: Path
+):
+    """Posting FileMoveRequested directly → CommandPalette opens (not modal)."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -26,14 +68,14 @@ async def test_file_move_requested_message_posts(workspace: Path, sample_py_file
             Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
-        assert isinstance(app.screen, MoveModalScreen)
+        assert isinstance(app.screen, CommandPalette)
 
 
-# ── File move ─────────────────────────────────────────────────────────────────
+# ── File move via MoveDestinationSelected ─────────────────────────────────────
 
 
-async def test_move_file_from_explorer(workspace: Path, sample_py_file: Path):
-    """Move confirm → file is moved on disk."""
+async def test_move_file_to_directory(workspace: Path, sample_py_file: Path):
+    """MoveDestinationSelected → file moved to dest dir keeping original name."""
     dest_dir = workspace / "lib"
     dest_dir.mkdir()
     app = make_app(workspace)
@@ -41,24 +83,19 @@ async def test_move_file_from_explorer(workspace: Path, sample_py_file: Path):
         await pilot.pause()
         assert sample_py_file.exists()
 
-        explorer = app.sidebar.explorer
-        explorer.post_message(
-            Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
+        app.post_message(
+            TextualCode.MoveDestinationSelected(
+                source_path=sample_py_file, destination_dir=dest_dir
+            )
         )
-        await pilot.pause()
-        assert isinstance(app.screen, MoveModalScreen)
-
-        inp = app.screen.query_one(Input)
-        inp.value = "lib/hello.py"
-        await pilot.click("#move")
         await pilot.pause()
 
     assert not sample_py_file.exists()
     assert (workspace / "lib" / "hello.py").exists()
 
 
-async def test_move_file_cancel(workspace: Path, sample_py_file: Path):
-    """Cancel → file is unchanged."""
+async def test_move_file_cancel_command_palette(workspace: Path, sample_py_file: Path):
+    """Pressing Escape on CommandPalette → file unchanged."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -68,9 +105,9 @@ async def test_move_file_cancel(workspace: Path, sample_py_file: Path):
             Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
-        assert isinstance(app.screen, MoveModalScreen)
+        assert isinstance(app.screen, CommandPalette)
 
-        await pilot.click("#cancel")
+        await pilot.press("escape")
         await pilot.pause()
 
     assert sample_py_file.exists()
@@ -87,16 +124,11 @@ async def test_move_open_file_updates_tab(workspace: Path, sample_py_file: Path)
         assert editor is not None
         assert editor.path == sample_py_file
 
-        explorer = app.sidebar.explorer
-        explorer.post_message(
-            Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
+        app.post_message(
+            TextualCode.MoveDestinationSelected(
+                source_path=sample_py_file, destination_dir=dest_dir
+            )
         )
-        await pilot.pause()
-        assert isinstance(app.screen, MoveModalScreen)
-
-        inp = app.screen.query_one(Input)
-        inp.value = "lib/hello.py"
-        await pilot.click("#move")
         await pilot.pause()
 
         assert editor.path == workspace / "lib" / "hello.py"
@@ -104,97 +136,69 @@ async def test_move_open_file_updates_tab(workspace: Path, sample_py_file: Path)
 
 
 async def test_move_to_existing_shows_error(workspace: Path, sample_py_file: Path):
-    """Moving to an existing name → error notification, file unchanged."""
-    existing = workspace / "existing.py"
-    existing.write_text("existing\n")
+    """Moving to a directory that already has a file with the same name → error."""
+    dest_dir = workspace / "lib"
+    dest_dir.mkdir()
+    (dest_dir / "hello.py").write_text("existing\n")
 
     app = make_app(workspace)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
 
-        explorer = app.sidebar.explorer
-        explorer.post_message(
-            Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
+        app.post_message(
+            TextualCode.MoveDestinationSelected(
+                source_path=sample_py_file, destination_dir=dest_dir
+            )
         )
         await pilot.pause()
 
-        inp = app.screen.query_one(Input)
-        inp.value = "existing.py"
-        await pilot.click("#move")
-        await pilot.pause()
-
     assert sample_py_file.exists()
-    assert existing.read_text() == "existing\n"
+    assert (dest_dir / "hello.py").read_text() == "existing\n"
 
 
 async def test_move_unchanged_path_noop(workspace: Path, sample_py_file: Path):
-    """Same path → no filesystem change."""
+    """Selecting the same parent directory → no filesystem change."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        explorer = app.sidebar.explorer
-        explorer.post_message(
-            Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
+        # Destination dir is the same as source's parent
+        app.post_message(
+            TextualCode.MoveDestinationSelected(
+                source_path=sample_py_file, destination_dir=workspace
+            )
         )
-        await pilot.pause()
-
-        # Don't change the input value — keep it as the original path
-        await pilot.click("#move")
         await pilot.pause()
 
     assert sample_py_file.exists()
-
-
-async def test_move_to_subdirectory(workspace: Path, sample_py_file: Path):
-    """Move file into a new subdirectory → creates parent dirs, moves file."""
-    app = make_app(workspace)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-
-        explorer = app.sidebar.explorer
-        explorer.post_message(
-            Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
-        )
-        await pilot.pause()
-
-        inp = app.screen.query_one(Input)
-        inp.value = "new_dir/sub/hello.py"
-        await pilot.click("#move")
-        await pilot.pause()
-
-    assert not sample_py_file.exists()
-    assert (workspace / "new_dir" / "sub" / "hello.py").exists()
 
 
 # ── Directory move ────────────────────────────────────────────────────────────
 
 
-async def test_move_directory_from_explorer(workspace: Path):
-    """Move directory → old dir gone, new dir exists with contents."""
+async def test_move_directory(workspace: Path):
+    """Move directory → old dir gone, new location exists with contents."""
     subdir = workspace / "subdir"
     subdir.mkdir()
     (subdir / "file.txt").write_text("content")
+
+    dest_dir = workspace / "dest"
+    dest_dir.mkdir()
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        explorer = app.sidebar.explorer
-        explorer.post_message(
-            Explorer.FileMoveRequested(explorer=explorer, path=subdir)
+        app.post_message(
+            TextualCode.MoveDestinationSelected(
+                source_path=subdir, destination_dir=dest_dir
+            )
         )
-        await pilot.pause()
-        assert isinstance(app.screen, MoveModalScreen)
-
-        inp = app.screen.query_one(Input)
-        inp.value = "moved_dir"
-        await pilot.click("#move")
         await pilot.pause()
 
     assert not subdir.exists()
-    assert (workspace / "moved_dir").exists()
-    assert (workspace / "moved_dir" / "file.txt").read_text() == "content"
+    assert (workspace / "dest" / "subdir").exists()
+    assert (workspace / "dest" / "subdir" / "file.txt").read_text() == "content"
 
 
 async def test_move_dir_updates_open_files(workspace: Path):
@@ -204,6 +208,9 @@ async def test_move_dir_updates_open_files(workspace: Path):
     child_file = subdir / "child.py"
     child_file.write_text("print('child')\n")
 
+    dest_dir = workspace / "dest"
+    dest_dir.mkdir()
+
     app = make_app(workspace, open_file=child_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -211,32 +218,28 @@ async def test_move_dir_updates_open_files(workspace: Path):
         assert editor is not None
         assert editor.path == child_file
 
-        explorer = app.sidebar.explorer
-        explorer.post_message(
-            Explorer.FileMoveRequested(explorer=explorer, path=subdir)
+        app.post_message(
+            TextualCode.MoveDestinationSelected(
+                source_path=subdir, destination_dir=dest_dir
+            )
         )
         await pilot.pause()
 
-        inp = app.screen.query_one(Input)
-        inp.value = "newdir"
-        await pilot.click("#move")
-        await pilot.pause()
-
-        assert editor.path == workspace / "newdir" / "child.py"
+        assert editor.path == workspace / "dest" / "subdir" / "child.py"
         assert "child.py" in editor.title
 
 
 # ── No cursor node ────────────────────────────────────────────────────────────
 
 
-async def test_move_no_cursor_no_modal(workspace: Path):
-    """No cursor node → modal does not open."""
+async def test_move_no_cursor_no_palette(workspace: Path):
+    """No cursor node → command palette does not open."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
         app.sidebar.explorer.action_move_node()
         await pilot.pause()
-        assert not isinstance(app.screen, MoveModalScreen)
+        assert not isinstance(app.screen, CommandPalette)
 
 
 # ── Unsaved changes preservation ──────────────────────────────────────────────
@@ -258,15 +261,11 @@ async def test_move_file_preserves_unsaved_changes(
         editor.text = "modified content"
         await pilot.pause()
 
-        explorer = app.sidebar.explorer
-        explorer.post_message(
-            Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
+        app.post_message(
+            TextualCode.MoveDestinationSelected(
+                source_path=sample_py_file, destination_dir=dest_dir
+            )
         )
-        await pilot.pause()
-
-        inp = app.screen.query_one(Input)
-        inp.value = "lib/hello.py"
-        await pilot.click("#move")
         await pilot.pause()
 
         # Path updated but content and dirty state preserved
@@ -281,96 +280,118 @@ async def test_move_file_preserves_unsaved_changes(
 async def test_move_outside_workspace_shows_error(
     workspace: Path, sample_py_file: Path
 ):
-    """Path outside workspace → error notification, file unchanged."""
+    """Destination outside workspace → error notification, file unchanged."""
+    outside = workspace.parent / "outside"
+    outside.mkdir(exist_ok=True)
+
     app = make_app(workspace)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
 
-        explorer = app.sidebar.explorer
-        explorer.post_message(
-            Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
+        app.post_message(
+            TextualCode.MoveDestinationSelected(
+                source_path=sample_py_file, destination_dir=outside
+            )
         )
-        await pilot.pause()
-
-        inp = app.screen.query_one(Input)
-        inp.value = "../../etc/passwd"
-        await pilot.click("#move")
         await pilot.pause()
 
     assert sample_py_file.exists()
 
 
-async def test_move_with_dot_dot_within_workspace(
-    workspace: Path, sample_py_file: Path
-):
-    """Relative path with .. that resolves within workspace → success."""
+# ── Move to workspace root ───────────────────────────────────────────────────
+
+
+async def test_move_file_to_workspace_root(workspace: Path):
+    """File in subdirectory → move to workspace root."""
     subdir = workspace / "src"
     subdir.mkdir()
-    lib_dir = workspace / "lib"
-    lib_dir.mkdir()
+    src_file = subdir / "main.py"
+    src_file.write_text("print('main')\n")
 
-    # Move hello.py into src/../lib/hello.py which resolves to lib/hello.py
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        explorer = app.sidebar.explorer
-        explorer.post_message(
-            Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
+        app.post_message(
+            TextualCode.MoveDestinationSelected(
+                source_path=src_file, destination_dir=workspace
+            )
         )
         await pilot.pause()
 
-        inp = app.screen.query_one(Input)
-        inp.value = "src/../lib/hello.py"
-        await pilot.click("#move")
+    assert not src_file.exists()
+    assert (workspace / "main.py").exists()
+    assert (workspace / "main.py").read_text() == "print('main')\n"
+
+
+async def test_move_file_already_in_root_noop(workspace: Path, sample_py_file: Path):
+    """File already in workspace root → selecting root → no-op."""
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
         await pilot.pause()
 
-    assert not sample_py_file.exists()
-    assert (workspace / "lib" / "hello.py").exists()
+        app.post_message(
+            TextualCode.MoveDestinationSelected(
+                source_path=sample_py_file, destination_dir=workspace
+            )
+        )
+        await pilot.pause()
+
+    assert sample_py_file.exists()
 
 
-async def test_move_with_dot_dot_escaping_workspace(
-    workspace: Path, sample_py_file: Path
-):
-    """Relative path with .. that escapes workspace → error."""
+# ── Defense-in-depth: subtree move ────────────────────────────────────────────
+
+
+async def test_move_dir_into_own_subtree_shows_error(workspace: Path):
+    """Moving a directory into its own subtree → error notification."""
+    parent_dir = workspace / "parent"
+    parent_dir.mkdir()
+    child_dir = parent_dir / "child"
+    child_dir.mkdir()
+
     app = make_app(workspace)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
 
-        explorer = app.sidebar.explorer
-        explorer.post_message(
-            Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
+        app.post_message(
+            TextualCode.MoveDestinationSelected(
+                source_path=parent_dir, destination_dir=child_dir
+            )
         )
         await pilot.pause()
 
-        inp = app.screen.query_one(Input)
-        inp.value = "../outside/hello.py"
-        await pilot.click("#move")
-        await pilot.pause()
-
-    assert sample_py_file.exists()
+    # Directory should remain unchanged
+    assert parent_dir.exists()
+    assert child_dir.exists()
 
 
 # ── Command palette move ──────────────────────────────────────────────────────
 
 
 async def test_move_via_command_palette(workspace: Path, sample_py_file: Path):
-    """MovePathWithPaletteRequested → modal → confirm → moved."""
-    from textual_code.app import TextualCode
-
+    """MovePathWithPaletteRequested → CommandPalette → select dest → moved."""
     dest_dir = workspace / "lib"
     dest_dir.mkdir()
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        # Simulate: first palette selected the source file,
+        # now _handle_move_path opens second palette for destination.
         app.post_message(TextualCode.MovePathWithPaletteRequested(path=sample_py_file))
         await pilot.pause()
-        assert isinstance(app.screen, MoveModalScreen)
+        assert isinstance(app.screen, CommandPalette)
 
-        inp = app.screen.query_one(Input)
-        inp.value = "lib/hello.py"
-        await pilot.click("#move")
+        # Dismiss palette and use MoveDestinationSelected directly
+        await pilot.press("escape")
+        await pilot.pause()
+
+        app.post_message(
+            TextualCode.MoveDestinationSelected(
+                source_path=sample_py_file, destination_dir=dest_dir
+            )
+        )
         await pilot.pause()
 
     assert not sample_py_file.exists()

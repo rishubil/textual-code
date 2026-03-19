@@ -4,7 +4,7 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
-from textual.command import Hit, Hits, Provider
+from textual.command import DiscoveryHit, Hit, Hits, Provider
 
 
 def _read_workspace_files(workspace_path: Path) -> list[Path]:
@@ -128,6 +128,82 @@ def create_move_path_command_provider(
     return _create_path_action_command_provider(
         workspace_path, post_message_callback, "Move"
     )
+
+
+def _read_workspace_directories(workspace_path: Path) -> list[Path]:
+    """Return all non-hidden directories under workspace_path, including root."""
+    dirs = [workspace_path]
+    dirs.extend(p for p in _read_workspace_paths(workspace_path) if p.is_dir())
+    return dirs
+
+
+def create_move_destination_command_provider(
+    workspace_path: Path,
+    source_path: Path,
+    post_message_callback: Callable[[Path], Any],
+) -> type[Provider]:
+    """Create a provider that lists workspace directories as move destinations."""
+    passed_workspace_path = workspace_path
+    passed_source_path = source_path
+    passed_callback = post_message_callback
+    is_source_dir = source_path.is_dir()
+
+    class MoveDestinationProvider(Provider):
+        async def startup(self) -> None:
+            worker = self.app.run_worker(
+                partial(_read_workspace_directories, passed_workspace_path),
+                thread=True,
+            )
+            all_dirs = await worker.wait()
+            # Filter out source directory and its subtree
+            self.dirs: list[Path] = []
+            for d in all_dirs:
+                if is_source_dir:
+                    try:
+                        d.relative_to(passed_source_path)
+                        continue  # skip source and its children
+                    except ValueError:
+                        pass
+                self.dirs.append(d)
+
+        def _display_path(self, d: Path) -> str:
+            if d == passed_workspace_path:
+                return "."
+            return str(d.relative_to(passed_workspace_path))
+
+        def _help_text(self, d: Path) -> str:
+            if d == passed_workspace_path:
+                return "(workspace root)"
+            return "Move to directory"
+
+        async def discover(self) -> Hits:
+            for d in self.dirs:
+                display = self._display_path(d)
+                yield DiscoveryHit(
+                    display,
+                    partial(passed_callback, d),
+                    help=self._help_text(d),
+                )
+
+        async def search(self, query: str) -> Hits:
+            matcher = self.matcher(query)
+
+            def hits() -> Generator[Hit, None, None]:
+                for d in self.dirs:
+                    display = self._display_path(d)
+                    score = matcher.match(display)
+                    if score > 0:
+                        yield Hit(
+                            score,
+                            matcher.highlight(display),
+                            partial(passed_callback, d),
+                            help=self._help_text(d),
+                        )
+
+            for hit in heapq.nlargest(20, hits(), key=lambda hit: hit.score):
+                yield hit
+
+    return MoveDestinationProvider
 
 
 class BaseCreatePathCommandProvider(Provider):

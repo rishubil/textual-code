@@ -16,8 +16,6 @@ from textual_code.modals import (
     DeleteFileModalScreen,
     GotoLineModalResult,
     GotoLineModalScreen,
-    MoveModalResult,
-    MoveModalScreen,
     RenameModalResult,
     RenameModalScreen,
     SaveAsModalResult,
@@ -914,73 +912,3 @@ async def test_rename_modal_input_prefilled():
 
         inp = app.screen.query_one(Input)
         assert inp.value == "hello.py"
-
-
-# ── MoveModalScreen ──────────────────────────────────────────────────────────
-
-
-class _MoveApp(App):
-    def __init__(self, current_relative_path: str):
-        super().__init__()
-        self._current_relative_path = current_relative_path
-        self.result: MoveModalResult | None = None
-
-    def compose(self) -> ComposeResult:
-        yield Label("test")
-
-    def on_mount(self) -> None:
-        self.push_screen(
-            MoveModalScreen(self._current_relative_path),
-            self._on_result,
-        )
-
-    def _on_result(self, result: MoveModalResult | None) -> None:
-        self.result = result
-
-
-async def test_move_modal_move_button():
-    app = _MoveApp("src/hello.py")
-    async with app.run_test() as pilot:
-        from textual.widgets import Input
-
-        app.screen.query_one(Input).value = "lib/hello.py"
-        await pilot.click("#move")
-        await pilot.pause()
-
-    assert app.result is not None
-    assert app.result.is_cancelled is False
-    assert app.result.new_relative_path == "lib/hello.py"
-
-
-async def test_move_modal_cancel_button():
-    app = _MoveApp("src/hello.py")
-    async with app.run_test() as pilot:
-        await pilot.click("#cancel")
-        await pilot.pause()
-
-    assert app.result is not None
-    assert app.result.is_cancelled is True
-    assert app.result.new_relative_path is None
-
-
-async def test_move_modal_enter_submits():
-    app = _MoveApp("src/hello.py")
-    async with app.run_test() as pilot:
-        from textual.widgets import Input
-
-        app.screen.query_one(Input).value = "lib/moved.py"
-        await pilot.press("enter")
-        await pilot.pause()
-
-    assert app.result is not None
-    assert app.result.is_cancelled is False
-    assert app.result.new_relative_path == "lib/moved.py"
-
-
-async def test_move_modal_input_prefilled():
-    app = _MoveApp("src/hello.py")
-    async with app.run_test():
-        from textual.widgets import Input
-
-        inp = app.screen.query_one(Input)
-        assert inp.value == "src/hello.py"

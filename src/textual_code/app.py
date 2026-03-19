@@ -257,6 +257,15 @@ class TextualCode(App):
         # the path to the file or directory to move.
         path: Path
 
+    @dataclass
+    class MoveDestinationSelected(Message):
+        """
+        Message posted when a destination directory is selected for a move.
+        """
+
+        source_path: Path
+        destination_dir: Path
+
     CSS_PATH = "style.tcss"
 
     BINDINGS = [
@@ -1506,58 +1515,102 @@ class TextualCode(App):
         )
 
     def _handle_move_path(self, path: Path) -> None:
-        """Open move modal and perform the move on confirmation."""
+        """Open directory picker CommandPalette for moving a file or directory."""
+        from textual_code.commands import create_move_destination_command_provider
+
+        name = path.name
+        self.push_screen(
+            CommandPalette(
+                providers=[
+                    create_move_destination_command_provider(
+                        self.workspace_path,
+                        source_path=path,
+                        post_message_callback=lambda dest_dir: self.post_message(
+                            self.MoveDestinationSelected(
+                                source_path=path, destination_dir=dest_dir
+                            )
+                        ),
+                    )
+                ],
+                placeholder=f"Move '{name}' to...",
+            ),
+        )
+
+    @on(MoveDestinationSelected)
+    def on_move_destination_selected(self, event: MoveDestinationSelected) -> None:
+        """Handle destination directory selection and perform the move."""
         import shutil
 
-        from textual_code.modals import MoveModalResult, MoveModalScreen
-
+        path = event.source_path
+        dest_dir = event.destination_dir
         is_directory = path.is_dir()
         ws_resolved = self.workspace_path.resolve()
+        source_resolved = path.resolve()
+        new_path = (dest_dir / path.name).resolve()
 
-        def do_move(result: MoveModalResult | None) -> None:
-            if not result or result.is_cancelled or not result.new_relative_path:
-                return
-            new_relative = result.new_relative_path.strip()
-            if not new_relative:
-                return
-            new_path = (self.workspace_path / new_relative).resolve()
-            # Validate destination is within workspace
+        self.log.info("Move requested: %s → %s/%s", path, dest_dir, path.name)
+
+        # Validate destination is within workspace
+        try:
+            new_path.relative_to(ws_resolved)
+        except ValueError:
+            self.log.warning(
+                "Move rejected: destination '%s' is outside workspace", dest_dir
+            )
+            self.notify("Destination must be within the workspace.", severity="error")
+            return
+
+        # Defense-in-depth: reject moving a directory into its own subtree
+        if is_directory:
             try:
-                new_path.relative_to(ws_resolved)
-            except ValueError:
+                dest_dir.resolve().relative_to(source_resolved)
                 self.log.warning(
-                    "Move rejected: destination '%s' is outside workspace", new_relative
+                    "Move rejected: cannot move '%s' into its own subdirectory",
+                    path.name,
                 )
                 self.notify(
-                    "Destination must be within the workspace.", severity="error"
+                    f"Cannot move '{path.name}' into its own subdirectory.",
+                    severity="error",
                 )
                 return
-            if new_path == path.resolve():
-                return  # no-op
-            if new_path.exists():
-                self.log.warning(
-                    "Move rejected: destination '%s' already exists", new_path
-                )
-                self.notify(f"'{new_relative}' already exists.", severity="error")
-                return
-            try:
-                new_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(path), str(new_path))
-            except Exception as e:
-                self.log.warning("Move failed: %s → %s: %s", path, new_path, e)
-                self.notify(f"Error moving: {e}", severity="error")
-                return
+            except ValueError:
+                pass  # not a subtree — OK
 
-            self._update_open_tabs_after_rename(path, new_path, is_directory)
-            self.action_reload_explorer()
-            self.log.info("Moved: %s → %s", path, new_path)
-            self.notify(f"Moved to '{new_relative}'", severity="information")
+        if new_path == source_resolved:
+            return  # no-op
+
+        if new_path.exists():
+            try:
+                dest_relative = str(dest_dir.relative_to(self.workspace_path))
+            except ValueError:
+                dest_relative = str(dest_dir)
+            self.log.warning(
+                "Move rejected: '%s' already exists in '%s'",
+                path.name,
+                dest_relative,
+            )
+            self.notify(
+                f"'{path.name}' already exists in '{dest_relative}'.",
+                severity="error",
+            )
+            return
 
         try:
-            current_relative = str(path.relative_to(self.workspace_path))
+            new_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(path), str(new_path))
+        except Exception as e:
+            self.log.warning("Move failed: %s → %s: %s", path, new_path, e)
+            self.notify(f"Error moving: {e}", severity="error")
+            return
+
+        self._update_open_tabs_after_rename(path, new_path, is_directory)
+        self.action_reload_explorer()
+        try:
+            new_relative = str(new_path.relative_to(self.workspace_path))
         except ValueError:
-            current_relative = str(path)
-        self.push_screen(MoveModalScreen(current_relative), do_move)
+            new_relative = str(new_path)
+        self.log.info("Moved: %s → %s", path, new_path)
+        self.notify(f"Moved to '{new_relative}'", severity="information")
 
     def _update_open_tabs_after_rename(
         self, old_path: Path, new_path: Path, is_directory: bool
