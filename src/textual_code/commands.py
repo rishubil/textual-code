@@ -1,4 +1,5 @@
 import heapq
+import os
 from collections.abc import Callable, Generator
 from functools import partial
 from pathlib import Path
@@ -131,9 +132,16 @@ def create_move_path_command_provider(
 
 
 def _read_workspace_directories(workspace_path: Path) -> list[Path]:
-    """Return all non-hidden directories under workspace_path, including root."""
+    """Return all directories under workspace_path, including root.
+
+    Includes dot-prefixed directories (e.g. .github/, .vscode/) but
+    excludes .git directories and their subtrees at any depth.
+    """
     dirs = [workspace_path]
-    dirs.extend(p for p in _read_workspace_paths(workspace_path) if p.is_dir())
+    for dirpath, dirnames, _ in os.walk(workspace_path):
+        # Prune .git directories in-place to prevent descent
+        dirnames[:] = [d for d in dirnames if d != ".git"]
+        dirs.extend(Path(dirpath) / d for d in dirnames)
     return dirs
 
 

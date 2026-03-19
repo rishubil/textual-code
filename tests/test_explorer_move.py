@@ -41,16 +41,42 @@ def test_read_workspace_directories_includes_root(tmp_path: Path):
     assert len(dirs) == 1  # only root
 
 
-def test_read_workspace_directories_excludes_hidden(tmp_path: Path):
-    """Hidden directories (starting with '.') are excluded."""
-    (tmp_path / ".hidden").mkdir()
-    (tmp_path / ".hidden" / "sub").mkdir()
+def test_read_workspace_directories_includes_hidden_dirs(tmp_path: Path):
+    """Dot-prefixed directories are included as valid move destinations."""
+    (tmp_path / ".github").mkdir()
+    (tmp_path / ".github" / "workflows").mkdir()
+    (tmp_path / ".vscode").mkdir()
     (tmp_path / "visible").mkdir()
 
     dirs = _read_workspace_directories(tmp_path)
     assert tmp_path / "visible" in dirs
-    assert tmp_path / ".hidden" not in dirs
-    assert tmp_path / ".hidden" / "sub" not in dirs
+    assert tmp_path / ".github" in dirs
+    assert tmp_path / ".github" / "workflows" in dirs
+    assert tmp_path / ".vscode" in dirs
+
+
+def test_read_workspace_directories_excludes_git_internals(tmp_path: Path):
+    """.git directories and their subtrees are excluded at any depth."""
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "objects").mkdir()
+    (tmp_path / ".git" / "refs").mkdir()
+    (tmp_path / ".github").mkdir()
+    # Nested .git (submodule scenario)
+    (tmp_path / "submodule").mkdir()
+    (tmp_path / "submodule" / ".git").mkdir()
+    (tmp_path / "submodule" / ".git" / "objects").mkdir()
+
+    dirs = _read_workspace_directories(tmp_path)
+    # .git and internals excluded
+    assert tmp_path / ".git" not in dirs
+    assert tmp_path / ".git" / "objects" not in dirs
+    assert tmp_path / ".git" / "refs" not in dirs
+    # .github is NOT .git — must be included
+    assert tmp_path / ".github" in dirs
+    # submodule dir included, but its .git excluded
+    assert tmp_path / "submodule" in dirs
+    assert tmp_path / "submodule" / ".git" not in dirs
+    assert tmp_path / "submodule" / ".git" / "objects" not in dirs
 
 
 # ── FileMoveRequested message → CommandPalette ────────────────────────────────
