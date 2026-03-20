@@ -11,7 +11,10 @@ from textual.message import Message
 from textual.widgets import Button, Checkbox, Input, Label, ListItem, ListView, Static
 from textual.worker import Worker, WorkerState
 
-from textual_code.search import WorkspaceSearchResponse, replace_workspace, search_workspace
+from textual_code.search import (
+    replace_workspace,
+    search_workspace,
+)
 
 _BTN_LABELS = {
     "ws-search": ("🔍 Search", "🔍"),

@@ -97,9 +97,7 @@ def _iter_workspace_files(
 
     # Collect all file paths via os.walk (survives inaccessible directories)
     all_files: list[Path] = []
-    for dirpath, dirnames, filenames in os.walk(
-        workspace_path, onerror=_on_walk_error
-    ):
+    for dirpath, dirnames, filenames in os.walk(workspace_path, onerror=_on_walk_error):
         dir_path = Path(dirpath)
         # Skip hidden directories (prune from walk)
         dirnames[:] = [d for d in dirnames if not d.startswith(".")]

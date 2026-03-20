@@ -7,7 +7,11 @@ from pathlib import Path
 
 import pytest
 
-from textual_code.search import WorkspaceSearchResponse, WorkspaceSearchResult, search_workspace
+from textual_code.search import (
+    WorkspaceSearchResponse,
+    WorkspaceSearchResult,
+    search_workspace,
+)
 
 # ---------------------------------------------------------------------------
 # Unit tests: search_workspace()
@@ -363,7 +367,9 @@ def test_trailing_comma_whitespace_in_pattern_string(tmp_path: Path) -> None:
     (tmp_path / "other.txt").write_text("needle\n")
 
     # Leading/trailing comma and spaces should be stripped
-    results = search_workspace(tmp_path, "needle", files_to_include=" src/** , ").results
+    results = search_workspace(
+        tmp_path, "needle", files_to_include=" src/** , "
+    ).results
     paths = {r.file_path.name for r in results}
     assert "main.py" in paths
     assert "other.txt" not in paths
@@ -380,7 +386,9 @@ def test_exclude_folder_by_name(tmp_path: Path) -> None:
     (tmp_path / "node_modules" / "pkg.js").write_text("needle\n")
     (tmp_path / "keep.py").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", files_to_exclude="node_modules").results
+    results = search_workspace(
+        tmp_path, "needle", files_to_exclude="node_modules"
+    ).results
     paths = {r.file_path.name for r in results}
     assert "pkg.js" not in paths
     assert "keep.py" in paths
@@ -394,7 +402,9 @@ def test_exclude_multiple_folders(tmp_path: Path) -> None:
     (tmp_path / "build" / "out.js").write_text("needle\n")
     (tmp_path / "src.py").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", files_to_exclude="dist,build").results
+    results = search_workspace(
+        tmp_path, "needle", files_to_exclude="dist,build"
+    ).results
     paths = {r.file_path.name for r in results}
     assert "bundle.js" not in paths
     assert "out.js" not in paths
@@ -455,7 +465,9 @@ def test_case_insensitive_regex(tmp_path: Path) -> None:
     """case_sensitive=False works with use_regex=True."""
     (tmp_path / "a.txt").write_text("FooBar\nbaz\n")
 
-    results = search_workspace(tmp_path, "foo.*", use_regex=True, case_sensitive=False).results
+    results = search_workspace(
+        tmp_path, "foo.*", use_regex=True, case_sensitive=False
+    ).results
     assert len(results) == 1
     assert results[0].line_text == "FooBar"
 
@@ -691,8 +703,7 @@ def test_search_survives_inaccessible_directory(tmp_path: Path, monkeypatch) -> 
 
     def patched_walk(top, **kwargs):
         onerror = kwargs.get("onerror")
-        for dirpath, dirnames, filenames in original_walk(top, **kwargs):
-            yield dirpath, dirnames, filenames
+        yield from original_walk(top, **kwargs)
         # Simulate an inaccessible directory error after yielding real entries
         if onerror:
             onerror(OSError(13, "Permission denied", str(tmp_path / "restricted")))
