@@ -26,10 +26,6 @@ It’s that simple.
 
 ## Features
 
-> [!WARNING]  
-> This project is in the early stages of development.
-> the features listed below are not yet implemented or are only partially implemented.
-
 - Commonly used shortcuts, such as `Ctrl+S` to save and `Ctrl+F` to search
 - Command palette for quick access to all features, and no need to remember shortcuts
 - Multiple cursors
