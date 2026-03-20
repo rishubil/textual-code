@@ -143,6 +143,24 @@ def make_app(
     )
 
 
+def set_editor_text(main_view, pane_id: str, text: str) -> None:
+    """Set editor text for a pane, handling both mounted and unmounted editors.
+
+    With lazy mounting, inactive tabs have their editors stored in
+    _editor_states rather than mounted in the DOM.
+    """
+    from textual_code.widgets.code_editor import CodeEditor
+
+    if pane_id in main_view._editor_states:
+        main_view._editor_states[pane_id].text = text
+    else:
+        tc = main_view._tc_for_pane(pane_id)
+        if tc:
+            editors = list(tc.get_pane(pane_id).query(CodeEditor))
+            if editors:
+                editors[0].text = text
+
+
 def assert_focus_on_leaf(app, main, dest_leaf, new_pane_id, context=""):
     """Assert that focus is correctly on dest_leaf and the moved tab."""
     from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
