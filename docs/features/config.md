@@ -210,9 +210,13 @@ On file open, the raw text (read with preserved line endings) is checked:
 
 ### Non-LF warning
 
-When a file with CRLF or CR line endings is opened, a toast notification is shown:
+When a file with CRLF or CR line endings is open and the user copies, cuts, or pastes
+multiline text, a toast notification is shown:
 
 > "{ending} line endings: copied/pasted text will use LF internally."
+
+The warning appears once per tab session (resets when the line ending setting changes).
+Single-line clipboard operations do not trigger the warning.
 
 This warning can be disabled by setting `warn_line_ending = false` in the `[editor]` section of the settings file. Default is `true`.
 

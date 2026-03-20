@@ -520,6 +520,7 @@ class EditorState:
     insert_final_newline: bool | None
     syntax_theme: str
     warn_line_ending: bool
+    notified_copy_line_ending: bool
 
 
 class _PathLabel(Label):
@@ -961,6 +962,7 @@ class CodeEditor(Static):
         self._external_change_notification: Notification | None = None
         self._syntax_theme: str = default_syntax_theme
         self._warn_line_ending: bool = default_warn_line_ending
+        self._notified_copy_line_ending: bool = False
         # tracks the end offset of the last successful find for sequential search
         self._find_offset: int | None = None
         # EditorConfig save-time transformations (None = not set)
@@ -993,6 +995,7 @@ class CodeEditor(Static):
             self._insert_final_newline = _from_state.insert_final_newline
             self._syntax_theme = _from_state.syntax_theme
             self._warn_line_ending = _from_state.warn_line_ending
+            self._notified_copy_line_ending = _from_state.notified_copy_line_ending
             self._restore_cursor = _from_state.cursor_end
             self._restore_scroll = _from_state.scroll_offset
             self._is_restoring = True
@@ -1141,8 +1144,6 @@ class CodeEditor(Static):
         else:
             # update the language of the editor (triggers lazy language registration)
             self.load_language_from_path(self.path)
-            # warn if the file has non-LF line endings
-            self._notify_non_lf_if_needed()
 
     def update_title(self) -> None:
         """
@@ -1242,6 +1243,7 @@ class CodeEditor(Static):
         self._notify_footer()
 
     def watch_line_ending(self, line_ending: str) -> None:
+        self._notified_copy_line_ending = False
         self._notify_footer()
 
     def watch_encoding(self, encoding: str) -> None:
@@ -1262,14 +1264,19 @@ class CodeEditor(Static):
         """Toggle word wrap for the current file."""
         self.word_wrap = not self.word_wrap
 
-    def _notify_non_lf_if_needed(self) -> None:
+    def _notify_non_lf_if_needed(self, *, from_clipboard: bool = False) -> None:
         if not self._warn_line_ending:
             return
-        if self.line_ending != "lf":
-            self.notify(
-                _LINE_ENDING_WARNING.format(ending=self.line_ending.upper()),
-                severity="warning",
-            )
+        if self.line_ending == "lf":
+            return
+        if from_clipboard and self._notified_copy_line_ending:
+            return
+        self.notify(
+            _LINE_ENDING_WARNING.format(ending=self.line_ending.upper()),
+            severity="warning",
+        )
+        if from_clipboard:
+            self._notified_copy_line_ending = True
 
     def _poll_file_change(self) -> None:
         """Check if file was modified externally; auto-reload if no unsaved changes."""
@@ -1877,6 +1884,11 @@ class CodeEditor(Static):
         event.stop()
         self._notify_footer()
 
+    @on(MultiCursorTextArea.ClipboardAction)
+    def on_clipboard_action(self, event: MultiCursorTextArea.ClipboardAction) -> None:
+        event.stop()
+        self._notify_non_lf_if_needed(from_clipboard=True)
+
     def action_add_cursor_below(self) -> None:
         """Add an extra cursor one line below the primary cursor."""
         row, col = self.editor.cursor_location
@@ -2055,6 +2067,7 @@ class CodeEditor(Static):
             insert_final_newline=self._insert_final_newline,
             syntax_theme=self._syntax_theme,
             warn_line_ending=self._warn_line_ending,
+            notified_copy_line_ending=self._notified_copy_line_ending,
         )
         log.debug("capture_state: pane=%s path=%s", state.pane_id, state.path)
         return state

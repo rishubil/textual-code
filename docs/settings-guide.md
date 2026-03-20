@@ -57,7 +57,7 @@ All editor settings go under the `[editor]` TOML table.
 | `syntax_theme` | string | `"monokai"` | Syntax highlighting theme (e.g. `"dracula"`, `"github-dark"`) |
 | `word_wrap` | boolean | `true` | Wrap long lines at the editor boundary |
 | `ui_theme` | string | `"textual-dark"` | UI colour theme: `"textual-dark"` or `"textual-light"` |
-| `warn_line_ending` | boolean | `true` | Show warning toast when file uses non-LF line endings (CRLF, CR) |
+| `warn_line_ending` | boolean | `true` | Show warning toast when copying/cutting/pasting multiline text in non-LF files |
 | `show_hidden_files` | boolean | `true` | Show dotfiles and dotfolders in the Explorer sidebar |
 | `dim_gitignored` | boolean | `true` | Dim files matching .gitignore patterns in the Explorer sidebar |
 | `dim_hidden_files` | boolean | `false` | Dim dotfiles and dotfolders in the Explorer sidebar |
