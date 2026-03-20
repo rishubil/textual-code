@@ -135,6 +135,7 @@ async def test_b06_tab_switch_preserves_mode(workspace):
         # Open second file
         await app.main_view.action_open_code_editor(path=file2, focus=True)
         await pilot.pause()
+        await pilot.pause()
         assert footer.path_display_mode == "relative"
         assert footer.path_view._raw == "b.py"
 

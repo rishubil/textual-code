@@ -475,6 +475,7 @@ async def test_footer_path_updates_on_tab_switch(
         assert py_pane_id is not None
         app.main_view.focus_pane(py_pane_id)
         await pilot.pause()
+        await pilot.pause()
 
         assert str(sample_py_file) in str(footer.path_view.content)
 

@@ -427,13 +427,26 @@ class MainView(Static):
         self._pane_to_leaf.pop(pane_id, None)
         return True
 
+    def _safe_activate_tab(self, tc: TabbedContent, pane_id: str) -> None:
+        """Set *tc.active* only when the Tab widget is already in the DOM.
+
+        On Windows the event-loop may not have registered the Tab by the time
+        ``add_pane`` returns.  Deferring via ``call_after_refresh`` avoids
+        ``ValueError: No Tab with id …``.
+        """
+        tab_id = f"--content-tab-{pane_id}"
+        if tc.query(f"#{tab_id}"):
+            tc.active = pane_id
+        else:
+            tc.call_after_refresh(setattr, tc, "active", pane_id)
+
     def focus_pane(self, pane_id: str) -> bool:
         leaf = self._leaf_of_pane(pane_id)
         if leaf is None:
             return False
         tc = self.query_one(f"#{leaf.leaf_id}", TabbedContent)
         if tc.active != pane_id:
-            tc.active = pane_id
+            self._safe_activate_tab(tc, pane_id)
         pane = tc.get_pane(pane_id)
         # Focus the first focusable descendant (e.g. CodeEditor, MarkdownPreviewPane)
         focusable = (
@@ -537,7 +550,7 @@ class MainView(Static):
         if leaf is None:
             leaf = self._active_leaf
         tc = self.query_one(f"#{leaf.leaf_id}", TabbedContent)
-        tc.active = pane_id
+        self._safe_activate_tab(tc, pane_id)
         if focus:
             editors = tc.get_pane(pane_id).query(CodeEditor)
             if editors:
@@ -929,7 +942,7 @@ class MainView(Static):
             await self.action_close_code_editor(source_pane_id, auto_close_split=False)
             await self._auto_close_split_if_empty()
             tc_dest = self.query_one(f"#{dest_leaf.leaf_id}", TabbedContent)
-            tc_dest.active = existing_pane_id
+            self._safe_activate_tab(tc_dest, existing_pane_id)
             self._active_leaf_id = dest_leaf.leaf_id
             return existing_pane_id
 
@@ -1295,7 +1308,7 @@ class MainView(Static):
                     dest_leaf_now = self._leaf_of_pane(new_pane_id)
                     if dest_leaf_now is not None:
                         tc = self.query_one(f"#{dest_leaf_now.leaf_id}", TabbedContent)
-                        tc.active = new_pane_id
+                        self._safe_activate_tab(tc, new_pane_id)
                         self._set_active_leaf(dest_leaf_now)
                 event.stop()
             return
@@ -1318,7 +1331,7 @@ class MainView(Static):
         dest_leaf_now = self._leaf_of_pane(new_pane_id)
         if dest_leaf_now is not None:
             tc = self.query_one(f"#{dest_leaf_now.leaf_id}", TabbedContent)
-            tc.active = new_pane_id
+            self._safe_activate_tab(tc, new_pane_id)
             self._set_active_leaf(dest_leaf_now)
         event.stop()
 

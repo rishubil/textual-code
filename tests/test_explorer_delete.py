@@ -26,6 +26,7 @@ async def test_file_delete_requested_message_posts(
             Explorer.FileDeleteRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
+        await pilot.pause()
         assert isinstance(app.screen, DeleteFileModalScreen)
 
 
@@ -42,6 +43,7 @@ async def test_delete_file_shows_modal(workspace: Path, sample_py_file: Path):
             Explorer.FileDeleteRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
+        await pilot.pause()
         assert isinstance(app.screen, DeleteFileModalScreen)
 
 
@@ -57,8 +59,10 @@ async def test_delete_file_confirm_deletes_file(workspace: Path, sample_py_file:
             Explorer.FileDeleteRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
+        await pilot.pause()
         assert isinstance(app.screen, DeleteFileModalScreen)
 
+        await pilot.pause()
         await pilot.click("#delete")
         await pilot.pause()
 
@@ -77,8 +81,10 @@ async def test_delete_file_cancel_keeps_file(workspace: Path, sample_py_file: Pa
             Explorer.FileDeleteRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
+        await pilot.pause()
         assert isinstance(app.screen, DeleteFileModalScreen)
 
+        await pilot.pause()
         await pilot.click("#cancel")
         await pilot.pause()
 
@@ -97,8 +103,10 @@ async def test_delete_open_file_closes_tab(workspace: Path, sample_py_file: Path
             Explorer.FileDeleteRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
+        await pilot.pause()
         assert isinstance(app.screen, DeleteFileModalScreen)
 
+        await pilot.pause()
         await pilot.click("#delete")
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 0
@@ -122,6 +130,7 @@ async def test_delete_directory_shows_modal(workspace: Path):
             Explorer.FileDeleteRequested(explorer=explorer, path=subdir)
         )
         await pilot.pause()
+        await pilot.pause()
         assert isinstance(app.screen, DeleteFileModalScreen)
 
 
@@ -140,8 +149,10 @@ async def test_delete_directory_confirm_deletes_directory(workspace: Path):
             Explorer.FileDeleteRequested(explorer=explorer, path=subdir)
         )
         await pilot.pause()
+        await pilot.pause()
         assert isinstance(app.screen, DeleteFileModalScreen)
 
+        await pilot.pause()
         await pilot.click("#delete")
         await pilot.pause()
 
@@ -165,8 +176,10 @@ async def test_delete_nonempty_directory_deletes_all_contents(workspace: Path):
             Explorer.FileDeleteRequested(explorer=explorer, path=subdir)
         )
         await pilot.pause()
+        await pilot.pause()
         assert isinstance(app.screen, DeleteFileModalScreen)
 
+        await pilot.pause()
         await pilot.click("#delete")
         await pilot.pause()
 

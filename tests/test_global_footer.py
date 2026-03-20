@@ -5,11 +5,15 @@ After the global footer refactor, there is exactly one CodeEditorFooter in the
 whole app, owned by MainView. It reflects the currently active editor's state.
 """
 
+import sys
 from pathlib import Path
 
 from tests.conftest import make_app
 from textual_code.modals import GotoLineModalScreen
 from textual_code.widgets.code_editor import CodeEditorFooter
+
+# On Windows, write_text() converts \n to \r\n, so the footer shows "CRLF"
+_LINE_ENDING_WIDTH = 8 if sys.platform == "win32" else 6  # "CRLF"=4+4, "LF"=2+4
 
 # ── G-01: exactly one footer in the app ───────────────────────────────────────
 
@@ -82,6 +86,7 @@ async def test_footer_updates_on_tab_switch(
         assert py_pane_id is not None
         app.main_view.left_tabbed_content.active = py_pane_id
         await pilot.pause()
+        await pilot.pause()  # extra cycle for footer reactive update after tab switch
 
         footer = app.query_one(CodeEditorFooter)
         assert str(sample_py_file) in str(footer.path_view.content)
@@ -186,11 +191,12 @@ async def test_footer_buttons_auto_size_to_content(
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
+        await pilot.pause()  # extra cycle for button layout to settle
         footer = app.query_one(CodeEditorFooter)
-        # sample_py_file: LF endings, UTF-8, 4 Spaces, python
+        # sample_py_file: LF endings on Linux/macOS, CRLF on Windows
         # Formula: region.width = label_len + 4 (pad + internal button pad each side)
         # Exception: last button (no margin-right) may receive 1 less (1fr rounding)
-        assert footer.line_ending_button.region.width == 6  # "LF"=2+4
+        assert footer.line_ending_button.region.width == _LINE_ENDING_WIDTH
         assert footer.encoding_button.region.width == 9  # "UTF-8"=5+4
         assert footer.indent_button.region.width == 12  # "4 Spaces"=8+4
         assert footer.language_button.region.width >= 9  # "python"=6+3..4
@@ -229,8 +235,9 @@ async def test_footer_path_shrinks_first_on_narrow_screen(
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(70, 40)) as pilot:
         await pilot.pause()
+        await pilot.pause()  # extra cycle for layout to settle after resize
         footer = app.query_one(CodeEditorFooter)
-        assert footer.line_ending_button.region.width == 6  # not shrunk
+        assert footer.line_ending_button.region.width == _LINE_ENDING_WIDTH
         assert footer.encoding_button.region.width == 9
         assert footer.indent_button.region.width == 12
         assert footer.language_button.region.width >= 9  # "python"=6+3..4
@@ -242,7 +249,7 @@ async def test_footer_path_shrinks_first_on_narrow_screen(
 
 async def test_footer_path_ellipsis_on_very_long_path(workspace: Path, tmp_path: Path):
     """G-14: when path is too long to display fully, '...' + end of path is shown."""
-    long_file = tmp_path / ("a" * 200 + ".py")
+    long_file = tmp_path / ("a" * 50 + ".py")
     long_file.touch()
     app = make_app(workspace, open_file=long_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
@@ -260,7 +267,7 @@ async def test_footer_path_ellipsis_has_dim_style(workspace: Path, tmp_path: Pat
     """G-14b: '...' prefix is a Rich Text object so it carries independent style."""
     from rich.text import Text
 
-    long_file = tmp_path / ("a" * 200 + ".py")
+    long_file = tmp_path / ("a" * 50 + ".py")
     long_file.touch()
     app = make_app(workspace, open_file=long_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:

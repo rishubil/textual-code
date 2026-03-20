@@ -62,7 +62,7 @@ class TestNoItalicExtension:
             "archive.tar.gz",
             "my file.txt",
             "backup.001",
-            "FILE.TXT",
+            "CAPS.TXT",
             "file.c",
             "document.markdown",
             "file..txt",

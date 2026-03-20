@@ -62,6 +62,19 @@ events and settles the screen. `pilot.pause()` does the same plus `wait_for_idle
 | `await pilot.press("a")` then assert | `press()` already waited |
 | Two consecutive `pause()` calls | Second is redundant (unless comment explains why) |
 
+### Windows: extra `pilot.pause()` often needed
+
+On Windows the event loop processes tab switches, style changes, and modal pushes
+slower than on Linux/macOS. A single `pilot.pause()` is frequently insufficient after:
+
+- `tc.active = pane_id` (tab switch + lazy mount/unmount)
+- `styles.width = ...` (layout recalculation + reactive watchers)
+- `post_message(...)` followed by `isinstance(app.screen, ...)` (modal push)
+- `pilot.click("#button")` on a modal (button must be rendered first)
+- `action_close_all()` / `action_close()` (async pane removal)
+
+Add a second `await pilot.pause()` with a comment explaining why.
+
 ### Guideline
 
 If removing a `pause()` makes a test flaky, add it back with a comment explaining why.
@@ -125,6 +138,13 @@ just like typing would. Add `await pilot.pause()` after assignment to let watche
 incremental search, key-by-key validation).
 
 ## Snapshot Tests
+
+### Windows: snapshots are skipped
+
+Snapshot SVG rendering differs between Linux and Windows (path separators, font
+metrics). A `pytest_collection_modifyitems` hook in `conftest.py` automatically
+skips any test that uses the `snap_compare` fixture on Windows. Snapshot tests
+should be verified on Linux CI.
 
 ### Structure
 

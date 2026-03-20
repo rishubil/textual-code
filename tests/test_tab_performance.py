@@ -32,6 +32,7 @@ async def test_footer_labels_correct_after_tab_switch(
         py_pane_id = app.main_view._active_leaf.opened_files[sample_py_file]
         tc.active = py_pane_id
         await pilot.pause()
+        await pilot.pause()
 
         footer = app.main_view.query_one(CodeEditorFooter)
         assert footer.path == sample_py_file
@@ -39,6 +40,7 @@ async def test_footer_labels_correct_after_tab_switch(
         # Switch to json tab
         json_pane_id = app.main_view._active_leaf.opened_files[sample_json_file]
         tc.active = json_pane_id
+        await pilot.pause()
         await pilot.pause()
 
         footer = app.main_view.query_one(CodeEditorFooter)
@@ -66,6 +68,7 @@ async def test_only_active_editor_polled_with_multiple_tabs(
 
         # Make py tab active (json tab becomes unmounted)
         tc.active = py_pane_id
+        await pilot.pause()
         await pilot.pause()
 
         # py is active and mounted; json is unmounted (in _editor_states)
@@ -121,6 +124,7 @@ async def test_only_active_tab_has_code_editor_mounted(
         # Switch to py tab
         tc.active = py_pane_id
         await pilot.pause()
+        await pilot.pause()
 
         # Now py should have editor, json should not
         assert len(py_pane.query(CodeEditor)) == 1, (
@@ -157,6 +161,7 @@ async def test_editor_state_restored_after_tab_switch(
 
         # Switch back to py
         tc.active = py_pane_id
+        await pilot.pause()
         await pilot.pause()
 
         # py editor should be restored with same text
@@ -328,6 +333,7 @@ async def test_custom_language_tab_survives_lazy_remount(
         # Open a second tab (triggers lazy unmount of custom-language tab)
         await main.action_open_code_editor(path=sample_py_file)
         await pilot.pause()
+        await pilot.pause()
 
         # Verify custom-language tab is unmounted
         custom_pane = tc.get_pane(custom_pane_id)
@@ -335,6 +341,7 @@ async def test_custom_language_tab_survives_lazy_remount(
 
         # Switch back to custom-language tab — crash point before fix
         tc.active = custom_pane_id
+        await pilot.pause()
         await pilot.pause()
 
         # Verify editor is restored correctly

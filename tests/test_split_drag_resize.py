@@ -55,6 +55,7 @@ async def test_handle_removed_when_split_closes(workspace, py_file):
         await pilot.pause()
         await app.main_view.action_close_split()
         await pilot.pause()
+        await pilot.pause()
         handles = list(app.main_view.query(SplitResizeHandle))
         assert len(handles) == 0
 

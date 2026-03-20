@@ -257,7 +257,7 @@ def replace_workspace(
         new_text, count = pattern.subn(replacement, text)
         if count > 0:
             try:
-                file_path.write_text(new_text, encoding="utf-8")
+                file_path.write_bytes(new_text.encode("utf-8"))
             except OSError:
                 continue
             files_modified += 1

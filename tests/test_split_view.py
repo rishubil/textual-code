@@ -286,6 +286,8 @@ async def test_auto_close_split_when_last_right_tab_closed(
         assert right_editor is not None
         right_editor.action_close()
         await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
         # Right split should now be hidden (auto-closed)
         assert app.main_view._split_visible is False
         assert app.main_view._active_split == "left"
@@ -369,6 +371,8 @@ async def test_close_right_tab_removes_from_right_tracking(
         right_editor = app.main_view._get_active_code_editor_in_leaf(leaves[1])
         right_editor.action_close()
         await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
         assert right_pane_id not in app.main_view._pane_ids.get("right", set())
 
 
@@ -431,6 +435,7 @@ async def test_move_tab_left_to_right(workspace: Path, py_file: Path, py_file2: 
         app.main_view._active_split = "left"
         await app.main_view.action_open_code_editor(path=py_file2)
         await pilot.pause()
+        await pilot.pause()
         assert py_file in app.main_view._opened_files["left"]
 
         # Focus the py_file tab before moving
@@ -438,8 +443,12 @@ async def test_move_tab_left_to_right(workspace: Path, py_file: Path, py_file2: 
         pane_id = app.main_view._opened_files["left"][py_file]
         app.main_view.focus_pane(pane_id)
         await pilot.pause()
+        await pilot.pause()
 
         await app.main_view.action_move_tab_to_other_split()
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
         await pilot.pause()
 
         # File is now in right split and removed from left split
@@ -476,14 +485,19 @@ async def test_move_tab_creates_right_split(
         # Open a second file so left doesn't become empty after move
         await app.main_view.action_open_code_editor(path=py_file2)
         await pilot.pause()
+        await pilot.pause()
         assert app.main_view._split_visible is False
 
         # Focus py_file tab before moving
         pane_id = app.main_view._opened_files["left"][py_file]
         app.main_view.focus_pane(pane_id)
         await pilot.pause()
+        await pilot.pause()
 
         await app.main_view.action_move_tab_to_other_split()
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
         await pilot.pause()
 
         assert app.main_view._split_visible is True
@@ -552,6 +566,8 @@ async def test_edge_drag_creates_right_split(
             DraggableTabbedContent.TabMovedToOtherSplit(pane_id, None, False)
         )
         await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
 
         assert app.main_view._split_visible is True
         assert py_file in app.main_view._opened_files["right"]
@@ -580,6 +596,8 @@ async def test_edge_drag_two_tabs_moves_one(
         left_tc.post_message(
             DraggableTabbedContent.TabMovedToOtherSplit(pane_id, None, False)
         )
+        await pilot.pause()
+        await pilot.pause()
         await pilot.pause()
 
         assert app.main_view._split_visible is True
@@ -689,6 +707,8 @@ async def test_split_editors_sync_live_edits(workspace: Path, py_file: Path):
 
         new_text = "# synced!\nprint('live')\n"
         left_editor.replace_editor_text(new_text)
+        await pilot.pause()
+        await pilot.pause()
         await pilot.pause()
 
         assert right_editor.text == new_text
@@ -914,13 +934,17 @@ async def test_move_tab_focuses_destination_pane(
         # Open second file so left isn't empty after move
         await app.main_view.action_open_code_editor(path=py_file2)
         await pilot.pause()
+        await pilot.pause()
 
         # Focus py_file tab
         pane_id = app.main_view._opened_files["left"][py_file]
         app.main_view.focus_pane(pane_id)
         await pilot.pause()
+        await pilot.pause()
 
         await app.main_view.action_move_tab_to_other_split()
+        await pilot.pause()
+        await pilot.pause()
         await pilot.pause()
 
         # py_file should now be in right split
@@ -1067,6 +1091,8 @@ async def test_move_tab_duplicate_file_focuses_existing(
 
         # Move py_file from left to right (duplicate)
         await main.action_move_tab_to_other_split()
+        await pilot.pause()
+        await pilot.pause()
         await pilot.pause()
 
         # Focus should be on the right split's existing py_file pane
