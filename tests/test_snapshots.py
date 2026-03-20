@@ -797,6 +797,17 @@ def test_snapshot_drop_target_highlight(
             f"#{leaves[1].leaf_id}", DraggableTabbedContent
         )
 
+        # Ensure deterministic active tab in both panes and let
+        # the underline indicator settle before taking the snapshot
+        right_pane_ids = right_dtc.get_ordered_pane_ids()
+        if right_pane_ids:
+            right_dtc.active = right_pane_ids[0]
+        left_pane_ids = left_dtc.get_ordered_pane_ids()
+        if left_pane_ids:
+            left_dtc.active = left_pane_ids[0]
+        for _ in range(5):
+            await pilot.pause()
+
         # Push overlay screen and set references on all DTCs
         dtcs = list(app.main_view.query(DraggableTabbedContent))
         overlay = DropTargetScreen([dtc.id for dtc in dtcs])
@@ -849,6 +860,13 @@ def test_snapshot_drop_target_edge_highlight(
         left_dtc = app.main_view.query_one(
             f"#{leaves[0].leaf_id}", DraggableTabbedContent
         )
+
+        # Ensure deterministic active tab and let underline settle
+        left_pane_ids = left_dtc.get_ordered_pane_ids()
+        if left_pane_ids:
+            left_dtc.active = left_pane_ids[0]
+        for _ in range(5):
+            await pilot.pause()
 
         # Push overlay screen and set references on all DTCs
         dtcs = list(app.main_view.query(DraggableTabbedContent))

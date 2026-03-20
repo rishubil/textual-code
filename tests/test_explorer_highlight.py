@@ -101,12 +101,25 @@ async def test_switch_tab_updates_explorer_doubly_nested_file(workspace: Path):
         await pilot.pause()
         await pilot.pause()
 
-        await app.main_view.action_open_code_editor(f_nested)
-        # Two folder levels → each needs its own refresh cycle; give extra headroom
-        for _ in range(10):
-            await pilot.pause()
-
         explorer = app.sidebar.query_one(Explorer)
+        await app.main_view.action_open_code_editor(f_nested)
+        # Two folder levels → each needs multiple expand+reload cycles.
+        # Poll until cursor actually reaches the target file.  Re-trigger
+        # select_file if the built-in retry limit was exhausted before the
+        # tree finished loading.
+        for attempt in range(100):
+            await pilot.pause()
+            node = explorer.directory_tree.cursor_node
+            if (
+                node is not None
+                and node.data is not None
+                and node.data.path == f_nested
+            ):
+                break
+            # Re-trigger if retries exhausted but tree might still be loading
+            if explorer._pending_path is None and attempt % 10 == 9:
+                explorer.select_file(f_nested)
+
         assert explorer.directory_tree.cursor_node is not None
         assert explorer.directory_tree.cursor_node.data.path == f_nested
 

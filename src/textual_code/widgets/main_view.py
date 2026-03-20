@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -8,6 +9,7 @@ from uuid import uuid4
 from textual import events, on
 from textual.app import ComposeResult
 from textual.binding import Binding
+from textual.css.query import NoMatches
 from textual.message import Message
 from textual.timer import Timer
 from textual.widget import Widget
@@ -1473,7 +1475,8 @@ class MainView(Static):
         if self.is_opened_pane(event.control.pane_id):
             tc = self._tc_for_pane(event.control.pane_id)
             if tc is not None:
-                tc.get_tab(event.control.pane_id).label = event.control.title
+                with contextlib.suppress(NoMatches):
+                    tc.get_tab(event.control.pane_id).label = event.control.title
 
     @on(CodeEditor.SavedAs)
     def on_code_editor_saved_as(self, event: CodeEditor.SavedAs):

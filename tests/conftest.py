@@ -135,12 +135,14 @@ def make_app(
     user_config_path: Path | None = None,
     light: bool = False,
 ) -> TextualCode:
-    return TextualCode(
+    app = TextualCode(
         workspace_path=workspace,
         with_open_file=open_file,
         user_config_path=user_config_path,
         skip_sidebar=light,
     )
+    app.animation_level = "none"
+    return app
 
 
 def set_editor_text(main_view, pane_id: str, text: str) -> None:

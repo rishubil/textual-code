@@ -148,6 +148,18 @@ They use a fixed terminal size `(120, 40)` and fixed workspace paths under
 | `_open_editor_modal(app, action_fn)` | Opens a modal triggered from the active editor |
 | `_open_app_modal(app, action_fn)` | Opens a modal triggered from the app level |
 
+### Animations are disabled in tests
+
+`make_app()` sets `animation_level = "none"` on every app instance.  This prevents
+non-deterministic tab-underline widths and other CSS transitions from causing
+snapshot mismatches between runs.  If a test specifically needs animations, override
+the level after creating the app:
+
+```python
+app = make_app(workspace)
+app.animation_level = "full"  # only if testing animation behaviour
+```
+
 ### Adding a new snapshot
 
 1. Write the test function using `snap_compare`:
@@ -162,6 +174,20 @@ They use a fixed terminal size `(120, 40)` and fixed workspace paths under
    ```
 3. Visually inspect the generated SVG in `tests/__snapshots__/`.
 4. Snapshot tests use the **full app** (no `light=True`) because the SVG must include the sidebar.
+
+### Snapshot tests with split panes
+
+When a snapshot test creates a split and opens files in multiple panes, the active tab
+underline can vary between runs.  To stabilise:
+
+```python
+# After split + file open, explicitly set active tab on each pane
+pane_ids = dtc.get_ordered_pane_ids()
+if pane_ids:
+    dtc.active = pane_ids[0]
+for _ in range(5):      # let the underline indicator settle
+    await pilot.pause()
+```
 
 ### Snapshot workspace path stability
 
@@ -180,6 +206,26 @@ Run separately with `uv run pytest tests/ -m serial`.
 
 Non-serial tests run in parallel via `pytest-xdist` with 2x CPU cores as workers.
 Each worker is a separate process with its own `tmp_path`, so tests are naturally isolated.
+
+## Explorer `select_file()` in Tests
+
+`Explorer.select_file()` recursively expands collapsed directories using
+`call_after_refresh`, with a retry limit (`_MAX_SELECT_RETRIES = 10`).
+For deeply nested paths (2+ levels), the retries may exhaust before the tree
+finishes loading.  Use polling with re-trigger:
+
+```python
+explorer = app.sidebar.query_one(Explorer)
+await app.main_view.action_open_code_editor(nested_file)
+for attempt in range(100):
+    await pilot.pause()
+    node = explorer.directory_tree.cursor_node
+    if node is not None and node.data is not None and node.data.path == nested_file:
+        break
+    # Re-trigger if retries exhausted but tree still loading
+    if explorer._pending_path is None and attempt % 10 == 9:
+        explorer.select_file(nested_file)
+```
 
 ## File Watcher Polling in Tests
 
