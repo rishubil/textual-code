@@ -1,4 +1,4 @@
-# 설정 가이드 (Settings Guide)
+# Settings Guide
 
 Textual Code stores settings in TOML files. There are two levels of configuration:
 user-level (applies to all workspaces) and project-level (applies to one workspace only).

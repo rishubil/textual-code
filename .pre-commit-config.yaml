@@ -20,3 +20,9 @@ repos:
         types_or: [python, pyi]
         additional_dependencies: [ty]
         pass_filenames: false
+      - id: check-language
+        name: check language
+        entry: bash scripts/check-language.sh
+        language: system
+        pass_filenames: false
+        always_run: true
