@@ -798,6 +798,27 @@ class TextualCode(App):
     def action_reorder_tab_left_cmd(self) -> None:
         self.call_next(self.main_view.action_reorder_tab_left)
 
+    def _save_config(self, save_fn, *args) -> None:
+        """Call a config save function and notify on failure."""
+        if not save_fn(*args):
+            self.notify("Failed to save settings", severity="error")
+
+    def _save_editor_settings(self, save_level: str) -> None:
+        """Build and persist editor settings at the given level."""
+        settings = self._build_editor_settings()
+        if save_level == "project":
+            self._save_config(
+                save_project_editor_settings,
+                settings,
+                self.workspace_path,
+            )
+        else:
+            self._save_config(
+                save_user_editor_settings,
+                settings,
+                self._user_config_path,
+            )
+
     def _build_editor_settings(self) -> dict[str, str | int | bool]:
         """Build the current editor settings dict for saving to config."""
         return {
@@ -828,11 +849,7 @@ class TextualCode(App):
                 self.default_indent_size = (
                     result.indent_size or self.default_indent_size
                 )
-                settings = self._build_editor_settings()
-                if result.save_level == "project":
-                    save_project_editor_settings(settings, self.workspace_path)
-                else:
-                    save_user_editor_settings(settings, self._user_config_path)
+                self._save_editor_settings(result.save_level)
 
         self.call_next(
             lambda: self.push_screen(
@@ -851,11 +868,7 @@ class TextualCode(App):
                 self.default_line_ending = (
                     result.line_ending or self.default_line_ending
                 )
-                settings = self._build_editor_settings()
-                if result.save_level == "project":
-                    save_project_editor_settings(settings, self.workspace_path)
-                else:
-                    save_user_editor_settings(settings, self._user_config_path)
+                self._save_editor_settings(result.save_level)
 
         self.call_next(
             lambda: self.push_screen(
@@ -872,11 +885,7 @@ class TextualCode(App):
         def do_change(result: ChangeEncodingModalResult | None) -> None:
             if result and not result.is_cancelled:
                 self.default_encoding = result.encoding or self.default_encoding
-                settings = self._build_editor_settings()
-                if result.save_level == "project":
-                    save_project_editor_settings(settings, self.workspace_path)
-                else:
-                    save_user_editor_settings(settings, self._user_config_path)
+                self._save_editor_settings(result.save_level)
 
         self.call_next(
             lambda: self.push_screen(
@@ -893,11 +902,7 @@ class TextualCode(App):
                 self.default_syntax_theme = result.theme
                 for editor in self.query(CodeEditor):
                     editor.syntax_theme = result.theme
-                settings = self._build_editor_settings()
-                if result.save_level == "project":
-                    save_project_editor_settings(settings, self.workspace_path)
-                else:
-                    save_user_editor_settings(settings, self._user_config_path)
+                self._save_editor_settings(result.save_level)
 
         self.call_next(
             lambda: self.push_screen(
@@ -956,11 +961,7 @@ class TextualCode(App):
         def do_change(result: ChangeWordWrapModalResult | None) -> None:
             if result and not result.is_cancelled and result.word_wrap is not None:
                 self.default_word_wrap = result.word_wrap
-                settings = self._build_editor_settings()
-                if result.save_level == "project":
-                    save_project_editor_settings(settings, self.workspace_path)
-                else:
-                    save_user_editor_settings(settings, self._user_config_path)
+                self._save_editor_settings(result.save_level)
 
         self.call_next(
             lambda: self.push_screen(
@@ -978,8 +979,7 @@ class TextualCode(App):
             tree = sb.explorer.directory_tree
             setattr(tree, tree_attr, new_value)
             tree.reload()
-        settings = self._build_editor_settings()
-        save_user_editor_settings(settings, self._user_config_path)
+        self._save_editor_settings("user")
         state = on_text if new_value else off_text
         self.notify(f"{label}: {state}")
 
@@ -1003,8 +1003,7 @@ class TextualCode(App):
         )
         footer = self.main_view.query_one(CodeEditorFooter)
         footer.path_display_mode = self.default_path_display_mode
-        settings = self._build_editor_settings()
-        save_user_editor_settings(settings, self._user_config_path)
+        self._save_editor_settings("user")
         self.notify(f"Path display: {self.default_path_display_mode}")
 
     def _toggle_dim_gitignored_cmd(self) -> None:
@@ -1084,12 +1083,25 @@ class TextualCode(App):
         self.copy_to_clipboard(displayed)
         self.notify(f"Copied: {displayed}")
 
+    def _ensure_config_file(self, path: Path) -> bool:
+        """Create config file if missing. Returns False on I/O error."""
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            # Exclusive create avoids overwriting a file created concurrently
+            with open(path, "x"):
+                pass
+        except FileExistsError:
+            pass
+        except OSError as e:
+            self.notify(f"Cannot create settings file: {e}", severity="error")
+            return False
+        return True
+
     def action_open_user_settings(self) -> None:
         """Open user settings file in the editor."""
         path = self._resolved_user_config_path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        if not path.exists():
-            path.write_text("")
+        if not self._ensure_config_file(path):
+            return
         self.call_next(
             partial(self.main_view.action_open_code_editor, path=path, focus=True)
         )
@@ -1097,8 +1109,8 @@ class TextualCode(App):
     def action_open_project_settings(self) -> None:
         """Open project settings file in the editor."""
         path = get_project_config_path(self.workspace_path)
-        if not path.exists():
-            path.write_text("")
+        if not self._ensure_config_file(path):
+            return
         self.call_next(
             partial(self.main_view.action_open_code_editor, path=path, focus=True)
         )
@@ -1110,11 +1122,7 @@ class TextualCode(App):
             if result and not result.is_cancelled and result.theme:
                 self.default_ui_theme = result.theme
                 self.theme = result.theme
-                settings = self._build_editor_settings()
-                if result.save_level == "project":
-                    save_project_editor_settings(settings, self.workspace_path)
-                else:
-                    save_user_editor_settings(settings, self._user_config_path)
+                self._save_editor_settings(result.save_level)
 
         self.call_next(
             lambda: self.push_screen(
@@ -2030,7 +2038,7 @@ class TextualCode(App):
             if self._user_config_path
             else get_keybindings_path()
         )
-        save_keybindings(self._custom_keybindings, kb_path)
+        self._save_config(save_keybindings, self._custom_keybindings, kb_path)
         _apply_custom_keybindings({action: new_key})
         self.notify("Shortcut saved. Restart to apply changes.")
 

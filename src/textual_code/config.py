@@ -1,7 +1,10 @@
+import logging
 import os
 import sys
 import tomllib
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Keys that can appear in [editor] section
 EDITOR_KEYS = {
@@ -107,13 +110,12 @@ def load_keybindings(config_path: Path | None = None) -> dict[str, str]:
 def save_keybindings(
     bindings: dict[str, str],
     config_path: Path | None = None,
-) -> None:
-    """Persist custom keybindings to a TOML file."""
+) -> bool:
+    """Persist custom keybindings to a TOML file. Returns False on I/O error."""
     path = config_path or get_keybindings_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
     escaped = {k: v.replace('"', '\\"') for k, v in bindings.items()}
     lines = ["[bindings]"] + [f'{k} = "{v}"' for k, v in escaped.items()]
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return _safe_write_config(path, "\n".join(lines) + "\n")
 
 
 def _serialize_editor_settings(settings: dict[str, str | int | bool]) -> str:
@@ -130,22 +132,34 @@ def _serialize_editor_settings(settings: dict[str, str | int | bool]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _safe_write_config(path: Path, content: str) -> bool:
+    """Write *content* to *path*, creating parent dirs. Returns False on I/O error."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    except OSError:
+        logger.debug("Failed to write config to %s", path)
+        return False
+    return True
+
+
 def save_user_editor_settings(
     settings: dict[str, str | int | bool],
     config_path: Path | None = None,
-) -> None:
-    """Persist [editor] settings to the user config file."""
+) -> bool:
+    """Persist [editor] settings to the user config file. Returns False on I/O error."""
     if config_path is None:
         config_path = get_user_config_path()
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text(_serialize_editor_settings(settings), encoding="utf-8")
+    return _safe_write_config(config_path, _serialize_editor_settings(settings))
 
 
 def save_project_editor_settings(
     settings: dict[str, str | int | bool],
     workspace_path: Path,
-) -> None:
-    """Persist [editor] settings to the project config file."""
+) -> bool:
+    """Persist [editor] settings to the project config file.
+
+    Returns False on I/O error.
+    """
     config_path = get_project_config_path(workspace_path)
-    config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text(_serialize_editor_settings(settings), encoding="utf-8")
+    return _safe_write_config(config_path, _serialize_editor_settings(settings))

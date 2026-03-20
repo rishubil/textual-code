@@ -5,7 +5,11 @@ Covers:
 - action_open_user_settings: creates file if missing, opens in editor
 - action_open_project_settings: creates file if missing, opens in editor
 - Command palette entries
+- Error handling for inaccessible paths
 """
+
+from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -87,3 +91,38 @@ async def test_c01_settings_commands_in_system_commands(workspace):
         titles = [c.title for c in commands]
         assert "Open user settings" in titles
         assert "Open project settings" in titles
+
+
+# ---------------------------------------------------------------------------
+# Group D: error handling
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_d01_open_user_settings_survives_oserror(workspace, tmp_path):
+    """action_open_user_settings notifies on I/O error instead of crashing."""
+    user_cfg = tmp_path / "cfg" / "settings.toml"
+    app = make_app(workspace, user_config_path=user_cfg, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        with patch.object(Path, "mkdir", side_effect=OSError("permission denied")):
+            app.action_open_user_settings()
+            await pilot.pause()
+        # Should not crash; no editor opened for this path
+        editor = app.main_view.get_active_code_editor()
+        assert editor is None or editor.path != user_cfg
+
+
+@pytest.mark.asyncio
+async def test_d02_open_project_settings_survives_oserror(workspace):
+    """action_open_project_settings notifies on I/O error instead of crashing."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        with patch.object(Path, "mkdir", side_effect=OSError("permission denied")):
+            app.action_open_project_settings()
+            await pilot.pause()
+        # Should not crash
+        editor = app.main_view.get_active_code_editor()
+        project_cfg = get_project_config_path(workspace)
+        assert editor is None or editor.path != project_cfg

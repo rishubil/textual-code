@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Command Palette**: app no longer crashes when file browsing encounters inaccessible files due to permission errors or other OS-level issues (Fix #9)
+- **Settings**: config save operations (keybindings, user/project editor settings) now handle I/O errors gracefully instead of crashing
+- **Editor**: EditorConfig file reading handles I/O errors without crashing
 - **Split View**: edge-zone drag (split down/up/left/right) from an existing multi-pane split now correctly creates a new sub-split instead of moving the tab to the adjacent pane
 - **Editor**: mouse click now clears multi-cursor mode (single, double, and triple click all dismiss extra cursors)
 - **Editor**: Ctrl+D (add next occurrence) now scrolls the viewport to show the newly added cursor when it is off-screen
