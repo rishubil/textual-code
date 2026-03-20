@@ -199,6 +199,19 @@ def assert_focus_on_leaf(app, main, dest_leaf, new_pane_id, context=""):
     )
 
 
+@pytest.fixture(autouse=True)
+def _isolate_user_config(tmp_path, monkeypatch):
+    """Prevent real user settings from affecting tests (#16).
+
+    Patches both modules because app.py uses ``from textual_code.config import
+    get_user_config_path``, creating a local name binding that a single patch
+    on ``textual_code.config`` would not cover.
+    """
+    fake = tmp_path / "_test_user_settings.toml"
+    monkeypatch.setattr("textual_code.config.get_user_config_path", lambda: fake)
+    monkeypatch.setattr("textual_code.app.get_user_config_path", lambda: fake)
+
+
 @pytest.fixture()
 def restore_bindings():
     """Restore class-level BINDINGS after tests that patch them."""
