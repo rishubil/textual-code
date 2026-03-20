@@ -13,12 +13,14 @@ from typing import TYPE_CHECKING, NamedTuple
 import pathspec
 from rich.style import Style
 from rich.text import Text
-from textual import on
+from textual import on, work
 from textual.app import ComposeResult
 from textual.await_complete import AwaitComplete
 from textual.binding import Binding
 from textual.message import Message
 from textual.widgets import DirectoryTree, Static
+from textual.widgets._directory_tree import DirEntry
+from textual.worker import get_current_worker
 
 if TYPE_CHECKING:
     from textual.widgets._tree import TreeNode
@@ -189,9 +191,34 @@ class FilteredDirectoryTree(DirectoryTree):
             None,
         )  # (index_mtime, head_mtime)
         self._ws_polling_paused: bool = False
+        # Performance: scandir is_dir cache (populated by _load_directory_sync)
+        self._is_dir_cache: dict[Path, bool] = {}
+        # Performance: lazy gitignore loading (no workspace-wide traversal)
+        self._gitignore_checked_dirs: set[Path] = set()
+        # Performance: background git status loading flag
+        self._bg_loading_started: bool = False
 
     def on_mount(self) -> None:
+        self._bg_loading_started = True
+        self._start_bg_loading()
         self.call_after_refresh(self._init_ws_polling)
+
+    @work(thread=True, exclusive=True, group="bg_loading")
+    def _start_bg_loading(self) -> None:
+        """Load git status in a background thread.
+
+        Git status is inherently workspace-wide and cannot be lazy-loaded
+        per-directory, so it runs in a background worker to avoid blocking
+        the first render.
+        """
+        _log.debug("starting background git status loading")
+        git_result = self._load_git_status()
+        worker = get_current_worker()
+        if worker.is_cancelled:
+            return
+        self._git_result = git_result
+        _log.debug("background git status loading completed")
+        self.app.call_from_thread(self.refresh)
 
     def _init_ws_polling(self) -> None:
         """Initialize workspace polling snapshot and start timer."""
@@ -207,44 +234,74 @@ class FilteredDirectoryTree(DirectoryTree):
 
     # ── Gitignore support ────────────────────────────────────────────────
 
-    def _load_gitignore_specs(self) -> list[tuple[Path, pathspec.PathSpec]]:
-        """Load all .gitignore files from the workspace.
+    def _load_gitignore_for_dir(self, dir_path: Path) -> None:
+        """Load .gitignore from a specific directory if not already checked.
 
-        Skips .gitignore files inside hidden directories (e.g. .git/).
-        See also: search.py _iter_workspace_files() for similar gitignore loading.
+        Skips directories inside hidden paths (e.g. .git/, .venv/).
+        Each directory is checked at most once per tree lifetime (or until
+        reload clears _gitignore_checked_dirs).
         """
-        specs: list[tuple[Path, pathspec.PathSpec]] = []
+        if dir_path in self._gitignore_checked_dirs:
+            return
+        self._gitignore_checked_dirs.add(dir_path)
+
+        # Skip hidden directories
         workspace = Path(self.path)
-        for gitignore_path in sorted(workspace.rglob(".gitignore")):
-            # Skip .gitignore files inside hidden directories
-            try:
-                rel = gitignore_path.parent.relative_to(workspace)
-            except ValueError:
-                continue
-            if any(part.startswith(".") for part in rel.parts):
-                continue
-            try:
-                content = gitignore_path.read_text(encoding="utf-8", errors="replace")
-                spec = pathspec.PathSpec.from_lines("gitignore", content.splitlines())
-                specs.append((gitignore_path.parent, spec))
-            except Exception as e:
-                self.log.warning("Failed to load %s: %s", gitignore_path, e)
-                continue
-        return specs
+        try:
+            rel = dir_path.relative_to(workspace)
+        except ValueError:
+            return
+        if any(part.startswith(".") for part in rel.parts):
+            return
+
+        gitignore_path = dir_path / ".gitignore"
+        try:
+            content = gitignore_path.read_text(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            return
+        try:
+            spec = pathspec.PathSpec.from_lines("gitignore", content.splitlines())
+            if self._gitignore_specs is None:
+                self._gitignore_specs = []
+            self._gitignore_specs.append((dir_path, spec))
+        except Exception as e:
+            _log.warning("Failed to parse %s: %s", gitignore_path, e)
+
+    def _ensure_ancestor_gitignores(self, file_path: Path) -> None:
+        """Ensure .gitignore files are loaded for all ancestor directories.
+
+        Walks from the file's parent up to the workspace root, loading
+        any .gitignore files found along the way.
+        """
+        workspace = Path(self.path)
+        current = file_path.parent
+        while current.is_relative_to(workspace):
+            self._load_gitignore_for_dir(current)
+            if current == workspace:
+                break
+            current = current.parent
 
     def _get_gitignore_specs(self) -> list[tuple[Path, pathspec.PathSpec]]:
-        """Return cached gitignore specs, loading lazily on first access."""
+        """Return current gitignore specs."""
         if self._gitignore_specs is None:
-            self._gitignore_specs = self._load_gitignore_specs()
+            self._gitignore_specs = []
         return self._gitignore_specs
 
-    def _is_gitignored(self, file_path: Path) -> bool:
+    def _is_gitignored(self, file_path: Path, *, is_dir: bool | None = None) -> bool:
         """Check if a path is matched by any gitignore spec.
 
         Returns False when dim_gitignored is disabled or when the path
         is a dotfile (hidden files are exempt from dimming).
-        Iterates specs deepest-first so a subdirectory .gitignore can
-        override a parent's patterns (matching real git behavior).
+        Lazily loads .gitignore files for ancestor directories on first
+        access. Iterates specs deepest-first so a subdirectory .gitignore
+        can override a parent's patterns (matching real git behavior).
+
+        Args:
+            file_path: The path to check.
+            is_dir: If provided, skip the stat call for is_dir detection.
+                Callers with known directory status (e.g. render_label
+                using node.allow_expand) should pass this to avoid
+                unnecessary stat calls.
         """
         if not self.dim_gitignored:
             return False
@@ -254,8 +311,11 @@ class FilteredDirectoryTree(DirectoryTree):
         # Check result cache
         if file_path in self._gitignore_cache:
             return self._gitignore_cache[file_path]
+        # Lazily load ancestor gitignore files
+        self._ensure_ancestor_gitignores(file_path)
         result = False
-        is_dir = file_path.is_dir()
+        if is_dir is None:
+            is_dir = file_path.is_dir()
         # Iterate deepest-first so nested .gitignore overrides parent
         for gitignore_dir, spec in reversed(self._get_gitignore_specs()):
             if not file_path.is_relative_to(gitignore_dir):
@@ -321,8 +381,15 @@ class FilteredDirectoryTree(DirectoryTree):
         return _parse_git_status_output(result.stdout, workspace)
 
     def _ensure_git_status_loaded(self) -> GitStatusResult:
-        """Load git status cache if not already loaded."""
+        """Load git status cache if not already loaded.
+
+        When background loading is active (mounted tree), returns empty
+        result until the worker completes. For unmounted trees (unit tests),
+        falls back to synchronous loading.
+        """
         if self._git_result is None:
+            if self._bg_loading_started:
+                return GitStatusResult({}, set(), ())
             self._git_result = self._load_git_status()
         return self._git_result
 
@@ -354,8 +421,10 @@ class FilteredDirectoryTree(DirectoryTree):
         """Reload the tree, invalidate caches, and re-snapshot for polling."""
         self._ws_polling_paused = True
         self._gitignore_specs = None
+        self._gitignore_checked_dirs.clear()
         self._gitignore_cache.clear()
         self._git_result = None
+        self._is_dir_cache.clear()
         parent_awaitable = super().reload()
 
         async def _reload_then_resume():
@@ -365,6 +434,8 @@ class FilteredDirectoryTree(DirectoryTree):
                 self._dir_mtimes = self._collect_expanded_dir_mtimes()
                 self._git_ref_mtimes = self._get_git_ref_mtimes()
                 self._ws_polling_paused = False
+                if self._bg_loading_started:
+                    self._start_bg_loading()
 
         return AwaitComplete(_reload_then_resume())
 
@@ -428,6 +499,8 @@ class FilteredDirectoryTree(DirectoryTree):
             self._git_ref_mtimes = new_git_mtimes
             self._git_result = None
             self.refresh()
+            if self._bg_loading_started:
+                self._start_bg_loading()
 
     def render_label(self, node: TreeNode, base_style: Style, style: Style) -> Text:
         """Override to strip italic and apply gitignored/hidden/git-status styles.
@@ -449,7 +522,9 @@ class FilteredDirectoryTree(DirectoryTree):
             text.stylize(_NO_ITALIC)
             # Apply gitignored dim via component class for consistency with
             # the hidden-file styling (both use CSS text-style: dim).
-            if not is_dotfile and self._is_gitignored(node.data.path):
+            if not is_dotfile and self._is_gitignored(
+                node.data.path, is_dir=node.allow_expand
+            ):
                 text.stylize_before(
                     self.get_component_rich_style(
                         "directory-tree--gitignored", partial=True
@@ -479,6 +554,69 @@ class FilteredDirectoryTree(DirectoryTree):
                     )
                 )
         return text
+
+    # ── os.scandir directory loading optimization ────────────────────────
+
+    def _load_directory_sync(self, path: Path) -> list[Path]:
+        """Load directory contents using os.scandir and populate _is_dir_cache.
+
+        Uses os.scandir instead of path.iterdir so that is_dir info comes
+        from the directory entry itself (no extra stat calls on Linux/macOS).
+
+        Args:
+            path: The directory to scan. Will be resolved to an absolute path.
+
+        Returns:
+            Sorted list of filtered paths (directories first, then by name).
+        """
+        path = path.resolve()
+        entries: list[Path] = []
+        try:
+            with os.scandir(path) as it:
+                for entry in it:
+                    entry_path = Path(entry.path)
+                    try:
+                        is_dir = entry.is_dir(follow_symlinks=True)
+                    except OSError:
+                        is_dir = False
+                    self._is_dir_cache[entry_path] = is_dir
+                    entries.append(entry_path)
+        except OSError:
+            pass
+        filtered = list(self.filter_paths(entries))
+        filtered.sort(
+            key=lambda p: (not self._is_dir_cache.get(p, False), p.name.lower())
+        )
+        return filtered
+
+    @work(thread=True, exit_on_error=False)
+    def _load_directory(self, node: TreeNode[DirEntry]) -> list[Path]:
+        """Load directory contents using os.scandir (no redundant stat calls).
+
+        Overrides the base DirectoryTree._load_directory to eliminate
+        duplicate stat calls per entry.
+        """
+        assert node.data is not None
+        return self._load_directory_sync(node.data.path.expanduser())
+
+    def _populate_node(self, node: TreeNode[DirEntry], content: Iterable[Path]) -> None:
+        """Populate tree node using cached is_dir results.
+
+        Overrides the base DirectoryTree._populate_node to read from
+        _is_dir_cache (populated by _load_directory_sync) instead of
+        calling _safe_is_dir which would make another stat call per entry.
+        """
+        node.remove_children()
+        for path in content:
+            is_dir = self._is_dir_cache.pop(path, None)
+            if is_dir is None:
+                is_dir = self._safe_is_dir(path)
+            node.add(
+                path.name,
+                data=DirEntry(path),
+                allow_expand=is_dir,
+            )
+        node.expand()
 
 
 class Explorer(Static):

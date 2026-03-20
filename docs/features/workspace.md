@@ -276,9 +276,9 @@ Provides visual file navigation, file/folder management, and quick access to wor
 
 - `dim_gitignored` setting (default: `true`): files and directories matching `.gitignore` patterns are visually dimmed.
 - Uses the `directory-tree--gitignored` CSS component class with `text-style: dim`.
-- `.gitignore` files are loaded from the workspace recursively, skipping those inside hidden directories (e.g., `.git/`).
+- `.gitignore` files are loaded lazily per-directory: only ancestor directories of visible files are checked, avoiding upfront workspace-wide traversal. Hidden directories (e.g., `.git/`) are skipped.
 - Hidden files (dotfiles) are exempt from gitignore dimming.
-- Gitignore specs are cached and invalidated on tree reload.
+- Gitignore specs are cached per-directory and invalidated on tree reload.
 - Toggleable via command palette: "Toggle dim gitignored files".
 
 **Git status highlighting:**
@@ -287,7 +287,7 @@ Provides visual file navigation, file/folder management, and quick access to wor
 - Modified files: highlighted in yellow (`$warning` / `ansi_yellow`) via `directory-tree--git-modified`.
 - Untracked files: highlighted in green (`$success` / `ansi_green`) via `directory-tree--git-untracked`.
 - Parent directories inherit the highest-priority status from their children. Priority: `modified` > `untracked`.
-- Status is obtained by running `git status --porcelain -z -unormal` with a 5-second timeout.
+- Status is obtained by running `git status --porcelain -z -unormal` with a 5-second timeout. On startup, git status loads in a background thread so the tree renders immediately without blocking.
 - Untracked directories from `-unormal` output are detected (trailing `/`) and their children inherit the untracked status via pre-computed string prefix matching.
 - Toggleable via command palette: "Toggle git status highlighting".
 

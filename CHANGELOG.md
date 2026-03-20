@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Explorer**: startup performance improved — gitignore patterns now load lazily per-directory instead of scanning the entire workspace; git status loads in a background thread; directory listing uses `os.scandir` to eliminate redundant stat calls
 - **Footer**: shortcut bar now displays key bindings in a fixed, deterministic order (Save → Find → Replace → Goto line → Close tab → New file → Toggle sidebar) regardless of focus state
 - **Performance**: footer status bar now batches all reactive property updates into a single layout refresh on tab switch, reducing redundant repaints (Fix #4)
 - **Performance**: file-change and EditorConfig polling centralized to one shared timer; only the active editor is polled regardless of how many tabs are open (Fix #4)
