@@ -183,7 +183,10 @@ def _parse_editorconfig_file(
     except ValueError:
         return False, {}
 
-    content = ec_file.read_text(encoding="utf-8", errors="replace")
+    try:
+        content = ec_file.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False, {}
     in_preamble = True
     current_section_matches = False
 
@@ -235,8 +238,11 @@ def _read_editorconfig(path: Path) -> tuple[dict[str, str], list[Path]]:
     while True:
         searched_dirs.append(directory)
         ec_file = directory / ".editorconfig"
-        if ec_file.is_file():
-            config_files.append(ec_file)
+        try:
+            if ec_file.is_file():
+                config_files.append(ec_file)
+        except OSError:
+            pass
         parent = directory.parent
         if parent == directory:
             break

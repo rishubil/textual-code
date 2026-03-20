@@ -3,8 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
-from textual_code.commands import _read_workspace_files
+from textual_code.commands import (
+    _read_workspace_directories,
+    _read_workspace_files,
+    _read_workspace_paths,
+)
 
 
 def test_directories_excluded(tmp_path: Path) -> None:
@@ -66,3 +71,97 @@ def test_empty_workspace_returns_empty(tmp_path: Path) -> None:
     """Empty workspace returns empty list."""
     result = _read_workspace_files(tmp_path)
     assert result == []
+
+
+# ── OSError resilience tests ───────────────────────────────────────────────────
+
+
+def _rglob_with_oserror(real_rglob):
+    """Wrap Path.rglob so it yields one valid entry then raises OSError."""
+
+    def patched_rglob(self, pattern):
+        gen = real_rglob(self, pattern)
+        # Yield some real entries, then simulate a mid-iteration OSError
+        # (as happens on Windows with inaccessible files)
+        yield from gen
+        raise OSError(22, "The system cannot access the file")
+
+    return patched_rglob
+
+
+def test_read_workspace_files_survives_oserror(tmp_path: Path) -> None:
+    """_read_workspace_files must not crash when rglob raises OSError."""
+    (tmp_path / "ok.txt").write_text("visible")
+
+    with patch.object(Path, "rglob", _rglob_with_oserror(Path.rglob)):
+        result = _read_workspace_files(tmp_path)
+
+    names = [str(p) for p in result]
+    assert "ok.txt" in names
+
+
+def test_read_workspace_paths_survives_oserror(tmp_path: Path) -> None:
+    """_read_workspace_paths must not crash when rglob raises OSError."""
+    (tmp_path / "ok.txt").write_text("visible")
+
+    with patch.object(Path, "rglob", _rglob_with_oserror(Path.rglob)):
+        result = _read_workspace_paths(tmp_path)
+
+    assert any(str(p).endswith("ok.txt") for p in result)
+
+
+def test_read_workspace_files_survives_is_file_oserror(tmp_path: Path) -> None:
+    """_read_workspace_files must skip entries where is_file() raises OSError."""
+    (tmp_path / "ok.txt").write_text("visible")
+    (tmp_path / "bad.txt").write_text("inaccessible")
+
+    real_is_file = Path.is_file
+
+    def patched_is_file(self):
+        if self.name == "bad.txt":
+            raise OSError(22, "The system cannot access the file")
+        return real_is_file(self)
+
+    with patch.object(Path, "is_file", patched_is_file):
+        result = _read_workspace_files(tmp_path)
+
+    names = [str(p) for p in result]
+    assert "ok.txt" in names
+    assert "bad.txt" not in names
+
+
+def test_read_workspace_directories_survives_oserror(tmp_path: Path) -> None:
+    """_read_workspace_directories must not crash when os.walk raises OSError."""
+    (tmp_path / "visible_dir").mkdir()
+
+    real_walk = __import__("os").walk
+
+    def walk_with_error(path, **kwargs):
+        yield from real_walk(path, **kwargs)
+        raise OSError(22, "The system cannot access the file")
+
+    with patch("os.walk", walk_with_error):
+        result = _read_workspace_directories(tmp_path)
+
+    assert tmp_path in result
+    assert tmp_path / "visible_dir" in result
+
+
+def test_read_workspace_directories_onerror_suppresses(tmp_path: Path) -> None:
+    """os.walk onerror callback should suppress per-directory errors."""
+    (tmp_path / "ok_dir").mkdir()
+
+    real_walk = __import__("os").walk
+
+    def walk_with_onerror(path, **kwargs):
+        onerror = kwargs.get("onerror")
+        yield from real_walk(path)
+        # Simulate a per-directory error via the onerror callback
+        if onerror:
+            onerror(OSError(13, "Permission denied"))
+
+    with patch("os.walk", walk_with_onerror):
+        result = _read_workspace_directories(tmp_path)
+
+    assert tmp_path in result
+    assert tmp_path / "ok_dir" in result

@@ -1,4 +1,5 @@
 import heapq
+import logging
 import os
 from collections.abc import Callable, Generator
 from functools import partial
@@ -7,17 +8,28 @@ from typing import Any
 
 from textual.command import DiscoveryHit, Hit, Hits, Provider
 
+logger = logging.getLogger(__name__)
+
+
+def _safe_rglob(path: Path, pattern: str) -> Generator[Path, None, None]:
+    """Yield entries from path.rglob(), skipping OSError."""
+    try:
+        yield from path.rglob(pattern)
+    except OSError:
+        logger.debug("OSError during rglob of %s, skipping remaining entries", path)
+
 
 def _read_workspace_files(workspace_path: Path) -> list[Path]:
     """Return relative paths for all non-hidden files under workspace_path."""
-    return [
-        p.relative_to(workspace_path)
-        for p in workspace_path.rglob("*")
-        if p.is_file()
-        and not any(
-            part.startswith(".") for part in p.relative_to(workspace_path).parts
-        )
-    ]
+    result: list[Path] = []
+    for p in _safe_rglob(workspace_path, "*"):
+        try:
+            rel = p.relative_to(workspace_path)
+            if not any(part.startswith(".") for part in rel.parts) and p.is_file():
+                result.append(rel)
+        except OSError:
+            logger.debug("OSError accessing %s, skipping", p)
+    return result
 
 
 def create_open_file_command_provider(
@@ -58,11 +70,16 @@ def create_open_file_command_provider(
 
 def _read_workspace_paths(workspace_path: Path) -> list[Path]:
     """Return all non-hidden files and directories under workspace_path."""
-    return [
-        p
-        for p in workspace_path.rglob("*")
-        if not any(part.startswith(".") for part in p.relative_to(workspace_path).parts)
-    ]
+    result: list[Path] = []
+    for p in _safe_rglob(workspace_path, "*"):
+        try:
+            if not any(
+                part.startswith(".") for part in p.relative_to(workspace_path).parts
+            ):
+                result.append(p)
+        except OSError:
+            logger.debug("OSError accessing %s, skipping", p)
+    return result
 
 
 def _create_path_action_command_provider(
@@ -138,10 +155,15 @@ def _read_workspace_directories(workspace_path: Path) -> list[Path]:
     excludes .git directories and their subtrees at any depth.
     """
     dirs = [workspace_path]
-    for dirpath, dirnames, _ in os.walk(workspace_path):
-        # Prune .git directories in-place to prevent descent
-        dirnames[:] = [d for d in dirnames if d != ".git"]
-        dirs.extend(Path(dirpath) / d for d in dirnames)
+    try:
+        for dirpath, dirnames, _ in os.walk(
+            workspace_path, onerror=lambda e: logger.debug("os.walk error: %s", e)
+        ):
+            # Prune .git directories in-place to prevent descent
+            dirnames[:] = [d for d in dirnames if d != ".git"]
+            dirs.extend(Path(dirpath) / d for d in dirnames)
+    except OSError:
+        logger.debug("OSError during os.walk of %s", workspace_path)
     return dirs
 
 
