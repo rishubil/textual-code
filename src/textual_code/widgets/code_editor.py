@@ -1111,9 +1111,12 @@ class CodeEditor(Static):
 
     def compose(self) -> ComposeResult:
         yield FindReplaceBar()
+        # Custom languages require register_language() before use;
+        # pass None and let watch_language() handle registration.
+        lang = None if self.language in _CUSTOM_LANGUAGES else self.language
         yield MultiCursorTextArea.code_editor(
             text=self.text,
-            language=self.language,
+            language=lang,
             tab_behavior="focus",
         )
 

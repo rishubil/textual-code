@@ -9,6 +9,8 @@ Tests verify the three performance fixes:
 
 from pathlib import Path
 
+import pytest
+
 from tests.conftest import make_app
 from textual_code.widgets.code_editor import CodeEditor, CodeEditorFooter
 
@@ -289,3 +291,55 @@ async def test_save_all_saves_unmounted_editors(
 
         # py file should have been saved (its unsaved state is gone)
         assert main.has_unsaved_pane() is False
+
+
+# ── Issue #15: Custom language tab switch crash ──────────────────────────────
+
+
+@pytest.mark.parametrize(
+    "filename,language",
+    [
+        ("Main.kt", "kotlin"),
+        ("app.ts", "typescript"),
+        ("main.c", "c"),
+    ],
+)
+async def test_custom_language_tab_survives_lazy_remount(
+    workspace: Path, sample_py_file: Path, filename: str, language: str
+):
+    """Issue #15: switching back to a custom-language tab must not crash."""
+    content = "// sample code\n"
+    custom_file = workspace / filename
+    custom_file.write_text(content)
+
+    app = make_app(workspace, light=True, open_file=custom_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        main = app.main_view
+        tc = main.tabbed_content
+        custom_pane_id = main._active_leaf.opened_files[custom_file]
+
+        # Verify custom language is detected
+        editor = main.get_active_code_editor()
+        assert editor is not None
+        assert editor.language == language
+
+        # Open a second tab (triggers lazy unmount of custom-language tab)
+        await main.action_open_code_editor(path=sample_py_file)
+        await pilot.pause()
+
+        # Verify custom-language tab is unmounted
+        custom_pane = tc.get_pane(custom_pane_id)
+        assert len(custom_pane.query(CodeEditor)) == 0
+
+        # Switch back to custom-language tab — crash point before fix
+        tc.active = custom_pane_id
+        await pilot.pause()
+
+        # Verify editor is restored correctly
+        restored = main.get_active_code_editor()
+        assert restored is not None
+        assert restored.language == language
+        assert language in restored.editor.available_languages
+        assert restored.text == content

@@ -73,6 +73,13 @@ The swap runs inside `app.batch_update()` to suppress intermediate repaints.
 `_prev_active_pane_ids[leaf_id]` tracks the last active pane per split leaf so the outgoing
 editor can be identified precisely when `TabbedContent.TabActivated` fires.
 
+**Gotcha: custom languages must not be passed to `compose()`.**
+Custom tree-sitter languages (from `_CUSTOM_LANGUAGES`) require `register_language()` before
+TextArea can use them. Because `compose()` runs before `on_mount()`, passing a custom language
+name to `MultiCursorTextArea.code_editor()` in `compose()` raises `LanguageDoesNotExist`.
+The fix: `compose()` passes `None` for custom languages; `watch_language()` handles
+registration and assignment after mount. See issue #15.
+
 ### Central polling timer
 
 A single `set_interval(2.0, …)` in `MainView.on_mount()` calls `_poll_active_editor()`,

@@ -35,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Split View**: edge-zone drag (split down/up/left/right) from an existing multi-pane split now correctly creates a new sub-split instead of moving the tab to the adjacent pane
 - **Editor**: mouse click now clears multi-cursor mode (single, double, and triple click all dismiss extra cursors)
 - **Editor**: Ctrl+D (add next occurrence) now scrolls the viewport to show the newly added cursor when it is off-screen
+- **Tabs**: switching back to a tab with a custom tree-sitter language (Kotlin, TypeScript, C, etc.) no longer crashes with `LanguageDoesNotExist` (Fix #15)
 
 ## [0.1.1] - 2026-03-18
 

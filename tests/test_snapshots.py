@@ -704,7 +704,9 @@ def test_snapshot_workspace_search_results(
         pane = app.query_one(WorkspaceSearchPane)
         pane.query_one("#ws-query", Input).value = "print"
         pane._run_search()
-        await pilot.pause(0.5)
+        # Give threaded search worker time to finish and post results
+        for _ in range(5):
+            await pilot.pause()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
@@ -874,14 +876,16 @@ def test_snapshot_drop_target_edge_highlight(
         for dtc in dtcs:
             dtc._overlay_screen = overlay
         app.push_screen(overlay)
-        await pilot.pause()
+        for _ in range(5):
+            await pilot.pause()
 
         # Simulate drag state: -dragging on source tab, edge overlay on source pane
         content_tabs = left_dtc.get_child_by_type(ContentTabs)
         tabs = list(content_tabs.query(ContentTab))
         tabs[0].add_class("-dragging")
         left_dtc.show_edge_overlay("right")
-        await pilot.pause()
+        for _ in range(5):
+            await pilot.pause()
 
     assert snap_compare(app, run_before=setup_edge_overlay, terminal_size=TERMINAL_SIZE)
 
