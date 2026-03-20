@@ -49,7 +49,14 @@ uvx --from textual-dev textual keys
 ## Installation
 
 ```bash
+# Using pip
 pip install textual-code
+
+# Using uv
+uv tool install textual-code
+
+# Run without installing
+uvx textual-code
 ```
 
 ## Usage
