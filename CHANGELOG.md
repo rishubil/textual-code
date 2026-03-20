@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Editor**: CRLF/CR line ending warning now appears when copying, cutting, or pasting multiline text instead of when opening the file; warning appears once per tab session and resets when the line ending changes (Fix #10)
 - **Explorer**: startup performance improved — gitignore patterns now load lazily per-directory instead of scanning the entire workspace; git status loads in a background thread; directory listing uses `os.scandir` to eliminate redundant stat calls
 - **Footer**: shortcut bar now displays key bindings in a fixed, deterministic order (Save → Find → Replace → Goto line → Close tab → New file → Toggle sidebar) regardless of focus state
 - **Performance**: footer status bar now batches all reactive property updates into a single layout refresh on tab switch, reducing redundant repaints (Fix #4)

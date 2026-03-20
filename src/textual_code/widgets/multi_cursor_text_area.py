@@ -128,6 +128,17 @@ class MultiCursorTextArea(TextArea):
         def control(self) -> "MultiCursorTextArea":
             return self.text_area
 
+    class ClipboardAction(Message):
+        """Posted when multiline text is copied, cut, or pasted."""
+
+        def __init__(self, text_area: "MultiCursorTextArea") -> None:
+            super().__init__()
+            self.text_area = text_area
+
+        @property
+        def control(self) -> "MultiCursorTextArea":
+            return self.text_area
+
     # ── lifecycle ─────────────────────────────────────────────────────────────
 
     def __init__(self, *args, **kwargs) -> None:
@@ -467,11 +478,33 @@ class MultiCursorTextArea(TextArea):
         selected = self.selected_text
         if selected:
             self.app.copy_to_clipboard(selected)
+            if "\n" in selected:
+                self.post_message(self.ClipboardAction(self))
         else:
             row, _ = self.cursor_location
             lines = self.text.split("\n")
             line = lines[row] if row < len(lines) else ""
             self.app.copy_to_clipboard(line + "\n")
+            # Whole-line copy always includes a newline
+            self.post_message(self.ClipboardAction(self))
+
+    def action_cut(self) -> None:
+        """Cut selection; cut current line if nothing selected (VS Code)."""
+        if self.read_only:
+            return
+        text = self.selected_text
+        has_newline = "\n" in text if text else True  # no selection → whole line
+        super().action_cut()
+        if has_newline:
+            self.post_message(self.ClipboardAction(self))
+
+    def action_paste(self) -> None:
+        """Paste from clipboard; post ClipboardAction if multiline."""
+        clipboard = self.app.clipboard
+        has_newline = "\n" in clipboard
+        super().action_paste()
+        if has_newline:
+            self.post_message(self.ClipboardAction(self))
 
     # ── cursor movement ────────────────────────────────────────────────────────
 

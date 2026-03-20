@@ -420,8 +420,8 @@ class _NotifyCapturingApp(App):
         return self.query_one(CodeEditor)
 
 
-async def test_open_crlf_file_shows_warning_toast(tmp_path: Path):
-    """Opening a CRLF file → warning notification from on_mount."""
+async def test_open_crlf_file_no_warning_on_open(tmp_path: Path):
+    """Opening a CRLF file → no warning notification (moved to copy/cut/paste)."""
     f = tmp_path / "test.txt"
     f.write_bytes(b"hello\r\nworld")
 
@@ -429,7 +429,7 @@ async def test_open_crlf_file_shows_warning_toast(tmp_path: Path):
     async with app.run_test() as pilot:
         await pilot.pause()
 
-    assert any("warning" in n for n in app.notified)
+    assert not any("warning" in n for n in app.notified)
 
 
 async def test_open_lf_file_no_warning_toast(tmp_path: Path):
@@ -461,6 +461,136 @@ async def test_footer_line_ending_modal_no_save_level(tmp_path: Path):
 
         assert isinstance(app.screen, ChangeLineEndingModalScreen)
         assert len(app.screen.query("#save_level")) == 0
+
+
+# ── clipboard warning tests ──────────────────────────────────────────────────
+
+
+async def test_copy_crlf_file_shows_warning_toast(tmp_path: Path):
+    """Copy in a CRLF file (multiline) → warning notification shown."""
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello\r\nworld")
+
+    app = _NotifyCapturingApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.notified.clear()  # discard any mount-time notifications
+        # select all text then copy (multiline → triggers warning)
+        app.code_editor.editor.select_all()
+        await pilot.pause()
+        app.code_editor.editor.action_copy()
+        await pilot.pause()
+
+    assert any("warning" in n for n in app.notified)
+
+
+async def test_cut_crlf_file_shows_warning_toast(tmp_path: Path):
+    """Cut in a CRLF file (no selection → whole line with newline) → warning shown."""
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello\r\nworld")
+
+    app = _NotifyCapturingApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.notified.clear()
+        # no selection → cut whole line (includes newline)
+        app.code_editor.editor.action_cut()
+        await pilot.pause()
+
+    assert any("warning" in n for n in app.notified)
+
+
+async def test_paste_crlf_file_shows_warning_toast(tmp_path: Path):
+    """Paste multiline text in a CRLF file → warning notification shown."""
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello\r\nworld")
+
+    app = _NotifyCapturingApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.notified.clear()
+        # put multiline text on clipboard, then paste
+        app.copy_to_clipboard("line1\nline2")
+        app.code_editor.editor.action_paste()
+        await pilot.pause()
+
+    assert any("warning" in n for n in app.notified)
+
+
+async def test_copy_lf_file_no_warning(tmp_path: Path):
+    """Copy in an LF file → no warning notification."""
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello\nworld")
+
+    app = _NotifyCapturingApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.notified.clear()
+        app.code_editor.editor.select_all()
+        await pilot.pause()
+        app.code_editor.editor.action_copy()
+        await pilot.pause()
+
+    assert not any("warning" in n for n in app.notified)
+
+
+async def test_copy_crlf_warning_only_once(tmp_path: Path):
+    """Copy twice in CRLF file → warning appears only once."""
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello\r\nworld")
+
+    app = _NotifyCapturingApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.notified.clear()
+        # first copy
+        app.code_editor.editor.select_all()
+        await pilot.pause()
+        app.code_editor.editor.action_copy()
+        await pilot.pause()
+        # second copy
+        app.code_editor.editor.action_copy()
+        await pilot.pause()
+
+    warning_count = sum(1 for n in app.notified if "warning" in n)
+    assert warning_count == 1
+
+
+async def test_copy_single_line_crlf_no_warning(tmp_path: Path):
+    """Single-line copy in CRLF file → no warning (no newline in copied text)."""
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello\r\nworld")
+
+    app = _NotifyCapturingApp(path=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.notified.clear()
+        # select only "hello" on the first line (no newline)
+        from textual.widgets._text_area import Selection
+
+        app.code_editor.editor.selection = Selection((0, 0), (0, 5))
+        await pilot.pause()
+        app.code_editor.editor.action_copy()
+        await pilot.pause()
+
+    assert not any("warning" in n for n in app.notified)
+
+
+async def test_copy_crlf_no_warning_when_disabled(tmp_path: Path):
+    """Copy in CRLF file with warn_line_ending=False → no warning."""
+    f = tmp_path / "test.txt"
+    f.write_bytes(b"hello\r\nworld")
+
+    app = _NotifyCapturingApp(path=f, warn_line_ending=False)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.notified.clear()
+        app.code_editor.editor.select_all()
+        await pilot.pause()
+        app.code_editor.editor.action_copy()
+        await pilot.pause()
+
+    assert not any("warning" in n for n in app.notified)
 
 
 async def test_open_crlf_file_no_warning_when_disabled(tmp_path: Path):
