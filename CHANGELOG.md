@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Explorer**: startup performance improved — gitignore patterns now load lazily per-directory instead of scanning the entire workspace; git status loads in a background thread; directory listing uses `os.scandir` to eliminate redundant stat calls
 - **Footer**: shortcut bar now displays key bindings in a fixed, deterministic order (Save → Find → Replace → Goto line → Close tab → New file → Toggle sidebar) regardless of focus state
 
 ### Fixed
