@@ -17,6 +17,7 @@ __pycache__/
 # claude
 .claude/
 CLAUDE.local.md
+.mcp.json
 
 # Test artifacts
 snapshot_report.html
