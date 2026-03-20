@@ -33,9 +33,9 @@ Stored in the same directory as the user settings file:
 
 Access via **F1** or **Command Palette → "Show keyboard shortcuts"**.
 
-## Settings Priority: defaults < user config < project config
+## Settings Priority: defaults < user/project config < auto-detection < .editorconfig
 
-Settings are merged in this order — later sources override earlier ones:
+App settings are merged in this order — later sources override earlier ones:
 
 1. **Hardcoded defaults** (built into the app)
 2. **User config** (`~/.config/textual-code/settings.toml`)
@@ -43,6 +43,34 @@ Settings are merged in this order — later sources override earlier ones:
 
 This means a project config can override a user config for a specific workspace,
 while the user config applies everywhere else.
+
+### When opening an existing file
+
+Per-file properties have additional sources beyond app settings:
+
+1. **File auto-detection** — `encoding` is detected from file content (BOM, UTF-8 decode,
+   charset-normalizer), and `line_ending` is detected from line break characters.
+2. **`.editorconfig`** — overrides auto-detected values and defaults for supported properties.
+   See [EditorConfig in config.md](features/config.md#editorconfig-editorconfig-discovery-glob-matching-property-application-auto-reload) for full details on discovery, glob matching, and property application.
+
+App settings (`word_wrap`, `syntax_theme`, `ui_theme`, etc.) still apply regardless of
+EditorConfig.
+
+### When creating a new file
+
+Only app settings apply. There is no file content to auto-detect from and no file path
+for EditorConfig matching.
+
+### Property source reference
+
+| Setting | App config | Auto-detection | EditorConfig |
+|---------|:----------:|:--------------:|:------------:|
+| `indent_type` / `indent_size` | new files only | — | yes |
+| `encoding` | new files only | yes | yes |
+| `line_ending` | new files only | yes | yes |
+| `trim_trailing_whitespace` | — | — | yes |
+| `insert_final_newline` | — | — | yes |
+| `word_wrap`, `syntax_theme`, `ui_theme`, `warn_line_ending`, `show_hidden_files`, `dim_gitignored`, `dim_hidden_files`, `show_git_status`, `path_display_mode`, `sidebar_width` | always | — | — |
 
 ## Editor Settings: [editor] section keys
 
