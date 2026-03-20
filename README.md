@@ -42,17 +42,28 @@ It’s that simple.
 Some terminal emulators intercept certain key combinations before they reach the application.
 If a shortcut does not work as expected, run the following command and press the shortcut to verify that your terminal recognizes it:
 
+> [!TIP]
+> We recommend using `uvx` as it requires no separate installation.
+
 ```bash
+# Using pip
+pip install textual-dev
+textual keys
+
+# Run without installing (recommended)
 uvx --from textual-dev textual keys
 ```
 
 ## Installation
 
+> [!TIP]
+> We recommend using `uv` for installation and management.
+
 ```bash
 # Using pip
 pip install textual-code
 
-# Using uv
+# Using uv (recommended)
 uv tool install textual-code
 
 # Run without installing
