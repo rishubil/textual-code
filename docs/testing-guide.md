@@ -41,6 +41,21 @@ reducing per-test overhead by ~11%.
 - Snapshot tests (the SVG captures the full UI including sidebar)
 - Tests that use absolute mouse coordinates affected by sidebar width
 
+## User Config Isolation: `_isolate_user_config` autouse fixture
+
+An `autouse` fixture in `conftest.py` monkeypatches `get_user_config_path()` so that
+every test reads/writes user settings from a temporary path inside `tmp_path` instead
+of the real `~/.config/textual-code/settings.toml`. This prevents a developer's
+personal settings (theme, indent size, etc.) from causing test failures.
+
+The fixture patches **both** `textual_code.config` and `textual_code.app` because
+`app.py` imports the function with `from textual_code.config import ...`, creating a
+separate name binding that a single-module patch would not cover.
+
+Tests that pass an explicit `user_config_path` to `make_app()` or `TextualCode()` are
+unaffected — `load_editor_settings()` skips `get_user_config_path()` when a path is
+provided.
+
 ## `pilot.pause()`: When Required and When Redundant
 
 `pilot.press()` internally calls `_wait_for_screen()`, which processes pending widget
@@ -296,3 +311,4 @@ a file with the appropriate extension.
 | `test_light_app.py` | Lightweight app mode (skip_sidebar) validation |
 | `test_tab_drag.py` | DraggableTabbedContent: tab reordering via drag |
 | `test_tab_performance.py` | Tab performance: lazy mounting, central poll, footer batch |
+| `test_settings_isolation.py` | Regression: user config isolation in tests |

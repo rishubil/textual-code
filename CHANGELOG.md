@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Workspace Replace**: find-and-replace no longer doubles line endings on Windows by converting `\n` to `\r\n` twice (Fix #14)
 - **Split View**: moving a tab to another split no longer crashes with `ValueError: No Tab with id` on Windows due to a race condition between pane addition and tab activation (Fix #14)
 - **App**: accessing the sidebar property during app shutdown no longer crashes with `IndexError` when the screen stack is empty (Fix #14)
+- **Tests**: user's local editor settings (theme, indent size, etc.) no longer leak into test execution, preventing false test failures on developer machines (Fix #16)
 
 ## [0.1.1] - 2026-03-18
 
