@@ -46,10 +46,12 @@ async def test_rename_file_from_explorer(workspace: Path, sample_py_file: Path):
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
+        await pilot.pause()
         assert isinstance(app.screen, RenameModalScreen)
 
         inp = app.screen.query_one(Input)
         inp.value = "renamed.py"
+        await pilot.pause()
         await pilot.click("#rename")
         await pilot.pause()
 
@@ -90,10 +92,12 @@ async def test_rename_open_file_updates_tab(workspace: Path, sample_py_file: Pat
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
+        await pilot.pause()
         assert isinstance(app.screen, RenameModalScreen)
 
         inp = app.screen.query_one(Input)
         inp.value = "renamed.py"
+        await pilot.pause()
         await pilot.click("#rename")
         await pilot.pause()
 
@@ -135,6 +139,7 @@ async def test_rename_unchanged_name_noop(workspace: Path, sample_py_file: Path)
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
+        await pilot.pause()
         await pilot.pause()
 
         # Don't change the input value — keep it as the original name
@@ -184,10 +189,12 @@ async def test_rename_directory_from_explorer(workspace: Path):
             Explorer.FileRenameRequested(explorer=explorer, path=subdir)
         )
         await pilot.pause()
+        await pilot.pause()
         assert isinstance(app.screen, RenameModalScreen)
 
         inp = app.screen.query_one(Input)
         inp.value = "newdir"
+        await pilot.pause()
         await pilot.click("#rename")
         await pilot.pause()
 
@@ -215,9 +222,11 @@ async def test_rename_dir_updates_open_files(workspace: Path):
             Explorer.FileRenameRequested(explorer=explorer, path=subdir)
         )
         await pilot.pause()
+        await pilot.pause()
 
         inp = app.screen.query_one(Input)
         inp.value = "newdir"
+        await pilot.pause()
         await pilot.click("#rename")
         await pilot.pause()
 
@@ -260,9 +269,11 @@ async def test_rename_file_preserves_unsaved_changes(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
+        await pilot.pause()
 
         inp = app.screen.query_one(Input)
         inp.value = "renamed.py"
+        await pilot.pause()
         await pilot.click("#rename")
         await pilot.pause()
 

@@ -6,6 +6,7 @@ TDD: Red → Green approach.
 
 from pathlib import Path
 
+from textual.events import MouseUp
 from textual.widgets._tabbed_content import ContentTab, ContentTabs
 
 from tests.conftest import make_app
@@ -95,6 +96,7 @@ async def test_reorder_tab_correct_order_and_content(
         # Swap: move py_id after json_id
         dtc.reorder_tab(py_id, json_id, before=False)
         await pilot.pause()
+        await pilot.pause()  # extra settle for reorder DOM mutations on Windows
 
         order_after = _tab_order(dtc)
         assert order_after == [json_id, py_id]
@@ -104,12 +106,14 @@ async def test_reorder_tab_correct_order_and_content(
         # Switch to py to mount its editor, then check content.
         dtc.active = py_id
         await pilot.pause()
+        await pilot.pause()  # extra settle for tab switch + editor mount
 
         py_editor = app.main_view.query_one(f"#{py_id} CodeEditor", CodeEditor)
         assert "print" in py_editor.text
 
         dtc.active = json_id
         await pilot.pause()
+        await pilot.pause()  # extra settle for tab switch + editor mount
 
         json_editor = app.main_view.query_one(f"#{json_id} CodeEditor", CodeEditor)
         assert "key" in json_editor.text
@@ -207,6 +211,7 @@ async def test_drag_applies_dragging_class(
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
         await pilot.pause()
+        await pilot.pause()  # let tab layout fully settle before reading regions
 
         dtc = _first_dtc(app)
         content_tabs = dtc.get_child_by_type(ContentTabs)
@@ -236,9 +241,24 @@ async def test_drag_applies_dragging_class(
         # The dragged tab should have -dragging class
         assert first_tab.has_class("-dragging")
 
-        # Release mouse
-        await pilot.mouse_up(dtc, offset=second_offset)
+        # Release mouse — send MouseUp directly to DTC to avoid overlay routing
+        mouse_up = MouseUp(
+            widget=dtc,
+            x=second_x - dtc.region.x,
+            y=second_y - dtc.region.y,
+            delta_x=0,
+            delta_y=0,
+            button=1,
+            shift=False,
+            meta=False,
+            ctrl=False,
+            screen_x=second_x,
+            screen_y=second_y,
+            style=None,
+        )
+        dtc.on_mouse_up(mouse_up)
         await pilot.pause()
+        await pilot.pause()  # extra settle for drag-end cleanup
 
         # No tab should have -dragging class after release
         for tab in content_tabs.query(ContentTab):
@@ -257,6 +277,7 @@ async def test_drag_reorders_tabs(
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
         await pilot.pause()
+        await pilot.pause()  # let tab layout fully settle before reading regions
 
         dtc = _first_dtc(app)
         order_before = _tab_order(dtc)
@@ -277,19 +298,39 @@ async def test_drag_reorders_tabs(
         second_x = second_region.x + second_region.width * 3 // 4
         second_y = second_region.y + second_region.height // 2
 
-        # Simulate drag: mouse_down on first tab, hover to second, mouse_up
+        # Simulate drag: mouse_down on first tab, hover to second, mouse_up.
+        # Dragging pushes a DropTargetScreen overlay which intercepts pilot's
+        # mouse_up dispatch, so we send the MouseUp event directly to the DTC.
         first_offset = (first_x - dtc.region.x, first_y - dtc.region.y)
-        second_offset = (second_x - dtc.region.x, second_y - dtc.region.y)
 
         await pilot.mouse_down(dtc, offset=first_offset)
         await pilot.pause()
 
-        # Hover to exceed threshold distance
-        await pilot.hover(dtc, offset=second_offset)
+        # Hover to exceed threshold distance — this pushes DropTargetScreen
+        await pilot.hover(
+            dtc, offset=(second_x - dtc.region.x, second_y - dtc.region.y)
+        )
         await pilot.pause()
+        await pilot.pause()  # let overlay screen fully settle
 
-        await pilot.mouse_up(dtc, offset=second_offset)
+        # Send MouseUp directly to the DTC to avoid overlay routing issues
+        mouse_up = MouseUp(
+            widget=dtc,
+            x=second_x - dtc.region.x,
+            y=second_y - dtc.region.y,
+            delta_x=0,
+            delta_y=0,
+            button=1,
+            shift=False,
+            meta=False,
+            ctrl=False,
+            screen_x=second_x,
+            screen_y=second_y,
+            style=None,
+        )
+        dtc.on_mouse_up(mouse_up)
         await pilot.pause()
+        await pilot.pause()  # extra settle for drag-end reorder
 
         order_after = _tab_order(dtc)
         # Order should have changed

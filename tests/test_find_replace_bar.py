@@ -211,11 +211,13 @@ async def test_sequential_find_stays_open(workspace: Path):
 
         await pilot.click("#next_match")
         await pilot.pause()
+        await pilot.pause()
         bar = editor.query_one(FindReplaceBar)
         assert bar.display
         first_sel = editor.editor.selection.start
 
         await pilot.click("#next_match")
+        await pilot.pause()
         await pilot.pause()
         assert bar.display
         second_sel = editor.editor.selection.start

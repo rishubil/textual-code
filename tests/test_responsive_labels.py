@@ -52,6 +52,7 @@ class TestTabLabelThreshold:
         async with app.run_test(size=(120, 40)) as pilot:
             app.sidebar.styles.width = _TAB_ICON_ONLY_THRESHOLD - 1
             await pilot.pause()
+            await pilot.pause()
             labels = await _get_tab_labels(app)
             for pane_id, (_full, icon) in _TAB_LABELS.items():
                 assert labels[pane_id] == icon, (
@@ -66,6 +67,7 @@ class TestButtonLabelThreshold:
         app = make_app(ws)
         async with app.run_test(size=(120, 40)) as pilot:
             app.sidebar.styles.width = _BTN_ICON_ONLY_THRESHOLD
+            await pilot.pause()
             await pilot.pause()
             search, replace = await _get_button_labels(app)
             assert "Search" in search
@@ -85,6 +87,7 @@ class TestButtonLabelThreshold:
         app = make_app(ws)
         async with app.run_test(size=(120, 40)) as pilot:
             app.sidebar.styles.width = _BTN_ICON_ONLY_THRESHOLD
+            await pilot.pause()
             await pilot.pause()
             wsp = app.sidebar.workspace_search
             for btn_id, (full, _icon) in _BTN_LABELS.items():

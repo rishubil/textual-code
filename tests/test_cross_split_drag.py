@@ -519,6 +519,7 @@ async def test_drag_markdown_preview_to_other_split(
 
         await main.action_open_markdown_preview_tab()
         await pilot.pause()
+        await pilot.pause()
 
         # Verify preview was created
         assert md_file in main._preview_pane_ids
@@ -527,6 +528,7 @@ async def test_drag_markdown_preview_to_other_split(
 
         # Move preview pane to right split
         new_pane_id = await main._move_pane_to_split(preview_pane_id, "right")
+        await pilot.pause()
         await pilot.pause()
 
         # Verify move succeeded
@@ -1036,6 +1038,7 @@ async def test_drag_edge_zone_new_split_focuses_moved_tab(
             )
         )
         await pilot.pause()
+        await pilot.pause()
 
         # Split should be created
         assert main._split_visible is True
@@ -1081,6 +1084,7 @@ async def _edge_zone_split_test(workspace, py_file, py_file2, direction):
                 pane_id, None, False, split_direction=direction
             )
         )
+        await pilot.pause()
         await pilot.pause()
 
         assert main._split_visible is True
@@ -1167,6 +1171,7 @@ async def _edge_zone_split_from_existing_split_test(
                 pane_id, None, False, split_direction=edge_direction
             )
         )
+        await pilot.pause()
         await pilot.pause()
 
         # A new split should be created (3 leaves total)

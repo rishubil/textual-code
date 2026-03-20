@@ -27,6 +27,7 @@ in isolation and do not capture screenshots.
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,19 @@ from textual_code.app import TextualCode
 requires_git = pytest.mark.skipif(
     shutil.which("git") is None, reason="git not installed"
 )
+
+
+def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
+    """Skip snapshot tests on Windows — SVG rendering differs across platforms."""
+    if sys.platform != "win32":
+        return
+    skip_win = pytest.mark.skip(
+        reason="Snapshot SVG rendering differs on Windows — run on Linux CI",
+    )
+    for item in items:
+        if "snap_compare" in item.fixturenames:
+            item.add_marker(skip_win)
+
 
 # Fixed git env for deterministic commits in tests
 _GIT_TEST_ENV = {

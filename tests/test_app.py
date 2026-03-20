@@ -464,6 +464,7 @@ async def test_footer_shortcut_order_empty_app(workspace: Path):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()
         descriptions = _footer_descriptions(app)
         # Even without a file, MainView is in the DOM so its bindings appear.
         # Verify exact order matches the full expected set.

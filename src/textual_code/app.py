@@ -2047,6 +2047,8 @@ class TextualCode(App):
         if self._skip_sidebar:
             return None
         # Use the base screen so this works even when a modal is active
+        if not self.screen_stack:
+            return None
         return self.screen_stack[0].query_one(Sidebar)
 
     @property

@@ -497,6 +497,7 @@ async def test_close_all_closes_single_clean_file(
 
         await app.main_view.action_close_all()
         await pilot.pause()
+        await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 0
 
 
@@ -799,6 +800,7 @@ async def test_close_all_allows_reopen_same_file(workspace: Path, sample_py_file
         assert len(app.main_view.opened_pane_ids) == 1
 
         await app.main_view.action_close_all()
+        await pilot.pause()
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 0
         assert app.main_view.pane_id_from_path(sample_py_file) is None

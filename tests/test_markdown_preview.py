@@ -199,6 +199,7 @@ async def test_preview_tab_closes_with_source(workspace: Path, md_file: Path):
         # Close via CodeEditor.action_close() to trigger on_code_editor_closed
         editor.action_close()
         await pilot.pause()
+        await pilot.pause()
 
         assert not app.main_view.is_opened_pane(preview_pane_id)
         assert md_file not in app.main_view._preview_pane_ids
