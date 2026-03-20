@@ -11,7 +11,7 @@ from textual.message import Message
 from textual.widgets import Button, Checkbox, Input, Label, ListItem, ListView, Static
 from textual.worker import Worker, WorkerState
 
-from textual_code.search import replace_workspace, search_workspace
+from textual_code.search import WorkspaceSearchResponse, replace_workspace, search_workspace
 
 _BTN_LABELS = {
     "ws-search": ("🔍 Search", "🔍"),
@@ -130,7 +130,7 @@ class WorkspaceSearchPane(Static):
         files_to_include: str,
         files_to_exclude: str,
     ) -> None:
-        results = search_workspace(
+        response = search_workspace(
             workspace_path,
             query,
             use_regex,
@@ -139,9 +139,19 @@ class WorkspaceSearchPane(Static):
             files_to_include=files_to_include,
             files_to_exclude=files_to_exclude,
         )
-        self.app.call_from_thread(self._populate_results, results, workspace_path)
+        self.app.call_from_thread(
+            self._populate_results,
+            response.results,
+            workspace_path,
+            response.inaccessible_paths,
+        )
 
-    def _populate_results(self, results: list, workspace_path: Path) -> None:
+    def _populate_results(
+        self,
+        results: list,
+        workspace_path: Path,
+        inaccessible_paths: list[str] | None = None,
+    ) -> None:
         results_list = self.query_one("#ws-results", ListView)
         results_list.loading = False
         results_list.clear()
@@ -149,16 +159,27 @@ class WorkspaceSearchPane(Static):
 
         if not results:
             results_list.append(ListItem(Label("No results")))
-            return
+        else:
+            for result in results:
+                try:
+                    relative = result.file_path.relative_to(workspace_path)
+                except ValueError:
+                    relative = result.file_path
+                label_text = (
+                    f"{relative}:{result.line_number}  {result.line_text.strip()}"
+                )
+                results_list.append(ListItem(Label(label_text)))
+                self._result_data.append((result.file_path, result.line_number))
 
-        for result in results:
-            try:
-                relative = result.file_path.relative_to(workspace_path)
-            except ValueError:
-                relative = result.file_path
-            label_text = f"{relative}:{result.line_number}  {result.line_text.strip()}"
-            results_list.append(ListItem(Label(label_text)))
-            self._result_data.append((result.file_path, result.line_number))
+        if inaccessible_paths:
+            count = len(inaccessible_paths)
+            preview = ", ".join(inaccessible_paths[:3])
+            if count > 3:
+                preview += f" (+{count - 3} more)"
+            self.app.notify(
+                f"Could not search {count} path(s): {preview}",
+                severity="warning",
+            )
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
         if event.worker.group != "search":

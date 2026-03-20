@@ -22,7 +22,8 @@ Provides project-wide text search and batch replace without leaving the editor. 
 - While the search is running, the results list shows a pulsating dots loading indicator (Textual's built-in `LoadingIndicator`).
 - Results are capped at 500 matches (`max_results=500`).
 - Each result shows `relative/path:line_number  line content`.
-- If no matches are found, "No results" is displayed. If the worker errors, "Search failed" is shown.
+- If no matches are found, "No results" is displayed. If the worker errors unexpectedly, "Search failed" is shown.
+- If some directories are inaccessible (e.g., permission denied), partial results are still displayed and a Toast warning lists the inaccessible paths.
 
 **Result navigation:**
 

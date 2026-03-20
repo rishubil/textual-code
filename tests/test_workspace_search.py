@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
 
-from textual_code.search import WorkspaceSearchResult, search_workspace
+from textual_code.search import WorkspaceSearchResponse, WorkspaceSearchResult, search_workspace
 
 # ---------------------------------------------------------------------------
 # Unit tests: search_workspace()
@@ -16,7 +17,7 @@ from textual_code.search import WorkspaceSearchResult, search_workspace
 def test_plain_text_single_file(tmp_path: Path) -> None:
     f = tmp_path / "hello.py"
     f.write_text("hello world\nfoo bar\n")
-    results = search_workspace(tmp_path, "hello")
+    results = search_workspace(tmp_path, "hello").results
     assert len(results) == 1
     assert results[0].file_path == f
     assert results[0].line_number == 1
@@ -27,21 +28,21 @@ def test_plain_text_single_file(tmp_path: Path) -> None:
 def test_returns_only_matching_files(tmp_path: Path) -> None:
     (tmp_path / "match.txt").write_text("needle here\n")
     (tmp_path / "nomatch.txt").write_text("nothing relevant\n")
-    results = search_workspace(tmp_path, "needle")
+    results = search_workspace(tmp_path, "needle").results
     assert len(results) == 1
     assert results[0].file_path.name == "match.txt"
 
 
 def test_multiple_matches_in_one_file(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("foo\nbar foo\nbaz\n")
-    results = search_workspace(tmp_path, "foo")
+    results = search_workspace(tmp_path, "foo").results
     assert len(results) == 2
     assert {r.line_number for r in results} == {1, 2}
 
 
 def test_regex_search(tmp_path: Path) -> None:
     (tmp_path / "r.txt").write_text("abc123\ndef456\nghi\n")
-    results = search_workspace(tmp_path, r"\d+", use_regex=True)
+    results = search_workspace(tmp_path, r"\d+", use_regex=True).results
     assert len(results) == 2
     assert results[0].line_number == 1
     assert results[1].line_number == 2
@@ -49,13 +50,13 @@ def test_regex_search(tmp_path: Path) -> None:
 
 def test_binary_file_skipped(tmp_path: Path) -> None:
     (tmp_path / "binary.bin").write_bytes(b"\x00\x01\x02binary data")
-    results = search_workspace(tmp_path, "binary")
+    results = search_workspace(tmp_path, "binary").results
     assert results == []
 
 
 def test_hidden_file_skipped(tmp_path: Path) -> None:
     (tmp_path / ".hidden").write_text("secret needle\n")
-    results = search_workspace(tmp_path, "needle")
+    results = search_workspace(tmp_path, "needle").results
     assert results == []
 
 
@@ -63,24 +64,24 @@ def test_hidden_directory_skipped(tmp_path: Path) -> None:
     hidden_dir = tmp_path / ".git"
     hidden_dir.mkdir()
     (hidden_dir / "config").write_text("needle\n")
-    results = search_workspace(tmp_path, "needle")
+    results = search_workspace(tmp_path, "needle").results
     assert results == []
 
 
 def test_empty_workspace(tmp_path: Path) -> None:
-    results = search_workspace(tmp_path, "anything")
+    results = search_workspace(tmp_path, "anything").results
     assert results == []
 
 
 def test_empty_query_returns_empty(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("hello\n")
-    results = search_workspace(tmp_path, "")
+    results = search_workspace(tmp_path, "").results
     assert results == []
 
 
 def test_whitespace_only_query_returns_empty(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("hello\n")
-    results = search_workspace(tmp_path, "   ")
+    results = search_workspace(tmp_path, "   ").results
     # whitespace is valid as a plain search but "   " trimming is caller's job;
     # search_workspace itself searches for the literal string "   "
     # (three spaces) so no match expected here.
@@ -89,19 +90,19 @@ def test_whitespace_only_query_returns_empty(tmp_path: Path) -> None:
 
 def test_max_results_limit(tmp_path: Path) -> None:
     (tmp_path / "big.txt").write_text("needle\n" * 100)
-    results = search_workspace(tmp_path, "needle", max_results=10)
+    results = search_workspace(tmp_path, "needle", max_results=10).results
     assert len(results) == 10
 
 
 def test_invalid_regex_returns_empty(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("hello\n")
-    results = search_workspace(tmp_path, "[invalid(", use_regex=True)
+    results = search_workspace(tmp_path, "[invalid(", use_regex=True).results
     assert results == []
 
 
 def test_match_start_end_columns(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("  needle here\n")
-    results = search_workspace(tmp_path, "needle")
+    results = search_workspace(tmp_path, "needle").results
     assert len(results) == 1
     r = results[0]
     assert r.match_start == 2
@@ -265,7 +266,7 @@ def test_gitignore_root_respected(tmp_path: Path) -> None:
     (tmp_path / "ignored.txt").write_text("needle\n")
     (tmp_path / "visible.txt").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", respect_gitignore=True)
+    results = search_workspace(tmp_path, "needle", respect_gitignore=True).results
     paths = {r.file_path.name for r in results}
     assert "ignored.txt" not in paths
     assert "visible.txt" in paths
@@ -279,7 +280,7 @@ def test_gitignore_nested_subdir_respected(tmp_path: Path) -> None:
     (subdir / "secret.txt").write_text("needle\n")
     (subdir / "public.txt").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", respect_gitignore=True)
+    results = search_workspace(tmp_path, "needle", respect_gitignore=True).results
     paths = {r.file_path.name for r in results}
     assert "secret.txt" not in paths
     assert "public.txt" in paths
@@ -290,7 +291,7 @@ def test_respect_gitignore_false_bypasses(tmp_path: Path) -> None:
     (tmp_path / ".gitignore").write_text("ignored.txt\n")
     (tmp_path / "ignored.txt").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", respect_gitignore=False)
+    results = search_workspace(tmp_path, "needle", respect_gitignore=False).results
     assert any(r.file_path.name == "ignored.txt" for r in results)
 
 
@@ -306,7 +307,7 @@ def test_include_filter_restricts_to_matching_files(tmp_path: Path) -> None:
     (src / "main.py").write_text("needle\n")
     (tmp_path / "other.txt").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", files_to_include="src/**")
+    results = search_workspace(tmp_path, "needle", files_to_include="src/**").results
     paths = {r.file_path.name for r in results}
     assert "main.py" in paths
     assert "other.txt" not in paths
@@ -317,7 +318,7 @@ def test_exclude_filter_skips_matching_files(tmp_path: Path) -> None:
     (tmp_path / "keep.py").write_text("needle\n")
     (tmp_path / "skip.txt").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", files_to_exclude="*.txt")
+    results = search_workspace(tmp_path, "needle", files_to_exclude="*.txt").results
     paths = {r.file_path.name for r in results}
     assert "keep.py" in paths
     assert "skip.txt" not in paths
@@ -328,7 +329,7 @@ def test_empty_include_returns_all_files(tmp_path: Path) -> None:
     (tmp_path / "a.py").write_text("needle\n")
     (tmp_path / "b.txt").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", files_to_include="")
+    results = search_workspace(tmp_path, "needle", files_to_include="").results
     assert len(results) == 2
 
 
@@ -337,7 +338,7 @@ def test_extension_only_include_pattern(tmp_path: Path) -> None:
     (tmp_path / "code.py").write_text("needle\n")
     (tmp_path / "doc.txt").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", files_to_include="*.py")
+    results = search_workspace(tmp_path, "needle", files_to_include="*.py").results
     paths = {r.file_path.name for r in results}
     assert "code.py" in paths
     assert "doc.txt" not in paths
@@ -349,9 +350,10 @@ def test_invalid_include_pattern_returns_empty(tmp_path: Path) -> None:
 
     # pathspec with an extremely malformed pattern; if it raises, iterator returns []
     # We pass something that could be invalid in some pathspec versions
-    results = search_workspace(tmp_path, "needle", files_to_include="[invalid(")
-    # Must not crash; result is a list (possibly empty)
-    assert isinstance(results, list)
+    response = search_workspace(tmp_path, "needle", files_to_include="[invalid(")
+    # Must not crash; response is a WorkspaceSearchResponse with a list of results
+    assert isinstance(response, WorkspaceSearchResponse)
+    assert isinstance(response.results, list)
 
 
 def test_trailing_comma_whitespace_in_pattern_string(tmp_path: Path) -> None:
@@ -361,7 +363,7 @@ def test_trailing_comma_whitespace_in_pattern_string(tmp_path: Path) -> None:
     (tmp_path / "other.txt").write_text("needle\n")
 
     # Leading/trailing comma and spaces should be stripped
-    results = search_workspace(tmp_path, "needle", files_to_include=" src/** , ")
+    results = search_workspace(tmp_path, "needle", files_to_include=" src/** , ").results
     paths = {r.file_path.name for r in results}
     assert "main.py" in paths
     assert "other.txt" not in paths
@@ -378,7 +380,7 @@ def test_exclude_folder_by_name(tmp_path: Path) -> None:
     (tmp_path / "node_modules" / "pkg.js").write_text("needle\n")
     (tmp_path / "keep.py").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", files_to_exclude="node_modules")
+    results = search_workspace(tmp_path, "needle", files_to_exclude="node_modules").results
     paths = {r.file_path.name for r in results}
     assert "pkg.js" not in paths
     assert "keep.py" in paths
@@ -392,7 +394,7 @@ def test_exclude_multiple_folders(tmp_path: Path) -> None:
     (tmp_path / "build" / "out.js").write_text("needle\n")
     (tmp_path / "src.py").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", files_to_exclude="dist,build")
+    results = search_workspace(tmp_path, "needle", files_to_exclude="dist,build").results
     paths = {r.file_path.name for r in results}
     assert "bundle.js" not in paths
     assert "out.js" not in paths
@@ -406,7 +408,7 @@ def test_exclude_nested_folder(tmp_path: Path) -> None:
     (vendor / "lib.js").write_text("needle\n")
     (tmp_path / "src" / "main.py").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", files_to_exclude="vendor")
+    results = search_workspace(tmp_path, "needle", files_to_exclude="vendor").results
     paths = {r.file_path.name for r in results}
     assert "lib.js" not in paths
     assert "main.py" in paths
@@ -418,7 +420,7 @@ def test_exclude_folder_trailing_slash(tmp_path: Path) -> None:
     (tmp_path / "dist" / "out.js").write_text("needle\n")
     (tmp_path / "keep.py").write_text("needle\n")
 
-    results = search_workspace(tmp_path, "needle", files_to_exclude="dist/")
+    results = search_workspace(tmp_path, "needle", files_to_exclude="dist/").results
     paths = {r.file_path.name for r in results}
     assert "out.js" not in paths
     assert "keep.py" in paths
@@ -433,10 +435,10 @@ def test_case_sensitive_search_default(tmp_path: Path) -> None:
     """By default search is case-sensitive."""
     (tmp_path / "a.txt").write_text("Hello World\n")
 
-    results = search_workspace(tmp_path, "hello")
+    results = search_workspace(tmp_path, "hello").results
     assert results == []
 
-    results = search_workspace(tmp_path, "Hello")
+    results = search_workspace(tmp_path, "Hello").results
     assert len(results) == 1
 
 
@@ -444,7 +446,7 @@ def test_case_insensitive_search(tmp_path: Path) -> None:
     """case_sensitive=False matches regardless of case."""
     (tmp_path / "a.txt").write_text("Hello World\n")
 
-    results = search_workspace(tmp_path, "hello", case_sensitive=False)
+    results = search_workspace(tmp_path, "hello", case_sensitive=False).results
     assert len(results) == 1
     assert results[0].line_text == "Hello World"
 
@@ -453,7 +455,7 @@ def test_case_insensitive_regex(tmp_path: Path) -> None:
     """case_sensitive=False works with use_regex=True."""
     (tmp_path / "a.txt").write_text("FooBar\nbaz\n")
 
-    results = search_workspace(tmp_path, "foo.*", use_regex=True, case_sensitive=False)
+    results = search_workspace(tmp_path, "foo.*", use_regex=True, case_sensitive=False).results
     assert len(results) == 1
     assert results[0].line_text == "FooBar"
 
@@ -670,3 +672,100 @@ async def test_empty_query_clears_loading(tmp_path: Path, monkeypatch) -> None:
         assert results_list.loading is False
 
         gate.set()  # Release the blocked worker
+
+
+# ---------------------------------------------------------------------------
+# Inaccessible path handling tests
+# ---------------------------------------------------------------------------
+
+
+def test_search_survives_inaccessible_directory(tmp_path: Path, monkeypatch) -> None:
+    """Search returns partial results and reports inaccessible paths."""
+    import textual_code.search as search_module
+
+    (tmp_path / "visible.txt").write_text("needle\n")
+    (tmp_path / "subdir").mkdir()
+    (tmp_path / "subdir" / "also_visible.txt").write_text("needle\n")
+
+    original_walk = os.walk
+
+    def patched_walk(top, **kwargs):
+        onerror = kwargs.get("onerror")
+        for dirpath, dirnames, filenames in original_walk(top, **kwargs):
+            yield dirpath, dirnames, filenames
+        # Simulate an inaccessible directory error after yielding real entries
+        if onerror:
+            onerror(OSError(13, "Permission denied", str(tmp_path / "restricted")))
+
+    monkeypatch.setattr(search_module.os, "walk", patched_walk)
+
+    response = search_workspace(tmp_path, "needle")
+    assert len(response.results) == 2
+    assert len(response.inaccessible_paths) == 1
+    assert "restricted" in response.inaccessible_paths[0]
+
+
+def test_search_response_empty_inaccessible_paths(tmp_path: Path) -> None:
+    """Search with no errors returns empty inaccessible_paths."""
+    (tmp_path / "a.txt").write_text("needle\n")
+    response = search_workspace(tmp_path, "needle")
+    assert isinstance(response, WorkspaceSearchResponse)
+    assert len(response.results) == 1
+    assert response.inaccessible_paths == []
+
+
+@pytest.mark.asyncio
+async def test_search_with_permission_error_shows_toast(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """Search with inaccessible paths shows a Toast warning notification."""
+    from unittest.mock import patch
+
+    from textual.widgets import Input, Label, ListView
+
+    import textual_code.widgets.workspace_search as ws_module
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "sample.txt").write_text("hello world\n")
+
+    def search_with_errors(*args, **kwargs):
+        return WorkspaceSearchResponse(
+            results=[
+                WorkspaceSearchResult(
+                    file_path=tmp_path / "sample.txt",
+                    line_number=1,
+                    line_text="hello world",
+                    match_start=0,
+                    match_end=5,
+                )
+            ],
+            inaccessible_paths=["/restricted/dir1", "/restricted/dir2"],
+        )
+
+    monkeypatch.setattr(ws_module, "search_workspace", search_with_errors)
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "hello"
+        await pilot.pause()
+
+        with patch.object(app, "notify") as mock_notify:
+            ws_pane._run_search()
+            await pilot.pause()
+
+            # Results should be populated
+            results_list = ws_pane.query_one("#ws-results", ListView)
+            labels = [str(lbl.content) for lbl in results_list.query(Label)]
+            assert any("sample.txt" in lbl for lbl in labels)
+
+            # Toast warning should have been shown
+            mock_notify.assert_called_once()
+            call_args = mock_notify.call_args
+            assert "2 path(s)" in call_args[0][0]
+            assert call_args[1]["severity"] == "warning"
