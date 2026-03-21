@@ -55,6 +55,12 @@ jobs:
       - uses: astral-sh/setup-uv@v3
       - run: uv sync --frozen
       - run: uv run pytest tests/ -m serial
+      - name: Upload snapshot report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-report
+          path: snapshot_report.html
 
   build:
     name: Build
