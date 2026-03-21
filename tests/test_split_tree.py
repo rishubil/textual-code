@@ -218,7 +218,7 @@ def test_split_leaf_same_direction_adds_sibling_before():
     b = _leaf("b")
     root = BranchNode(direction="horizontal", children=[a, b], ratios=[0.5, 0.5])
     new_root, new_leaf = split_leaf(root, "b", "horizontal", position="before")
-    assert new_root.children == [a, new_leaf, b]
+    assert new_root.children == [a, new_leaf, b]  # ty: ignore[unresolved-attribute]
 
 
 def test_split_leaf_different_direction_creates_nested():
@@ -252,7 +252,7 @@ def test_split_leaf_ratios_sum_to_one():
         direction="horizontal", children=[a, b, c], ratios=[0.5, 0.3, 0.2]
     )
     new_root, _ = split_leaf(root, "b", "horizontal")
-    assert abs(sum(new_root.ratios) - 1.0) < 1e-9
+    assert abs(sum(new_root.ratios) - 1.0) < 1e-9  # ty: ignore[unresolved-attribute]
 
 
 # ── remove_leaf ──────────────────────────────────────────────────────────────

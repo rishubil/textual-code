@@ -52,6 +52,7 @@ async def test_new_extension_detected(workspace, filename, expected_lang):
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
+        assert editor is not None
         assert editor.language == expected_lang
 
 
@@ -71,6 +72,7 @@ async def test_filename_detected(workspace, filename, expected_lang):
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
+        assert editor is not None
         assert editor.language == expected_lang
 
 
@@ -103,6 +105,7 @@ async def test_filename_takes_priority_over_extension(workspace):
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
+        assert editor is not None
         assert editor.language == "bash"
 
 
@@ -114,4 +117,5 @@ async def test_unknown_file_returns_none(workspace):
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
+        assert editor is not None
         assert editor.language is None

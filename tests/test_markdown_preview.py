@@ -172,7 +172,7 @@ async def test_preview_no_update_when_tab_closed(workspace: Path, md_file: Path)
 
         # Text change should not raise
         editor = app.main_view._get_active_code_editor_in_split("left")
-        editor.text = "# Changed\n"
+        editor.text = "# Changed\n"  # ty: ignore[invalid-assignment]
         await pilot.pause()
         # No exception means pass
 
@@ -506,6 +506,7 @@ async def test_markdown_widget_renders_with_space(workspace: Path):
 
         pane_id = app.main_view._preview_pane_ids[bold_md_file]
         tc = app.main_view._tc_for_pane(pane_id)
+        assert tc is not None
         preview = tc.get_pane(pane_id).query_one(MarkdownPreviewPane)
         md_widget = preview.query_one(MarkdownWidget)
 

@@ -314,7 +314,7 @@ def test_snapshot_overwrite_confirm_modal(
         editor.text = "editor changes\n"
         await pilot.pause()
         # Simulate external change by shifting mtime tracker
-        editor._file_mtime -= 1.0
+        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
         editor.action_save()
         await pilot.pause()
 
@@ -411,7 +411,7 @@ def test_snapshot_tab_reorder_right_indicator(
         await pilot.pause()
 
         tc = app.main_view.tabbed_content
-        order = tc.get_ordered_pane_ids()
+        order = tc.get_ordered_pane_ids()  # ty: ignore[unresolved-attribute]
         # Activate first tab (hello.py)
         tc.active = order[0]
         await pilot.pause()
@@ -906,6 +906,7 @@ def test_snapshot_narrow_sidebar_icon_only(snap_compare, snapshot_workspace: Pat
         await pilot.pause()
         app.main_view.action_find_in_workspace()
         await pilot.pause()
+        assert app.sidebar is not None
         app.sidebar.styles.width = 12
         await pilot.pause()
 
@@ -978,6 +979,7 @@ def test_snapshot_explorer_create_file_prefilled(
 
     async def run_before(pilot):
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         tree = explorer.directory_tree
         # Select the "src" directory node

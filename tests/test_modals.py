@@ -224,7 +224,7 @@ async def test_delete_modal_shows_file_path(tmp_path):
     async with app.run_test() as pilot:
         await pilot.pause()
         message_label = app.screen.query_one("#message")
-        assert str(f) in str(message_label.content)
+        assert str(f) in str(message_label.content)  # ty: ignore[unresolved-attribute]
 
 
 async def test_delete_modal_file_title_contains_file(tmp_path):
@@ -235,7 +235,7 @@ async def test_delete_modal_file_title_contains_file(tmp_path):
     async with app.run_test() as pilot:
         await pilot.pause()
         title_label = app.screen.query_one("#title")
-        title_text = str(title_label.content)
+        title_text = str(title_label.content)  # ty: ignore[unresolved-attribute]
         assert "file" in title_text.lower()
         assert "directory" not in title_text.lower()
 
@@ -248,7 +248,7 @@ async def test_delete_modal_file_warning_cannot_be_undone(tmp_path):
     async with app.run_test() as pilot:
         await pilot.pause()
         warning_label = app.screen.query_one("#warning")
-        assert "cannot be undone" in str(warning_label.content).lower()
+        assert "cannot be undone" in str(warning_label.content).lower()  # ty: ignore[unresolved-attribute]
 
 
 async def test_delete_modal_directory_title_contains_directory_and_contents(tmp_path):
@@ -259,7 +259,7 @@ async def test_delete_modal_directory_title_contains_directory_and_contents(tmp_
     async with app.run_test() as pilot:
         await pilot.pause()
         title_label = app.screen.query_one("#title")
-        title_text = str(title_label.content).lower()
+        title_text = str(title_label.content).lower()  # ty: ignore[unresolved-attribute]
         assert "directory" in title_text
         assert "contents" in title_text
 
@@ -272,7 +272,7 @@ async def test_delete_modal_directory_warning_cannot_be_undone(tmp_path):
     async with app.run_test() as pilot:
         await pilot.pause()
         warning_label = app.screen.query_one("#warning")
-        assert "cannot be undone" in str(warning_label.content).lower()
+        assert "cannot be undone" in str(warning_label.content).lower()  # ty: ignore[unresolved-attribute]
 
 
 # ── GotoLineModalScreen ───────────────────────────────────────────────────────

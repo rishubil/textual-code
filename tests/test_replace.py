@@ -492,9 +492,9 @@ async def test_replace_single_only_one_match_no_next(workspace: Path):
         await pilot.pause()
 
         find_input = editor.query_one("#find_input")
-        find_input.value = "unique"
+        find_input.value = "unique"  # ty: ignore[unresolved-attribute]
         replace_input = editor.query_one("#replace_input")
-        replace_input.value = "common"
+        replace_input.value = "common"  # ty: ignore[unresolved-attribute]
         await pilot.click("#replace_btn")
         await pilot.pause()
 

@@ -178,6 +178,8 @@ async def test_sidebar_resize_absolute_changes_width(workspace):
         await pilot.pause()
 
         # sidebar width should be set to 30
+        assert app.sidebar is not None
+        assert app.sidebar.styles.width is not None
         assert app.sidebar.styles.width.value == 30
 
 
@@ -185,6 +187,7 @@ async def test_sidebar_resize_relative_plus_changes_width(workspace):
     app = make_app(workspace)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         initial_width = app.sidebar.size.width
 
         app.action_resize_sidebar_cmd()
@@ -196,6 +199,7 @@ async def test_sidebar_resize_relative_plus_changes_width(workspace):
         await pilot.click("#submit")
         await pilot.pause()
 
+        assert app.sidebar.styles.width is not None
         assert app.sidebar.styles.width.value == initial_width + 5
 
 
@@ -203,6 +207,7 @@ async def test_sidebar_resize_relative_minus_changes_width(workspace):
     app = make_app(workspace)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         initial_width = app.sidebar.size.width
 
         app.action_resize_sidebar_cmd()
@@ -214,6 +219,7 @@ async def test_sidebar_resize_relative_minus_changes_width(workspace):
         await pilot.click("#submit")
         await pilot.pause()
 
+        assert app.sidebar.styles.width is not None
         assert app.sidebar.styles.width.value == initial_width - 3
 
 
@@ -232,7 +238,9 @@ async def test_sidebar_resize_percentage_changes_width(workspace):
         await pilot.pause()
 
         # Width should be set as percentage (numeric value = 30)
+        assert app.sidebar is not None
         width = app.sidebar.styles.width
+        assert width is not None
         assert width.value == 30.0
         # The sidebar should render at approximately 30% of 120 = 36 cells
         assert 30 <= app.sidebar.size.width <= 40
@@ -242,6 +250,7 @@ async def test_sidebar_resize_invalid_shows_error_and_keeps_width(workspace):
     app = make_app(workspace)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         initial_width = app.sidebar.size.width
 
         app.action_resize_sidebar_cmd()
@@ -261,6 +270,7 @@ async def test_sidebar_resize_cancel_keeps_width(workspace):
     app = make_app(workspace)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         initial_width = app.sidebar.size.width
 
         app.action_resize_sidebar_cmd()

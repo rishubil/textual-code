@@ -369,6 +369,7 @@ async def test_close_right_tab_removes_from_right_tracking(
         assert right_pane_id in app.main_view._pane_ids["right"]
         leaves = all_leaves(app.main_view._split_root)
         right_editor = app.main_view._get_active_code_editor_in_leaf(leaves[1])
+        assert right_editor is not None
         right_editor.action_close()
         await pilot.pause()
         await pilot.pause()

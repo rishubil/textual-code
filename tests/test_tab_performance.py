@@ -85,7 +85,7 @@ async def test_only_active_editor_polled_with_multiple_tabs(
             py_poll_count += 1
             orig_py_poll()
 
-        py_editor._poll_file_change = track_py
+        py_editor._poll_file_change = track_py  # ty: ignore[invalid-assignment]
 
         # Call the central poll method - only active (py) editor should be polled
         main._poll_active_editor()

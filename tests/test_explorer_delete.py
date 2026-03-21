@@ -21,6 +21,7 @@ async def test_file_delete_requested_message_posts(
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileDeleteRequested(explorer=explorer, path=sample_py_file)
@@ -38,6 +39,7 @@ async def test_delete_file_shows_modal(workspace: Path, sample_py_file: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileDeleteRequested(explorer=explorer, path=sample_py_file)
@@ -54,6 +56,7 @@ async def test_delete_file_confirm_deletes_file(workspace: Path, sample_py_file:
         await pilot.pause()
         assert sample_py_file.exists()
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileDeleteRequested(explorer=explorer, path=sample_py_file)
@@ -76,6 +79,7 @@ async def test_delete_file_cancel_keeps_file(workspace: Path, sample_py_file: Pa
         await pilot.pause()
         assert sample_py_file.exists()
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileDeleteRequested(explorer=explorer, path=sample_py_file)
@@ -98,6 +102,7 @@ async def test_delete_open_file_closes_tab(workspace: Path, sample_py_file: Path
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileDeleteRequested(explorer=explorer, path=sample_py_file)
@@ -125,6 +130,7 @@ async def test_delete_directory_shows_modal(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileDeleteRequested(explorer=explorer, path=subdir)
@@ -144,6 +150,7 @@ async def test_delete_directory_confirm_deletes_directory(workspace: Path):
         await pilot.pause()
         assert subdir.exists()
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileDeleteRequested(explorer=explorer, path=subdir)
@@ -171,6 +178,7 @@ async def test_delete_nonempty_directory_deletes_all_contents(workspace: Path):
     async with app.run_test() as pilot:
         await pilot.pause()
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileDeleteRequested(explorer=explorer, path=subdir)
@@ -195,6 +203,7 @@ async def test_delete_no_cursor_node_does_nothing(workspace: Path):
     async with app.run_test() as pilot:
         await pilot.pause()
         # call action_delete_node directly - should do nothing when cursor_node is None
+        assert app.sidebar is not None
         app.sidebar.explorer.action_delete_node()
         await pilot.pause()
         assert not isinstance(app.screen, DeleteFileModalScreen)

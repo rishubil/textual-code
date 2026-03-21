@@ -81,7 +81,9 @@ async def test_double_click_selects_word(workspace: Path, word_file: Path):
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         # Place cursor on 'world' (col 6 of row 0), then simulate double-click
         ta.cursor_location = (0, 6)
@@ -96,7 +98,9 @@ async def test_double_click_whitespace_no_selection(workspace: Path, word_file: 
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         # Place cursor on space between 'hello' and 'world' (col 5)
         ta.cursor_location = (0, 5)
@@ -113,7 +117,9 @@ async def test_double_click_eol_no_selection(workspace: Path, word_file: Path):
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         # Place cursor at EOL
         ta.cursor_location = (0, 11)
@@ -129,7 +135,9 @@ async def test_triple_click_selects_line(workspace: Path, word_file: Path):
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         ta.cursor_location = (0, 3)
         ta.on_click(_make_click(chain=3))
@@ -143,7 +151,9 @@ async def test_triple_click_empty_line(workspace: Path, workspace_with_empty: Pa
     app = make_app(workspace, open_file=workspace_with_empty, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         # Line 1 is empty
         ta.cursor_location = (1, 0)
@@ -165,7 +175,9 @@ async def test_double_click_clears_extra_cursors(workspace: Path, word_file: Pat
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         # Add an extra cursor
         ta.add_cursor((1, 0))
@@ -185,7 +197,9 @@ async def test_single_click_clears_extra_cursors(workspace: Path, word_file: Pat
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         # Add an extra cursor
         ta.add_cursor((1, 0))
@@ -205,7 +219,9 @@ async def test_single_click_clears_extra_cursors_integration(
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         # Add an extra cursor
         ta.add_cursor((1, 0))

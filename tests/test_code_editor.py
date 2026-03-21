@@ -223,7 +223,7 @@ async def test_save_as_creates_new_file(workspace: Path, sample_py_file: Path):
         await pilot.pause()
 
         input_widget = app.screen.query_one("#path")
-        input_widget.value = str(new_path)
+        input_widget.value = str(new_path)  # ty: ignore[unresolved-attribute]
         await pilot.pause()
         await pilot.click("#save")
         await pilot.pause()

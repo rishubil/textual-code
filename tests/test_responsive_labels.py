@@ -39,6 +39,7 @@ class TestTabLabelThreshold:
     async def test_wide_sidebar_shows_full_labels(self, ws):
         app = make_app(ws)
         async with app.run_test(size=(120, 40)) as pilot:
+            assert app.sidebar is not None
             app.sidebar.styles.width = _TAB_ICON_ONLY_THRESHOLD
             await pilot.pause()
             labels = await _get_tab_labels(app)
@@ -50,6 +51,7 @@ class TestTabLabelThreshold:
     async def test_narrow_sidebar_shows_icon_only(self, ws):
         app = make_app(ws)
         async with app.run_test(size=(120, 40)) as pilot:
+            assert app.sidebar is not None
             app.sidebar.styles.width = _TAB_ICON_ONLY_THRESHOLD - 1
             await pilot.pause()
             await pilot.pause()
@@ -66,6 +68,7 @@ class TestButtonLabelThreshold:
     async def test_wide_sidebar_shows_full_button_labels(self, ws):
         app = make_app(ws)
         async with app.run_test(size=(120, 40)) as pilot:
+            assert app.sidebar is not None
             app.sidebar.styles.width = _BTN_ICON_ONLY_THRESHOLD
             await pilot.pause()
             await pilot.pause()
@@ -76,6 +79,7 @@ class TestButtonLabelThreshold:
     async def test_narrow_sidebar_shows_icon_only_buttons(self, ws):
         app = make_app(ws)
         async with app.run_test(size=(120, 40)) as pilot:
+            assert app.sidebar is not None
             app.sidebar.styles.width = _BTN_ICON_ONLY_THRESHOLD - 1
             await pilot.pause()
             search, replace = await _get_button_labels(app)
@@ -86,9 +90,11 @@ class TestButtonLabelThreshold:
         """Wide sidebar sets min-width to match full label text length."""
         app = make_app(ws)
         async with app.run_test(size=(120, 40)) as pilot:
+            assert app.sidebar is not None
             app.sidebar.styles.width = _BTN_ICON_ONLY_THRESHOLD
             await pilot.pause()
             await pilot.pause()
+            assert app.sidebar is not None
             wsp = app.sidebar.workspace_search
             for btn_id, (full, _icon) in _BTN_LABELS.items():
                 btn = wsp.query_one(f"#{btn_id}", Button)
@@ -102,8 +108,10 @@ class TestButtonLabelThreshold:
         """Narrow sidebar sets min-width to match icon-only label length."""
         app = make_app(ws)
         async with app.run_test(size=(120, 40)) as pilot:
+            assert app.sidebar is not None
             app.sidebar.styles.width = _BTN_ICON_ONLY_THRESHOLD - 1
             await pilot.pause()
+            assert app.sidebar is not None
             wsp = app.sidebar.workspace_search
             for btn_id, (_full, icon) in _BTN_LABELS.items():
                 btn = wsp.query_one(f"#{btn_id}", Button)
@@ -118,6 +126,7 @@ class TestButtonLabelThreshold:
         app = make_app(ws)
         async with app.run_test(size=(120, 40)) as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             wsp = app.sidebar.workspace_search
             for btn_id, (_full, icon) in _BTN_LABELS.items():
                 btn = wsp.query_one(f"#{btn_id}", Button)

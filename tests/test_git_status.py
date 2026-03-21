@@ -299,6 +299,7 @@ class TestAppIntegration:
         ws.mkdir()
         app = make_app(ws, user_config_path=config)
         async with app.run_test():
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree.show_git_status is True
 

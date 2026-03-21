@@ -156,6 +156,7 @@ async def test_cursor_btn_col_10_label_visible(workspace):
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
+        assert editor is not None
         editor.editor.cursor_location = (0, 9)  # col 9 → "Ln 1, Col 10"
         await pilot.pause()
         btn = app.query_one(CodeEditorFooter).cursor_button

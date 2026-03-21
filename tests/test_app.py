@@ -230,6 +230,7 @@ async def test_sidebar_visible_by_default(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         assert app.sidebar.display is True
 
 
@@ -237,10 +238,12 @@ async def test_ctrl_b_hides_sidebar(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         assert app.sidebar.display is True
 
         await pilot.press("ctrl+b")
         await pilot.pause()
+        assert app.sidebar is not None
         assert app.sidebar.display is False
 
 
@@ -251,10 +254,12 @@ async def test_ctrl_b_toggles_sidebar_back(workspace: Path):
 
         await pilot.press("ctrl+b")
         await pilot.pause()
+        assert app.sidebar is not None
         assert app.sidebar.display is False
 
         await pilot.press("ctrl+b")
         await pilot.pause()
+        assert app.sidebar is not None
         assert app.sidebar.display is True
 
 
@@ -265,10 +270,12 @@ async def test_toggle_sidebar_action(workspace: Path):
 
         app.action_toggle_sidebar()
         await pilot.pause()
+        assert app.sidebar is not None
         assert app.sidebar.display is False
 
         app.action_toggle_sidebar()
         await pilot.pause()
+        assert app.sidebar is not None
         assert app.sidebar.display is True
 
 
@@ -337,6 +344,7 @@ async def test_ctrl_b_three_times_ends_visible(workspace: Path):
         for _ in range(3):
             await pilot.press("ctrl+b")
             await pilot.pause()
+        assert app.sidebar is not None
         assert app.sidebar.display is False
 
 
@@ -348,6 +356,7 @@ async def test_ctrl_b_four_times_ends_visible(workspace: Path):
         for _ in range(4):
             await pilot.press("ctrl+b")
             await pilot.pause()
+        assert app.sidebar is not None
         assert app.sidebar.display is True
 
 
@@ -364,11 +373,13 @@ async def test_toggle_sidebar_with_file_open_preserves_editor(
 
         await pilot.press("ctrl+b")
         await pilot.pause()
+        assert app.sidebar is not None
         assert app.sidebar.display is False
         assert editor.text == original_text
 
         await pilot.press("ctrl+b")
         await pilot.pause()
+        assert app.sidebar is not None
         assert app.sidebar.display is True
         assert editor.text == original_text
 

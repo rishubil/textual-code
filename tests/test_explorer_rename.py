@@ -23,6 +23,7 @@ async def test_file_rename_requested_message_posts(
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
@@ -41,6 +42,7 @@ async def test_rename_file_from_explorer(workspace: Path, sample_py_file: Path):
         await pilot.pause()
         assert sample_py_file.exists()
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
@@ -65,6 +67,7 @@ async def test_rename_file_cancel(workspace: Path, sample_py_file: Path):
     async with app.run_test() as pilot:
         await pilot.pause()
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
@@ -87,6 +90,7 @@ async def test_rename_open_file_updates_tab(workspace: Path, sample_py_file: Pat
         assert editor is not None
         assert editor.path == sample_py_file
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
@@ -114,6 +118,7 @@ async def test_rename_to_existing_shows_error(workspace: Path, sample_py_file: P
     async with app.run_test() as pilot:
         await pilot.pause()
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
@@ -135,6 +140,7 @@ async def test_rename_unchanged_name_noop(workspace: Path, sample_py_file: Path)
     async with app.run_test() as pilot:
         await pilot.pause()
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
@@ -157,6 +163,7 @@ async def test_rename_with_path_separator_shows_error(
     async with app.run_test() as pilot:
         await pilot.pause()
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
@@ -184,6 +191,7 @@ async def test_rename_directory_from_explorer(workspace: Path):
     async with app.run_test() as pilot:
         await pilot.pause()
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=subdir)
@@ -217,6 +225,7 @@ async def test_rename_dir_updates_open_files(workspace: Path):
         assert editor is not None
         assert editor.path == child_file
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=subdir)
@@ -242,6 +251,7 @@ async def test_rename_no_cursor_no_modal(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         app.sidebar.explorer.action_rename_node()
         await pilot.pause()
         assert not isinstance(app.screen, RenameModalScreen)
@@ -264,6 +274,7 @@ async def test_rename_file_preserves_unsaved_changes(
         editor.text = "modified content"
         await pilot.pause()
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
