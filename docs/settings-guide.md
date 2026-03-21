@@ -129,8 +129,8 @@ toggle_sidebar = "ctrl+b"
 ### How to rebind a key
 
 1. Press **F1** (or open Command Palette → "Show keyboard shortcuts")
-2. Select the action you want to rebind
-3. Press the new key combination
+2. Select the action you want to configure
+3. Click **Change Key...** and press the new key combination
 4. The binding is saved immediately; restart the app to apply
 
 ### Warning: restart required
@@ -142,3 +142,35 @@ The app shows a notification: *"Shortcut saved. Restart to apply changes."*
 
 Action names shown in the F1 shortcuts screen match the keys used in `keybindings.toml`.
 For example, the action displayed as `save_file` maps to the key `save_file` in the TOML file.
+
+## Shortcut Display Preferences: [display] sections
+
+Control whether each shortcut appears in the footer bar and command palette, and set footer display priority.
+
+```toml
+[display.save]
+footer = true
+palette = true
+footer_priority = 1
+
+[display.toggle_sidebar]
+footer = false
+```
+
+### How to configure display
+
+1. Press **F1** to open the shortcuts screen
+2. Select the action you want to configure
+3. Toggle the **Show in footer** and **Show in command palette** checkboxes
+4. Optionally set a **Footer priority** (1-999, lower = higher priority)
+5. Click **Save**; restart the app to apply
+
+### Available fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `footer` | bool | binding's `show` attribute | Show in the footer bar |
+| `palette` | bool | `true` | Show in the command palette |
+| `footer_priority` | int (1-999) | `ACTION_ORDER` index | Display order in footer |
+
+All fields are optional. Omitted fields use the default value.

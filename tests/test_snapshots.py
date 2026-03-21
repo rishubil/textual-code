@@ -345,6 +345,29 @@ def test_snapshot_show_shortcuts_screen(snap_compare, snapshot_workspace: Path):
     assert snap_compare(app, run_before=open_shortcuts, terminal_size=TERMINAL_SIZE)
 
 
+def test_snapshot_shortcut_settings_screen(snap_compare, snapshot_workspace: Path):
+    """ShortcutSettingsScreen modal with display toggles."""
+    from textual_code.modals import ShortcutSettingsScreen
+
+    app = make_app(snapshot_workspace)
+
+    async def open_settings(pilot):
+        await pilot.pause()
+        app.push_screen(
+            ShortcutSettingsScreen(
+                action_name="save",
+                description="Save",
+                current_key="Ctrl+S",
+                footer_visible=True,
+                palette_visible=True,
+                footer_priority=1,
+            )
+        )
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=open_settings, terminal_size=TERMINAL_SIZE)
+
+
 def test_snapshot_tab_reorder_active_indicator(
     snap_compare,
     snapshot_workspace: Path,

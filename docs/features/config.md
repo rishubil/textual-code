@@ -329,13 +329,18 @@ Keybindings are defined across three classes: `TextualCode` (app-level), `MainVi
 
 Additional shortcuts inherited from Textual's `TextArea`: Ctrl+C (copy), Ctrl+X (cut), Ctrl+V (paste), Ctrl+Z (undo), Ctrl+Y (redo).
 
-### F1 shortcuts viewer
+### F1 shortcuts viewer: shortcut settings with display toggles
 
 Pressing F1 (or command palette "Show keyboard shortcuts") opens a modal dialog listing all keybindings in a `DataTable` with columns: Key, Description, Context.
 
-Clicking any row opens a rebind dialog where the user presses a new key combination to reassign that action.
+Clicking any row opens a **Shortcut Settings** dialog (`ShortcutSettingsScreen`) where the user can:
 
-### Custom keybindings
+- **Change Key**: opens the rebind sub-dialog to reassign the shortcut key
+- **Show in footer**: checkbox to toggle whether the shortcut appears in the footer bar
+- **Show in command palette**: checkbox to toggle whether the shortcut appears in the command palette
+- **Footer priority (1-999)**: numeric input to control display order in the footer (lower = higher priority)
+
+### Custom keybindings: [bindings] section in keybindings.toml
 
 Custom keybindings are stored in `~/.config/textual-code/keybindings.toml` (or `%APPDATA%\textual-code\keybindings.toml` on Windows), under the `[bindings]` section:
 
@@ -349,14 +354,37 @@ Keys are action names (matching the second argument to `Binding()`). The rebind 
 
 Custom keybindings are applied at startup by patching the class-level `BINDINGS` lists of `MainView`, `TextualCode`, and `MultiCursorTextArea`.
 
+### Shortcut display preferences: [display.*] sections in keybindings.toml
+
+Per-action display preferences are stored alongside keybindings in the same `keybindings.toml` file, using `[display.<action_name>]` sub-tables:
+
+```toml
+[display.save]
+footer = true
+palette = true
+footer_priority = 1
+
+[display.toggle_sidebar]
+footer = false
+```
+
+Fields (all optional — omitted fields use defaults):
+
+- `footer` (bool): show in footer bar. Default: the binding's `show` attribute.
+- `palette` (bool): show in command palette. Default: `true`.
+- `footer_priority` (int, 1-999): display order in footer. Default: `ACTION_ORDER` index.
+
+Both `[bindings]` and `[display.*]` sections are saved atomically via `save_keybindings_file()` to avoid partial writes.
+
 ### Known Limitations
 
 - Escape cannot be rebound (it is used for UI control and is in `_SKIP_KEYS`).
 - Enter, Tab, and Shift+Tab are also not capturable in the rebind dialog.
 - No chord/sequence keybindings (e.g. Ctrl+K, Ctrl+C).
-- Keybinding changes require an app restart to take effect.
+- Keybinding and display changes require an app restart to take effect.
+- Once a display preference is set, it cannot be reverted to "use default" through the UI (requires manual config edit).
 
-**Implementation:** `config.py` (`load_keybindings`, `save_keybindings`, `get_keybindings_path`), `app.py` (`_apply_custom_keybindings`, `action_show_shortcuts`, `set_keybinding`), `modals.py` (`ShowShortcutsScreen`, `RebindKeyScreen`)
+**Implementation:** `config.py` (`ShortcutDisplayEntry`, `load_keybindings`, `load_shortcut_display`, `save_keybindings_file`), `app.py` (`_apply_custom_keybindings`, `action_show_shortcuts`, `set_keybinding`, `set_shortcut_display`, `get_footer_priority`), `modals.py` (`ShowShortcutsScreen`, `ShortcutSettingsScreen`, `RebindKeyScreen`)
 
 ---
 

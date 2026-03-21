@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import tomllib
+from dataclasses import dataclass
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -85,6 +86,15 @@ def load_editor_settings(
     return settings
 
 
+@dataclass
+class ShortcutDisplayEntry:
+    """Per-action display preferences for footer and command palette."""
+
+    footer: bool | None = None
+    palette: bool | None = None
+    footer_priority: int | None = None
+
+
 KEYBINDINGS_FILENAME = "keybindings.toml"
 
 
@@ -107,15 +117,81 @@ def load_keybindings(config_path: Path | None = None) -> dict[str, str]:
         return {}
 
 
+def load_shortcut_display(
+    config_path: Path | None = None,
+) -> dict[str, ShortcutDisplayEntry]:
+    """Load shortcut display preferences from [display.*] sections.
+
+    Returns {action_name: ShortcutDisplayEntry}. Returns {} on missing/error.
+    """
+    path = config_path or get_keybindings_path()
+    if not path.exists():
+        return {}
+    try:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+    except (tomllib.TOMLDecodeError, PermissionError):
+        return {}
+    display_section = data.get("display", {})
+    if not isinstance(display_section, dict):
+        return {}
+    result: dict[str, ShortcutDisplayEntry] = {}
+    for action, values in display_section.items():
+        if not isinstance(values, dict):
+            continue
+        footer = values.get("footer")
+        palette = values.get("palette")
+        priority = values.get("footer_priority")
+        if footer is not None and not isinstance(footer, bool):
+            continue
+        if palette is not None and not isinstance(palette, bool):
+            continue
+        if priority is not None and not isinstance(priority, int):
+            continue
+        result[action] = ShortcutDisplayEntry(
+            footer=footer, palette=palette, footer_priority=priority
+        )
+    return result
+
+
+def _serialize_display_section(display: dict[str, ShortcutDisplayEntry]) -> str:
+    """Serialize display preferences to TOML [display.*] sections."""
+    lines: list[str] = []
+    for action in sorted(display):
+        entry = display[action]
+        lines.append(f"[display.{action}]")
+        if entry.footer is not None:
+            lines.append(f"footer = {str(entry.footer).lower()}")
+        if entry.palette is not None:
+            lines.append(f"palette = {str(entry.palette).lower()}")
+        if entry.footer_priority is not None:
+            lines.append(f"footer_priority = {entry.footer_priority}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def save_keybindings_file(
+    bindings: dict[str, str],
+    display: dict[str, ShortcutDisplayEntry],
+    config_path: Path | None = None,
+) -> bool:
+    """Persist both [bindings] and [display.*] sections atomically."""
+    path = config_path or get_keybindings_path()
+    escaped = {k: v.replace('"', '\\"') for k, v in bindings.items()}
+    sections = ["[bindings]"] + [f'{k} = "{v}"' for k, v in escaped.items()]
+    sections.append("")
+    sections.append(_serialize_display_section(display))
+    return _safe_write_config(path, "\n".join(sections))
+
+
 def save_keybindings(
     bindings: dict[str, str],
     config_path: Path | None = None,
 ) -> bool:
-    """Persist custom keybindings to a TOML file. Returns False on I/O error."""
+    """Persist custom keybindings, preserving existing [display] sections."""
     path = config_path or get_keybindings_path()
-    escaped = {k: v.replace('"', '\\"') for k, v in bindings.items()}
-    lines = ["[bindings]"] + [f'{k} = "{v}"' for k, v in escaped.items()]
-    return _safe_write_config(path, "\n".join(lines) + "\n")
+    existing_display = load_shortcut_display(path)
+    return save_keybindings_file(bindings, existing_display, path)
 
 
 def _serialize_editor_settings(settings: dict[str, str | int | bool]) -> str:

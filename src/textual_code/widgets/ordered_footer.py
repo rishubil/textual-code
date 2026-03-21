@@ -33,7 +33,26 @@ class OrderedFooter(Footer):
         "toggle_sidebar",
     )
 
+    def _should_show_in_footer(self, binding: Binding) -> bool:
+        """Check if a binding should appear in the footer.
+
+        Respects user display config overrides, falling back to binding.show.
+        """
+        from textual_code.app import TextualCode
+
+        app = self.app
+        if isinstance(app, TextualCode):
+            entry = app._shortcut_display.get(binding.action)
+            if entry and entry.footer is not None:
+                return entry.footer
+        return binding.show
+
     def _action_sort_key(self, action: str) -> int:
+        from textual_code.app import TextualCode
+
+        app = self.app
+        if isinstance(app, TextualCode):
+            return app.get_footer_priority(action)
         try:
             return self.ACTION_ORDER.index(action)
         except ValueError:
@@ -46,11 +65,11 @@ class OrderedFooter(Footer):
         if not self._bindings_ready:
             return
         active_bindings = self.screen.active_bindings
-        bindings = [
-            (binding, enabled, tooltip)
-            for (_, binding, enabled, tooltip) in active_bindings.values()
-            if binding.show
-        ]
+        bindings = []
+        for _, binding, enabled, tooltip in active_bindings.values():
+            show = self._should_show_in_footer(binding)
+            if show:
+                bindings.append((binding, enabled, tooltip))
         action_to_bindings: defaultdict[str, list[tuple[Binding, bool, str]]]
         action_to_bindings = defaultdict(list)
         for binding, enabled, tooltip in bindings:
