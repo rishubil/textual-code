@@ -297,3 +297,88 @@ async def test_footer_cursor_btn_capped_width(workspace: Path, multiline_file: P
         await pilot.pause()
         footer = app.query_one(CodeEditorFooter)
         assert footer.cursor_button.region.width <= 28
+
+
+# ── G-16: language button resizes on tab switch ──────────────────────────────
+
+
+async def test_footer_buttons_resize_on_tab_switch(workspace: Path):
+    """G-16: switching tabs resizes all auto-width footer buttons to fit their
+    new labels.
+
+    Reproduces issue #20: switching from a short-language tab ("c") to a
+    long-language tab ("dockerfile") truncates the language label because
+    refresh_all_buttons() did not invalidate individual button layouts.
+    Also verifies line_ending and plain language buttons resize correctly.
+    """
+    file_a = workspace / "file_a.txt"
+    file_a.write_text("hello\n")
+    file_b = workspace / "file_b.txt"
+    file_b.write_text("world\n")
+
+    app = make_app(workspace, open_file=file_a, light=True)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+
+        # Open second tab — set long language and CRLF line ending
+        await app.main_view.action_open_code_editor(file_b)
+        await pilot.pause()
+        editor_b = app.main_view.get_active_code_editor()
+        assert editor_b is not None
+        editor_b.language = "dockerfile"
+        editor_b.line_ending = "crlf"
+        await pilot.pause()
+        await pilot.pause()
+
+        footer = app.query_one(CodeEditorFooter)
+
+        # Switch to first tab — set short language and LF line ending
+        pane_a = app.main_view.pane_id_from_path(file_a)
+        assert pane_a is not None
+        app.main_view.left_tabbed_content.active = pane_a
+        await pilot.pause()
+        await pilot.pause()
+        editor_a = app.main_view.get_active_code_editor()
+        assert editor_a is not None
+        editor_a.language = "c"
+        editor_a.line_ending = "lf"
+        await pilot.pause()
+        await pilot.pause()
+
+        # Switch back to the dockerfile/CRLF tab
+        pane_b = app.main_view.pane_id_from_path(file_b)
+        assert pane_b is not None
+        app.main_view.left_tabbed_content.active = pane_b
+        await pilot.pause()
+        await pilot.pause()
+
+        # Language button must accommodate "dockerfile" (10 chars + padding)
+        lang_label = str(footer.language_button.label)
+        lang_width = footer.language_button.region.width
+        assert lang_label == "dockerfile"
+        assert lang_width >= len(lang_label) + 2, (
+            f"Language button truncated: width={lang_width}, "
+            f"label='{lang_label}' needs >= {len(lang_label) + 2}"
+        )
+
+        # Line ending button must accommodate "CRLF" (4 chars + padding)
+        le_label = str(footer.line_ending_button.label)
+        le_width = footer.line_ending_button.region.width
+        assert le_label == "CRLF"
+        assert le_width >= len(le_label) + 2, (
+            f"Line ending button truncated: width={le_width}, "
+            f"label='{le_label}' needs >= {len(le_label) + 2}"
+        )
+
+        # Switch back to tab A — language is "c", verifies button shrinks too
+        app.main_view.left_tabbed_content.active = pane_a
+        await pilot.pause()
+        await pilot.pause()
+
+        c_label = str(footer.language_button.label)
+        c_width = footer.language_button.region.width
+        assert c_label == "c"
+        assert c_width < lang_width, (
+            f"Language button did not shrink: "
+            f"c_width={c_width}, docker_width={lang_width}"
+        )

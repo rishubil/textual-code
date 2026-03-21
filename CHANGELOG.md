@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editor**: mouse click now clears multi-cursor mode (single, double, and triple click all dismiss extra cursors)
 - **Editor**: Ctrl+D (add next occurrence) now scrolls the viewport to show the newly added cursor when it is off-screen
 - **Tabs**: switching back to a tab with a custom tree-sitter language (Kotlin, TypeScript, C, etc.) no longer crashes with `LanguageDoesNotExist` (Fix #15)
+- **Footer**: status bar buttons (language, encoding, line ending, indentation) now properly resize when switching between editor tabs with different values (Fix #20)
 - **Workspace Replace**: find-and-replace no longer doubles line endings on Windows by converting `\n` to `\r\n` twice (Fix #14)
 - **Split View**: moving a tab to another split no longer crashes with `ValueError: No Tab with id` on Windows due to a race condition between pane addition and tab activation (Fix #14)
 - **App**: accessing the sidebar property during app shutdown no longer crashes with `IndexError` when the screen stack is empty (Fix #14)
