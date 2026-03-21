@@ -493,7 +493,7 @@ class MainView(Static):
             return pane_id
 
         pane = TabPane(
-            "...",
+            path.name if path else "<Untitled>",
             CodeEditor(
                 pane_id=pane_id,
                 path=path,

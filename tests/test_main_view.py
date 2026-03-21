@@ -12,6 +12,9 @@ MainView tab management tests.
 
 from pathlib import Path
 
+from textual.widgets._tabbed_content import ContentTabs
+from textual.widgets._tabs import Underline
+
 from tests.conftest import make_app, set_editor_text
 from textual_code.modals import (
     SaveAsModalResult,
@@ -846,3 +849,42 @@ async def test_close_all_active_dirty_save_writes_to_disk(workspace: Path):
 
     assert file_a.read_text() == "original_a\n"  # not saved (discarded)
     assert file_b.read_text() == "saved_b\n"
+
+
+# ── Tab underline matches active tab width ───────────────────────────────────
+
+
+async def test_tab_underline_matches_active_tab_width(workspace: Path):
+    """Opening files with long names should produce an underline that spans
+    the full tab width, not the width of the '...' placeholder."""
+    file1 = workspace / "very_long_filename_number_one.py"
+    file1.write_text("# file 1\n")
+    file2 = workspace / "another_extremely_long_filename_here.py"
+    file2.write_text("# file 2\n")
+
+    app = make_app(workspace, light=True)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+
+        # Open first file
+        await app.main_view.action_open_code_editor(path=file1)
+        await pilot.pause()
+        await pilot.pause()
+
+        # Open second file (this is where the bug manifests)
+        await app.main_view.action_open_code_editor(path=file2)
+        await pilot.pause()
+        await pilot.pause()
+
+        # Get the underline and active tab
+        leaf = app.main_view._active_leaf
+        tc = app.query_one(f"#{leaf.leaf_id}")
+        content_tabs = tc.get_child_by_type(ContentTabs)
+        underline = content_tabs.query_one(Underline)
+        active_tab = content_tabs.query_one("#tabs-list > Tab.-active")
+
+        tab_region = active_tab.virtual_region.shrink(active_tab.styles.gutter)
+        expected_start, expected_end = tab_region.column_span
+
+        assert underline.highlight_start == expected_start
+        assert underline.highlight_end == expected_end
