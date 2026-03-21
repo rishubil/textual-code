@@ -260,19 +260,8 @@ def test_snapshot_readme_preview(snap_compare, snapshot_workspace: Path):
     )
     (snapshot_workspace / ".gitignore").write_text("__pycache__/\n*.pyc\n")
     readme = snapshot_workspace / "README.md"
-    readme.write_text(
-        "# Textual Code\n\n"
-        "A modern TUI code editor.\n\n"
-        "## Features\n\n"
-        "- Syntax highlighting\n"
-        "- Multiple cursors\n"
-        "- Find and replace\n"
-        "- Split view\n\n"
-        "## Installation\n\n"
-        "```bash\npip install textual-code\n```\n\n"
-        "## Usage\n\n"
-        "```python\nimport textual_code\ntextual_code.run()\n```\n"
-    )
+    project_readme = Path(__file__).resolve().parent.parent / "README.md"
+    readme.write_text(project_readme.read_text())
 
     # Disable git status highlighting
     config = snapshot_workspace / "settings.toml"
