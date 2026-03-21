@@ -719,9 +719,13 @@ class CodeEditorFooter(Static):
         self._update_cursor_button_label()
         self.cursor_button.refresh(layout=True)
         self.line_ending_button.label = self.line_ending.upper()
+        self.line_ending_button.refresh(layout=True)
         self.encoding_button.label = _ENCODING_DISPLAY.get(self.encoding, self.encoding)
+        self.encoding_button.refresh(layout=True)
         self.indent_button.label = _indent_display(self.indent_type, self.indent_size)
+        self.indent_button.refresh(layout=True)
         self.language_button.label = self.language or "plain"
+        self.language_button.refresh(layout=True)
         self.refresh(layout=True)
 
     def watch_line_ending(self, line_ending: str) -> None:
