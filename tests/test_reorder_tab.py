@@ -74,7 +74,7 @@ async def test_reorder_tab_right(
         await pilot.pause()
 
         tc = app.main_view.tabbed_content
-        order_before = get_tab_order(tc)
+        order_before = get_tab_order(tc)  # ty: ignore[invalid-argument-type]
         assert len(order_before) == 3
 
         # Activate first tab
@@ -86,7 +86,7 @@ async def test_reorder_tab_right(
         app.main_view.action_reorder_tab_right()
         await pilot.pause()
 
-        order_after = get_tab_order(tc)
+        order_after = get_tab_order(tc)  # ty: ignore[invalid-argument-type]
         # First tab should now be at index 1
         assert order_after[1] == first_pane_id
         # Active tab unchanged
@@ -110,7 +110,7 @@ async def test_reorder_tab_left(
         await pilot.pause()
 
         tc = app.main_view.tabbed_content
-        order_before = get_tab_order(tc)
+        order_before = get_tab_order(tc)  # ty: ignore[invalid-argument-type]
         last_pane_id = order_before[2]
 
         # Activate last tab
@@ -121,7 +121,7 @@ async def test_reorder_tab_left(
         app.main_view.action_reorder_tab_left()
         await pilot.pause()
 
-        order_after = get_tab_order(tc)
+        order_after = get_tab_order(tc)  # ty: ignore[invalid-argument-type]
         # Last tab should now be at index 1
         assert order_after[1] == last_pane_id
         assert tc.active == last_pane_id
@@ -140,7 +140,7 @@ async def test_reorder_tab_right_at_end(workspace: Path, py_file: Path, py_file2
         await pilot.pause()
 
         tc = app.main_view.tabbed_content
-        order_before = get_tab_order(tc)
+        order_before = get_tab_order(tc)  # ty: ignore[invalid-argument-type]
         last_pane_id = order_before[-1]
 
         # Activate last tab
@@ -151,7 +151,7 @@ async def test_reorder_tab_right_at_end(workspace: Path, py_file: Path, py_file2
         app.main_view.action_reorder_tab_right()
         await pilot.pause()
 
-        assert get_tab_order(tc) == order_before
+        assert get_tab_order(tc) == order_before  # ty: ignore[invalid-argument-type]
 
 
 async def test_reorder_tab_left_at_start(
@@ -166,7 +166,7 @@ async def test_reorder_tab_left_at_start(
         await pilot.pause()
 
         tc = app.main_view.tabbed_content
-        order_before = get_tab_order(tc)
+        order_before = get_tab_order(tc)  # ty: ignore[invalid-argument-type]
         first_pane_id = order_before[0]
 
         # Activate first tab
@@ -177,7 +177,7 @@ async def test_reorder_tab_left_at_start(
         app.main_view.action_reorder_tab_left()
         await pilot.pause()
 
-        assert get_tab_order(tc) == order_before
+        assert get_tab_order(tc) == order_before  # ty: ignore[invalid-argument-type]
 
 
 # ── Single tab ────────────────────────────────────────────────────────────
@@ -190,16 +190,16 @@ async def test_reorder_tab_single_tab(workspace: Path, py_file: Path):
         await pilot.pause()
 
         tc = app.main_view.tabbed_content
-        order_before = get_tab_order(tc)
+        order_before = get_tab_order(tc)  # ty: ignore[invalid-argument-type]
         assert len(order_before) == 1
 
         app.main_view.action_reorder_tab_right()
         await pilot.pause()
-        assert get_tab_order(tc) == order_before
+        assert get_tab_order(tc) == order_before  # ty: ignore[invalid-argument-type]
 
         app.main_view.action_reorder_tab_left()
         await pilot.pause()
-        assert get_tab_order(tc) == order_before
+        assert get_tab_order(tc) == order_before  # ty: ignore[invalid-argument-type]
 
 
 # ── MarkdownPreviewPane tab reorder ───────────────────────────────────────
@@ -220,7 +220,7 @@ async def test_reorder_markdown_preview_tab(
         await pilot.pause()
 
         tc = app.main_view.tabbed_content
-        order_before = get_tab_order(tc)
+        order_before = get_tab_order(tc)  # ty: ignore[invalid-argument-type]
         # Preview tab should be the last one (3 tabs: py_file, md_file, preview)
         assert len(order_before) == 3
         preview_pane_id = order_before[2]
@@ -232,7 +232,7 @@ async def test_reorder_markdown_preview_tab(
         app.main_view.action_reorder_tab_left()
         await pilot.pause()
 
-        order_after = get_tab_order(tc)
+        order_after = get_tab_order(tc)  # ty: ignore[invalid-argument-type]
         # Preview tab should now be at index 1
         assert order_after[1] == preview_pane_id
 

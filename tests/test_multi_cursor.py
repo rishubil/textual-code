@@ -54,7 +54,9 @@ async def test_add_cursor_adds_to_list(workspace: Path, two_line_file: Path):
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         ta.add_cursor((1, 0))
         assert (1, 0) in ta.extra_cursors
 
@@ -63,7 +65,9 @@ async def test_add_cursor_same_as_primary_is_noop(workspace: Path, two_line_file
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         primary = ta.cursor_location
         ta.add_cursor(primary)
         assert ta.extra_cursors == []
@@ -73,7 +77,9 @@ async def test_add_cursor_duplicate_is_noop(workspace: Path, two_line_file: Path
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         ta.add_cursor((1, 0))
         ta.add_cursor((1, 0))  # duplicate
         assert ta.extra_cursors.count((1, 0)) == 1
@@ -83,7 +89,9 @@ async def test_clear_cursors_removes_all(workspace: Path, two_line_file: Path):
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         ta.add_cursor((1, 0))
         ta.add_cursor((1, 3))
         ta.clear_extra_cursors()
@@ -132,7 +140,9 @@ async def test_ctrl_alt_down_adds_cursor_below(workspace: Path, two_line_file: P
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         primary_row, primary_col = ta.cursor_location
 
         await pilot.press("ctrl+alt+down")
@@ -145,7 +155,9 @@ async def test_ctrl_alt_up_adds_cursor_above(workspace: Path, three_line_file: P
     app = make_app(workspace, light=True, open_file=three_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         # Move primary to row 1 first
         await pilot.press("down")
         await pilot.pause()
@@ -161,7 +173,9 @@ async def test_ctrl_alt_down_at_last_line_is_noop(workspace: Path, two_line_file
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         # Move primary to last content line manually
         last_line = ta.document.line_count - 1
         ta.cursor_location = (last_line, 0)
@@ -177,7 +191,9 @@ async def test_ctrl_alt_up_at_first_line_is_noop(workspace: Path, two_line_file:
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+alt+up")
         await pilot.pause()
@@ -192,7 +208,9 @@ async def test_escape_clears_extra_cursors(workspace: Path, two_line_file: Path)
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         ta.add_cursor((1, 0))
         assert ta.extra_cursors != []
 
@@ -210,7 +228,9 @@ async def test_movement_key_clears_extra_cursors(workspace: Path, two_line_file:
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         ta.add_cursor((1, 0))
 
         await pilot.press("right")
@@ -229,7 +249,9 @@ async def test_typing_inserts_at_two_cursors(workspace: Path, two_line_file: Pat
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         # Move primary to (0, 0) and add extra at (1, 0)
         await pilot.press("ctrl+home")
@@ -250,7 +272,9 @@ async def test_backspace_deletes_at_two_cursors(workspace: Path, two_line_file: 
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         # Move primary to (0, 1) and add extra at (1, 1)
         await pilot.press("ctrl+home")
@@ -278,7 +302,9 @@ async def test_delete_deletes_at_two_cursors(workspace: Path, two_line_file: Pat
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home")
         await pilot.pause()
@@ -306,7 +332,9 @@ async def test_footer_shows_cursor_count_in_multicursor_mode(
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         # Single cursor: no bracket suffix
         cursor_btn = app.query_one(CodeEditorFooter).cursor_button
@@ -325,7 +353,9 @@ async def test_footer_hides_cursor_count_after_escape(
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         ta.add_cursor((1, 0))
         await pilot.pause()
@@ -355,7 +385,9 @@ async def test_enter_splits_two_different_rows(workspace: Path, two_line_file: P
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home")
         await pilot.pause()
@@ -381,7 +413,9 @@ async def test_enter_splits_same_row_two_cursors(workspace: Path, two_line_file:
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home")
         await pilot.pause()
@@ -407,7 +441,9 @@ async def test_enter_splits_same_row_three_cursors(
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home")
         await pilot.pause()
@@ -433,7 +469,9 @@ async def test_enter_at_col_0(workspace: Path, two_line_file: Path):
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home")
         await pilot.pause()
@@ -455,7 +493,9 @@ async def test_enter_at_eol(workspace: Path, two_line_file: Path):
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home")
         await pilot.pause()
@@ -479,7 +519,9 @@ async def test_enter_primary_position_correct(workspace: Path, two_line_file: Pa
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home")
         await pilot.pause()
@@ -501,7 +543,9 @@ async def test_enter_extra_cursor_positions_correct(
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home")
         await pilot.pause()
@@ -521,7 +565,9 @@ async def test_enter_three_different_rows(workspace: Path, five_line_file: Path)
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home")
         await pilot.pause()
@@ -549,7 +595,9 @@ async def test_enter_consecutive_rows(workspace: Path, five_line_file: Path):
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home")
         await pilot.pause()
@@ -578,7 +626,9 @@ async def test_enter_single_cursor_not_intercepted(
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home")
         await pilot.pause()
@@ -600,7 +650,9 @@ async def test_backspace_col0_two_cursors_merges(workspace: Path, five_line_file
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         ta.cursor_location = (1, 0)
         await pilot.pause()
@@ -619,7 +671,9 @@ async def test_backspace_col0_document_content(workspace: Path, five_line_file: 
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         ta.cursor_location = (1, 0)
         await pilot.pause()
@@ -642,7 +696,9 @@ async def test_backspace_col0_row0_stays(workspace: Path, two_line_file: Path):
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home")
         await pilot.pause()
@@ -663,7 +719,9 @@ async def test_backspace_col0_mixed_clears_cursors(
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         ta.cursor_location = (1, 0)
         await pilot.pause()
@@ -682,7 +740,9 @@ async def test_backspace_col0_primary_position(workspace: Path, five_line_file: 
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         ta.cursor_location = (2, 0)
         await pilot.pause()
@@ -701,7 +761,9 @@ async def test_backspace_col0_extra_positions(workspace: Path, five_line_file: P
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         ta.cursor_location = (2, 0)
         await pilot.pause()
@@ -724,7 +786,9 @@ async def test_delete_eol_two_cursors_merges(workspace: Path, five_line_file: Pa
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         ta.cursor_location = (0, 5)  # EOL of "line0"
         await pilot.pause()
@@ -743,7 +807,9 @@ async def test_delete_eol_document_content(workspace: Path, five_line_file: Path
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         ta.cursor_location = (0, 5)  # EOL of "line0"
         await pilot.pause()
@@ -764,7 +830,9 @@ async def test_delete_eol_last_line_stays(workspace: Path, two_line_file: Path):
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         # Move to last content line, EOL
         await pilot.press("ctrl+end")
@@ -785,7 +853,9 @@ async def test_delete_eol_mixed_clears_cursors(workspace: Path, five_line_file: 
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         ta.cursor_location = (0, 5)  # EOL of "line0"
         await pilot.pause()
@@ -803,7 +873,9 @@ async def test_delete_eol_cursor_positions(workspace: Path, five_line_file: Path
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         ta.cursor_location = (0, 5)  # EOL of "line0"
         await pilot.pause()
@@ -827,7 +899,9 @@ async def test_enter_regression_single_cursor(workspace: Path, two_line_file: Pa
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home", "right", "right")
         await pilot.pause()
@@ -846,7 +920,9 @@ async def test_backspace_col0_regression_single_cursor(
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home", "down")
         await pilot.pause()
@@ -866,7 +942,9 @@ async def test_delete_eol_regression_single_cursor(
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
 
         await pilot.press("ctrl+home", "end")
         await pilot.pause()
@@ -886,7 +964,9 @@ async def test_add_cursor_clears_line_cache(workspace: Path, two_line_file: Path
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         # Trigger a render to populate the cache first
         ta.refresh()
         await pilot.pause()
@@ -902,7 +982,9 @@ async def test_clear_extra_cursors_clears_line_cache(
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         ta.add_cursor((1, 0))
         await pilot.pause()
         # Populate the cache again after add_cursor
@@ -921,7 +1003,9 @@ async def test_arrow_key_moves_all_cursors(workspace: Path, two_line_file: Path)
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         ta.add_cursor((1, 0))
@@ -940,7 +1024,9 @@ async def test_home_moves_all_cursors(workspace: Path, two_line_file: Path):
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         await pilot.press("right", "right", "right")
@@ -960,7 +1046,9 @@ async def test_ctrl_end_moves_all_cursors(workspace: Path, two_line_file: Path):
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         ta.add_cursor((1, 0))
@@ -984,7 +1072,9 @@ async def test_shift_left_creates_extra_selection(workspace: Path, two_line_file
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         await pilot.press("right", "right")
@@ -1008,7 +1098,9 @@ async def test_ctrl_shift_right_creates_word_selection(
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         ta.add_cursor((1, 0))
@@ -1030,7 +1122,9 @@ async def test_ctrl_shift_left_creates_word_selection(
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         await pilot.press("right", "right", "right", "right", "right")
@@ -1055,7 +1149,9 @@ async def test_add_cursor_with_anchor(workspace: Path, two_line_file: Path):
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         ta.add_cursor((1, 3), anchor=(1, 0))
         assert ta.extra_cursors == [(1, 3)]
         assert ta.extra_anchors == [(1, 0)]
@@ -1066,7 +1162,9 @@ async def test_extra_anchor_default_equals_cursor(workspace: Path, two_line_file
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         ta.add_cursor((1, 2))
         assert ta.extra_anchors == [(1, 2)]
 
@@ -1079,7 +1177,9 @@ async def test_typing_with_selection_replaces(workspace: Path, two_line_file: Pa
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         # Primary at (0,0) collapsed, extra selects "Foo" on line 1
@@ -1099,7 +1199,9 @@ async def test_backspace_with_selection_deletes(workspace: Path, two_line_file: 
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         await pilot.press("right")
@@ -1120,6 +1222,7 @@ async def test_typing_with_overlapping_selections(workspace: Path, two_line_file
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
+        assert editor is not None
         ta = editor.editor
         from textual.widgets.text_area import Selection
 
@@ -1146,7 +1249,9 @@ async def test_movement_deduplicates_cursors(workspace: Path, two_line_file: Pat
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         await pilot.press("right", "right")
@@ -1165,7 +1270,9 @@ async def test_movement_primary_extra_collision(workspace: Path, two_line_file: 
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         await pilot.press("right")
@@ -1268,7 +1375,9 @@ async def test_movement_key_moves_not_clears(workspace: Path, two_line_file: Pat
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         ta.add_cursor((1, 0))
@@ -1289,7 +1398,9 @@ async def test_ctrl_a_selects_all_text(workspace: Path, two_line_file: Path):
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+a")
         await pilot.pause()
         # selection should span from (0,0) to end of document
@@ -1303,7 +1414,9 @@ async def test_ctrl_a_clears_extra_cursors(workspace: Path, two_line_file: Path)
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         ta.add_cursor((1, 0))
         await pilot.pause()
         assert ta.extra_cursors != []
@@ -1320,7 +1433,9 @@ async def test_ctrl_a_on_empty_document(workspace: Path):
     app = make_app(workspace, light=True, open_file=empty)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+a")
         await pilot.pause()
         assert ta.extra_cursors == []
@@ -1361,7 +1476,9 @@ async def test_shift_pagedown_creates_selection(workspace: Path, long_file: Path
     app = make_app(workspace, light=True, open_file=long_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
 
@@ -1380,7 +1497,9 @@ async def test_shift_pageup_creates_selection(workspace: Path, long_file: Path):
     app = make_app(workspace, light=True, open_file=long_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         # Place cursor near the bottom (ctrl+end has no TextArea binding)
         last_row = ta.document.line_count - 1
         ta.move_cursor((last_row, 0))
@@ -1405,7 +1524,9 @@ async def test_shift_home_creates_selection(workspace: Path, two_line_file: Path
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         # Move to middle of first line
@@ -1429,7 +1550,9 @@ async def test_shift_end_creates_selection(workspace: Path, two_line_file: Path)
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         await pilot.press("ctrl+home")
         await pilot.pause()
         assert ta.cursor_location == (0, 0)
@@ -1454,7 +1577,9 @@ async def test_shift_pageup_multi_cursor(workspace: Path, long_file: Path):
     app = make_app(workspace, light=True, open_file=long_file)
     async with app.run_test() as pilot:
         await pilot.pause()
-        ta = app.main_view.get_active_code_editor().editor
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
         last_row = ta.document.line_count - 1
         ta.move_cursor((last_row, 0))
         await pilot.pause()

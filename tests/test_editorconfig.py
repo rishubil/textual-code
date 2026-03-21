@@ -695,7 +695,7 @@ def _bump_ec_mtimes(editor: CodeEditor) -> None:
     """Decrement stored editorconfig mtimes to simulate file change detection."""
     for d in list(editor._ec_mtimes):
         if editor._ec_mtimes[d] is not None:
-            editor._ec_mtimes[d] -= 1.0
+            editor._ec_mtimes[d] -= 1.0  # ty: ignore[unsupported-operator]
 
 
 async def test_G01_modify_indent_style_detected(tmp_path: Path):

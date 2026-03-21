@@ -29,6 +29,7 @@ def _read_workspace_files(workspace_path: Path) -> list[Path]:
                 result.append(rel)
         except OSError:
             logger.debug("OSError accessing %s, skipping", p)
+    result.sort()
     return result
 
 
@@ -79,6 +80,7 @@ def _read_workspace_paths(workspace_path: Path) -> list[Path]:
                 result.append(p)
         except OSError:
             logger.debug("OSError accessing %s, skipping", p)
+    result.sort()
     return result
 
 
@@ -160,10 +162,11 @@ def _read_workspace_directories(workspace_path: Path) -> list[Path]:
             workspace_path, onerror=lambda e: logger.debug("os.walk error: %s", e)
         ):
             # Prune .git directories in-place to prevent descent
-            dirnames[:] = [d for d in dirnames if d != ".git"]
+            dirnames[:] = sorted(d for d in dirnames if d != ".git")
             dirs.extend(Path(dirpath) / d for d in dirnames)
     except OSError:
         logger.debug("OSError during os.walk of %s", workspace_path)
+    dirs.sort()
     return dirs
 
 

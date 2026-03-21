@@ -75,6 +75,7 @@ async def test_copy_file_stores_clipboard(workspace: Path, sample_py_file: Path)
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileCopyRequested(explorer=explorer, path=sample_py_file)
@@ -89,6 +90,7 @@ async def test_cut_file_stores_clipboard(workspace: Path, sample_py_file: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileCutRequested(explorer=explorer, path=sample_py_file)
@@ -105,6 +107,7 @@ async def test_copy_replaces_previous_clipboard(workspace: Path, sample_py_file:
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileCopyRequested(explorer=explorer, path=sample_py_file)
@@ -128,6 +131,7 @@ async def test_paste_copied_file(workspace: Path, sample_py_file: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         # Copy
         explorer.post_message(
@@ -156,6 +160,7 @@ async def test_paste_copied_file_content_preserved(
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileCopyRequested(explorer=explorer, path=sample_py_file)
@@ -174,6 +179,7 @@ async def test_paste_copied_file_same_dir(workspace: Path, sample_py_file: Path)
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileCopyRequested(explorer=explorer, path=sample_py_file)
@@ -197,6 +203,7 @@ async def test_paste_copied_file_preserves_clipboard(
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileCopyRequested(explorer=explorer, path=sample_py_file)
@@ -215,6 +222,7 @@ async def test_paste_copied_file_twice(workspace: Path, sample_py_file: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileCopyRequested(explorer=explorer, path=sample_py_file)
@@ -247,6 +255,7 @@ async def test_paste_copied_directory(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(Explorer.FileCopyRequested(explorer=explorer, path=src))
         await pilot.pause()
@@ -271,6 +280,7 @@ async def test_paste_cut_file(workspace: Path, sample_py_file: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileCutRequested(explorer=explorer, path=sample_py_file)
@@ -296,6 +306,7 @@ async def test_paste_cut_file_updates_tab(workspace: Path, sample_py_file: Path)
         assert editor is not None
         assert editor.path == sample_py_file
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileCutRequested(explorer=explorer, path=sample_py_file)
@@ -326,6 +337,7 @@ async def test_paste_cut_directory_updates_open_files(workspace: Path):
         assert editor is not None
         assert editor.path == main_py
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(Explorer.FileCutRequested(explorer=explorer, path=src))
         await pilot.pause()
@@ -344,6 +356,7 @@ async def test_paste_cut_clears_clipboard(workspace: Path, sample_py_file: Path)
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileCutRequested(explorer=explorer, path=sample_py_file)
@@ -365,6 +378,7 @@ async def test_paste_empty_clipboard(workspace: Path):
     app = make_app(workspace)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FilePasteRequested(explorer=explorer, target_dir=workspace)
@@ -379,6 +393,7 @@ async def test_paste_source_deleted(workspace: Path, sample_py_file: Path):
     app = make_app(workspace)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileCopyRequested(explorer=explorer, path=sample_py_file)
@@ -402,6 +417,7 @@ async def test_paste_dir_into_itself(workspace: Path):
     app = make_app(workspace)
     async with app.run_test(notifications=True) as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(Explorer.FileCopyRequested(explorer=explorer, path=src))
         await pilot.pause()
@@ -428,6 +444,7 @@ async def test_paste_target_is_file_uses_parent(workspace: Path, sample_py_file:
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(Explorer.FileCopyRequested(explorer=explorer, path=other))
         await pilot.pause()

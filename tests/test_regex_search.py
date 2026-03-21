@@ -222,7 +222,7 @@ async def test_regex_find_case_insensitive_inline(workspace: Path, regex_file: P
         await pilot.click(checkbox)
 
         input_widget = editor.query_one("#find_input")
-        input_widget.value = "(?i)hello"
+        input_widget.value = "(?i)hello"  # ty: ignore[unresolved-attribute]
         await pilot.click("#next_match")
         await pilot.pause()
 

@@ -21,6 +21,7 @@ async def test_selected_dir_relative_for_directory(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         # Move cursor down to find the "src" directory node
         tree = explorer.directory_tree
@@ -41,6 +42,7 @@ async def test_selected_dir_relative_for_file(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         tree = explorer.directory_tree
         # Expand src dir and find main.py
@@ -63,6 +65,7 @@ async def test_selected_dir_relative_for_root(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         # cursor_node at root level file should give parent = workspace root → ""
         tree = explorer.directory_tree
@@ -80,6 +83,7 @@ async def test_selected_dir_relative_no_selection(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         # Force cursor_node to None for testing
         tree = explorer.directory_tree
@@ -98,6 +102,7 @@ async def test_create_file_prefills_selected_folder(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         tree = explorer.directory_tree
 
@@ -127,6 +132,7 @@ async def test_create_directory_prefills_selected_folder(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         tree = explorer.directory_tree
 
@@ -155,6 +161,7 @@ async def test_create_file_no_prefill_at_root(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         tree = explorer.directory_tree
 
@@ -186,6 +193,7 @@ async def test_create_file_prefills_from_editor_focus(workspace: Path):
     app = make_app(workspace, open_file=subdir / "main.py")
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         tree = explorer.directory_tree
 

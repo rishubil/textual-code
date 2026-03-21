@@ -175,7 +175,7 @@ async def test_app_loads_user_and_project_config_priority(tmp_path):
     def patched_load(workspace_path, user_config_path=None):
         return original_load(workspace_path, user_config_path=user_cfg)
 
-    config_module.load_editor_settings = patched_load
+    config_module.load_editor_settings = patched_load  # ty: ignore[invalid-assignment]
     try:
         app = TextualCode(workspace_path=ws, with_open_file=None)
         assert app.default_indent_type == "spaces"  # project overrides user

@@ -78,7 +78,7 @@ async def test_resize_split_to_sets_width(workspace, py_file):
         first_dtc = app.main_view.query_one(
             f"#{leaves[0].leaf_id}", DraggableTabbedContent
         )
-        assert first_dtc.styles.width.value == 40
+        assert first_dtc.styles.width.value == 40  # ty: ignore[unresolved-attribute]
 
 
 async def test_resize_split_min_clamp(workspace, py_file):
@@ -98,7 +98,7 @@ async def test_resize_split_min_clamp(workspace, py_file):
         first_dtc = app.main_view.query_one(
             f"#{leaves[0].leaf_id}", DraggableTabbedContent
         )
-        assert first_dtc.styles.width.value == SPLIT_MIN_SIZE
+        assert first_dtc.styles.width.value == SPLIT_MIN_SIZE  # ty: ignore[unresolved-attribute]
 
 
 async def test_resize_split_max_clamp(workspace, py_file):
@@ -118,7 +118,7 @@ async def test_resize_split_max_clamp(workspace, py_file):
         first_dtc = app.main_view.query_one(
             f"#{leaves[0].leaf_id}", DraggableTabbedContent
         )
-        assert first_dtc.styles.width.value == container.size.width - SPLIT_MIN_SIZE
+        assert first_dtc.styles.width.value == container.size.width - SPLIT_MIN_SIZE  # ty: ignore[unresolved-attribute]
 
 
 async def test_drag_flow(workspace, py_file):
@@ -145,7 +145,7 @@ async def test_drag_flow(workspace, py_file):
         first_dtc = app.main_view.query_one(
             f"#{leaves[0].leaf_id}", DraggableTabbedContent
         )
-        assert first_dtc.styles.width.value == 50
+        assert first_dtc.styles.width.value == 50  # ty: ignore[unresolved-attribute]
 
 
 async def test_resize_split_vertical(workspace, py_file):
@@ -170,4 +170,4 @@ async def test_resize_split_vertical(workspace, py_file):
         first_dtc = app.main_view.query_one(
             f"#{leaves[0].leaf_id}", DraggableTabbedContent
         )
-        assert first_dtc.styles.height.value == 12
+        assert first_dtc.styles.height.value == 12  # ty: ignore[unresolved-attribute]

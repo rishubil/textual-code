@@ -74,6 +74,7 @@ class TestNoItalicExtension:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             _assert_no_italic(app.sidebar.explorer.directory_tree, app, filenames)
 
     @pytest.mark.asyncio
@@ -87,6 +88,7 @@ class TestNoItalicExtension:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             _assert_no_italic(app.sidebar.explorer.directory_tree, app, filenames)
 
     @pytest.mark.asyncio
@@ -100,6 +102,7 @@ class TestNoItalicExtension:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             _assert_no_italic(app.sidebar.explorer.directory_tree, app, filenames)
 
     @pytest.mark.asyncio
@@ -114,6 +117,7 @@ class TestNoItalicExtension:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             _assert_no_italic(app.sidebar.explorer.directory_tree, app, dirnames)
 
     @pytest.mark.asyncio
@@ -127,6 +131,7 @@ class TestNoItalicExtension:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             _assert_no_italic(
                 app.sidebar.explorer.directory_tree, app, ["debug.log", "app.py"]
             )

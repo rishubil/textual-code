@@ -232,6 +232,7 @@ class TestAppIntegration:
         ws.mkdir()
         app = make_app(ws, user_config_path=config)
         async with app.run_test():
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree.dim_gitignored is True
 
@@ -294,6 +295,7 @@ class TestRenderLabelDim:
         app = make_app(ws, user_config_path=config)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             # Verify gitignore matching
             assert tree._is_gitignored(ws / "debug.log") is True
@@ -310,6 +312,7 @@ class TestRenderLabelDim:
         app = make_app(ws, user_config_path=config)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree._is_gitignored(ws / ".env") is False
 
@@ -324,6 +327,7 @@ class TestRenderLabelDim:
         app = make_app(ws, user_config_path=config)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree._is_gitignored(ws / "debug.log") is True
             # Toggle off

@@ -32,6 +32,7 @@ class TestCollectExpandedDirMtimes:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             mtimes = tree._collect_expanded_dir_mtimes()
             assert ws in mtimes
@@ -50,6 +51,7 @@ class TestCollectExpandedDirMtimes:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             # Initially only root children are visible, dirs are collapsed
             mtimes_before = tree._collect_expanded_dir_mtimes()
@@ -81,6 +83,7 @@ class TestGetGitRefMtimes:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             index_mtime, head_mtime = tree._get_git_ref_mtimes()
             assert index_mtime is not None
@@ -96,6 +99,7 @@ class TestGetGitRefMtimes:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree._get_git_ref_mtimes() == (None, None)
 
@@ -108,6 +112,7 @@ class TestGetGitRefMtimes:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree._get_git_ref_mtimes() == (None, None)
 
@@ -124,6 +129,7 @@ class TestPollWorkspaceChangeDir:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             # Initialize polling state
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
@@ -147,6 +153,7 @@ class TestPollWorkspaceChangeDir:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
             tree._git_ref_mtimes = tree._get_git_ref_mtimes()
@@ -168,6 +175,7 @@ class TestPollWorkspaceChangeDir:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
             tree._git_ref_mtimes = tree._get_git_ref_mtimes()
@@ -190,6 +198,7 @@ class TestPollWorkspaceChangeDir:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
             tree._git_ref_mtimes = tree._get_git_ref_mtimes()
@@ -212,6 +221,7 @@ class TestPollWorkspaceChangeDir:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
             tree._git_ref_mtimes = tree._get_git_ref_mtimes()
@@ -243,6 +253,7 @@ class TestPollWorkspaceChangeGit:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
             tree._git_ref_mtimes = tree._get_git_ref_mtimes()
@@ -282,6 +293,7 @@ class TestPollWorkspaceChangeGit:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
             tree._git_ref_mtimes = tree._get_git_ref_mtimes()
@@ -316,6 +328,7 @@ class TestPollWorkspaceChangeGit:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
 
             # Expand the subdir
@@ -362,6 +375,7 @@ class TestIntegration:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
             tree._git_ref_mtimes = tree._get_git_ref_mtimes()
@@ -397,6 +411,7 @@ class TestIntegration:
         app = make_app(ws)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
 
             # Expand the subdir

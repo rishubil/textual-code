@@ -146,6 +146,7 @@ class TestFeatureInteraction:
         app = make_app(ws, user_config_path=config)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             # Dotfile is NOT gitignored (exempt)
             assert tree._is_gitignored(ws / ".hidden_file") is False

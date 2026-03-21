@@ -199,7 +199,7 @@ async def test_resize_split_absolute_changes_width(workspace, py_file):
 
         leaves = all_leaves(app.main_view._split_root)
         first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
-        assert first_dtc.styles.width.value == 40
+        assert first_dtc.styles.width.value == 40  # ty: ignore[unresolved-attribute]
 
 
 async def test_resize_split_relative_plus_changes_width(workspace, py_file):
@@ -222,7 +222,7 @@ async def test_resize_split_relative_plus_changes_width(workspace, py_file):
         await pilot.click("#submit")
         await pilot.pause()
 
-        assert first_dtc.styles.width.value == initial_width + 5
+        assert first_dtc.styles.width.value == initial_width + 5  # ty: ignore[unresolved-attribute]
 
 
 async def test_resize_split_percentage_changes_width(workspace, py_file):
@@ -243,7 +243,7 @@ async def test_resize_split_percentage_changes_width(workspace, py_file):
 
         leaves = all_leaves(app.main_view._split_root)
         first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
-        assert first_dtc.styles.width.value == 40.0
+        assert first_dtc.styles.width.value == 40.0  # ty: ignore[unresolved-attribute]
 
 
 async def test_resize_split_invalid_shows_error(workspace, py_file):

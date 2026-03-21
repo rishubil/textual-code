@@ -171,6 +171,7 @@ class TestExplorerIntegration:
         app = make_app(ws, user_config_path=config)
         async with app.run_test() as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree.show_hidden_files is True
 

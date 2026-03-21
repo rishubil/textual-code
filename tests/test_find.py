@@ -385,7 +385,7 @@ async def test_find_multiword_query(workspace: Path, search_file: Path):
         await pilot.pause()
 
         input_widget = editor.query_one("#find_input")
-        input_widget.value = "hello world"
+        input_widget.value = "hello world"  # ty: ignore[unresolved-attribute]
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -411,7 +411,7 @@ async def test_find_match_at_end_of_file(workspace: Path):
         await pilot.pause()
 
         input_widget = editor.query_one("#find_input")
-        input_widget.value = "find me"
+        input_widget.value = "find me"  # ty: ignore[unresolved-attribute]
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -494,7 +494,7 @@ async def test_find_file_without_trailing_newline(workspace: Path):
         await pilot.pause()
 
         input_widget = editor.query_one("#find_input")
-        input_widget.value = "second"
+        input_widget.value = "second"  # ty: ignore[unresolved-attribute]
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -643,7 +643,7 @@ async def test_find_entire_file_content_as_query(workspace: Path):
         await pilot.pause()
 
         input_widget = editor.query_one("#find_input")
-        input_widget.value = content
+        input_widget.value = content  # ty: ignore[unresolved-attribute]
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -671,7 +671,7 @@ async def test_case_insensitive_find_selects_uppercase_match(workspace: Path):
 
         # Uncheck case_sensitive checkbox
         case_cb = bar.query_one("#case_sensitive")
-        case_cb.value = False
+        case_cb.value = False  # ty: ignore[unresolved-attribute]
         await pilot.pause()
 
         await pilot.click("#find_input")

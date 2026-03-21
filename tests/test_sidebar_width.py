@@ -179,6 +179,7 @@ class TestSidebarWidthApplied:
         app = make_app(ws)
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             assert app.sidebar.size.width == 28
 
     @pytest.mark.asyncio
@@ -190,6 +191,7 @@ class TestSidebarWidthApplied:
         app = make_app(ws, user_config_path=config)
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             assert app.sidebar.size.width == 40
 
     @pytest.mark.asyncio
@@ -202,6 +204,7 @@ class TestSidebarWidthApplied:
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause()
             # 30% of 120 = 36, allow rounding tolerance
+            assert app.sidebar is not None
             assert 34 <= app.sidebar.size.width <= 38
 
     @pytest.mark.asyncio
@@ -213,8 +216,11 @@ class TestSidebarWidthApplied:
         app = make_app(ws, user_config_path=config)
         async with app.run_test(size=(120, 30)) as pilot:
             await pilot.pause()
+            assert app.sidebar is not None
             assert app.sidebar.size.width == 40
             # Runtime resize should still work
+            assert app.sidebar is not None
             app.sidebar.styles.width = 50
             await pilot.pause()
+            assert app.sidebar is not None
             assert app.sidebar.size.width == 50

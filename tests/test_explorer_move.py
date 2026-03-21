@@ -89,6 +89,7 @@ async def test_file_move_requested_opens_command_palette(
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
@@ -126,6 +127,7 @@ async def test_move_file_cancel_command_palette(workspace: Path, sample_py_file:
     async with app.run_test() as pilot:
         await pilot.pause()
 
+        assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
@@ -263,6 +265,7 @@ async def test_move_no_cursor_no_palette(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
+        assert app.sidebar is not None
         app.sidebar.explorer.action_move_node()
         await pilot.pause()
         assert not isinstance(app.screen, CommandPalette)
