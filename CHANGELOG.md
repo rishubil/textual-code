@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Shortcuts**: per-command display toggles in F1 shortcuts viewer — control footer and command palette visibility, set footer display priority (Fix #28)
+
 ### Fixed
 
 - **Performance**: command palette file search no longer freezes the UI on large workspaces; fuzzy matching is now offloaded to a background thread via `asyncio.to_thread`

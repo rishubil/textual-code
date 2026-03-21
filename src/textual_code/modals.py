@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, cast
 
 from textual import on
 from textual.app import ComposeResult
-from textual.containers import Grid, Vertical
+from textual.containers import Grid, Horizontal, Vertical
 from textual.events import Key
 from textual.screen import ModalScreen
 from textual.widget import Widget
@@ -21,6 +21,7 @@ from textual.widgets import (
 
 if TYPE_CHECKING:
     from textual_code.app import TextualCode
+    from textual_code.config import ShortcutDisplayEntry
 
 
 @dataclass
@@ -1169,6 +1170,157 @@ class RebindKeyScreen(ModalScreen[RebindResult]):
         self.dismiss(RebindResult(is_cancelled=True, action_name=None, new_key=None))
 
 
+@dataclass
+class ShortcutSettingsResult:
+    """Result from the ShortcutSettingsScreen dialog."""
+
+    is_cancelled: bool
+    action_name: str | None = None
+    new_key: str | None = None
+    footer_visible: bool | None = None
+    palette_visible: bool | None = None
+    footer_priority: int | None = None
+
+
+class ShortcutSettingsScreen(ModalScreen[ShortcutSettingsResult]):
+    """Modal for configuring a single shortcut's display preferences."""
+
+    DEFAULT_CSS = """
+    ShortcutSettingsScreen {
+        align: center middle;
+    }
+    ShortcutSettingsScreen #dialog {
+        padding: 1 2;
+        width: 60;
+        height: auto;
+        max-height: 26;
+        border: thick $background 80%;
+        background: $surface;
+    }
+    ShortcutSettingsScreen #title {
+        height: 1;
+        width: 1fr;
+        content-align: center middle;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    ShortcutSettingsScreen #current_key_label {
+        height: 1;
+        margin-bottom: 1;
+    }
+    ShortcutSettingsScreen #change_key {
+        margin-bottom: 1;
+        width: 100%;
+    }
+    ShortcutSettingsScreen #footer_priority {
+        width: 20;
+        margin-bottom: 1;
+    }
+    ShortcutSettingsScreen .priority_label {
+        height: 1;
+    }
+    ShortcutSettingsScreen .buttons {
+        height: 3;
+        margin-top: 1;
+        layout: horizontal;
+    }
+    ShortcutSettingsScreen .buttons Button {
+        width: 1fr;
+        margin: 0 1;
+    }
+    """
+
+    def __init__(
+        self,
+        action_name: str,
+        description: str,
+        current_key: str,
+        footer_visible: bool = True,
+        palette_visible: bool = True,
+        footer_priority: int | None = None,
+    ) -> None:
+        super().__init__()
+        self._action = action_name
+        self._description = description
+        self._current_key = current_key
+        self._footer_visible = footer_visible
+        self._palette_visible = palette_visible
+        self._footer_priority = footer_priority
+        self._new_key: str | None = None
+
+    def compose(self) -> ComposeResult:
+        priority_str = (
+            str(self._footer_priority) if self._footer_priority is not None else ""
+        )
+        yield Vertical(
+            Label(f"Shortcut Settings: {self._description}", id="title"),
+            Label(f"Current key: {self._current_key}", id="current_key_label"),
+            Button("Change Key...", variant="default", id="change_key"),
+            Checkbox("Show in footer", self._footer_visible, id="footer_visible"),
+            Checkbox(
+                "Show in command palette", self._palette_visible, id="palette_visible"
+            ),
+            Label("Footer priority (1-999):", classes="priority_label"),
+            Input(
+                value=priority_str,
+                placeholder="e.g. 1",
+                id="footer_priority",
+                restrict=r"[0-9]*",
+                max_length=3,
+            ),
+            Horizontal(
+                Button("Save", variant="primary", id="save"),
+                Button("Cancel", variant="default", id="cancel"),
+                classes="buttons",
+            ),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#change_key")
+    def on_change_key(self) -> None:
+        self.app.push_screen(
+            RebindKeyScreen(self._action, self._description, self._current_key),
+            self._on_rebind,
+        )
+
+    def _on_rebind(self, result: RebindResult | None) -> None:
+        if result and not result.is_cancelled and result.new_key:
+            self._new_key = result.new_key
+            self._current_key = result.new_key
+            self.query_one("#current_key_label", Label).update(
+                f"Current key: {result.new_key}"
+            )
+
+    @on(Button.Pressed, "#save")
+    def on_save(self) -> None:
+        footer_cb = self.query_one("#footer_visible", Checkbox)
+        palette_cb = self.query_one("#palette_visible", Checkbox)
+        priority_input = self.query_one("#footer_priority", Input)
+        priority_val = priority_input.value.strip()
+        footer_priority: int | None = None
+        if priority_val:
+            try:
+                val = int(priority_val)
+                if 1 <= val <= 999:
+                    footer_priority = val
+            except ValueError:
+                pass
+        self.dismiss(
+            ShortcutSettingsResult(
+                is_cancelled=False,
+                action_name=self._action,
+                new_key=self._new_key,
+                footer_visible=footer_cb.value,
+                palette_visible=palette_cb.value,
+                footer_priority=footer_priority,
+            )
+        )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(ShortcutSettingsResult(is_cancelled=True))
+
+
 class ShowShortcutsScreen(ModalScreen[None]):
     """Modal that lists all keyboard shortcuts and allows rebinding."""
 
@@ -1199,10 +1351,15 @@ class ShowShortcutsScreen(ModalScreen[None]):
     }
     """
 
-    def __init__(self, rows: list[tuple[str, str, str, str]]) -> None:
+    def __init__(
+        self,
+        rows: list[tuple[str, str, str, str]],
+        display_config: dict[str, ShortcutDisplayEntry] | None = None,
+    ) -> None:
         super().__init__()
         # rows: (key, description, context, action_name)
         self._rows = rows
+        self._display_config = display_config or {}
 
     def compose(self) -> ComposeResult:
         yield Vertical(
@@ -1223,16 +1380,61 @@ class ShowShortcutsScreen(ModalScreen[None]):
         action_name = str(event.row_key.value)
         row = next(r for r in self._rows if r[3] == action_name)
         current_key, desc, _ctx, _action = row
+        # Look up current display preferences for this action
+        display_entry = self._display_config.get(action_name)
+        # Determine default footer visibility from the binding's show attribute
+        binding_show = self._get_binding_show(action_name)
+        footer_visible = (
+            display_entry.footer
+            if display_entry and display_entry.footer is not None
+            else binding_show
+        )
+        palette_visible = (
+            display_entry.palette
+            if display_entry and display_entry.palette is not None
+            else True
+        )
+        footer_priority = display_entry.footer_priority if display_entry else None
         self.app.push_screen(
-            RebindKeyScreen(action_name, desc, current_key),
-            self._on_rebind,
+            ShortcutSettingsScreen(
+                action_name=action_name,
+                description=desc,
+                current_key=current_key,
+                footer_visible=footer_visible,
+                palette_visible=palette_visible,
+                footer_priority=footer_priority,
+            ),
+            self._on_settings_result,
         )
 
-    def _on_rebind(self, result: RebindResult | None) -> None:
-        if result and not result.is_cancelled and result.action_name and result.new_key:
-            cast("TextualCode", self.app).set_keybinding(
-                result.action_name, result.new_key
+    def _get_binding_show(self, action_name: str) -> bool:
+        """Get the default show value for an action from its Binding."""
+        from textual_code.app import MainView, TextualCode
+        from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+        for cls in (MainView, TextualCode, MultiCursorTextArea):
+            for b in cls.BINDINGS:
+                if b.action == action_name:
+                    return b.show
+        return True
+
+    def _on_settings_result(self, result: ShortcutSettingsResult | None) -> None:
+        if result is None or result.is_cancelled:
+            return
+        app = cast("TextualCode", self.app)
+        if result.new_key and result.action_name:
+            app.set_keybinding(result.action_name, result.new_key)
+        if result.action_name:
+            from textual_code.config import ShortcutDisplayEntry
+
+            entry = ShortcutDisplayEntry(
+                footer=result.footer_visible,
+                palette=result.palette_visible,
+                footer_priority=result.footer_priority,
             )
+            app.set_shortcut_display(result.action_name, entry)
+            # Update local display config for subsequent edits in this session
+            self._display_config[result.action_name] = entry
 
     @on(Button.Pressed, "#close")
     def on_close(self) -> None:

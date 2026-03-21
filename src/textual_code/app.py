@@ -22,12 +22,14 @@ from textual_code.commands import (
 )
 from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
+    ShortcutDisplayEntry,
     get_keybindings_path,
     get_project_config_path,
     get_user_config_path,
     load_editor_settings,
     load_keybindings,
-    save_keybindings,
+    load_shortcut_display,
+    save_keybindings_file,
     save_project_editor_settings,
     save_user_editor_settings,
 )
@@ -382,10 +384,13 @@ class TextualCode(App):
         # File clipboard for copy/cut/paste in explorer
         self._file_clipboard: tuple[Literal["copy", "cut"], Path] | None = None
 
-        # load and apply custom keybindings
+        # load and apply custom keybindings and display preferences
         kb_path = get_keybindings_path(user_config_path) if user_config_path else None
         self._custom_keybindings: dict[str, str] = load_keybindings(kb_path)
-        _apply_custom_keybindings(self._custom_keybindings)
+        self._shortcut_display: dict[str, ShortcutDisplayEntry] = load_shortcut_display(
+            kb_path
+        )
+        _apply_custom_keybindings(self._custom_keybindings, self._shortcut_display)
 
     def compose(self) -> ComposeResult:
         if not self._skip_sidebar:
@@ -414,7 +419,45 @@ class TextualCode(App):
                 path=self.with_open_file, focus=True
             )
 
+    # Mapping from binding action names to their SystemCommand titles.
+    # Used to filter commands when a user hides them from the command palette.
+    _ACTION_TO_CMD_TITLES: dict[str, list[str]] = {
+        "show_shortcuts": ["Show keyboard shortcuts"],
+        "toggle_sidebar": ["Toggle sidebar"],
+        "save": ["Save file"],
+        "save_all": ["Save all files"],
+        "new_editor": ["New file"],
+        "close": ["Close file"],
+        "close_all": ["Close all files"],
+        "rename_file": ["Rename file"],
+        "goto_line": ["Goto line"],
+        "find": ["Find"],
+        "replace": ["Replace"],
+        "find_in_workspace": ["Find in Workspace"],
+        "add_cursor_below": ["Add cursor below"],
+        "add_cursor_above": ["Add cursor above"],
+        "select_all_occurrences": ["Select all occurrences"],
+        "add_next_occurrence": ["Add next occurrence"],
+        "split_right": ["Split editor right"],
+        "close_split": ["Close split"],
+    }
+
+    def _hidden_palette_titles(self) -> set[str]:
+        """Build set of SystemCommand titles that should be hidden."""
+        hidden: set[str] = set()
+        for action, entry in self._shortcut_display.items():
+            if entry.palette is False:
+                for title in self._ACTION_TO_CMD_TITLES.get(action, []):
+                    hidden.add(title)
+        return hidden
+
     def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
+        hidden = self._hidden_palette_titles()
+        for cmd in self._all_system_commands(screen):
+            if cmd.title not in hidden:
+                yield cmd
+
+    def _all_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
         for cmd in super().get_system_commands(screen):
             if cmd.title != _TEXTUAL_BUILTIN_THEME_CMD:
                 yield cmd
@@ -2028,19 +2071,57 @@ class TextualCode(App):
             for b in cls.BINDINGS:
                 if b.description:
                     rows.append((b.key, b.description, ctx, b.action))
-        self.push_screen(ShowShortcutsScreen(rows))
+        self.push_screen(ShowShortcutsScreen(rows, self._shortcut_display))
 
-    def set_keybinding(self, action: str, new_key: str) -> None:
-        """Save a custom keybinding and apply it immediately."""
-        self._custom_keybindings[action] = new_key
-        kb_path = (
+    def _keybindings_path(self) -> Path:
+        """Return the keybindings config file path."""
+        return (
             get_keybindings_path(self._user_config_path)
             if self._user_config_path
             else get_keybindings_path()
         )
-        self._save_config(save_keybindings, self._custom_keybindings, kb_path)
-        _apply_custom_keybindings({action: new_key})
+
+    def set_keybinding(self, action: str, new_key: str) -> None:
+        """Save a custom keybinding and apply it immediately."""
+        self._custom_keybindings[action] = new_key
+        self._save_config(
+            save_keybindings_file,
+            self._custom_keybindings,
+            self._shortcut_display,
+            self._keybindings_path(),
+        )
+        _apply_custom_keybindings(self._custom_keybindings, self._shortcut_display)
         self.notify("Shortcut saved. Restart to apply changes.")
+
+    def set_shortcut_display(self, action: str, entry: ShortcutDisplayEntry) -> None:
+        """Save shortcut display preferences and apply immediately."""
+        self._shortcut_display[action] = entry
+        self._save_config(
+            save_keybindings_file,
+            self._custom_keybindings,
+            self._shortcut_display,
+            self._keybindings_path(),
+        )
+        _apply_custom_keybindings(self._custom_keybindings, self._shortcut_display)
+        # Trigger footer recompose so display changes take effect immediately
+        import contextlib
+
+        with contextlib.suppress(Exception):
+            self.footer.refresh(recompose=True)
+        self.notify("Display settings saved.")
+
+    def get_footer_priority(self, action: str) -> int:
+        """Return the footer display priority for an action.
+
+        Checks custom display config first, then falls back to ACTION_ORDER.
+        """
+        entry = self._shortcut_display.get(action)
+        if entry and entry.footer_priority is not None:
+            return entry.footer_priority
+        try:
+            return OrderedFooter.ACTION_ORDER.index(action)
+        except ValueError:
+            return len(OrderedFooter.ACTION_ORDER)
 
     @property
     def sidebar(self) -> Sidebar | None:
@@ -2056,20 +2137,24 @@ class TextualCode(App):
         return self.query_one(OrderedFooter)
 
 
-def _apply_custom_keybindings(custom: dict[str, str]) -> None:
-    """Patch class-level BINDINGS lists with custom key mappings."""
+def _apply_custom_keybindings(
+    custom: dict[str, str],
+    display: dict[str, ShortcutDisplayEntry] | None = None,
+) -> None:
+    """Patch class-level BINDINGS lists with custom key mappings and display prefs."""
     from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
 
+    display = display or {}
+
+    def _patch(b: Binding) -> Binding:
+        key = custom.get(b.action, b.key)
+        show = b.show
+        entry = display.get(b.action)
+        if entry and entry.footer is not None:
+            show = entry.footer
+        if key != b.key or show != b.show:
+            return Binding(key, b.action, b.description, show=show, priority=b.priority)
+        return b
+
     for cls in (MainView, TextualCode, MultiCursorTextArea):
-        cls.BINDINGS = [
-            Binding(
-                custom[b.action],
-                b.action,
-                b.description,
-                show=b.show,
-                priority=b.priority,
-            )
-            if b.action in custom
-            else b
-            for b in cls.BINDINGS
-        ]
+        cls.BINDINGS = [_patch(b) for b in cls.BINDINGS]
