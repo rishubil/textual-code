@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Performance**: command palette file search no longer freezes the UI on large workspaces; fuzzy matching is now offloaded to a background thread via `asyncio.to_thread`
+
 ## [0.2.0] - 2026-03-21
 
 ### Added

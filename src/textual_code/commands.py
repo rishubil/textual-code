@@ -1,3 +1,4 @@
+import asyncio
 import heapq
 import logging
 import os
@@ -9,6 +10,9 @@ from typing import Any
 from textual.command import DiscoveryHit, Hit, Hits, Provider
 
 logger = logging.getLogger(__name__)
+
+_MAX_SEARCH_HITS = 20
+"""Maximum number of hits returned by a single command provider search."""
 
 
 def _safe_rglob(path: Path, pattern: str) -> Generator[Path, None, None]:
@@ -47,24 +51,28 @@ def create_open_file_command_provider(
 
         async def search(self, query: str) -> Hits:
             matcher = self.matcher(query)
+            file_paths = self.file_paths
 
-            def hits() -> Generator[Hit, None, None]:
-                for path in self.file_paths:
-                    command = str(path)  # relative path
+            def _match() -> list[tuple[float, str]]:
+                results: list[tuple[float, str]] = []
+                for path in file_paths:
+                    command = str(path)
                     score = matcher.match(command)
                     if score > 0:
-                        yield Hit(
-                            score,
-                            matcher.highlight(command),
-                            partial(
-                                post_message_callback,
-                                workspace_path / path,  # absolute for callback
-                            ),
-                            help="Open this file in the viewer",
-                        )
+                        results.append((score, command))
+                return heapq.nlargest(_MAX_SEARCH_HITS, results)
 
-            for hit in heapq.nlargest(20, hits(), key=lambda hit: hit.score):
-                yield hit
+            top = await asyncio.to_thread(_match)
+            for score, command in top:
+                yield Hit(
+                    score,
+                    matcher.highlight(command),
+                    partial(
+                        post_message_callback,
+                        workspace_path / command,
+                    ),
+                    help="Open this file in the viewer",
+                )
 
     return OpenFileCommandProvider
 
@@ -103,22 +111,27 @@ def _create_path_action_command_provider(
 
         async def search(self, query: str) -> Hits:
             matcher = self.matcher(query)
+            paths = self.paths
 
-            def hits() -> Generator[Hit, None, None]:
-                for path in self.paths:
+            def _match() -> list[tuple[float, str, Path, bool]]:
+                results: list[tuple[float, str, Path, bool]] = []
+                for path in paths:
                     relative = path.relative_to(passed_workspace_path)
-                    score = matcher.match(str(relative))
+                    command = str(relative)
+                    score = matcher.match(command)
                     if score > 0:
-                        kind = "directory" if path.is_dir() else "file"
-                        yield Hit(
-                            score,
-                            matcher.highlight(str(relative)),
-                            partial(passed_post_message_callback, path),
-                            help=f"{passed_action_verb} {kind}",
-                        )
+                        results.append((score, command, path, path.is_dir()))
+                return heapq.nlargest(_MAX_SEARCH_HITS, results)
 
-            for hit in heapq.nlargest(20, hits(), key=lambda hit: hit.score):
-                yield hit
+            top = await asyncio.to_thread(_match)
+            for score, command, path, is_dir in top:
+                kind = "directory" if is_dir else "file"
+                yield Hit(
+                    score,
+                    matcher.highlight(command),
+                    partial(passed_post_message_callback, path),
+                    help=f"{passed_action_verb} {kind}",
+                )
 
     return PathActionCommandProvider
 
@@ -220,21 +233,26 @@ def create_move_destination_command_provider(
 
         async def search(self, query: str) -> Hits:
             matcher = self.matcher(query)
+            dirs = self.dirs
+            display_path = self._display_path
 
-            def hits() -> Generator[Hit, None, None]:
-                for d in self.dirs:
-                    display = self._display_path(d)
+            def _match() -> list[tuple[float, str, Path]]:
+                results: list[tuple[float, str, Path]] = []
+                for d in dirs:
+                    display = display_path(d)
                     score = matcher.match(display)
                     if score > 0:
-                        yield Hit(
-                            score,
-                            matcher.highlight(display),
-                            partial(passed_callback, d),
-                            help=self._help_text(d),
-                        )
+                        results.append((score, display, d))
+                return heapq.nlargest(_MAX_SEARCH_HITS, results)
 
-            for hit in heapq.nlargest(20, hits(), key=lambda hit: hit.score):
-                yield hit
+            top = await asyncio.to_thread(_match)
+            for score, display, d in top:
+                yield Hit(
+                    score,
+                    matcher.highlight(display),
+                    partial(passed_callback, d),
+                    help=self._help_text(d),
+                )
 
     return MoveDestinationProvider
 
