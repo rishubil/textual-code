@@ -99,6 +99,14 @@ uv run textual console
 uv run textual run --dev textual_code:main
 ```
 
+### Installing Hooks
+
+Install pre-commit hooks to automatically run linting, formatting, type checking, and language checks before each commit:
+
+```bash
+uv run pre-commit install
+```
+
 ### Running Tests
 
 See [docs/testing-guide.md](docs/testing-guide.md) for patterns, best practices, and gotchas.

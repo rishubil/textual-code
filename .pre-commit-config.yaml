@@ -15,10 +15,9 @@ repos:
         additional_dependencies: [ruff]
       - id: ty-check
         name: ty check
-        entry: ty check
-        language: python
+        entry: uv run ty check
+        language: system
         types_or: [python, pyi]
-        additional_dependencies: [ty]
         pass_filenames: false
       - id: check-language
         name: check language

@@ -2121,7 +2121,11 @@ class TextualCode(App):
         from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
 
         area_binding_sources: dict[str, list[list[Binding]]] = {
-            "editor": [MainView.BINDINGS, TextualCode.BINDINGS, MultiCursorTextArea.BINDINGS],
+            "editor": [
+                MainView.BINDINGS,
+                TextualCode.BINDINGS,
+                MultiCursorTextArea.BINDINGS,
+            ],
             "explorer": [Explorer.BINDINGS, TextualCode.BINDINGS],
             "search": [TextualCode.BINDINGS],
             "image_preview": [TextualCode.BINDINGS],
