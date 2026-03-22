@@ -338,24 +338,29 @@ Clicking any row opens a **Shortcut Settings** dialog (`ShortcutSettingsScreen`)
 - **Change Key**: opens the rebind sub-dialog to reassign the shortcut key
 - **Show in command palette**: checkbox to toggle whether the shortcut appears in the command palette
 
-### Footer configuration: dedicated modal with reorderable list
+### Footer configuration: per-area modal with reorderable list
 
-The command palette entry "Configure footer shortcuts" (or `action_configure_footer`) opens `FooterConfigScreen`, a dedicated modal for controlling which shortcuts appear in the footer bar and their display order.
+The command palette entry "Configure footer shortcuts" (or `action_configure_footer`) opens `FooterConfigScreen`, a dedicated modal for controlling which shortcuts appear in the footer bar per focus area.
 
-- All bindings with descriptions are listed in a `ListView`
+- An area selector dropdown at the top: Editor / Explorer / Search / Image Preview / Markdown Preview
+- Each area shows its relevant bindings in a `ListView`
 - Each item shows a ✓/✗ marker indicating visibility
 - **Space** toggles visibility, **Ctrl+Up/Down** reorders items
 - Buttons: Move Up, Move Down, Toggle, Save, Cancel
-- On save, the visible items (in list order) become the footer configuration
+- Area state is cached when switching between areas
+- On save, the visible items (in list order) become the footer configuration for the selected area
 
-Config is stored in `[footer]` section of `keybindings.toml`:
+Config is stored in `[footer.<area>]` sections of `keybindings.toml`:
 
 ```toml
-[footer]
+[footer.editor]
 order = ["save", "find", "replace", "goto_line", "close", "new_editor", "toggle_sidebar"]
+
+[footer.explorer]
+order = ["create_file", "create_directory", "delete_node", "rename_node", "new_editor", "toggle_sidebar"]
 ```
 
-Only actions listed in `order` appear in the footer. When no `[footer]` section exists, the default `ACTION_ORDER` + `binding.show` logic is used.
+Only actions listed in `order` appear in the footer for that area. When no `[footer.<area>]` section exists, the default `DEFAULT_ACTION_ORDERS[area]` is used.
 
 ### Custom keybindings: [bindings] section in keybindings.toml
 
@@ -382,7 +387,7 @@ palette = false
 
 - `palette` (bool): show in command palette. Default: `true`.
 
-All config sections (`[bindings]`, `[display.*]`, `[footer]`) are saved atomically via `save_keybindings_file()`.
+All config sections (`[bindings]`, `[display.*]`, `[footer.*]`) are saved atomically via `save_keybindings_file()`.
 
 ### Known Limitations
 
@@ -391,7 +396,7 @@ All config sections (`[bindings]`, `[display.*]`, `[footer]`) are saved atomical
 - No chord/sequence keybindings (e.g. Ctrl+K, Ctrl+C).
 - Keybinding changes require an app restart to take effect. Footer order changes apply immediately.
 
-**Implementation:** `config.py` (`ShortcutDisplayEntry`, `load_keybindings`, `load_shortcut_display`, `load_footer_order`, `save_keybindings_file`), `app.py` (`_apply_custom_keybindings`, `action_show_shortcuts`, `action_configure_footer`, `set_keybinding`, `set_shortcut_display`, `set_footer_order`, `get_footer_priority`), `modals.py` (`ShowShortcutsScreen`, `ShortcutSettingsScreen`, `FooterConfigScreen`, `RebindKeyScreen`)
+**Implementation:** `config.py` (`FooterOrders`, `ShortcutDisplayEntry`, `load_keybindings`, `load_shortcut_display`, `load_footer_orders`, `save_keybindings_file`), `app.py` (`_apply_custom_keybindings`, `action_show_shortcuts`, `action_configure_footer`, `_get_focused_area`, `_collect_bindings_for_area`, `set_keybinding`, `set_shortcut_display`, `set_footer_order`, `get_footer_order`, `get_footer_priority`), `modals.py` (`ShowShortcutsScreen`, `ShortcutSettingsScreen`, `FooterConfigScreen`, `RebindKeyScreen`)
 
 ---
 

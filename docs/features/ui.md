@@ -179,36 +179,42 @@ Three clipboard copy commands are available via the command palette:
 
 ---
 
-## Shortcut Bar: deterministic key binding order via OrderedFooter
+## Shortcut Bar: per-area key binding order via OrderedFooter
 
-The shortcut bar at the very bottom of the screen shows available key bindings. It uses `OrderedFooter`, a subclass of Textual's `Footer`, to enforce a fixed display order regardless of which widget is focused.
+The shortcut bar at the very bottom of the screen shows available key bindings. It uses `OrderedFooter`, a subclass of Textual's `Footer`, to enforce a per-area display order based on which widget is focused.
 
 ### Why a custom footer
 
 Textual's built-in `Footer` renders bindings in the order they are collected from the active binding chain, which changes depending on focus (e.g., editor vs. explorer vs. modal). This causes shortcut labels to jump around unpredictably, making muscle-memory scanning difficult.
 
-`OrderedFooter` sorts bindings by a predefined priority list before rendering, so the most-used shortcuts always appear in the same position.
+`OrderedFooter` sorts bindings by a per-area priority list before rendering, so each focus area shows its most relevant shortcuts first.
 
-### Display order
+### Focus areas and default display orders
 
-| Priority | Action | Typical Key |
-|----------|--------|-------------|
-| 1 | Save | `Ctrl+S` |
-| 2 | Find | `Ctrl+F` |
-| 3 | Replace | `Ctrl+H` |
-| 4 | Goto line | `Ctrl+G` |
-| 5 | Close tab | `Ctrl+W` |
-| 6 | New file | `Ctrl+N` |
-| 7 | Toggle sidebar | `Ctrl+B` |
-| (last) | *(other bindings)* | *(original order)* |
+Each focus area has its own default action order defined in `DEFAULT_ACTION_ORDERS`:
 
-Bindings not in the priority list appear after the listed ones, preserving their original relative order (stable sort).
+| Area | Default order |
+|------|---------------|
+| **editor** | Save, Find, Replace, Goto line, Close tab, New file, Toggle sidebar |
+| **explorer** | Create file, Create directory, Delete, Rename, New file, Toggle sidebar |
+| **search** | New file, Toggle sidebar |
+| **image_preview** | Close tab, New file, Toggle sidebar |
+| **markdown_preview** | Close tab, New file, Toggle sidebar |
 
-### Context-sensitive bindings
+Users can override the order per area via `[footer.<area>]` sections in `keybindings.toml`.
 
-The shortcut bar still reflects the active widget's available bindings — only the *order* is fixed, not the *set*. When the explorer is focused, editor-only shortcuts disappear and explorer shortcuts (Create file, Delete, etc.) are shown instead, sorted by the same priority rules.
+### Area detection
 
-**Implementation:** `widgets/ordered_footer.py`
+The area is determined by walking the focused widget's ancestor chain:
+
+- `Explorer` ancestor → `explorer`
+- `WorkspaceSearchPane` ancestor → `search`
+- `ImagePreviewPane` ancestor → `image_preview`
+- `MarkdownPreviewPane` ancestor → `markdown_preview`
+- `Sidebar` ancestor (e.g. tab strip) → active tab determines area
+- Otherwise → `editor` (default)
+
+**Implementation:** `widgets/ordered_footer.py`, `app.py` (`_get_focused_area`)
 
 ---
 

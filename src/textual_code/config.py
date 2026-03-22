@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -93,6 +93,25 @@ class ShortcutDisplayEntry:
     palette: bool | None = None
 
 
+KNOWN_AREAS = ("editor", "explorer", "search", "image_preview", "markdown_preview")
+
+
+@dataclass
+class FooterOrders:
+    """Per-area footer shortcut order configuration."""
+
+    areas: dict[str, list[str]] = field(default_factory=dict)
+
+    def for_area(self, area: str) -> list[str] | None:
+        """Return the order for *area*, or None if not configured."""
+        order = self.areas.get(area)
+        return list(order) if order is not None else None
+
+    def set_area(self, area: str, order: list[str]) -> None:
+        """Set the order for *area*."""
+        self.areas[area] = order
+
+
 KEYBINDINGS_FILENAME = "keybindings.toml"
 
 
@@ -156,26 +175,41 @@ def _serialize_display_section(display: dict[str, ShortcutDisplayEntry]) -> str:
     return "\n".join(lines)
 
 
-def load_footer_order(config_path: Path | None = None) -> list[str] | None:
-    """Load footer action order from [footer] section.
+def load_footer_orders(config_path: Path | None = None) -> FooterOrders:
+    """Load per-area footer orders from [footer.<area>] sections.
 
-    Returns the ordered list of action names, or None if not configured.
+    Falls back: legacy [footer] order → editor area migration.
+    Returns FooterOrders (may have empty areas dict if nothing is configured).
     """
     path = config_path or get_keybindings_path()
     if not path.exists():
-        return None
+        return FooterOrders()
     try:
         with open(path, "rb") as f:
             data = tomllib.load(f)
     except (tomllib.TOMLDecodeError, PermissionError):
-        return None
+        return FooterOrders()
     footer_section = data.get("footer", {})
     if not isinstance(footer_section, dict):
-        return None
-    order = footer_section.get("order")
-    if not isinstance(order, list):
-        return None
-    return [str(item) for item in order if isinstance(item, str)]
+        return FooterOrders()
+
+    areas: dict[str, list[str]] = {}
+    for area in KNOWN_AREAS:
+        area_data = footer_section.get(area)
+        if isinstance(area_data, dict):
+            order = area_data.get("order")
+            if isinstance(order, list):
+                areas[area] = [str(item) for item in order if isinstance(item, str)]
+
+    # Legacy migration: [footer] order → editor
+    if "editor" not in areas:
+        legacy_order = footer_section.get("order")
+        if isinstance(legacy_order, list):
+            areas["editor"] = [
+                str(item) for item in legacy_order if isinstance(item, str)
+            ]
+
+    return FooterOrders(areas=areas)
 
 
 def save_keybindings_file(
@@ -183,19 +217,22 @@ def save_keybindings_file(
     display: dict[str, ShortcutDisplayEntry],
     config_path: Path | None = None,
     *,
-    footer_order: list[str] | None = None,
+    footer_orders: FooterOrders | None = None,
 ) -> bool:
-    """Persist [bindings], [display.*], and [footer] sections atomically."""
+    """Persist [bindings], [display.*], and [footer.*] sections atomically."""
     path = config_path or get_keybindings_path()
     escaped = {k: v.replace('"', '\\"') for k, v in bindings.items()}
     sections = ["[bindings]"] + [f'{k} = "{v}"' for k, v in escaped.items()]
     sections.append("")
     sections.append(_serialize_display_section(display))
-    if footer_order is not None:
-        items = ", ".join(f'"{a}"' for a in footer_order)
-        sections.append("[footer]")
-        sections.append(f"order = [{items}]")
-        sections.append("")
+    if footer_orders is not None:
+        for area in KNOWN_AREAS:
+            order = footer_orders.areas.get(area)
+            if order is not None:
+                items = ", ".join(f'"{a}"' for a in order)
+                sections.append(f"[footer.{area}]")
+                sections.append(f"order = [{items}]")
+                sections.append("")
     return _safe_write_config(path, "\n".join(sections))
 
 
@@ -206,9 +243,9 @@ def save_keybindings(
     """Persist keybindings, preserving [display] and [footer] sections."""
     path = config_path or get_keybindings_path()
     existing_display = load_shortcut_display(path)
-    existing_footer = load_footer_order(path)
+    existing_footer = load_footer_orders(path)
     return save_keybindings_file(
-        bindings, existing_display, path, footer_order=existing_footer
+        bindings, existing_display, path, footer_orders=existing_footer
     )
 
 
