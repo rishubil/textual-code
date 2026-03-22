@@ -195,6 +195,17 @@ app = make_app(workspace)
 app.animation_level = "full"  # only if testing animation behaviour
 ```
 
+### Cursor blinking is disabled in snapshot tests
+
+The `snap_compare` fixture in `conftest.py` wraps the upstream fixture to set
+`cursor_blink = False` on all `TextArea` and `Input` widgets right before the
+screenshot is captured.  This is separate from `animation_level` — cursor blinking
+uses a 0.5s timer that runs even in headless mode, so without this wrapper the
+cursor may or may not be visible at capture time, causing non-deterministic failures.
+
+The wrapper is transparent: tests use `snap_compare` exactly as before, and the
+cursor-blink disable happens automatically after any `run_before` callback.
+
 ### Adding a new snapshot
 
 1. Write the test function using `snap_compare`:
