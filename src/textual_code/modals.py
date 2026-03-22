@@ -2,17 +2,18 @@ from __future__ import annotations
 
 import heapq
 import logging
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, ClassVar, cast
 
 from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Grid, Horizontal, Vertical
 from textual.content import Content
-from textual.events import Key
+from textual.events import Click, Key
 from textual.fuzzy import Matcher
 from textual.screen import ModalScreen
 from textual.widget import Widget
@@ -1571,37 +1572,95 @@ class PathSearchModal(ModalScreen[Path | None]):
     """fzf-like modal for searching and selecting paths.
 
     Supports streaming scan with chunked delivery, fuzzy matching in a
-    background thread, and optional pre-populated cache for instant results.
+    background thread, and class-level cache for instant results on re-open.
     """
+
+    # Class-level cache: maps (workspace_path, cache_key) -> tuple of paths.
+    _cache: ClassVar[dict[tuple[Path, str], tuple[Path, ...]]] = {}
+    _cache_dirty: ClassVar[set[tuple[Path, str]]] = set()
 
     DEFAULT_CSS = """
     PathSearchModal {
-        align: center middle;
+        background: $background 60%;
+        align-horizontal: center;
     }
     #path-search-container {
-        width: 80;
-        max-height: 80%;
+        margin-top: 3;
+        height: 100%;
+        visibility: hidden;
         background: $surface;
-        border: thick $primary;
-        padding: 1 2;
+        &:dark { background: $panel-darken-1; }
     }
-    #path-search-input {
-        margin-bottom: 1;
+    #path-search-input-bar {
+        height: auto;
+        visibility: visible;
+        border: hkey black 50%;
+    }
+    #path-search-input-bar.--has-results {
+        border-bottom: none;
+    }
+    #path-search-icon {
+        margin-left: 1;
+        margin-top: 1;
+        width: 2;
+    }
+    #path-search-spinner {
+        width: auto;
+        margin-right: 1;
+        margin-top: 1;
+        visibility: hidden;
+    }
+    #path-search-spinner.--visible {
+        visibility: visible;
+    }
+    #path-search-input, #path-search-input:focus {
+        border: blank;
+        width: 1fr;
+        padding-left: 0;
+        background: transparent;
+        background-tint: 0%;
+    }
+    #path-search-results-area {
+        overlay: screen;
+        height: auto;
     }
     #path-search-results {
-        height: 1fr;
-        min-height: 10;
+        visibility: hidden;
+        border-top: blank;
+        border-bottom: hkey black;
+        border-left: none;
+        border-right: none;
+        height: auto;
+        max-height: 70vh;
+        background: transparent;
+        padding: 0;
+    }
+    #path-search-results.--visible {
+        visibility: visible;
+    }
+    #path-search-results > .option-list--option {
+        padding: 0 2;
+    }
+    #path-search-results > .option-list--option-highlighted {
+        color: $block-cursor-blurred-foreground;
+        background: $block-cursor-blurred-background;
     }
     """
 
-    BINDINGS = [("escape", "dismiss_modal")]
+    BINDINGS = [
+        Binding("escape", "dismiss_modal", "Close"),
+        Binding("down", "cursor_down", "Next", show=False),
+        Binding("up", "cursor_up", "Previous", show=False),
+        Binding("pagedown", "page_down", "Page down", show=False),
+        Binding("pageup", "page_up", "Page up", show=False),
+    ]
 
     def __init__(
         self,
         workspace_path: Path,
         *,
         scan_func: Callable[[Path], list[Path]],
-        cached_paths: list[Path] | None = None,
+        cache_key: str = "",
         placeholder: str = "Search...",
         path_filter: Callable[[Path], bool] | None = None,
     ) -> None:
@@ -1610,47 +1669,103 @@ class PathSearchModal(ModalScreen[Path | None]):
         self._scan_func = scan_func
         self._path_filter = path_filter
         self._placeholder = placeholder
-        # Main-thread only: accumulated paths in sorted order.
+        self._cache_key_str = cache_key
         self._all_paths: list[Path] = []
-        self._initial_paths = cached_paths
         # Pre-computed display strings (parallel to _all_paths).
         self._display_strings: list[str] = []
         # Maps current OptionList indices to Path objects.
         self._result_paths: list[Path] = []
+        # Generation counter to discard stale search results (main-thread only).
+        self._search_generation: int = 0
+
+    @classmethod
+    def invalidate_cache(cls, workspace_path: Path | None = None) -> None:
+        """Mark cached scan results as dirty (or clear all)."""
+        if workspace_path is None:
+            cls._cache.clear()
+            cls._cache_dirty.clear()
+        else:
+            for key in list(cls._cache):
+                if key[0] == workspace_path:
+                    cls._cache_dirty.add(key)
 
     def compose(self) -> ComposeResult:
+        from textual.widgets import Static
+
         with Vertical(id="path-search-container"):
-            yield Input(placeholder=self._placeholder, id="path-search-input")
-            yield OptionList(id="path-search-results")
+            with Horizontal(id="path-search-input-bar"):
+                yield Static("\U0001f50e", id="path-search-icon")
+                yield Input(placeholder=self._placeholder, id="path-search-input")
+                yield Static("\u23f3", id="path-search-spinner")
+            with Vertical(id="path-search-results-area"):
+                yield OptionList(id="path-search-results")
 
     def on_mount(self) -> None:
         self.query_one("#path-search-input", Input).focus()
-        if self._initial_paths is not None:
-            paths = self._initial_paths
-            if self._path_filter:
-                paths = [p for p in paths if self._path_filter(p)]
-            self._all_paths = sorted(paths)
-            self._display_strings = [self._display_path(p) for p in self._all_paths]
+        ck = (
+            (self._workspace_path, self._cache_key_str) if self._cache_key_str else None
+        )
+        if ck and ck in PathSearchModal._cache:
+            # Class-level cache hit
+            self._load_paths(list(PathSearchModal._cache[ck]))
+            is_dirty = ck in PathSearchModal._cache_dirty
             _logger.debug(
-                "PathSearchModal: using %d cached paths", len(self._all_paths)
+                "PathSearchModal: cache hit (%s), dirty=%s, %d paths",
+                ck[1],
+                is_dirty,
+                len(self._all_paths),
             )
-            self._show_discovery()
+            if is_dirty:
+                # Clear accumulated paths before re-scanning to avoid
+                # merging stale cache data with fresh scan results.
+                self._all_paths = []
+                self._display_strings = []
+                self._start_scan()
+            return
         else:
-            _logger.debug("PathSearchModal: starting background scan")
+            _logger.debug("PathSearchModal: cache miss, starting scan")
             self._start_scan()
+
+    def _load_paths(self, paths: list[Path]) -> None:
+        """Load paths into display state, applying filter if set."""
+        if self._path_filter:
+            paths = [p for p in paths if self._path_filter(p)]
+        self._all_paths = sorted(paths)
+        self._display_strings = [self._display_path(p) for p in self._all_paths]
+        self._show_discovery()
+
+    def _set_spinner_visible(self, visible: bool) -> None:
+        """Toggle the scanning spinner indicator."""
+        import contextlib
+
+        from textual.css.query import NoMatches
+
+        with contextlib.suppress(NoMatches):
+            self.query_one("#path-search-spinner").set_class(visible, "--visible")
 
     @work(thread=True, exclusive=True)
     def _start_scan(self) -> None:
         """Scan workspace in background, delivering results in sorted chunks."""
-        results = self._scan_func(self._workspace_path)
-        if self._path_filter:
-            results = [p for p in results if self._path_filter(p)]
-        # Deliver in chunks for progressive display
-        chunk_size = 100
-        for i in range(0, len(results), chunk_size):
-            chunk = results[i : i + chunk_size]
-            self.app.call_from_thread(self._on_chunk, chunk)
-        self.app.call_from_thread(self._on_scan_complete)
+        self.app.call_from_thread(self._set_spinner_visible, True)
+        t0 = time.monotonic()
+        _logger.debug("PathSearchModal: scan started")
+        try:
+            results = self._scan_func(self._workspace_path)
+            if self._path_filter:
+                results = [p for p in results if self._path_filter(p)]
+            # Deliver in chunks for progressive display
+            chunk_size = 100
+            for i in range(0, len(results), chunk_size):
+                chunk = results[i : i + chunk_size]
+                self.app.call_from_thread(self._on_chunk, chunk)
+        finally:
+            elapsed = time.monotonic() - t0
+            _logger.debug(
+                "PathSearchModal: scan finished in %.2fs, %d paths",
+                elapsed,
+                len(self._all_paths),
+            )
+            self.app.call_from_thread(self._on_scan_complete)
 
     def _on_chunk(self, chunk: list[Path]) -> None:
         """Merge a sorted chunk into the accumulated path list."""
@@ -1662,6 +1777,7 @@ class PathSearchModal(ModalScreen[Path | None]):
         for p in heapq.merge(
             zip(self._all_paths, self._display_strings, strict=False),
             zip(chunk, chunk_displays, strict=False),
+            key=lambda x: x[1],
         ):
             merged_paths.append(p[0])
             merged_displays.append(p[1])
@@ -1670,6 +1786,17 @@ class PathSearchModal(ModalScreen[Path | None]):
         self._refresh_display()
 
     def _on_scan_complete(self) -> None:
+        """Handle scan completion: update cache and refresh display."""
+        self._set_spinner_visible(False)
+        if self._cache_key_str:
+            ck = (self._workspace_path, self._cache_key_str)
+            PathSearchModal._cache[ck] = tuple(self._all_paths)
+            PathSearchModal._cache_dirty.discard(ck)
+            _logger.debug(
+                "PathSearchModal: cache updated (%s), %d paths",
+                self._cache_key_str,
+                len(self._all_paths),
+            )
         self._refresh_display()
 
     def _refresh_display(self) -> None:
@@ -1683,7 +1810,7 @@ class PathSearchModal(ModalScreen[Path | None]):
         if not query:
             self._show_discovery()
         else:
-            self._do_search(query)
+            self._trigger_search(query)
 
     def _display_path(self, path: Path) -> str:
         """Display path relative to workspace if possible."""
@@ -1694,6 +1821,7 @@ class PathSearchModal(ModalScreen[Path | None]):
 
     def _show_discovery(self) -> None:
         """Show all paths (up to limit) when query is empty."""
+        self._search_generation += 1
         option_list = self.query_one("#path-search-results", OptionList)
         option_list.clear_options()
         self._result_paths.clear()
@@ -1704,13 +1832,19 @@ class PathSearchModal(ModalScreen[Path | None]):
                 display = self._display_path(path)
             option_list.add_option(display)
             self._result_paths.append(path)
+        self._update_results_visibility()
+
+    def _trigger_search(self, query: str) -> None:
+        """Increment generation and dispatch search (main thread only)."""
+        self._search_generation += 1
+        self._do_search(query, self._search_generation)
 
     @on(Input.Changed, "#path-search-input")
     def _on_input_changed(self, event: Input.Changed) -> None:
         if not event.value:
             self._show_discovery()
         else:
-            self._do_search(event.value)
+            self._trigger_search(event.value)
 
     @on(Input.Submitted, "#path-search-input")
     def _on_input_submitted(self, event: Input.Submitted) -> None:
@@ -1723,7 +1857,7 @@ class PathSearchModal(ModalScreen[Path | None]):
             self.dismiss(self._result_paths[idx])
 
     @work(thread=True, exclusive=True, group="path_search_match")
-    def _do_search(self, query: str) -> None:
+    def _do_search(self, query: str, generation: int) -> None:
         """Run fuzzy matching in a background thread."""
         matcher = Matcher(query)
         # Snapshot references for thread safety.
@@ -1740,16 +1874,24 @@ class PathSearchModal(ModalScreen[Path | None]):
         highlighted = [
             (matcher.highlight(display), path) for _score, display, path in top
         ]
-        self.app.call_from_thread(self._apply_results, query, highlighted)
+        self.app.call_from_thread(self._apply_results, query, generation, highlighted)
 
     def _apply_results(
         self,
         query: str,
+        generation: int,
         results: list[tuple[str | Content, Path]],
     ) -> None:
         """Apply search results on the main thread. Discards stale results."""
         from textual.css.query import NoMatches
 
+        if generation != self._search_generation:
+            _logger.debug(
+                "PathSearchModal: discarding stale results (gen %d != %d)",
+                generation,
+                self._search_generation,
+            )
+            return
         try:
             current = self.query_one("#path-search-input", Input).value
         except NoMatches:
@@ -1762,6 +1904,7 @@ class PathSearchModal(ModalScreen[Path | None]):
         for highlighted, path in results:
             option_list.add_option(highlighted)
             self._result_paths.append(path)
+        self._update_results_visibility()
 
     @on(OptionList.OptionSelected, "#path-search-results")
     def _on_selected(self, event: OptionList.OptionSelected) -> None:
@@ -1771,3 +1914,41 @@ class PathSearchModal(ModalScreen[Path | None]):
 
     def action_dismiss_modal(self) -> None:
         self.dismiss(None)
+
+    def _proxy_option_list_action(self, action: str) -> None:
+        """Forward a navigation action to the results OptionList."""
+        ol = self.query_one("#path-search-results", OptionList)
+        if ol.option_count > 0:
+            self._ensure_results_visible()
+            getattr(ol, f"action_{action}")()
+
+    def action_cursor_down(self) -> None:
+        self._proxy_option_list_action("cursor_down")
+
+    def action_cursor_up(self) -> None:
+        self._proxy_option_list_action("cursor_up")
+
+    def action_page_down(self) -> None:
+        self._proxy_option_list_action("page_down")
+
+    def action_page_up(self) -> None:
+        self._proxy_option_list_action("page_up")
+
+    def _ensure_results_visible(self) -> None:
+        """Show results list and adjust input bar border."""
+        ol = self.query_one("#path-search-results", OptionList)
+        if not ol.has_class("--visible"):
+            ol.add_class("--visible")
+            self.query_one("#path-search-input-bar").add_class("--has-results")
+
+    def _update_results_visibility(self) -> None:
+        """Toggle results list visibility based on option count."""
+        ol = self.query_one("#path-search-results", OptionList)
+        has_items = ol.option_count > 0
+        ol.set_class(has_items, "--visible")
+        self.query_one("#path-search-input-bar").set_class(has_items, "--has-results")
+
+    async def _on_click(self, event: Click) -> None:
+        """Dismiss when clicking the background overlay."""
+        if self.get_widget_at(event.screen_x, event.screen_y)[0] is self:
+            self.dismiss(None)

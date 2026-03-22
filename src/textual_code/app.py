@@ -384,13 +384,6 @@ class TextualCode(App):
         # File clipboard for copy/cut/paste in explorer
         self._file_clipboard: tuple[Literal["copy", "cut"], Path] | None = None
 
-        # Workspace scan caches for command palette providers.
-        # Attribute assignments are atomic under CPython's GIL, so reads
-        # from the main thread and writes from worker threads are safe.
-        self._workspace_files_cache: list[Path] | None = None
-        self._workspace_paths_cache: list[Path] | None = None
-        self._workspace_dirs_cache: list[Path] | None = None
-
         # load and apply custom keybindings and display preferences
         kb_path = get_keybindings_path(user_config_path) if user_config_path else None
         self._custom_keybindings: dict[str, str] = load_keybindings(kb_path)
@@ -426,29 +419,6 @@ class TextualCode(App):
             await self.main_view.action_open_code_editor(
                 path=self.with_open_file, focus=True
             )
-        self._preload_workspace_caches()
-
-    def _preload_workspace_caches(self) -> None:
-        """Pre-load workspace file/path/directory caches in a background thread."""
-        self.run_worker(
-            self._do_preload_workspace_caches,
-            thread=True,
-            group="preload_ws",
-            exclusive=True,
-        )
-
-    def _do_preload_workspace_caches(self) -> None:
-        """Thread worker: scan workspace and populate caches."""
-        self._workspace_files_cache = _read_workspace_files(self.workspace_path)
-        self._workspace_paths_cache = _read_workspace_paths(self.workspace_path)
-        self._workspace_dirs_cache = _read_workspace_directories(self.workspace_path)
-
-    def _invalidate_workspace_caches(self) -> None:
-        """Clear workspace caches and re-populate in background."""
-        self._workspace_files_cache = None
-        self._workspace_paths_cache = None
-        self._workspace_dirs_cache = None
-        self._preload_workspace_caches()
 
     # Mapping from binding action names to their SystemCommand titles.
     # Used to filter commands when a user hides them from the command palette.
@@ -1406,7 +1376,9 @@ class TextualCode(App):
         """
         Reload the explorer directory tree.
         """
-        self._invalidate_workspace_caches()
+        from textual_code.modals import PathSearchModal
+
+        PathSearchModal.invalidate_cache(self.workspace_path)
         if self.sidebar is None:
             return
         # call with call_next to ensure the command palette is closed
@@ -1483,7 +1455,7 @@ class TextualCode(App):
             PathSearchModal(
                 self.workspace_path,
                 scan_func=_read_workspace_files,
-                cached_paths=self._workspace_files_cache,
+                cache_key="files",
                 placeholder="Search for files...",
             ),
             callback=_on_result,
@@ -1547,7 +1519,7 @@ class TextualCode(App):
             PathSearchModal(
                 self.workspace_path,
                 scan_func=_read_workspace_paths,
-                cached_paths=self._workspace_paths_cache,
+                cache_key="paths",
                 placeholder=placeholder,
             ),
             callback=_on_result,
@@ -1695,7 +1667,7 @@ class TextualCode(App):
             PathSearchModal(
                 self.workspace_path,
                 scan_func=_read_workspace_directories,
-                cached_paths=self._workspace_dirs_cache,
+                cache_key="dirs",
                 placeholder=f"Move '{name}' to...",
                 path_filter=_exclude_source,
             ),
@@ -2057,7 +2029,9 @@ class TextualCode(App):
 
     def on_filtered_directory_tree_workspace_changed(self, event) -> None:
         """Invalidate workspace caches when the explorer detects external changes."""
-        self._invalidate_workspace_caches()
+        from textual_code.modals import PathSearchModal
+
+        PathSearchModal.invalidate_cache(self.workspace_path)
 
     @on(OpenFileRequested)
     async def on_open_file_requested(self, event: OpenFileRequested):
