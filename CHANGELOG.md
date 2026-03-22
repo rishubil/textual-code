@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Performance**: replace CommandPalette with dedicated `PathSearchModal` for file search, delete, rename, and move palettes; UI displays instantly with fzf-like chunked streaming, fuzzy matching runs in a background thread, and workspace scan results are cached at the app level with automatic invalidation on file changes
+- **Performance**: replace CommandPalette with dedicated `PathSearchModal` for file search, delete, rename, and move palettes; UI matches CommandPalette look & feel (top-aligned, semi-transparent overlay, search icon, keyboard navigation); fuzzy matching runs in a background thread with class-level cache and automatic dirty-flag invalidation; generation counter prevents stale search results from overwriting current display
 
 ## [0.2.0] - 2026-03-21
 
