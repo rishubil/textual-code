@@ -1,7 +1,10 @@
 """MultiCursorTextArea — TextArea subclass with multiple simultaneous cursors."""
 
+from __future__ import annotations
+
 import re
 from collections import defaultdict
+from typing import ClassVar
 
 from rich.text import Text
 from textual import events
@@ -92,6 +95,10 @@ class MultiCursorTextArea(TextArea):
 
     indent_type: str = "spaces"
 
+    # Tracks clipboard text from a line-copy/cut (no selection).
+    # Shared across all instances so line-paste works across tabs.
+    _line_copy_text: ClassVar[str | None] = None
+
     BINDINGS = [
         Binding("ctrl+shift+z", "redo", "Redo", show=False),
         Binding("ctrl+a", "select_all", "Select all", show=False),
@@ -120,23 +127,23 @@ class MultiCursorTextArea(TextArea):
     class CursorsChanged(Message):
         """Posted when the extra-cursor list changes (added or cleared)."""
 
-        def __init__(self, text_area: "MultiCursorTextArea") -> None:
+        def __init__(self, text_area: MultiCursorTextArea) -> None:
             super().__init__()
             self.text_area = text_area
 
         @property
-        def control(self) -> "MultiCursorTextArea":
+        def control(self) -> MultiCursorTextArea:
             return self.text_area
 
     class ClipboardAction(Message):
         """Posted when multiline text is copied, cut, or pasted."""
 
-        def __init__(self, text_area: "MultiCursorTextArea") -> None:
+        def __init__(self, text_area: MultiCursorTextArea) -> None:
             super().__init__()
             self.text_area = text_area
 
         @property
-        def control(self) -> "MultiCursorTextArea":
+        def control(self) -> MultiCursorTextArea:
             return self.text_area
 
     # ── lifecycle ─────────────────────────────────────────────────────────────
@@ -471,21 +478,22 @@ class MultiCursorTextArea(TextArea):
             line = lines[row] if row < len(lines) else ""
             self.selection = Selection((row, 0), (row, len(line)))
 
-    # ── copy / cut overrides ──────────────────────────────────────────────────
+    # ── copy / cut / paste overrides ────────────────────────────────────────
 
     def action_copy(self) -> None:
         """Copy selection; copy current line if nothing selected (VS Code)."""
         selected = self.selected_text
         if selected:
             self.app.copy_to_clipboard(selected)
+            MultiCursorTextArea._line_copy_text = None
             if "\n" in selected:
                 self.post_message(self.ClipboardAction(self))
         else:
             row, _ = self.cursor_location
-            lines = self.text.split("\n")
-            line = lines[row] if row < len(lines) else ""
-            self.app.copy_to_clipboard(line + "\n")
-            # Whole-line copy always includes a newline
+            line = self.document.get_line(row)
+            line_text = line + "\n"
+            self.app.copy_to_clipboard(line_text)
+            MultiCursorTextArea._line_copy_text = line_text
             self.post_message(self.ClipboardAction(self))
 
     def action_cut(self) -> None:
@@ -493,16 +501,38 @@ class MultiCursorTextArea(TextArea):
         if self.read_only:
             return
         text = self.selected_text
+        is_line_cut = not text
         has_newline = "\n" in text if text else True  # no selection → whole line
         super().action_cut()
+        MultiCursorTextArea._line_copy_text = (
+            self.app.clipboard if is_line_cut else None
+        )
         if has_newline:
             self.post_message(self.ClipboardAction(self))
 
     def action_paste(self) -> None:
-        """Paste from clipboard; post ClipboardAction if multiline."""
+        """Paste from clipboard; line-copied text inserts above current line."""
+        if self.read_only:
+            return
         clipboard = self.app.clipboard
+        if not clipboard:
+            return
         has_newline = "\n" in clipboard
-        super().action_paste()
+        start, end = self.selection
+
+        if (
+            MultiCursorTextArea._line_copy_text is not None
+            and MultiCursorTextArea._line_copy_text == clipboard
+            and start == end
+        ):
+            # VS Code line-paste: insert above current line, cursor follows
+            row, col = self.cursor_location
+            self._replace_via_keyboard(clipboard, (row, 0), (row, 0))
+            inserted_lines = clipboard.count("\n")
+            self.move_cursor((row + inserted_lines, col))
+        else:
+            super().action_paste()
+
         if has_newline:
             self.post_message(self.ClipboardAction(self))
 
