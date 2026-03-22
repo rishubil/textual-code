@@ -19,8 +19,9 @@ from pathlib import Path
 import pytest
 from textual.widgets import Input
 
-from tests.conftest import init_git_repo, make_app, requires_git
+from tests.conftest import init_git_repo, make_app, make_png, requires_git
 from textual_code.modals import RebindKeyScreen
+from textual_code.widgets.image_preview import ImagePreviewPane
 from textual_code.widgets.split_tree import all_leaves
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -1080,3 +1081,23 @@ def test_snapshot_file_search_modal(
         ),
         terminal_size=TERMINAL_SIZE,
     )
+
+
+# ── Image preview ─────────────────────────────────────────────────────────────
+
+
+def test_snapshot_image_preview(snap_compare, snapshot_workspace: Path):
+    """Image preview pane showing a small PNG image."""
+    img = make_png(snapshot_workspace / "test.png")
+    app = make_app(snapshot_workspace, open_file=img)
+
+    async def run_before(pilot):
+        # Give image worker time to load and render
+        for _ in range(5):
+            await pilot.pause()
+        preview = app.query(ImagePreviewPane)
+        if preview:
+            preview.first().focus()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)

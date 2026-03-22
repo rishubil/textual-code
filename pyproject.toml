@@ -22,6 +22,7 @@ requires-python = ">=3.12"
 dependencies = [
     "charset-normalizer>=3.0.0",
     "pathspec>=1.0.4",
+    "rich-pixels>=3.0.0",
     "textual[syntax]>=1.0.0",
     "tree-sitter-language-pack>=0.13.0",
     "typer>=0.15.1",

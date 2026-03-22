@@ -24,9 +24,9 @@ Workspace-level features including cross-file search, split editor views, tab dr
 
 Language detection, EditorConfig compliance, encoding/line-ending management, application settings, keyboard customization, and UI themes.
 
-### [UI Features](ui.md): markdown preview, footer status bar, CLI, drag-and-drop visuals
+### [UI Features](ui.md): markdown preview, image preview, footer status bar, CLI, drag-and-drop visuals
 
-Markdown live preview, status bar indicators, command-line interface, and drag-and-drop visual feedback.
+Markdown live preview, image file preview (PNG, JPG, GIF, BMP, WebP, TIFF via rich-pixels), status bar indicators, command-line interface, and drag-and-drop visual feedback.
 
 ### [Implementation Internals](internals.md): design decisions, event flows, internal architecture
 

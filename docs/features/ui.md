@@ -59,6 +59,47 @@ Mouse scrolling is handled by the Textual framework.
 
 ---
 
+## Image Preview: terminal rendering, rich-pixels, resize debounce
+
+The Image Preview displays image files directly in the terminal using half-cell character rendering. When a recognized image file is opened (via CLI, explorer, or command palette), an `ImagePreviewPane` tab is created instead of a text editor tab. The preview is read-only.
+
+### Supported file types
+
+Files with the following extensions are recognized as images:
+
+- `.png`
+- `.jpg`, `.jpeg`
+- `.gif`
+- `.bmp`
+- `.webp`
+- `.tiff`, `.tif`
+
+### Rendering
+
+- Uses the `rich-pixels` library to convert image data into Rich renderables using half-cell characters (upper/lower block elements), achieving 2 vertical pixels per terminal row.
+- Rendering runs in a background worker thread so the UI remains responsive. A loading spinner is displayed while rendering is in progress.
+- The image is never upscaled beyond its native 1:1 pixel ratio. If the terminal area is larger than the image, the image is displayed at its original size.
+
+### File size limit
+
+Images larger than **10 MB** are not rendered. Instead, the pane displays an "Image too large to preview" message. This prevents excessive memory usage and long render times for very large files.
+
+### Resize behavior
+
+- When the pane is resized (e.g., terminal resize, split drag), the image is re-rendered to fit the new dimensions.
+- Re-rendering is debounced to avoid excessive computation during continuous resize operations.
+
+### Known Limitations
+
+- Animated GIFs display only the first frame.
+- No zoom, pan, or scroll controls.
+- No image metadata display (dimensions, color depth, etc.).
+- Image quality depends on terminal capabilities and font aspect ratio.
+
+**Implementation:** `widgets/image_preview.py`, `widgets/main_view.py`
+
+---
+
 ## Footer Status Bar: file path, cursor position, language, encoding, indentation indicators
 
 A single global footer bar (`CodeEditorFooter`) is owned by `MainView` and always reflects the state of the active editor. There is exactly one footer in the entire app, not one per editor tab.

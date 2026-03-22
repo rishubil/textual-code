@@ -16,7 +16,7 @@ Files can be opened through three paths:
 - **Command palette**: "Open file" enumerates workspace files (skipping hidden paths and directories) and fuzzy-matches on relative paths.
 - **Explorer double-click**: double-clicking a file node in the sidebar opens it in the active split. If the file is already open in a tab, that tab is focused instead.
 
-Binary files (null byte detected in the first 8 KiB) show a warning tab ("Binary file -- not supported") and cannot be edited. The same file cannot be opened twice in the same split pane.
+Binary files (null byte detected in the first 8 KiB) cannot be edited. Image files (`.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp`, `.tiff`, `.tif`) open in a read-only image preview tab; all other binary files show a warning tab ("Binary file -- not supported"). The same file cannot be opened twice in the same split pane.
 
 ### Save (Ctrl+S) / Save As
 
@@ -65,15 +65,15 @@ The editor polls each open file's `mtime` every 2 seconds (polling is disabled i
 
 When saving (Ctrl+S), if the file's `mtime` on disk differs from the last known `mtime`, an "Overwrite" confirmation modal appears: "The file was modified externally. Overwrite with your changes?" with Overwrite and Cancel buttons.
 
-### Binary File Detection: null byte in first 8 KiB
+### Binary File Detection: null byte in first 8 KiB, image file routing
 
-`is_binary_file()` reads the first 8,192 bytes and checks for a null byte (`\x00`). If found, the file is classified as binary and a warning tab is displayed instead of the editor. Binary files cannot be opened for editing.
+`is_binary_file()` reads the first 8,192 bytes and checks for a null byte (`\x00`). If found, the file is classified as binary. Image files with recognized extensions (`.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp`, `.tiff`, `.tif`) are routed to the image preview pane (see [ui.md#image-preview](ui.md#image-preview-terminal-rendering-rich-pixels-resize-debounce)); all other binary files show a warning tab ("Binary file -- not supported") and cannot be edited.
 
 ### Known Limitations
 
 - No auto-save feature.
 - File rename is available via F2 or the command palette "Rename file" command.
-- Binary files cannot be edited; they are display-only with a warning notice.
+- Non-image binary files cannot be edited; they are display-only with a warning notice. Image files are previewed but not editable.
 - Save As rejects paths that already exist (no overwrite option in Save As).
 - Untitled files are skipped by Save All.
 

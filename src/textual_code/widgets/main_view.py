@@ -18,6 +18,11 @@ from textual.widgets import Button, Static, TabbedContent, TabPane
 from textual_code.utils import is_binary_file
 from textual_code.widgets.code_editor import CodeEditor, CodeEditorFooter, EditorState
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+from textual_code.widgets.image_preview import (
+    IMAGE_EXTENSIONS,
+    MAX_IMAGE_FILE_SIZE,
+    ImagePreviewPane,
+)
 from textual_code.widgets.markdown_preview import (
     MARKDOWN_EXTENSIONS,
     MarkdownPreviewPane,
@@ -482,6 +487,36 @@ class MainView(Static):
             self.focus_pane(pane_id)
             return pane_id
 
+        if path is not None and path.suffix.lower() in IMAGE_EXTENSIONS:
+            try:
+                file_size = path.stat().st_size
+            except OSError:
+                file_size = -1
+            if file_size < 0:
+                pane = TabPane(
+                    path.name,
+                    Static("\u26a0  Cannot read file", classes="binary-notice"),
+                    id=pane_id,
+                )
+            elif file_size > MAX_IMAGE_FILE_SIZE:
+                pane = TabPane(
+                    path.name,
+                    Static(
+                        "\u26a0  Image too large to preview",
+                        classes="binary-notice",
+                    ),
+                    id=pane_id,
+                )
+            else:
+                pane = TabPane(
+                    path.name,
+                    ImagePreviewPane(source_path=path),
+                    id=pane_id,
+                )
+            target_leaf.opened_files[path] = pane_id
+            await self.open_new_pane(pane_id, pane, leaf_id=target_leaf_id)
+            return pane_id
+
         if path is not None and is_binary_file(path):
             pane = TabPane(
                 path.name,
@@ -923,6 +958,26 @@ class MainView(Static):
             return await self._move_preview_pane_to_leaf(
                 source_pane_id, preview_results.first(), dest_leaf
             )
+
+        # Handle image preview panes
+        image_results = pane.query(ImagePreviewPane)
+        if image_results:
+            path = image_results.first().source_path
+            if path in dest_leaf.opened_files:
+                existing_pane_id = dest_leaf.opened_files[path]
+                await self.action_close_code_editor(
+                    source_pane_id, auto_close_split=False
+                )
+                await self._auto_close_split_if_empty()
+                tc_dest = self.query_one(f"#{dest_leaf.leaf_id}", TabbedContent)
+                self._safe_activate_tab(tc_dest, existing_pane_id)
+                self._active_leaf_id = dest_leaf.leaf_id
+                return existing_pane_id
+            self._active_leaf_id = dest_leaf.leaf_id
+            new_pane_id = await self.open_code_editor_pane(path)
+            await self.action_close_code_editor(source_pane_id, auto_close_split=False)
+            await self._auto_close_split_if_empty()
+            return new_pane_id
 
         # Get editor info from state store (unmounted) or mounted editor
         if source_pane_id in self._editor_states:

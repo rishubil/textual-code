@@ -34,6 +34,7 @@ It’s that simple.
 - Explore files in the sidebar
 - Open files to tabs
 - Syntax highlighting
+- Image file preview in the terminal
 
 ## Troubleshooting
 
