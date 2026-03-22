@@ -86,6 +86,34 @@ def init_git_repo(workspace: Path) -> None:
 SVGImageExtension.file_extension = "svg"
 
 
+@pytest.fixture
+def snap_compare(snap_compare):
+    """Wrap snap_compare to disable cursor blinking for deterministic snapshots.
+
+    TextArea and Input widgets blink the cursor via a 0.5s timer by default.
+    This timer is independent of ``animation_level`` and can cause snapshot
+    differences depending on whether the cursor is visible at capture time.
+
+    Depends on pytest-textual-snapshot's snap_compare signature:
+        compare(app, *, press, terminal_size, run_before)
+    """
+    from textual.widgets import Input, TextArea
+
+    def wrapper(app, *, run_before=None, **kwargs):
+        async def run_before_no_blink(pilot):
+            if run_before is not None:
+                await run_before(pilot)
+            for widget in pilot.app.query(TextArea):
+                widget.cursor_blink = False
+            for widget in pilot.app.query(Input):
+                widget.cursor_blink = False
+            await pilot.pause()
+
+        return snap_compare(app, run_before=run_before_no_blink, **kwargs)
+
+    return wrapper
+
+
 MINI_PNG_B64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4"
     "2mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="

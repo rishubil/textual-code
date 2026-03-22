@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shortcuts**: per-command shortcut settings via F1 viewer — toggle command palette visibility and rebind keys; dedicated footer configuration modal with reorderable, toggleable list (Fix #28)
 - **Image Preview**: open image files (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif) in a terminal preview pane using rich-pixels half-cell rendering; loading spinner during render; 10 MB file size cap; never upscales beyond 1:1 pixel ratio; re-renders on resize with debounce (Fix #12)
 
+### Fixed
+
+- **Testing**: disable cursor blinking in snapshot tests for deterministic SVG capture; wrap `snap_compare` fixture to set `cursor_blink = False` on all `TextArea` and `Input` widgets (Fix #35)
+
 ### Changed
 
 - **Performance**: replace CommandPalette with dedicated `PathSearchModal` for file search, delete, rename, and move palettes; UI matches CommandPalette look & feel (top-aligned, semi-transparent overlay, search icon, keyboard navigation); fuzzy matching runs in a background thread with class-level cache and automatic dirty-flag invalidation; generation counter prevents stale search results from overwriting current display
