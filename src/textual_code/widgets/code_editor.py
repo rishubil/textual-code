@@ -3,15 +3,19 @@ from __future__ import annotations
 import contextlib
 import logging
 import re
+import shutil
+import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
+from difflib import SequenceMatcher
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from charset_normalizer import detect as _cn_detect
 from rich.text import Text
-from textual import events, on
+from textual import events, on, work
 from textual.app import ComposeResult
 from textual.events import Mount
 from textual.message import Message
@@ -83,6 +87,118 @@ try:
             log.warning("Failed to load custom language %s: %s", _lang_name, _e)
 except ImportError:
     log.warning("tree-sitter-language-pack not available; custom languages disabled")
+
+
+# ── Git diff gutter ──────────────────────────────────────────────────────────
+
+# Cached git binary path (None if git is not installed)
+_git_bin: str | None = shutil.which("git")
+
+# Maximum line count for diff computation (performance protection)
+_MAX_DIFF_LINES = 10000
+
+
+class LineChangeType(Enum):
+    """Type of change for a line in the git diff gutter."""
+
+    ADDED = "added"  # green ▎
+    MODIFIED = "modified"  # yellow ▎
+    DELETED_ABOVE = "deleted_above"  # red ▔ (content deleted above this line)
+    DELETED_BELOW = "deleted_below"  # red ▁ (content deleted below this line, EOF)
+
+
+def _compute_line_changes(
+    old_lines: list[str], new_lines: list[str]
+) -> dict[int, LineChangeType]:
+    """Compute line-level changes between old and new text.
+
+    Returns a dict mapping line indices (in new_lines) to their change type.
+    All keys are guaranteed to satisfy ``0 <= k < len(new_lines)`` — no
+    phantom lines are ever created.
+
+    Returns empty dict when either side exceeds _MAX_DIFF_LINES.
+    """
+    if not new_lines:
+        return {}
+    if len(old_lines) > _MAX_DIFF_LINES or len(new_lines) > _MAX_DIFF_LINES:
+        return {}
+
+    sm = SequenceMatcher(None, old_lines, new_lines)
+    changes: dict[int, LineChangeType] = {}
+
+    for tag, _i1, _i2, j1, j2 in sm.get_opcodes():
+        if tag == "replace":
+            for line in range(j1, j2):
+                changes[line] = LineChangeType.MODIFIED
+        elif tag == "insert":
+            for line in range(j1, j2):
+                changes[line] = LineChangeType.ADDED
+        elif tag == "delete":
+            # j1 == j2 for delete opcodes (no lines in new text).
+            # Place indicator on the nearest existing line.
+            if j1 < len(new_lines):
+                if j1 not in changes:
+                    changes[j1] = LineChangeType.DELETED_ABOVE
+            elif j1 > 0 and j1 - 1 not in changes:
+                changes[j1 - 1] = LineChangeType.DELETED_BELOW
+
+    return changes
+
+
+def _get_git_head_content(path: Path) -> str | None:
+    """Get the HEAD version of a file from git.
+
+    Uses ``git rev-parse --show-toplevel`` to detect the git root
+    independently of the workspace path.
+
+    Returns None when:
+    - git binary not found
+    - path is not inside a git repo
+    - file is not tracked (untracked / new)
+    - subprocess times out or fails
+    """
+    if _git_bin is None:
+        log.debug("git diff gutter: git binary not found")
+        return None
+
+    resolved = path.resolve()
+    parent = str(resolved.parent)
+
+    try:
+        # Find git root
+        result = subprocess.run(
+            [_git_bin, "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            cwd=parent,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            log.debug("git diff gutter: not a git repo at %s", parent)
+            return None
+
+        git_root = Path(result.stdout.strip())
+        rel_path = resolved.relative_to(git_root).as_posix()
+
+        # Get HEAD content
+        result = subprocess.run(
+            [_git_bin, "show", f"HEAD:{rel_path}"],
+            capture_output=True,
+            text=True,
+            cwd=str(git_root),
+            timeout=5,
+        )
+        if result.returncode != 0:
+            log.debug("git diff gutter: file not tracked: %s", rel_path)
+            return None
+
+        return result.stdout
+    except subprocess.TimeoutExpired:
+        log.warning("git diff gutter: timed out for %s", path)
+        return None
+    except (OSError, ValueError) as e:
+        log.debug("git diff gutter: error: %s", e)
+        return None
 
 
 def _editorconfig_glob_to_pattern(glob: str) -> re.Pattern:
@@ -985,6 +1101,8 @@ class CodeEditor(Static):
         self._restore_cursor: tuple[int, int] | None = None
         self._restore_scroll: tuple[int, int] | None = None
         self._is_restoring: bool = False
+        # Git diff gutter: cached HEAD lines for diff computation
+        self._git_head_lines: list[str] | None = None
 
         if _from_state is not None:
             # Restore from captured state — skip file I/O
@@ -1157,6 +1275,46 @@ class CodeEditor(Static):
         else:
             # update the language of the editor (triggers lazy language registration)
             self.load_language_from_path(self.path)
+        # Start background git diff computation
+        self._refresh_git_diff()
+
+    # ── git diff gutter ──────────────────────────────────────────────────────
+
+    @work(thread=True, exclusive=True, group="git_diff")
+    def _refresh_git_diff(self) -> None:
+        """Fetch HEAD content in a background thread and compute line diff."""
+        head_lines = self._fetch_head_lines()
+        self.app.call_from_thread(self._apply_git_diff, head_lines)
+
+    def _fetch_head_lines(self) -> list[str] | None:
+        """Return HEAD lines for the current file, or None to clear indicators."""
+        if self.path is None:
+            return None
+        app = self.app
+        if hasattr(app, "default_show_git_status") and not app.default_show_git_status:
+            return None
+        head_content = _get_git_head_content(self.path)
+        if head_content is None:
+            return None
+        return head_content.splitlines()
+
+    def _apply_git_diff(self, head_lines: list[str] | None) -> None:
+        """Apply git diff results on the main thread."""
+        if not self.is_mounted:
+            return
+        self._git_head_lines = head_lines
+        self._recompute_git_diff()
+
+    def _recompute_git_diff(self) -> None:
+        """Recompute line changes using cached HEAD lines and current text."""
+        if self._git_head_lines is None:
+            if self.editor._line_changes:
+                self.editor.set_line_changes({})
+            return
+        current_lines = self.editor.text.splitlines()
+        changes = _compute_line_changes(self._git_head_lines, current_lines)
+        log.debug("git diff: %d changes for %s", len(changes), self.path)
+        self.editor.set_line_changes(changes)
 
     def update_title(self) -> None:
         """
@@ -1886,6 +2044,8 @@ class CodeEditor(Static):
 
         # update the text when editor's text changes
         self.text = event.control.text
+        # Recompute git diff using cached HEAD (no subprocess)
+        self._recompute_git_diff()
 
     @on(TextArea.SelectionChanged)
     def on_selection_changed(self, event: TextArea.SelectionChanged):
