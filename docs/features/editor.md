@@ -165,6 +165,10 @@ Both operations respect `indent_size` and `indent_type` settings from EditorConf
 
 Soft word wrap can be toggled per-file via the command palette ("Toggle word wrap"). The default for new files is controlled by the `word_wrap` setting (default: `true`). Word wrap state is per-editor-tab and does not affect the underlying file content.
 
+### Indentation Guides: toggleable via command palette or settings
+
+Vertical guide lines are displayed at each indent level within leading whitespace, making code structure easier to follow. Toggle per-file via the command palette ("Toggle indentation guides"). The default is controlled by the `show_indentation_guides` setting (default: `true`). Guides automatically adapt their color to dark and light themes.
+
 ### Known Limitations
 
 - No block/column selection mode.
