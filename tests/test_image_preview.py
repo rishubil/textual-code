@@ -3,7 +3,6 @@
 from pathlib import Path
 
 import pytest
-
 from textual.widgets import Static
 
 from tests.conftest import make_app, make_png
