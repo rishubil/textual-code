@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Image Preview**: open image files (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif) in a terminal preview pane using rich-pixels half-cell rendering; loading spinner during render; 10 MB file size cap; never upscales beyond 1:1 pixel ratio; re-renders on resize with debounce (Fix #12)
 - **Editor**: VS Code-style line paste — when pasting text that was copied or cut without a selection, the line is inserted above the current cursor line instead of at the cursor position; cursor follows the original line down; metadata is shared across tabs and auto-invalidated when clipboard changes externally (Fix #39)
 - **Editor**: git diff gutter indicators — display colored markers in the line number gutter to show git changes: green `▎` for added lines, yellow `▎` for modified lines, red `▔`/`▁` for deleted line positions; diff computed against HEAD via background worker; updates live on each keystroke; respects `show_git_status` setting (Fix #41)
+- **Editor**: indentation guides — display vertical `│` guide lines at each indent level within leading whitespace; adapts to dark/light themes; toggleable per-file via command palette ("Toggle indentation guides"); configurable via `show_indentation_guides` setting (default: `true`) (Fix #40)
 
 ### Fixed
 

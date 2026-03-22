@@ -364,6 +364,9 @@ class TextualCode(App):
             settings.get("dim_hidden_files", False)
         )
         self.default_show_git_status: bool = bool(settings.get("show_git_status", True))
+        self.default_show_indentation_guides: bool = bool(
+            settings.get("show_indentation_guides", True)
+        )
         mode = str(settings.get("path_display_mode", "absolute"))
         self.default_path_display_mode: str = (
             mode if mode in ("absolute", "relative") else "absolute"
@@ -810,6 +813,11 @@ class TextualCode(App):
             "Show or hide git status colors in the explorer",
             self._toggle_show_git_status_cmd,
         )
+        yield SystemCommand(
+            "Toggle indentation guides",
+            "Show or hide indentation guides in the editor",
+            self._toggle_indentation_guides_cmd,
+        )
 
     def action_find_in_workspace(self) -> None:
         """Open workspace search panel (Ctrl+Shift+F)."""
@@ -896,6 +904,7 @@ class TextualCode(App):
             "dim_gitignored": self.default_dim_gitignored,
             "dim_hidden_files": self.default_dim_hidden_files,
             "show_git_status": self.default_show_git_status,
+            "show_indentation_guides": self.default_show_indentation_guides,
             "sidebar_width": self.default_sidebar_width,
         }
 
@@ -1013,6 +1022,14 @@ class TextualCode(App):
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
             self.call_next(code_editor.action_toggle_word_wrap)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def _toggle_indentation_guides_cmd(self) -> None:
+        """Toggle indentation guides for the active file via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.action_toggle_indentation_guides)
         else:
             self.notify("No file open.", severity="error")
 

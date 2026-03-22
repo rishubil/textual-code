@@ -1137,3 +1137,18 @@ def test_snapshot_git_diff_gutter(snap_compare, snapshot_workspace: Path):
         await pilot.pause()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_indentation_guides(snap_compare, snapshot_workspace: Path):
+    """Editor shows vertical indentation guides in leading whitespace."""
+    f = snapshot_workspace / "indented.py"
+    f.write_text(
+        "def hello():\n"
+        "    if True:\n"
+        "        print('hello')\n"
+        "        if False:\n"
+        "            pass\n"
+        "    return\n"
+    )
+    app = make_app(snapshot_workspace, open_file=f)
+    assert snap_compare(app, run_before=_focus_editor(app), terminal_size=TERMINAL_SIZE)

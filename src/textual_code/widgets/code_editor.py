@@ -643,6 +643,7 @@ class EditorState:
     syntax_theme: str
     warn_line_ending: bool
     notified_copy_line_ending: bool
+    show_indentation_guides: bool = True
 
 
 class _PathLabel(Label):
@@ -923,6 +924,7 @@ class CodeEditor(Static):
     indent_size: reactive[int] = reactive(4, init=False)
     # whether word wrap is enabled
     word_wrap: reactive[bool] = reactive(False, init=False)
+    show_indentation_guides: reactive[bool] = reactive(True, init=False)
 
     # mapping of file extensions to language names
     LANGUAGE_EXTENSIONS = {
@@ -1077,6 +1079,7 @@ class CodeEditor(Static):
         default_encoding: str = "utf-8",
         default_syntax_theme: str = "monokai",
         default_word_wrap: bool = False,
+        default_show_indentation_guides: bool = True,
         default_warn_line_ending: bool = True,
         _from_state: EditorState | None = None,
         **kwargs,
@@ -1116,6 +1119,10 @@ class CodeEditor(Static):
             self.set_reactive(CodeEditor.indent_type, _from_state.indent_type)
             self.set_reactive(CodeEditor.indent_size, _from_state.indent_size)
             self.set_reactive(CodeEditor.word_wrap, _from_state.word_wrap)
+            self.set_reactive(
+                CodeEditor.show_indentation_guides,
+                _from_state.show_indentation_guides,
+            )
             self._file_mtime = _from_state.file_mtime
             self._ec_search_dirs = list(_from_state.ec_search_dirs)
             self._ec_mtimes = dict(_from_state.ec_mtimes)
@@ -1160,6 +1167,10 @@ class CodeEditor(Static):
             self._apply_editorconfig(ec, init_all=True)
 
             self.set_reactive(CodeEditor.word_wrap, default_word_wrap)
+            self.set_reactive(
+                CodeEditor.show_indentation_guides,
+                default_show_indentation_guides,
+            )
         else:
             # Apply app-level defaults for new untitled files
             self.set_reactive(CodeEditor.indent_type, default_indent_type)
@@ -1167,6 +1178,10 @@ class CodeEditor(Static):
             self.set_reactive(CodeEditor.line_ending, default_line_ending)
             self.set_reactive(CodeEditor.encoding, default_encoding)
             self.set_reactive(CodeEditor.word_wrap, default_word_wrap)
+            self.set_reactive(
+                CodeEditor.show_indentation_guides,
+                default_show_indentation_guides,
+            )
 
     def _apply_editorconfig(
         self, ec: dict[str, str], *, init_all: bool = False
@@ -1258,6 +1273,8 @@ class CodeEditor(Static):
         self.editor.theme = self._syntax_theme
         # apply word wrap (reactive init=False, so set manually)
         self.editor.soft_wrap = self.word_wrap
+        # apply indentation guides (reactive init=False, so set manually)
+        self.editor._show_indentation_guides = self.show_indentation_guides
         # apply indent settings (reactive init=False, so set manually)
         self.editor.indent_width = self.indent_size
         self.editor.indent_type = self.indent_type
@@ -1434,6 +1451,17 @@ class CodeEditor(Static):
     def action_toggle_word_wrap(self) -> None:
         """Toggle word wrap for the current file."""
         self.word_wrap = not self.word_wrap
+
+    def watch_show_indentation_guides(self, value: bool) -> None:
+        self.editor._show_indentation_guides = value
+        # Private API dependency: clear Textual's internal line cache so
+        # the rendering update takes effect immediately.
+        self.editor._line_cache.clear()
+        self.editor.refresh()
+
+    def action_toggle_indentation_guides(self) -> None:
+        """Toggle indentation guides for the current file."""
+        self.show_indentation_guides = not self.show_indentation_guides
 
     def _notify_non_lf_if_needed(self, *, from_clipboard: bool = False) -> None:
         if not self._warn_line_ending:
@@ -2231,6 +2259,7 @@ class CodeEditor(Static):
             indent_type=self.indent_type,
             indent_size=self.indent_size,
             word_wrap=self.word_wrap,
+            show_indentation_guides=self.show_indentation_guides,
             cursor_end=cursor,
             scroll_offset=scroll,
             file_mtime=self._file_mtime,

@@ -6,6 +6,7 @@ import re
 from collections import defaultdict
 from typing import TYPE_CHECKING, ClassVar
 
+from rich.cells import cell_len
 from rich.segment import Segment
 from rich.style import Style
 from rich.text import Text
@@ -160,12 +161,18 @@ class MultiCursorTextArea(TextArea):
     _GUTTER_MODIFIED_COLOR = "#E5C07B"  # yellow
     _GUTTER_DELETED_COLOR = "#E06C75"  # red
 
+    # ── Indentation guide styles ─────────────────────────────────────────────
+    _INDENT_GUIDE_CHAR = "│"
+    _INDENT_GUIDE_COLOR_DARK = "#3E3E3E"
+    _INDENT_GUIDE_COLOR_LIGHT = "#CCCCCC"
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._extra_cursors: list[tuple[int, int]] = []
         self._extra_anchors: list[tuple[int, int]] = []
         self._cached_selection_ranges: dict[int, list[tuple[int, int | None]]] = {}
         self._line_changes: dict[int, LineChangeType] = {}
+        self._show_indentation_guides: bool = True
 
     # ── git gutter API ───────────────────────────────────────────────────────
 
@@ -181,8 +188,37 @@ class MultiCursorTextArea(TextArea):
         self._line_cache.clear()
         self.refresh()
 
+    def _resolve_line_index(self, y: int) -> tuple[int, int] | None:
+        """Map visual y-coordinate to (line_index, section_offset).
+
+        Returns None when *y* does not correspond to a document line
+        (e.g. beyond end-of-file or an invalid offset).
+        """
+        _, scroll_y = self.scroll_offset
+        y_offset = y + scroll_y
+        wrapped_document = self.wrapped_document
+        if y_offset >= wrapped_document.height:
+            return None
+        try:
+            line_info = wrapped_document._offset_to_line_info[y_offset]
+        except IndexError:
+            return None
+        return line_info
+
+    # ── rendering pipeline ───────────────────────────────────────────────────
+
     def _render_line(self, y: int) -> Strip:
-        """Override to inject git diff gutter indicators.
+        """Override TextArea._render_line to layer visual enhancements.
+
+        Pipeline: base render → git gutter → indentation guides.
+        """
+        strip = self._render_line_with_gutter(y)
+        if self._show_indentation_guides:
+            strip = self._inject_indentation_guides(strip, y)
+        return strip
+
+    def _render_line_with_gutter(self, y: int) -> Strip:
+        """Inject git diff gutter indicators.
 
         This overrides TextArea._render_line (private API) to replace the
         last gutter margin cell with a colored indicator character when the
@@ -194,19 +230,7 @@ class MultiCursorTextArea(TextArea):
         if not self._line_changes or not self.show_line_numbers:
             return strip
 
-        # Map visual y-coordinate to document line index
-        scroll_x, scroll_y = self.scroll_offset
-        y_offset = y + scroll_y
-        wrapped_document = self.wrapped_document
-
-        if y_offset >= wrapped_document.height:
-            return strip
-
-        try:
-            line_info = wrapped_document._offset_to_line_info[y_offset]
-        except IndexError:
-            return strip
-
+        line_info = self._resolve_line_index(y)
         if line_info is None:
             return strip
 
@@ -262,6 +286,79 @@ class MultiCursorTextArea(TextArea):
         after = strip.crop(gutter_width, strip.cell_length)
         indicator = Strip([Segment(char, indicator_style)], cell_length=1)
         return Strip.join([before, indicator, after])
+
+    def _inject_indentation_guides(self, strip: Strip, y: int) -> Strip:
+        """Replace leading whitespace at indent-level positions with guide chars.
+
+        Guide characters are placed at every ``indent_width`` multiple within
+        the leading whitespace of each line, starting from ``indent_width``
+        (column 0 is excluded to match VS Code behaviour).
+        """
+        indent_width = self.indent_width
+        if indent_width < 1:
+            return strip
+
+        line_info = self._resolve_line_index(y)
+        if line_info is None:
+            return strip
+
+        line_index, section_offset = line_info
+        # Only show guides on the first section of a wrapped line
+        if section_offset != 0:
+            return strip
+
+        doc_line = self.document.get_line(line_index)
+        expanded = doc_line.expandtabs(indent_width)
+        leading_spaces = len(expanded) - len(expanded.lstrip())
+        if leading_spaces < indent_width:
+            return strip
+
+        guide_positions = set(range(indent_width, leading_spaces, indent_width))
+        gutter_width = self.gutter_width if self.show_line_numbers else 0
+
+        # Pick guide color based on theme brightness
+        theme = self._theme
+        guide_fg = self._INDENT_GUIDE_COLOR_DARK
+        if theme and theme.base_style and theme.base_style.bgcolor:
+            triplet = theme.base_style.bgcolor.triplet
+            if triplet is not None:
+                r, g, b = triplet
+                luminance = 0.299 * r + 0.587 * g + 0.114 * b
+                if luminance > 128:
+                    guide_fg = self._INDENT_GUIDE_COLOR_LIGHT
+
+        new_segments: list[Segment] = []
+        cell_pos = 0
+        for seg in strip:
+            seg_text = seg.text
+            seg_style = seg.style
+            seg_len = cell_len(seg_text)
+
+            # Fast path: segment entirely outside guide region
+            seg_end = cell_pos + seg_len
+            content_start = cell_pos - gutter_width
+            content_end = seg_end - gutter_width
+
+            if cell_pos < gutter_width or not any(
+                content_start <= p < content_end for p in guide_positions
+            ):
+                new_segments.append(seg)
+                cell_pos = seg_end
+                continue
+
+            # Slow path: guide positions fall within this segment
+            # Pre-compute guide style for this segment (bgcolor is constant per segment)
+            existing_bg = seg_style.bgcolor if seg_style else None
+            guide_style = Style(color=guide_fg, bgcolor=existing_bg)
+            for ch in seg_text:
+                content_col = cell_pos - gutter_width
+                if content_col in guide_positions:
+                    new_segments.append(Segment(self._INDENT_GUIDE_CHAR, guide_style))
+                else:
+                    new_segments.append(Segment(ch, seg_style))
+                cell_pos += cell_len(ch)
+
+        return Strip(new_segments, cell_length=strip.cell_length)
 
     # ── public API ────────────────────────────────────────────────────────────
 
