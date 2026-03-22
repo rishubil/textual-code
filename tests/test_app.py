@@ -491,22 +491,186 @@ async def test_footer_shortcut_order_empty_app(workspace: Path):
 
 
 async def test_action_order_covers_all_visible_bindings():
-    """ACTION_ORDER includes every show=True action from all BINDINGS sources."""
+    """DEFAULT_ACTION_ORDERS covers visible bindings for each area."""
+    from textual_code.widgets.explorer import Explorer
     from textual_code.widgets.main_view import MainView
     from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
     from textual_code.widgets.ordered_footer import OrderedFooter
 
-    visible_actions: set[str] = set()
+    # Editor area: MainView + App + MultiCursorTextArea
+    editor_visible: set[str] = set()
     for cls in (TextualCode, MainView, MultiCursorTextArea):
         for binding in cls.BINDINGS:
             if binding.show:
-                visible_actions.add(binding.action)
+                editor_visible.add(binding.action)
 
-    missing = visible_actions - set(OrderedFooter.ACTION_ORDER)
-    assert not missing, f"ACTION_ORDER is missing actions: {missing}"
+    editor_order = set(OrderedFooter.DEFAULT_ACTION_ORDERS["editor"])
+    missing = editor_visible - editor_order
+    assert not missing, f"editor DEFAULT_ACTION_ORDERS missing: {missing}"
+    stale = editor_order - editor_visible
+    assert not stale, f"editor DEFAULT_ACTION_ORDERS has stale: {stale}"
 
-    stale = set(OrderedFooter.ACTION_ORDER) - visible_actions
-    assert not stale, f"ACTION_ORDER has stale actions: {stale}"
+    # Explorer area: Explorer + App
+    explorer_visible: set[str] = set()
+    for cls in (Explorer, TextualCode):
+        for binding in cls.BINDINGS:
+            if binding.show:
+                explorer_visible.add(binding.action)
+
+    explorer_order = set(OrderedFooter.DEFAULT_ACTION_ORDERS["explorer"])
+    missing = explorer_visible - explorer_order
+    assert not missing, f"explorer DEFAULT_ACTION_ORDERS missing: {missing}"
+    stale = explorer_order - explorer_visible
+    assert not stale, f"explorer DEFAULT_ACTION_ORDERS has stale: {stale}"
+
+
+# ── Per-area footer order (#36) ────────────────────────────────────────────
+
+
+def test_footer_orders_for_area_returns_copy():
+    """FooterOrders.for_area() returns a copy, not a reference."""
+    from textual_code.config import FooterOrders
+
+    orders = FooterOrders(areas={"editor": ["save", "find"]})
+    result = orders.for_area("editor")
+    assert result is not None
+    assert result == ["save", "find"]
+    result.append("extra")  # mutate copy
+    assert orders.for_area("editor") == ["save", "find"]  # original unchanged
+
+
+def test_footer_orders_for_area_unknown_returns_none():
+    """FooterOrders.for_area() returns None for unconfigured areas."""
+    from textual_code.config import FooterOrders
+
+    orders = FooterOrders(areas={})
+    assert orders.for_area("editor") is None
+
+
+def test_load_footer_orders_per_area(tmp_path: Path):
+    """load_footer_orders reads [footer.<area>] sections for all known areas."""
+    from textual_code.config import load_footer_orders
+
+    config = tmp_path / "keybindings.toml"
+    config.write_text(
+        '[footer.editor]\norder = ["save", "find"]\n'
+        '[footer.explorer]\norder = ["create_file"]\n'
+        '[footer.search]\norder = ["new_editor"]\n'
+        '[footer.image_preview]\norder = ["close"]\n'
+        '[footer.markdown_preview]\norder = ["close", "new_editor"]\n'
+    )
+    result = load_footer_orders(config)
+    assert result.for_area("editor") == ["save", "find"]
+    assert result.for_area("explorer") == ["create_file"]
+    assert result.for_area("search") == ["new_editor"]
+    assert result.for_area("image_preview") == ["close"]
+    assert result.for_area("markdown_preview") == ["close", "new_editor"]
+
+
+def test_load_footer_orders_no_config(tmp_path: Path):
+    """load_footer_orders returns empty FooterOrders when config file is missing."""
+    from textual_code.config import load_footer_orders
+
+    config = tmp_path / "nonexistent.toml"
+    result = load_footer_orders(config)
+    assert result.for_area("editor") is None
+
+
+def test_load_footer_orders_legacy_migration(tmp_path: Path):
+    """Old [footer] order is migrated to editor area."""
+    from textual_code.config import load_footer_orders
+
+    config = tmp_path / "keybindings.toml"
+    config.write_text('[footer]\norder = ["save", "find"]\n')
+    result = load_footer_orders(config)
+    assert result.for_area("editor") == ["save", "find"]
+    assert result.for_area("explorer") is None
+
+
+def test_save_load_footer_orders_round_trip(tmp_path: Path):
+    """FooterOrders survives a save-then-load round trip."""
+    from textual_code.config import (
+        FooterOrders,
+        load_footer_orders,
+        save_keybindings_file,
+    )
+
+    config = tmp_path / "keybindings.toml"
+    orders = FooterOrders(
+        areas={
+            "editor": ["save", "find"],
+            "explorer": ["create_file"],
+        }
+    )
+    save_keybindings_file({}, {}, config, footer_orders=orders)
+    loaded = load_footer_orders(config)
+    assert loaded.for_area("editor") == ["save", "find"]
+    assert loaded.for_area("explorer") == ["create_file"]
+
+
+async def test_footer_order_differs_by_area(workspace: Path, sample_py_file: Path):
+    """Editor and explorer show different footer shortcuts."""
+    from textual_code.widgets.explorer import FilteredDirectoryTree
+
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Focus editor
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.editor.focus()
+        await pilot.pause()
+        editor_descs = _footer_descriptions(app)
+
+        # Focus explorer tree directly
+        sidebar = app.sidebar
+        assert sidebar is not None
+        tree = sidebar.explorer.query_one(FilteredDirectoryTree)
+        tree.focus()
+        await pilot.pause()
+        explorer_descs = _footer_descriptions(app)
+
+        # Editor should have save, find etc.
+        assert "Save" in editor_descs
+        assert "Find" in editor_descs
+        # Explorer should have create file, delete etc.
+        assert "Create file" in explorer_descs
+        assert "Delete" in explorer_descs
+        # The two sets are different
+        assert editor_descs != explorer_descs
+
+
+async def test_footer_default_order_per_area(workspace: Path, sample_py_file: Path):
+    """Default footer order uses DEFAULT_ACTION_ORDERS per area."""
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.editor.focus()
+        await pilot.pause()
+        editor_descs = _footer_descriptions(app)
+        # Default editor order starts with Save
+        assert editor_descs[0] == "Save"
+
+
+async def test_set_footer_order_for_area_persists(
+    workspace: Path, sample_py_file: Path, tmp_path: Path
+):
+    """set_footer_order saves per-area order to disk."""
+    from textual_code.config import load_footer_orders
+
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    config = config_dir / "settings.toml"
+    config.touch()
+    app = make_app(workspace, open_file=sample_py_file, user_config_path=config)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.set_footer_order(["find", "save"], area="editor")
+        kb_path = config.with_name("keybindings.toml")
+        loaded = load_footer_orders(kb_path)
+        assert loaded.for_area("editor") == ["find", "save"]
 
 
 # ── Command palette blocked while modal is active (#34) ──────────────────

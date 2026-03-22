@@ -91,6 +91,7 @@ async def test_c01_settings_commands_in_system_commands(workspace):
         titles = [c.title for c in commands]
         assert "Open user settings" in titles
         assert "Open project settings" in titles
+        assert "Open keybindings" in titles
 
 
 # ---------------------------------------------------------------------------
@@ -126,3 +127,35 @@ async def test_d02_open_project_settings_survives_oserror(workspace):
         editor = app.main_view.get_active_code_editor()
         project_cfg = get_project_config_path(workspace)
         assert editor is None or editor.path != project_cfg
+
+
+# ---------------------------------------------------------------------------
+# Group E: open keybindings file
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_e01_open_keybindings_creates_file_if_missing(workspace, tmp_path):
+    user_cfg = tmp_path / "cfg" / "settings.toml"
+    assert not user_cfg.exists()
+    app = make_app(workspace, user_config_path=user_cfg, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_open_keybindings()
+        await pilot.pause()
+        kb_path = user_cfg.with_name("keybindings.toml")
+        assert kb_path.exists()
+
+
+@pytest.mark.asyncio
+async def test_e02_open_keybindings_opens_in_editor(workspace, tmp_path):
+    user_cfg = tmp_path / "cfg" / "settings.toml"
+    app = make_app(workspace, user_config_path=user_cfg, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_open_keybindings()
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        kb_path = user_cfg.with_name("keybindings.toml")
+        assert editor.path == kb_path

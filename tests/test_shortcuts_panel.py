@@ -19,9 +19,10 @@ import pytest
 
 from textual_code.app import MainView, TextualCode, _apply_custom_keybindings
 from textual_code.config import (
+    FooterOrders,
     ShortcutDisplayEntry,
     get_keybindings_path,
-    load_footer_order,
+    load_footer_orders,
     load_keybindings,
     load_shortcut_display,
     save_keybindings,
@@ -519,42 +520,42 @@ async def test_palette_shows_command_by_default(workspace):
 # ---------------------------------------------------------------------------
 
 
-def test_load_footer_order_empty_when_no_file(tmp_path):
+def test_load_footer_orders_empty_when_no_file(tmp_path):
     kb = tmp_path / "keybindings.toml"
-    result = load_footer_order(kb)
-    assert result is None
+    result = load_footer_orders(kb)
+    assert result.for_area("editor") is None
 
 
-def test_load_footer_order_reads_list(tmp_path):
+def test_load_footer_orders_reads_list(tmp_path):
     kb = tmp_path / "keybindings.toml"
-    kb.write_text('[footer]\norder = ["save", "find", "replace"]\n')
-    result = load_footer_order(kb)
-    assert result == ["save", "find", "replace"]
+    kb.write_text('[footer.editor]\norder = ["save", "find", "replace"]\n')
+    result = load_footer_orders(kb)
+    assert result.for_area("editor") == ["save", "find", "replace"]
 
 
-def test_load_footer_order_backward_compat_no_section(tmp_path):
+def test_load_footer_orders_backward_compat_no_section(tmp_path):
     kb = tmp_path / "keybindings.toml"
     kb.write_text('[bindings]\nsave = "ctrl+s"\n')
-    result = load_footer_order(kb)
-    assert result is None
+    result = load_footer_orders(kb)
+    assert result.for_area("editor") is None
 
 
-def test_save_keybindings_file_includes_footer_order(tmp_path):
+def test_save_keybindings_file_includes_footer_orders(tmp_path):
     kb = tmp_path / "keybindings.toml"
-    footer_order = ["save", "find"]
-    save_keybindings_file({}, {}, kb, footer_order=footer_order)
-    loaded = load_footer_order(kb)
-    assert loaded == ["save", "find"]
+    orders = FooterOrders(areas={"editor": ["save", "find"]})
+    save_keybindings_file({}, {}, kb, footer_orders=orders)
+    loaded = load_footer_orders(kb)
+    assert loaded.for_area("editor") == ["save", "find"]
 
 
 def test_save_keybindings_file_round_trip_all_sections(tmp_path):
     kb = tmp_path / "keybindings.toml"
     display = {"save": ShortcutDisplayEntry(palette=False)}
-    footer_order = ["save", "find", "replace"]
-    save_keybindings_file({"save": "ctrl+s"}, display, kb, footer_order=footer_order)
+    orders = FooterOrders(areas={"editor": ["save", "find", "replace"]})
+    save_keybindings_file({"save": "ctrl+s"}, display, kb, footer_orders=orders)
     assert load_keybindings(kb)["save"] == "ctrl+s"
     assert load_shortcut_display(kb)["save"].palette is False
-    assert load_footer_order(kb) == ["save", "find", "replace"]
+    assert load_footer_orders(kb).for_area("editor") == ["save", "find", "replace"]
 
 
 @pytest.mark.asyncio
@@ -568,16 +569,17 @@ async def test_set_footer_order_saves_and_applies(
         workspace_path=workspace,
         with_open_file=None,
         user_config_path=settings_path,
+        skip_sidebar=True,
     )
     async with app.run_test() as pilot:
         await pilot.pause()
         # Use app-level bindings (new_editor, toggle_sidebar) which are always active
-        app.set_footer_order(["new_editor"])
+        app.set_footer_order(["new_editor"], area="editor")
         await pilot.pause()
         # Verify saved to disk
         kb_path = get_keybindings_path(settings_path)
-        loaded = load_footer_order(kb_path)
-        assert loaded == ["new_editor"]
+        loaded = load_footer_orders(kb_path)
+        assert loaded.for_area("editor") == ["new_editor"]
         # Verify footer respects order
         footer = app.query_one(OrderedFooter)
         footer_actions = {
@@ -597,10 +599,11 @@ async def test_get_footer_priority_with_order(workspace, tmp_path, restore_bindi
         workspace_path=workspace,
         with_open_file=None,
         user_config_path=settings_path,
+        skip_sidebar=True,
     )
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.set_footer_order(["find", "save"])
+        app.set_footer_order(["find", "save"], area="editor")
         await pilot.pause()
         assert app.get_footer_priority("find") == 0
         assert app.get_footer_priority("save") == 1

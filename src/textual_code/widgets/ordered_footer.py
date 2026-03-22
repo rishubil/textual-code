@@ -33,19 +33,45 @@ class OrderedFooter(Footer):
         "toggle_sidebar",
     )
 
+    # Per-area default action orders used when no custom order is configured.
+    DEFAULT_ACTION_ORDERS: dict[str, tuple[str, ...]] = {
+        "editor": ACTION_ORDER,
+        "explorer": (
+            "create_file",
+            "create_directory",
+            "delete_node",
+            "rename_node",
+            "new_editor",
+            "toggle_sidebar",
+        ),
+        "search": (
+            "new_editor",
+            "toggle_sidebar",
+        ),
+        "image_preview": (
+            "close",
+            "new_editor",
+            "toggle_sidebar",
+        ),
+        "markdown_preview": (
+            "close",
+            "new_editor",
+            "toggle_sidebar",
+        ),
+    }
+
     def _should_show_in_footer(self, binding: Binding) -> bool:
         """Check if a binding should appear in the footer.
 
-        If a custom footer order is set, only actions in that list are shown.
-        Otherwise falls back to binding.show.
+        Uses the area-aware order from the app (always non-None).
+        Falls back to binding.show for non-TextualCode apps.
         """
         from textual_code.app import TextualCode
 
         app = self.app
         if isinstance(app, TextualCode):
             order = app.get_footer_order()
-            if order is not None:
-                return binding.action in order
+            return binding.action in order
         return binding.show
 
     def _action_sort_key(self, action: str) -> int:

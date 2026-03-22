@@ -368,14 +368,15 @@ def test_snapshot_shortcut_settings_screen(snap_compare, snapshot_workspace: Pat
 
 
 def test_snapshot_footer_config_screen(snap_compare, snapshot_workspace: Path):
-    """FooterConfigScreen modal with reorderable list."""
+    """FooterConfigScreen modal with reorderable list and area selector."""
+    from textual_code.config import FooterOrders
     from textual_code.modals import FooterConfigScreen
 
     app = make_app(snapshot_workspace)
 
     async def open_footer_config(pilot):
         await pilot.pause()
-        actions = [
+        editor_actions = [
             ("save", "Save", "Ctrl+S", True),
             ("find", "Find", "Ctrl+F", True),
             ("replace", "Replace", "Ctrl+H", True),
@@ -384,8 +385,19 @@ def test_snapshot_footer_config_screen(snap_compare, snapshot_workspace: Path):
             ("new_editor", "New file", "Ctrl+N", True),
             ("toggle_sidebar", "Toggle sidebar", "Ctrl+B", True),
         ]
+        explorer_actions = [
+            ("create_file", "Create file", "Ctrl+N", True),
+            ("create_directory", "Create directory", "Ctrl+D", True),
+            ("new_editor", "New file", "Ctrl+N", True),
+            ("toggle_sidebar", "Toggle sidebar", "Ctrl+B", True),
+        ]
+        all_area_actions = {
+            "editor": editor_actions,
+            "explorer": explorer_actions,
+        }
+        orders = FooterOrders(areas={"editor": ["save", "find", "replace"]})
         app.push_screen(
-            FooterConfigScreen(actions, current_order=["save", "find", "replace"])
+            FooterConfigScreen(all_area_actions, orders, initial_area="editor")
         )
         await pilot.pause()
 

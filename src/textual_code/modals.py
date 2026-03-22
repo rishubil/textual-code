@@ -31,7 +31,7 @@ from textual.widgets import (
 
 if TYPE_CHECKING:
     from textual_code.app import TextualCode
-    from textual_code.config import ShortcutDisplayEntry
+    from textual_code.config import FooterOrders, ShortcutDisplayEntry
 
 
 @dataclass
@@ -1299,6 +1299,7 @@ class FooterConfigResult:
 
     is_cancelled: bool
     order: list[str] | None = None
+    area: str = "editor"
 
 
 class FooterConfigScreen(ModalScreen[FooterConfigResult]):
@@ -1311,7 +1312,7 @@ class FooterConfigScreen(ModalScreen[FooterConfigResult]):
     FooterConfigScreen #dialog {
         padding: 1 2;
         width: 70;
-        height: 34;
+        height: 36;
         border: thick $background 80%;
         background: $surface;
     }
@@ -1325,6 +1326,10 @@ class FooterConfigScreen(ModalScreen[FooterConfigResult]):
     FooterConfigScreen #hint {
         height: 1;
         color: $text-muted;
+        margin-bottom: 1;
+    }
+    FooterConfigScreen #area_select {
+        height: 3;
         margin-bottom: 1;
     }
     FooterConfigScreen #footer_list {
@@ -1355,40 +1360,83 @@ class FooterConfigScreen(ModalScreen[FooterConfigResult]):
         Binding("ctrl+down", "move_down", "Move down", show=False),
     ]
 
+    _AREA_LABELS: dict[str, str] = {
+        "editor": "Editor",
+        "explorer": "Explorer",
+        "search": "Search",
+        "image_preview": "Image Preview",
+        "markdown_preview": "Markdown Preview",
+    }
+
     def __init__(
         self,
-        actions: list[tuple[str, str, str, bool]],
-        current_order: list[str] | None = None,
+        all_area_actions: dict[str, list[tuple[str, str, str, bool]]],
+        footer_orders: FooterOrders,
+        *,
+        initial_area: str = "editor",
     ) -> None:
         super().__init__()
-        # actions: (action_name, description, key, default_show)
-        self._actions = {a[0]: (a[0], a[1], a[2]) for a in actions}
-        # Build ordered list: visible items first (in order), then hidden items
+        self._all_area_actions = all_area_actions
+        self._footer_orders = footer_orders
+        self._current_area = initial_area
+        # Per-area action lookup: area → {action_name: (name, desc, key)}
+        self._area_action_info: dict[str, dict[str, tuple[str, str, str]]] = {}
+        for area, actions in all_area_actions.items():
+            self._area_action_info[area] = {a[0]: (a[0], a[1], a[2]) for a in actions}
+        # Per-area items state cache
+        self._area_items: dict[str, list[tuple[str, bool]]] = {}
+        for area, actions in all_area_actions.items():
+            self._area_items[area] = self._build_items(area, actions)
+        self._items = self._area_items.get(initial_area, [])
+
+    def _build_items(
+        self,
+        area: str,
+        actions: list[tuple[str, str, str, bool]],
+    ) -> list[tuple[str, bool]]:
+        """Build the ordered (action_name, visible) list for an area."""
+        current_order = self._footer_orders.for_area(area)
         if current_order is not None:
+            action_set = {a[0] for a in actions}
             visible = set(current_order)
-            self._items: list[tuple[str, bool]] = [
-                (a, True) for a in current_order if a in self._actions
+            items: list[tuple[str, bool]] = [
+                (a, True) for a in current_order if a in action_set
             ]
             for action_name, _desc, _key, _show in actions:
                 if action_name not in visible:
-                    self._items.append((action_name, False))
-        else:
-            # Default: use binding's show attribute
-            self._items = [(a[0], a[3]) for a in actions]
+                    items.append((action_name, False))
+            return items
+        return [(a[0], a[3]) for a in actions]
+
+    @property
+    def _actions(self) -> dict[str, tuple[str, str, str]]:
+        """Return action info for the current area."""
+        return self._area_action_info.get(self._current_area, {})
 
     def _format_item_text(self, action_name: str, visible: bool) -> str:
         """Format the display text for a footer config list item."""
-        _name, desc, key = self._actions[action_name]
+        info = self._actions.get(action_name)
+        if info is None:
+            return f" {'✓' if visible else '✗'}  {action_name}"
+        _name, desc, key = info
         marker = "\u2713" if visible else "\u2717"
         return f" {marker}  {desc} ({key})"
 
     def compose(self) -> ComposeResult:
+        from textual.widgets import Select
+
+        area_options = [
+            (label, area)
+            for area, label in self._AREA_LABELS.items()
+            if area in self._all_area_actions
+        ]
         items = [
             ListItem(Label(self._format_item_text(a, v)), name=a)
             for a, v in self._items
         ]
         yield Vertical(
             Label("Configure Footer Shortcuts", id="title"),
+            Select(area_options, value=self._current_area, id="area_select"),
             Label("Space: toggle, Ctrl+Up/Down: reorder", id="hint"),
             ListView(*items, id="footer_list"),
             Horizontal(
@@ -1404,6 +1452,23 @@ class FooterConfigScreen(ModalScreen[FooterConfigResult]):
             ),
             id="dialog",
         )
+
+    @on(Select.Changed, "#area_select")
+    def on_area_changed(self, event: Select.Changed) -> None:
+        """Switch to a different area, preserving current state."""
+        new_area = str(event.value)
+        if new_area == self._current_area:
+            return
+        # Save current area state
+        self._area_items[self._current_area] = list(self._items)
+        self._current_area = new_area
+        self._items = list(self._area_items.get(new_area, []))
+        # Rebuild the list view
+        list_view = self.query_one("#footer_list", ListView)
+        list_view.clear()
+        for action_name, visible in self._items:
+            text = self._format_item_text(action_name, visible)
+            list_view.append(ListItem(Label(text), name=action_name))
 
     def _update_item_label(self, idx: int) -> None:
         """Update the label of a single list item at the given index."""
@@ -1458,8 +1523,12 @@ class FooterConfigScreen(ModalScreen[FooterConfigResult]):
 
     @on(Button.Pressed, "#save")
     def on_save(self) -> None:
+        # Save current area state first
+        self._area_items[self._current_area] = list(self._items)
         order = [name for name, visible in self._items if visible]
-        self.dismiss(FooterConfigResult(is_cancelled=False, order=order))
+        self.dismiss(
+            FooterConfigResult(is_cancelled=False, order=order, area=self._current_area)
+        )
 
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:

@@ -21,12 +21,13 @@ from textual_code.commands import (
 )
 from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
+    FooterOrders,
     ShortcutDisplayEntry,
     get_keybindings_path,
     get_project_config_path,
     get_user_config_path,
     load_editor_settings,
-    load_footer_order,
+    load_footer_orders,
     load_keybindings,
     load_shortcut_display,
     save_keybindings_file,
@@ -390,7 +391,7 @@ class TextualCode(App):
         self._shortcut_display: dict[str, ShortcutDisplayEntry] = load_shortcut_display(
             kb_path
         )
-        self._footer_order: list[str] | None = load_footer_order(kb_path)
+        self._footer_orders: FooterOrders = load_footer_orders(kb_path)
         _apply_custom_keybindings(self._custom_keybindings)
 
     def compose(self) -> ComposeResult:
@@ -487,6 +488,11 @@ class TextualCode(App):
             "Open project settings",
             "Open project settings file (.textual-code.toml in workspace root)",
             self.action_open_project_settings,
+        )
+        yield SystemCommand(
+            "Open keybindings",
+            "Open keybindings config file (keybindings.toml)",
+            self.action_open_keybindings,
         )
         yield SystemCommand(
             "Toggle sidebar",
@@ -1164,6 +1170,15 @@ class TextualCode(App):
     def action_open_project_settings(self) -> None:
         """Open project settings file in the editor."""
         path = get_project_config_path(self.workspace_path)
+        if not self._ensure_config_file(path):
+            return
+        self.call_next(
+            partial(self.main_view.action_open_code_editor, path=path, focus=True)
+        )
+
+    def action_open_keybindings(self) -> None:
+        """Open keybindings config file in the editor."""
+        path = self._keybindings_path()
         if not self._ensure_config_file(path):
             return
         self.call_next(
@@ -2100,27 +2115,55 @@ class TextualCode(App):
                     rows.append((b.key, b.description, ctx, b.action))
         self.push_screen(ShowShortcutsScreen(rows, self._shortcut_display))
 
-    def action_configure_footer(self) -> None:
-        """Open the footer configuration modal."""
-        from textual_code.modals import FooterConfigResult, FooterConfigScreen
+    def _collect_bindings_for_area(self, area: str) -> list[tuple[str, str, str, bool]]:
+        """Collect (action, description, key, show) tuples for a given area."""
+        from textual_code.widgets.explorer import Explorer
         from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
 
+        area_classes: dict[str, list[type]] = {
+            "editor": [MainView, TextualCode, MultiCursorTextArea],
+            "explorer": [Explorer, TextualCode],
+            "search": [TextualCode],
+            "image_preview": [TextualCode],
+            "markdown_preview": [TextualCode],
+        }
+        classes = area_classes.get(area, [TextualCode])
+
+        # For preview areas, also include MainView's "close" binding
+        include_close = area in ("image_preview", "markdown_preview")
+
         actions: list[tuple[str, str, str, bool]] = []
-        for cls, _ctx in [
-            (MainView, "Editor"),
-            (TextualCode, "App"),
-            (MultiCursorTextArea, "Text Area"),
-        ]:
+        seen: set[str] = set()
+        for cls in classes:
             for b in cls.BINDINGS:
-                if b.description:
+                if b.description and b.action not in seen:
+                    seen.add(b.action)
                     actions.append((b.action, b.description, b.key, b.show))
+        if include_close:
+            for b in MainView.BINDINGS:
+                if b.action == "close" and b.action not in seen:
+                    seen.add(b.action)
+                    actions.append((b.action, b.description, b.key, b.show))
+        return actions
+
+    def action_configure_footer(self) -> None:
+        """Open the footer configuration modal."""
+        from textual_code.config import KNOWN_AREAS
+        from textual_code.modals import FooterConfigResult, FooterConfigScreen
+
+        area = self._get_focused_area()
+        all_area_actions: dict[str, list[tuple[str, str, str, bool]]] = {}
+        for a in KNOWN_AREAS:
+            all_area_actions[a] = self._collect_bindings_for_area(a)
 
         def _on_result(result: FooterConfigResult | None) -> None:
             if result and not result.is_cancelled and result.order is not None:
-                self.set_footer_order(result.order)
+                self.set_footer_order(result.order, result.area)
 
         self.push_screen(
-            FooterConfigScreen(actions, self._footer_order),
+            FooterConfigScreen(
+                all_area_actions, self._footer_orders, initial_area=area
+            ),
             _on_result,
         )
 
@@ -2145,9 +2188,39 @@ class TextualCode(App):
         self._save_keybindings_to_disk()
         self.notify("Display settings saved.")
 
-    def set_footer_order(self, order: list[str]) -> None:
-        """Save footer order and recompose footer immediately."""
-        self._footer_order = order
+    def _get_focused_area(self) -> str:
+        """Return the footer area name based on the currently focused widget."""
+        from textual_code.widgets.explorer import Explorer
+        from textual_code.widgets.image_preview import ImagePreviewPane
+        from textual_code.widgets.markdown_preview import MarkdownPreviewPane
+        from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+        focused = self.focused
+        if focused is not None:
+            for ancestor in focused.ancestors_with_self:
+                if isinstance(ancestor, Explorer):
+                    return "explorer"
+                if isinstance(ancestor, WorkspaceSearchPane):
+                    return "search"
+                if isinstance(ancestor, ImagePreviewPane):
+                    return "image_preview"
+                if isinstance(ancestor, MarkdownPreviewPane):
+                    return "markdown_preview"
+                if isinstance(ancestor, Sidebar):
+                    # Focus is in the sidebar (e.g. on tabs) but not in a
+                    # specific pane.  Determine area from the active tab.
+                    try:
+                        active_id = ancestor.tabbed_content.active
+                    except (AttributeError, ValueError):
+                        return "explorer"
+                    if active_id == "search_pane":
+                        return "search"
+                    return "explorer"
+        return "editor"
+
+    def set_footer_order(self, order: list[str], area: str) -> None:
+        """Save footer order for *area* and recompose footer immediately."""
+        self._footer_orders.set_area(area, order)
         self._save_keybindings_to_disk()
         import contextlib
 
@@ -2155,24 +2228,30 @@ class TextualCode(App):
             self.footer.refresh(recompose=True)
         self.notify("Footer order saved.")
 
-    def get_footer_order(self) -> list[str] | None:
-        """Return the custom footer order, or None for default."""
-        return list(self._footer_order) if self._footer_order is not None else None
+    def get_footer_order(self) -> list[str]:
+        """Return the footer order for the currently focused area.
+
+        Always returns a non-empty list: custom order → DEFAULT_ACTION_ORDERS fallback.
+        """
+        area = self._get_focused_area()
+        custom = self._footer_orders.for_area(area)
+        if custom is not None:
+            return custom
+        default = OrderedFooter.DEFAULT_ACTION_ORDERS.get(
+            area, OrderedFooter.ACTION_ORDER
+        )
+        return list(default)
 
     def get_footer_priority(self, action: str) -> int:
         """Return the footer display priority for an action.
 
-        Uses footer_order list if set, otherwise falls back to ACTION_ORDER.
+        Uses the order for the currently focused area.
         """
-        if self._footer_order is not None:
-            try:
-                return self._footer_order.index(action)
-            except ValueError:
-                return len(self._footer_order)
+        order = self.get_footer_order()
         try:
-            return OrderedFooter.ACTION_ORDER.index(action)
+            return order.index(action)
         except ValueError:
-            return len(OrderedFooter.ACTION_ORDER)
+            return len(order)
 
     def _save_keybindings_to_disk(self) -> None:
         """Persist all keybinding-related config sections atomically."""
@@ -2180,7 +2259,7 @@ class TextualCode(App):
             self._custom_keybindings,
             self._shortcut_display,
             self._keybindings_path(),
-            footer_order=self._footer_order,
+            footer_orders=self._footer_orders,
         )
         if not ok:
             self.notify("Failed to save settings", severity="error")

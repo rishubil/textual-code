@@ -165,20 +165,27 @@ palette = false
 |-------|------|---------|-------------|
 | `palette` | bool | `true` | Show in the command palette |
 
-## Footer Configuration: [footer] section
+## Footer Configuration: per-area [footer.\<area\>] sections
 
-Control which shortcuts appear in the footer bar and their display order.
+Control which shortcuts appear in the footer bar per focus area. Each area (editor, explorer, search, image_preview, markdown_preview) can have its own order.
 
 ```toml
-[footer]
+[footer.editor]
 order = ["save", "find", "replace", "goto_line", "close", "new_editor", "toggle_sidebar"]
+
+[footer.explorer]
+order = ["create_file", "create_directory", "delete_node", "rename_node", "new_editor", "toggle_sidebar"]
+
+[footer.search]
+order = ["new_editor", "toggle_sidebar"]
 ```
 
 ### How to configure
 
 1. Open Command Palette → **"Configure footer shortcuts"**
-2. Use **Space** to toggle visibility (✓/✗) for each shortcut
-3. Use **Ctrl+Up/Down** to reorder items
-4. Click **Save** — changes apply immediately
+2. Select the area to configure from the dropdown (Editor / Explorer / Search / Image Preview / Markdown Preview)
+3. Use **Space** to toggle visibility (✓/✗) for each shortcut
+4. Use **Ctrl+Up/Down** to reorder items
+5. Click **Save** — changes apply immediately
 
-Only actions listed in `order` appear in the footer. The list order determines display priority. When no `[footer]` section exists, the default behavior is used.
+Only actions listed in `order` appear in the footer for that area. When no `[footer.<area>]` section exists, the default per-area order is used.
