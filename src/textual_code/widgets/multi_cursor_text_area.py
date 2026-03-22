@@ -4,13 +4,19 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
+from rich.segment import Segment
+from rich.style import Style
 from rich.text import Text
 from textual import events
 from textual.binding import Binding
 from textual.message import Message
+from textual.strip import Strip
 from textual.widgets import TextArea
+
+if TYPE_CHECKING:
+    from textual_code.widgets.code_editor import LineChangeType
 
 # ── Module-level helpers ───────────────────────────────────────────────────────
 
@@ -148,11 +154,114 @@ class MultiCursorTextArea(TextArea):
 
     # ── lifecycle ─────────────────────────────────────────────────────────────
 
+    # ── Git gutter indicator styles ──────────────────────────────────────────
+    # Colors chosen to match common editor conventions.
+    _GUTTER_ADDED_COLOR = "#4EC14E"  # green
+    _GUTTER_MODIFIED_COLOR = "#E5C07B"  # yellow
+    _GUTTER_DELETED_COLOR = "#E06C75"  # red
+
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._extra_cursors: list[tuple[int, int]] = []
         self._extra_anchors: list[tuple[int, int]] = []
         self._cached_selection_ranges: dict[int, list[tuple[int, int | None]]] = {}
+        self._line_changes: dict[int, LineChangeType] = {}
+
+    # ── git gutter API ───────────────────────────────────────────────────────
+
+    def set_line_changes(self, changes: dict[int, LineChangeType]) -> None:
+        """Update the git diff gutter indicators.
+
+        Args:
+            changes: Mapping of line index → change type.
+        """
+        if changes == self._line_changes:
+            return
+        self._line_changes = changes
+        self._line_cache.clear()
+        self.refresh()
+
+    def _render_line(self, y: int) -> Strip:
+        """Override to inject git diff gutter indicators.
+
+        This overrides TextArea._render_line (private API) to replace the
+        last gutter margin cell with a colored indicator character when the
+        line has a git change.  The coupling to Textual internals is
+        documented and guarded by snapshot tests.
+        """
+        strip = super()._render_line(y)
+
+        if not self._line_changes or not self.show_line_numbers:
+            return strip
+
+        # Map visual y-coordinate to document line index
+        scroll_x, scroll_y = self.scroll_offset
+        y_offset = y + scroll_y
+        wrapped_document = self.wrapped_document
+
+        if y_offset >= wrapped_document.height:
+            return strip
+
+        try:
+            line_info = wrapped_document._offset_to_line_info[y_offset]
+        except IndexError:
+            return strip
+
+        if line_info is None:
+            return strip
+
+        line_index, section_offset = line_info
+
+        # Only show indicator on the first section of a wrapped line
+        if section_offset != 0:
+            return strip
+
+        change = self._line_changes.get(line_index)
+        if change is None:
+            return strip
+
+        # Determine the indicator character and color.
+        # Use .value to avoid importing the Enum class at runtime
+        # (circular import: code_editor imports multi_cursor_text_area).
+        change_value = change.value
+        if change_value == "added":
+            char = "▎"
+            fg_color = self._GUTTER_ADDED_COLOR
+        elif change_value == "modified":
+            char = "▎"
+            fg_color = self._GUTTER_MODIFIED_COLOR
+        elif change_value == "deleted_above":
+            char = "▔"
+            fg_color = self._GUTTER_DELETED_COLOR
+        elif change_value == "deleted_below":
+            char = "▁"
+            fg_color = self._GUTTER_DELETED_COLOR
+        else:
+            return strip
+
+        # Determine the gutter background color for this line
+        theme = self._theme
+        cursor_row = self.selection.end[0]
+        is_cursor_line = cursor_row == line_index and self.highlight_cursor_line
+        if theme:
+            gutter_bg = (
+                theme.cursor_line_gutter_style if is_cursor_line else theme.gutter_style
+            )
+            bg_color = gutter_bg.bgcolor if gutter_bg else None
+        else:
+            bg_color = None
+
+        indicator_style = Style(color=fg_color, bgcolor=bg_color)
+
+        # Replace the last gutter cell (a margin space) with the indicator
+        gutter_width = self.gutter_width
+        if gutter_width < 1 or strip.cell_length < gutter_width:
+            return strip
+
+        before = strip.crop(0, gutter_width - 1)
+        after = strip.crop(gutter_width, strip.cell_length)
+        indicator = Strip([Segment(char, indicator_style)], cell_length=1)
+        return Strip.join([before, indicator, after])
 
     # ── public API ────────────────────────────────────────────────────────────
 

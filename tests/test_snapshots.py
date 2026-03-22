@@ -1113,3 +1113,27 @@ def test_snapshot_image_preview(snap_compare, snapshot_workspace: Path):
         await pilot.pause()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
+
+
+# ── Git diff gutter indicators ───────────────────────────────────────────────
+
+
+@requires_git
+def test_snapshot_git_diff_gutter(snap_compare, snapshot_workspace: Path):
+    """Editor gutter shows green/yellow/red indicators for git changes."""
+    init_git_repo(snapshot_workspace)
+    committed = snapshot_workspace / "committed.py"
+    # Create a multi-line committed file with modifications
+    committed.write_text("# modified line\nprint('hello')\nnew_line = True\n")
+    app = make_app(snapshot_workspace, open_file=committed)
+
+    async def run_before(pilot):
+        # Wait for mount + background git diff worker
+        for _ in range(5):
+            await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        if editor is not None:
+            editor.action_focus()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)

@@ -165,3 +165,29 @@ integer is accepted.
 `#split_right` keeps `width: 1fr` in TCSS. Once `#split_left.styles.width` is set to a fixed
 or percentage value, the right panel automatically fills the remaining space — no explicit
 right-panel update needed.
+
+## Git Diff Gutter: why `_render_line` override, not a separate widget
+
+Textual's `TextArea` provides no public API for custom gutter decorations. The gutter is
+built inside `_render_line()` as a `Segment` with line numbers + 2 spaces of margin. To
+inject colored indicators (▎/▔/▁), `MultiCursorTextArea` overrides `_render_line()` and
+uses `Strip.crop` + `Strip.join` to replace the last margin cell.
+
+**Private API coupling**: `_render_line` and `wrapped_document._offset_to_line_info` are
+internal Textual APIs. Snapshot tests guard against breakage on Textual updates.
+
+### Diff computation: `difflib.SequenceMatcher`
+
+`_compute_line_changes(old_lines, new_lines)` maps `SequenceMatcher.get_opcodes()` to
+`LineChangeType` values. Files exceeding 10,000 lines are skipped for performance.
+
+### Data flow: background fetch, synchronous recompute
+
+1. `on_mount` triggers `_refresh_git_diff()` (`@work(thread=True, exclusive=True)`)
+2. The worker runs `git show HEAD:<path>` in a background thread
+3. `call_from_thread` delivers `head_lines` to `_apply_git_diff` on the main thread
+4. `_recompute_git_diff()` diffs `head_lines` vs current editor text
+5. `set_line_changes()` stores the result, clears `_line_cache`, and refreshes
+
+On each keystroke, only step 4-5 run (no subprocess — cached `_git_head_lines` is reused).
+The `show_git_status` user setting controls whether git diff runs at all.
