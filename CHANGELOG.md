@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Shortcuts**: per-command shortcut settings via F1 viewer — toggle command palette visibility and rebind keys; dedicated footer configuration modal with reorderable, toggleable list (Fix #28)
 
-### Fixed
+### Changed
 
-- **Performance**: command palette file search no longer freezes the UI on large workspaces; fuzzy matching is now offloaded to a background thread via `asyncio.to_thread`
+- **Performance**: replace CommandPalette with dedicated `PathSearchModal` for file search, delete, rename, and move palettes; UI displays instantly with fzf-like chunked streaming, fuzzy matching runs in a background thread, and workspace scan results are cached at the app level with automatic invalidation on file changes
 
 ## [0.2.0] - 2026-03-21
 

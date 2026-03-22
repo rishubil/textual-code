@@ -4,11 +4,9 @@ Integration tests for deleting files/folders from the command palette.
 
 from pathlib import Path
 
-from textual.command import CommandPalette
-
 from tests.conftest import make_app
 from textual_code.app import TextualCode
-from textual_code.modals import DeleteFileModalScreen
+from textual_code.modals import DeleteFileModalScreen, PathSearchModal
 
 
 async def test_delete_palette_file_message_opens_modal(
@@ -161,4 +159,4 @@ async def test_action_delete_file_or_dir_with_command_palette_opens_palette(
         await pilot.pause()
         app.action_delete_file_or_dir_with_command_palette()
         await pilot.pause()
-        assert isinstance(app.screen, CommandPalette)
+        assert isinstance(app.screen, PathSearchModal)

@@ -132,6 +132,9 @@ def _set_status(
 class FilteredDirectoryTree(DirectoryTree):
     """DirectoryTree subclass that can hide dotfiles and dim gitignored files."""
 
+    class WorkspaceChanged(Message):
+        """Posted when external workspace changes are detected by polling."""
+
     COMPONENT_CLASSES = DirectoryTree.COMPONENT_CLASSES | {
         "directory-tree--gitignored",
         "directory-tree--hidden",
@@ -494,6 +497,7 @@ class FilteredDirectoryTree(DirectoryTree):
             _log.debug("workspace dir change detected, reloading explorer")
             self._git_ref_mtimes = new_git_mtimes
             self.reload()
+            self.post_message(self.WorkspaceChanged())
         elif git_changed:
             _log.debug("git ref change detected, refreshing explorer labels")
             self._git_ref_mtimes = new_git_mtimes

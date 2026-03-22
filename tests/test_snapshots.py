@@ -1061,3 +1061,22 @@ def test_snapshot_move_modal(
         ),
         terminal_size=TERMINAL_SIZE,
     )
+
+
+def test_snapshot_file_search_modal(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """File search PathSearchModal via action_open_file_with_command_palette()."""
+    # Create files for visual richness
+    (snapshot_workspace / "main.py").write_text("# main\n")
+    (snapshot_workspace / "utils.py").write_text("# utils\n")
+    (snapshot_workspace / "src").mkdir(exist_ok=True)
+    (snapshot_workspace / "src" / "app.py").write_text("# app\n")
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+    assert snap_compare(
+        app,
+        run_before=_open_app_modal(
+            app, lambda a: a.action_open_file_with_command_palette()
+        ),
+        terminal_size=TERMINAL_SIZE,
+    )
