@@ -126,6 +126,18 @@ This matches VS Code's behavior where empty-selection copy/cut operates on the w
 
 **Keybinding:** `Ctrl+C` (copy), `Ctrl+X` (cut).
 
+### Paste Line-Copied Text: VS Code line-paste behavior
+
+When pasting text that was copied or cut without a selection (whole-line copy/cut), the pasted line is inserted **above** the current cursor line instead of at the cursor position. The cursor follows the original line down, maintaining its column position.
+
+- **Ctrl+V after line-copy/cut**: inserts the copied line above the current line; cursor stays on the original line.
+- **Ctrl+V after selection copy**: inserts at the cursor position as usual.
+- **Ctrl+V with active selection**: replaces the selection regardless of how text was copied.
+
+The editor tracks whether the last copy/cut was a whole-line operation. This metadata is shared across all editor tabs. If the clipboard content is changed by another operation (e.g., "Copy File Path"), the line-paste mode is automatically deactivated and normal paste behavior is used.
+
+**Keybinding:** `Ctrl+V` (paste).
+
 ### Move Line Up/Down (Alt+Up / Alt+Down)
 
 Moves the current line (or all lines touched by the selection) up or down by one row. Supports multi-cursor: ranges from all cursors are collected, merged when overlapping or adjacent, and moved together. Follows the VS Code convention of excluding the last row when a multi-line selection ends at column 0.

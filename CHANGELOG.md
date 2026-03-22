@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Footer**: per-area footer shortcut configuration — each focus area (editor, explorer, search, image preview, markdown preview) can have its own shortcut display order; area selector dropdown in the footer config modal; default action orders per area (Fix #36)
 - **Settings**: "Open keybindings" command palette entry to open the keybindings.toml config file directly in the editor
 - **Image Preview**: open image files (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif) in a terminal preview pane using rich-pixels half-cell rendering; loading spinner during render; 10 MB file size cap; never upscales beyond 1:1 pixel ratio; re-renders on resize with debounce (Fix #12)
+- **Editor**: VS Code-style line paste — when pasting text that was copied or cut without a selection, the line is inserted above the current cursor line instead of at the cursor position; cursor follows the original line down; metadata is shared across tabs and auto-invalidated when clipboard changes externally (Fix #39)
 
 ### Fixed
 
