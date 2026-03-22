@@ -36,15 +36,16 @@ class OrderedFooter(Footer):
     def _should_show_in_footer(self, binding: Binding) -> bool:
         """Check if a binding should appear in the footer.
 
-        Respects user display config overrides, falling back to binding.show.
+        If a custom footer order is set, only actions in that list are shown.
+        Otherwise falls back to binding.show.
         """
         from textual_code.app import TextualCode
 
         app = self.app
         if isinstance(app, TextualCode):
-            entry = app._shortcut_display.get(binding.action)
-            if entry and entry.footer is not None:
-                return entry.footer
+            order = app.get_footer_order()
+            if order is not None:
+                return binding.action in order
         return binding.show
 
     def _action_sort_key(self, action: str) -> int:

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Shortcuts**: per-command display toggles in F1 shortcuts viewer — control footer and command palette visibility, set footer display priority (Fix #28)
+- **Shortcuts**: per-command shortcut settings via F1 viewer — toggle command palette visibility and rebind keys; dedicated footer configuration modal with reorderable, toggleable list (Fix #28)
 
 ### Fixed
 

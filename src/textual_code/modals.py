@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, cast
 
 from textual import on
 from textual.app import ComposeResult
+from textual.binding import Binding
 from textual.containers import Grid, Horizontal, Vertical
 from textual.events import Key
 from textual.screen import ModalScreen
@@ -16,6 +17,8 @@ from textual.widgets import (
     DataTable,
     Input,
     Label,
+    ListItem,
+    ListView,
     Select,
 )
 
@@ -1177,9 +1180,7 @@ class ShortcutSettingsResult:
     is_cancelled: bool
     action_name: str | None = None
     new_key: str | None = None
-    footer_visible: bool | None = None
     palette_visible: bool | None = None
-    footer_priority: int | None = None
 
 
 class ShortcutSettingsScreen(ModalScreen[ShortcutSettingsResult]):
@@ -1193,7 +1194,7 @@ class ShortcutSettingsScreen(ModalScreen[ShortcutSettingsResult]):
         padding: 1 2;
         width: 60;
         height: auto;
-        max-height: 26;
+        max-height: 20;
         border: thick $background 80%;
         background: $surface;
     }
@@ -1212,13 +1213,6 @@ class ShortcutSettingsScreen(ModalScreen[ShortcutSettingsResult]):
         margin-bottom: 1;
         width: 100%;
     }
-    ShortcutSettingsScreen #footer_priority {
-        width: 20;
-        margin-bottom: 1;
-    }
-    ShortcutSettingsScreen .priority_label {
-        height: 1;
-    }
     ShortcutSettingsScreen .buttons {
         height: 3;
         margin-top: 1;
@@ -1235,38 +1229,22 @@ class ShortcutSettingsScreen(ModalScreen[ShortcutSettingsResult]):
         action_name: str,
         description: str,
         current_key: str,
-        footer_visible: bool = True,
         palette_visible: bool = True,
-        footer_priority: int | None = None,
     ) -> None:
         super().__init__()
         self._action = action_name
         self._description = description
         self._current_key = current_key
-        self._footer_visible = footer_visible
         self._palette_visible = palette_visible
-        self._footer_priority = footer_priority
         self._new_key: str | None = None
 
     def compose(self) -> ComposeResult:
-        priority_str = (
-            str(self._footer_priority) if self._footer_priority is not None else ""
-        )
         yield Vertical(
             Label(f"Shortcut Settings: {self._description}", id="title"),
             Label(f"Current key: {self._current_key}", id="current_key_label"),
             Button("Change Key...", variant="default", id="change_key"),
-            Checkbox("Show in footer", self._footer_visible, id="footer_visible"),
             Checkbox(
                 "Show in command palette", self._palette_visible, id="palette_visible"
-            ),
-            Label("Footer priority (1-999):", classes="priority_label"),
-            Input(
-                value=priority_str,
-                placeholder="e.g. 1",
-                id="footer_priority",
-                restrict=r"[0-9]*",
-                max_length=3,
             ),
             Horizontal(
                 Button("Save", variant="primary", id="save"),
@@ -1293,32 +1271,192 @@ class ShortcutSettingsScreen(ModalScreen[ShortcutSettingsResult]):
 
     @on(Button.Pressed, "#save")
     def on_save(self) -> None:
-        footer_cb = self.query_one("#footer_visible", Checkbox)
         palette_cb = self.query_one("#palette_visible", Checkbox)
-        priority_input = self.query_one("#footer_priority", Input)
-        priority_val = priority_input.value.strip()
-        footer_priority: int | None = None
-        if priority_val:
-            try:
-                val = int(priority_val)
-                if 1 <= val <= 999:
-                    footer_priority = val
-            except ValueError:
-                pass
         self.dismiss(
             ShortcutSettingsResult(
                 is_cancelled=False,
                 action_name=self._action,
                 new_key=self._new_key,
-                footer_visible=footer_cb.value,
                 palette_visible=palette_cb.value,
-                footer_priority=footer_priority,
             )
         )
 
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
         self.dismiss(ShortcutSettingsResult(is_cancelled=True))
+
+
+@dataclass
+class FooterConfigResult:
+    """Result from the FooterConfigScreen dialog."""
+
+    is_cancelled: bool
+    order: list[str] | None = None
+
+
+class FooterConfigScreen(ModalScreen[FooterConfigResult]):
+    """Modal for configuring which shortcuts appear in the footer and their order."""
+
+    DEFAULT_CSS = """
+    FooterConfigScreen {
+        align: center middle;
+    }
+    FooterConfigScreen #dialog {
+        padding: 1 2;
+        width: 70;
+        height: 34;
+        border: thick $background 80%;
+        background: $surface;
+    }
+    FooterConfigScreen #title {
+        height: 1;
+        width: 1fr;
+        content-align: center middle;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    FooterConfigScreen #hint {
+        height: 1;
+        color: $text-muted;
+        margin-bottom: 1;
+    }
+    FooterConfigScreen #footer_list {
+        height: 1fr;
+    }
+    FooterConfigScreen .action-buttons {
+        height: 3;
+        margin-top: 1;
+        layout: horizontal;
+    }
+    FooterConfigScreen .action-buttons Button {
+        width: 1fr;
+        margin: 0 1;
+    }
+    FooterConfigScreen .confirm-buttons {
+        height: 3;
+        layout: horizontal;
+    }
+    FooterConfigScreen .confirm-buttons Button {
+        width: 1fr;
+        margin: 0 1;
+    }
+    """
+
+    BINDINGS = [
+        Binding("space", "toggle_item", "Toggle", show=False),
+        Binding("ctrl+up", "move_up", "Move up", show=False),
+        Binding("ctrl+down", "move_down", "Move down", show=False),
+    ]
+
+    def __init__(
+        self,
+        actions: list[tuple[str, str, str, bool]],
+        current_order: list[str] | None = None,
+    ) -> None:
+        super().__init__()
+        # actions: (action_name, description, key, default_show)
+        self._actions = {a[0]: (a[0], a[1], a[2]) for a in actions}
+        # Build ordered list: visible items first (in order), then hidden items
+        if current_order is not None:
+            visible = set(current_order)
+            self._items: list[tuple[str, bool]] = [
+                (a, True) for a in current_order if a in self._actions
+            ]
+            for action_name, _desc, _key, _show in actions:
+                if action_name not in visible:
+                    self._items.append((action_name, False))
+        else:
+            # Default: use binding's show attribute
+            self._items = [(a[0], a[3]) for a in actions]
+
+    def _format_item_text(self, action_name: str, visible: bool) -> str:
+        """Format the display text for a footer config list item."""
+        _name, desc, key = self._actions[action_name]
+        marker = "\u2713" if visible else "\u2717"
+        return f" {marker}  {desc} ({key})"
+
+    def compose(self) -> ComposeResult:
+        items = [
+            ListItem(Label(self._format_item_text(a, v)), name=a)
+            for a, v in self._items
+        ]
+        yield Vertical(
+            Label("Configure Footer Shortcuts", id="title"),
+            Label("Space: toggle, Ctrl+Up/Down: reorder", id="hint"),
+            ListView(*items, id="footer_list"),
+            Horizontal(
+                Button("Move Up", variant="default", id="move_up"),
+                Button("Move Down", variant="default", id="move_down"),
+                Button("Toggle", variant="default", id="toggle"),
+                classes="action-buttons",
+            ),
+            Horizontal(
+                Button("Save", variant="primary", id="save"),
+                Button("Cancel", variant="default", id="cancel"),
+                classes="confirm-buttons",
+            ),
+            id="dialog",
+        )
+
+    def _update_item_label(self, idx: int) -> None:
+        """Update the label of a single list item at the given index."""
+        list_view = self.query_one("#footer_list", ListView)
+        action_name, visible = self._items[idx]
+        item = list_view.children[idx]
+        item.query_one(Label).update(self._format_item_text(action_name, visible))
+
+    def action_toggle_item(self) -> None:
+        list_view = self.query_one("#footer_list", ListView)
+        idx = list_view.index
+        if idx is not None and 0 <= idx < len(self._items):
+            action_name, visible = self._items[idx]
+            self._items[idx] = (action_name, not visible)
+            self._update_item_label(idx)
+
+    def action_move_up(self) -> None:
+        list_view = self.query_one("#footer_list", ListView)
+        idx = list_view.index
+        if idx is not None and idx > 0:
+            self._items[idx], self._items[idx - 1] = (
+                self._items[idx - 1],
+                self._items[idx],
+            )
+            self._update_item_label(idx)
+            self._update_item_label(idx - 1)
+            list_view.index = idx - 1
+
+    def action_move_down(self) -> None:
+        list_view = self.query_one("#footer_list", ListView)
+        idx = list_view.index
+        if idx is not None and idx < len(self._items) - 1:
+            self._items[idx], self._items[idx + 1] = (
+                self._items[idx + 1],
+                self._items[idx],
+            )
+            self._update_item_label(idx)
+            self._update_item_label(idx + 1)
+            list_view.index = idx + 1
+
+    @on(Button.Pressed, "#move_up")
+    def on_move_up_btn(self) -> None:
+        self.action_move_up()
+
+    @on(Button.Pressed, "#move_down")
+    def on_move_down_btn(self) -> None:
+        self.action_move_down()
+
+    @on(Button.Pressed, "#toggle")
+    def on_toggle_btn(self) -> None:
+        self.action_toggle_item()
+
+    @on(Button.Pressed, "#save")
+    def on_save(self) -> None:
+        order = [name for name, visible in self._items if visible]
+        self.dismiss(FooterConfigResult(is_cancelled=False, order=order))
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(FooterConfigResult(is_cancelled=True))
 
 
 class ShowShortcutsScreen(ModalScreen[None]):
@@ -1380,43 +1518,21 @@ class ShowShortcutsScreen(ModalScreen[None]):
         action_name = str(event.row_key.value)
         row = next(r for r in self._rows if r[3] == action_name)
         current_key, desc, _ctx, _action = row
-        # Look up current display preferences for this action
         display_entry = self._display_config.get(action_name)
-        # Determine default footer visibility from the binding's show attribute
-        binding_show = self._get_binding_show(action_name)
-        footer_visible = (
-            display_entry.footer
-            if display_entry and display_entry.footer is not None
-            else binding_show
-        )
         palette_visible = (
             display_entry.palette
             if display_entry and display_entry.palette is not None
             else True
         )
-        footer_priority = display_entry.footer_priority if display_entry else None
         self.app.push_screen(
             ShortcutSettingsScreen(
                 action_name=action_name,
                 description=desc,
                 current_key=current_key,
-                footer_visible=footer_visible,
                 palette_visible=palette_visible,
-                footer_priority=footer_priority,
             ),
             self._on_settings_result,
         )
-
-    def _get_binding_show(self, action_name: str) -> bool:
-        """Get the default show value for an action from its Binding."""
-        from textual_code.app import MainView, TextualCode
-        from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
-
-        for cls in (MainView, TextualCode, MultiCursorTextArea):
-            for b in cls.BINDINGS:
-                if b.action == action_name:
-                    return b.show
-        return True
 
     def _on_settings_result(self, result: ShortcutSettingsResult | None) -> None:
         if result is None or result.is_cancelled:
@@ -1427,13 +1543,8 @@ class ShowShortcutsScreen(ModalScreen[None]):
         if result.action_name:
             from textual_code.config import ShortcutDisplayEntry
 
-            entry = ShortcutDisplayEntry(
-                footer=result.footer_visible,
-                palette=result.palette_visible,
-                footer_priority=result.footer_priority,
-            )
+            entry = ShortcutDisplayEntry(palette=result.palette_visible)
             app.set_shortcut_display(result.action_name, entry)
-            # Update local display config for subsequent edits in this session
             self._display_config[result.action_name] = entry
 
     @on(Button.Pressed, "#close")

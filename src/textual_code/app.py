@@ -27,6 +27,7 @@ from textual_code.config import (
     get_project_config_path,
     get_user_config_path,
     load_editor_settings,
+    load_footer_order,
     load_keybindings,
     load_shortcut_display,
     save_keybindings_file,
@@ -390,7 +391,8 @@ class TextualCode(App):
         self._shortcut_display: dict[str, ShortcutDisplayEntry] = load_shortcut_display(
             kb_path
         )
-        _apply_custom_keybindings(self._custom_keybindings, self._shortcut_display)
+        self._footer_order: list[str] | None = load_footer_order(kb_path)
+        _apply_custom_keybindings(self._custom_keybindings)
 
     def compose(self) -> ComposeResult:
         if not self._skip_sidebar:
@@ -465,6 +467,11 @@ class TextualCode(App):
             "Show keyboard shortcuts",
             "View and change keyboard shortcuts (F1)",
             self.action_show_shortcuts,
+        )
+        yield SystemCommand(
+            "Configure footer shortcuts",
+            "Choose which shortcuts appear in the footer and their order",
+            self.action_configure_footer,
         )
         yield SystemCommand(
             "Open user settings",
@@ -2073,6 +2080,30 @@ class TextualCode(App):
                     rows.append((b.key, b.description, ctx, b.action))
         self.push_screen(ShowShortcutsScreen(rows, self._shortcut_display))
 
+    def action_configure_footer(self) -> None:
+        """Open the footer configuration modal."""
+        from textual_code.modals import FooterConfigResult, FooterConfigScreen
+        from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+        actions: list[tuple[str, str, str, bool]] = []
+        for cls, _ctx in [
+            (MainView, "Editor"),
+            (TextualCode, "App"),
+            (MultiCursorTextArea, "Text Area"),
+        ]:
+            for b in cls.BINDINGS:
+                if b.description:
+                    actions.append((b.action, b.description, b.key, b.show))
+
+        def _on_result(result: FooterConfigResult | None) -> None:
+            if result and not result.is_cancelled and result.order is not None:
+                self.set_footer_order(result.order)
+
+        self.push_screen(
+            FooterConfigScreen(actions, self._footer_order),
+            _on_result,
+        )
+
     def _keybindings_path(self) -> Path:
         """Return the keybindings config file path."""
         return (
@@ -2084,44 +2115,55 @@ class TextualCode(App):
     def set_keybinding(self, action: str, new_key: str) -> None:
         """Save a custom keybinding and apply it immediately."""
         self._custom_keybindings[action] = new_key
-        self._save_config(
-            save_keybindings_file,
-            self._custom_keybindings,
-            self._shortcut_display,
-            self._keybindings_path(),
-        )
-        _apply_custom_keybindings(self._custom_keybindings, self._shortcut_display)
+        self._save_keybindings_to_disk()
+        _apply_custom_keybindings(self._custom_keybindings)
         self.notify("Shortcut saved. Restart to apply changes.")
 
     def set_shortcut_display(self, action: str, entry: ShortcutDisplayEntry) -> None:
         """Save shortcut display preferences and apply immediately."""
         self._shortcut_display[action] = entry
-        self._save_config(
-            save_keybindings_file,
-            self._custom_keybindings,
-            self._shortcut_display,
-            self._keybindings_path(),
-        )
-        _apply_custom_keybindings(self._custom_keybindings, self._shortcut_display)
-        # Trigger footer recompose so display changes take effect immediately
+        self._save_keybindings_to_disk()
+        self.notify("Display settings saved.")
+
+    def set_footer_order(self, order: list[str]) -> None:
+        """Save footer order and recompose footer immediately."""
+        self._footer_order = order
+        self._save_keybindings_to_disk()
         import contextlib
 
         with contextlib.suppress(Exception):
             self.footer.refresh(recompose=True)
-        self.notify("Display settings saved.")
+        self.notify("Footer order saved.")
+
+    def get_footer_order(self) -> list[str] | None:
+        """Return the custom footer order, or None for default."""
+        return list(self._footer_order) if self._footer_order is not None else None
 
     def get_footer_priority(self, action: str) -> int:
         """Return the footer display priority for an action.
 
-        Checks custom display config first, then falls back to ACTION_ORDER.
+        Uses footer_order list if set, otherwise falls back to ACTION_ORDER.
         """
-        entry = self._shortcut_display.get(action)
-        if entry and entry.footer_priority is not None:
-            return entry.footer_priority
+        if self._footer_order is not None:
+            try:
+                return self._footer_order.index(action)
+            except ValueError:
+                return len(self._footer_order)
         try:
             return OrderedFooter.ACTION_ORDER.index(action)
         except ValueError:
             return len(OrderedFooter.ACTION_ORDER)
+
+    def _save_keybindings_to_disk(self) -> None:
+        """Persist all keybinding-related config sections atomically."""
+        ok = save_keybindings_file(
+            self._custom_keybindings,
+            self._shortcut_display,
+            self._keybindings_path(),
+            footer_order=self._footer_order,
+        )
+        if not ok:
+            self.notify("Failed to save settings", severity="error")
 
     @property
     def sidebar(self) -> Sidebar | None:
@@ -2137,24 +2179,20 @@ class TextualCode(App):
         return self.query_one(OrderedFooter)
 
 
-def _apply_custom_keybindings(
-    custom: dict[str, str],
-    display: dict[str, ShortcutDisplayEntry] | None = None,
-) -> None:
-    """Patch class-level BINDINGS lists with custom key mappings and display prefs."""
+def _apply_custom_keybindings(custom: dict[str, str]) -> None:
+    """Patch class-level BINDINGS lists with custom key mappings."""
     from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
 
-    display = display or {}
-
-    def _patch(b: Binding) -> Binding:
-        key = custom.get(b.action, b.key)
-        show = b.show
-        entry = display.get(b.action)
-        if entry and entry.footer is not None:
-            show = entry.footer
-        if key != b.key or show != b.show:
-            return Binding(key, b.action, b.description, show=show, priority=b.priority)
-        return b
-
     for cls in (MainView, TextualCode, MultiCursorTextArea):
-        cls.BINDINGS = [_patch(b) for b in cls.BINDINGS]
+        cls.BINDINGS = [
+            Binding(
+                custom[b.action],
+                b.action,
+                b.description,
+                show=b.show,
+                priority=b.priority,
+            )
+            if b.action in custom
+            else b
+            for b in cls.BINDINGS
+        ]
