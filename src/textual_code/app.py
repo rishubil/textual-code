@@ -452,6 +452,12 @@ class TextualCode(App):
                     hidden.add(title)
         return hidden
 
+    def action_command_palette(self) -> None:
+        """Block command palette when a modal is already active (#34)."""
+        if self.screen.is_modal:
+            return
+        super().action_command_palette()
+
     def get_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
         hidden = self._hidden_palette_titles()
         for cmd in self._all_system_commands(screen):
