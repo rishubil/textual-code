@@ -24,6 +24,7 @@ assignment is acceptable: those tests exercise the CodeEditor reactive layer
 in isolation and do not capture screenshots.
 """
 
+import base64
 import os
 import shutil
 import subprocess
@@ -83,6 +84,19 @@ def init_git_repo(workspace: Path) -> None:
 # syrupy 5.x looks at file_extension (no prefix), so snapshots fall back to
 # ".raw".  Patch the correct attribute so snap_compare produces ".svg" files.
 SVGImageExtension.file_extension = "svg"
+
+
+MINI_PNG_B64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4"
+    "2mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+)
+"""Minimal valid 1x1 red PNG encoded as base64 (67 bytes decoded)."""
+
+
+def make_png(path: Path) -> Path:
+    """Write a minimal valid PNG to *path* and return it."""
+    path.write_bytes(base64.b64decode(MINI_PNG_B64))
+    return path
 
 
 @pytest.fixture

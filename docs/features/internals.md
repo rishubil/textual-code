@@ -65,8 +65,9 @@ When a tab is deactivated, its `CodeEditor` is removed from the DOM and its full
 dataclass stored in `MainView._editor_states[pane_id]`. On re-activation the editor is
 re-mounted from that state, skipping all file I/O.
 
-Binary-file panes and Markdown preview panes are exempt — they have no `CodeEditor` to
-unmount and must stay mounted so event propagation (`TextChanged`, `Closed`) continues.
+Binary-file panes, image preview panes, and Markdown preview panes are exempt — they have
+no `CodeEditor` to unmount and must stay mounted so event propagation (`TextChanged`,
+`Closed`) continues.
 
 The swap runs inside `app.batch_update()` to suppress intermediate repaints.
 
