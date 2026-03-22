@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import heapq
+import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from textual import on
+from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Grid, Horizontal, Vertical
 from textual.events import Key
+from textual.content import Content
+from textual.fuzzy import Matcher
 from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import (
@@ -19,6 +24,7 @@ from textual.widgets import (
     Label,
     ListItem,
     ListView,
+    OptionList,
     Select,
 )
 
@@ -1549,4 +1555,219 @@ class ShowShortcutsScreen(ModalScreen[None]):
 
     @on(Button.Pressed, "#close")
     def on_close(self) -> None:
+        self.dismiss(None)
+
+
+_logger = logging.getLogger(__name__)
+
+_MAX_DISCOVERY = 50
+"""Maximum number of items shown in discovery (empty query)."""
+
+_MAX_SEARCH_HITS = 20
+"""Maximum number of search results returned."""
+
+
+class PathSearchModal(ModalScreen[Path | None]):
+    """fzf-like modal for searching and selecting paths.
+
+    Supports streaming scan with chunked delivery, fuzzy matching in a
+    background thread, and optional pre-populated cache for instant results.
+    """
+
+    DEFAULT_CSS = """
+    PathSearchModal {
+        align: center middle;
+    }
+    #path-search-container {
+        width: 80;
+        max-height: 80%;
+        background: $surface;
+        border: thick $primary;
+        padding: 1 2;
+    }
+    #path-search-input {
+        margin-bottom: 1;
+    }
+    #path-search-results {
+        height: 1fr;
+        min-height: 10;
+    }
+    """
+
+    BINDINGS = [("escape", "dismiss_modal")]
+
+    def __init__(
+        self,
+        workspace_path: Path,
+        *,
+        scan_func: Callable[[Path], list[Path]],
+        cached_paths: list[Path] | None = None,
+        placeholder: str = "Search...",
+        path_filter: Callable[[Path], bool] | None = None,
+    ) -> None:
+        super().__init__()
+        self._workspace_path = workspace_path
+        self._scan_func = scan_func
+        self._path_filter = path_filter
+        self._placeholder = placeholder
+        # Main-thread only: accumulated paths in sorted order.
+        self._all_paths: list[Path] = []
+        self._initial_paths = cached_paths
+        # Pre-computed display strings (parallel to _all_paths).
+        self._display_strings: list[str] = []
+        # Maps current OptionList indices to Path objects.
+        self._result_paths: list[Path] = []
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="path-search-container"):
+            yield Input(placeholder=self._placeholder, id="path-search-input")
+            yield OptionList(id="path-search-results")
+
+    def on_mount(self) -> None:
+        self.query_one("#path-search-input", Input).focus()
+        if self._initial_paths is not None:
+            paths = self._initial_paths
+            if self._path_filter:
+                paths = [p for p in paths if self._path_filter(p)]
+            self._all_paths = sorted(paths)
+            self._display_strings = [self._display_path(p) for p in self._all_paths]
+            _logger.debug(
+                "PathSearchModal: using %d cached paths", len(self._all_paths)
+            )
+            self._show_discovery()
+        else:
+            _logger.debug("PathSearchModal: starting background scan")
+            self._start_scan()
+
+    @work(thread=True, exclusive=True)
+    def _start_scan(self) -> None:
+        """Scan workspace in background, delivering results in sorted chunks."""
+        results = self._scan_func(self._workspace_path)
+        if self._path_filter:
+            results = [p for p in results if self._path_filter(p)]
+        # Deliver in chunks for progressive display
+        chunk_size = 100
+        for i in range(0, len(results), chunk_size):
+            chunk = results[i : i + chunk_size]
+            self.app.call_from_thread(self._on_chunk, chunk)
+        self.app.call_from_thread(self._on_scan_complete)
+
+    def _on_chunk(self, chunk: list[Path]) -> None:
+        """Merge a sorted chunk into the accumulated path list."""
+        chunk.sort()
+        chunk_displays = [self._display_path(p) for p in chunk]
+        # Merge paths and display strings in parallel, maintaining sort order.
+        merged_paths: list[Path] = []
+        merged_displays: list[str] = []
+        for p in heapq.merge(
+            zip(self._all_paths, self._display_strings, strict=False),
+            zip(chunk, chunk_displays, strict=False),
+        ):
+            merged_paths.append(p[0])
+            merged_displays.append(p[1])
+        self._all_paths = merged_paths
+        self._display_strings = merged_displays
+        self._refresh_display()
+
+    def _on_scan_complete(self) -> None:
+        self._refresh_display()
+
+    def _refresh_display(self) -> None:
+        """Update the option list based on the current query."""
+        from textual.css.query import NoMatches
+
+        try:
+            query = self.query_one("#path-search-input", Input).value
+        except NoMatches:
+            return
+        if not query:
+            self._show_discovery()
+        else:
+            self._do_search(query)
+
+    def _display_path(self, path: Path) -> str:
+        """Display path relative to workspace if possible."""
+        try:
+            return str(path.relative_to(self._workspace_path))
+        except ValueError:
+            return str(path)
+
+    def _show_discovery(self) -> None:
+        """Show all paths (up to limit) when query is empty."""
+        option_list = self.query_one("#path-search-results", OptionList)
+        option_list.clear_options()
+        self._result_paths.clear()
+        for i, path in enumerate(self._all_paths[:_MAX_DISCOVERY]):
+            if i < len(self._display_strings):
+                display = self._display_strings[i]
+            else:
+                display = self._display_path(path)
+            option_list.add_option(display)
+            self._result_paths.append(path)
+
+    @on(Input.Changed, "#path-search-input")
+    def _on_input_changed(self, event: Input.Changed) -> None:
+        if not event.value:
+            self._show_discovery()
+        else:
+            self._do_search(event.value)
+
+    @on(Input.Submitted, "#path-search-input")
+    def _on_input_submitted(self, event: Input.Submitted) -> None:
+        """Select the highlighted (or first) result when Enter is pressed."""
+        ol = self.query_one("#path-search-results", OptionList)
+        idx = ol.highlighted
+        if idx is None:
+            idx = 0
+        if idx < len(self._result_paths):
+            self.dismiss(self._result_paths[idx])
+
+    @work(thread=True, exclusive=True, group="path_search_match")
+    def _do_search(self, query: str) -> None:
+        """Run fuzzy matching in a background thread."""
+        matcher = Matcher(query)
+        # Snapshot references for thread safety.
+        paths = self._all_paths
+        displays = self._display_strings
+        scored: list[tuple[float, str, Path]] = []
+        for i, path in enumerate(paths):
+            display = displays[i] if i < len(displays) else str(path)
+            score = matcher.match(display)
+            if score > 0:
+                scored.append((score, display, path))
+        top = heapq.nlargest(_MAX_SEARCH_HITS, scored)
+        # Pre-compute highlights while still on the worker thread.
+        highlighted = [
+            (matcher.highlight(display), path) for _score, display, path in top
+        ]
+        self.app.call_from_thread(self._apply_results, query, highlighted)
+
+    def _apply_results(
+        self,
+        query: str,
+        results: list[tuple[str | Content, Path]],
+    ) -> None:
+        """Apply search results on the main thread. Discards stale results."""
+        from textual.css.query import NoMatches
+
+        try:
+            current = self.query_one("#path-search-input", Input).value
+        except NoMatches:
+            return
+        if current != query:
+            return
+        option_list = self.query_one("#path-search-results", OptionList)
+        option_list.clear_options()
+        self._result_paths.clear()
+        for highlighted, path in results:
+            option_list.add_option(highlighted)
+            self._result_paths.append(path)
+
+    @on(OptionList.OptionSelected, "#path-search-results")
+    def _on_selected(self, event: OptionList.OptionSelected) -> None:
+        idx = event.option_list.highlighted
+        if idx is not None and idx < len(self._result_paths):
+            self.dismiss(self._result_paths[idx])
+
+    def action_dismiss_modal(self) -> None:
         self.dismiss(None)

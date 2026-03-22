@@ -8,11 +8,10 @@ The move dialog uses a CommandPalette-based directory picker with fuzzy search.
 
 from pathlib import Path
 
-from textual.command import CommandPalette
-
 from tests.conftest import make_app
 from textual_code.app import TextualCode
 from textual_code.commands import _read_workspace_directories
+from textual_code.modals import PathSearchModal
 from textual_code.widgets.explorer import Explorer
 
 # ── _read_workspace_directories unit tests ────────────────────────────────────
@@ -85,7 +84,7 @@ def test_read_workspace_directories_excludes_git_internals(tmp_path: Path):
 async def test_file_move_requested_opens_command_palette(
     workspace: Path, sample_py_file: Path
 ):
-    """Posting FileMoveRequested directly → CommandPalette opens (not modal)."""
+    """Posting FileMoveRequested directly → PathSearchModal opens."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -95,7 +94,7 @@ async def test_file_move_requested_opens_command_palette(
             Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
-        assert isinstance(app.screen, CommandPalette)
+        assert isinstance(app.screen, PathSearchModal)
 
 
 # ── File move via MoveDestinationSelected ─────────────────────────────────────
@@ -122,7 +121,7 @@ async def test_move_file_to_directory(workspace: Path, sample_py_file: Path):
 
 
 async def test_move_file_cancel_command_palette(workspace: Path, sample_py_file: Path):
-    """Pressing Escape on CommandPalette → file unchanged."""
+    """Pressing Escape on PathSearchModal → file unchanged."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -133,7 +132,7 @@ async def test_move_file_cancel_command_palette(workspace: Path, sample_py_file:
             Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
-        assert isinstance(app.screen, CommandPalette)
+        assert isinstance(app.screen, PathSearchModal)
 
         await pilot.press("escape")
         await pilot.pause()
@@ -268,7 +267,7 @@ async def test_move_no_cursor_no_palette(workspace: Path):
         assert app.sidebar is not None
         app.sidebar.explorer.action_move_node()
         await pilot.pause()
-        assert not isinstance(app.screen, CommandPalette)
+        assert not isinstance(app.screen, PathSearchModal)
 
 
 # ── Unsaved changes preservation ──────────────────────────────────────────────
@@ -399,7 +398,7 @@ async def test_move_dir_into_own_subtree_shows_error(workspace: Path):
 
 
 async def test_move_via_command_palette(workspace: Path, sample_py_file: Path):
-    """MovePathWithPaletteRequested → CommandPalette → select dest → moved."""
+    """MovePathWithPaletteRequested → PathSearchModal → select dest → moved."""
     dest_dir = workspace / "lib"
     dest_dir.mkdir()
 
@@ -407,10 +406,10 @@ async def test_move_via_command_palette(workspace: Path, sample_py_file: Path):
     async with app.run_test() as pilot:
         await pilot.pause()
         # Simulate: first palette selected the source file,
-        # now _handle_move_path opens second palette for destination.
+        # now _handle_move_path opens PathSearchModal for destination.
         app.post_message(TextualCode.MovePathWithPaletteRequested(path=sample_py_file))
         await pilot.pause()
-        assert isinstance(app.screen, CommandPalette)
+        assert isinstance(app.screen, PathSearchModal)
 
         # Dismiss palette and use MoveDestinationSelected directly
         await pilot.press("escape")

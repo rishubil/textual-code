@@ -14,11 +14,10 @@ from textual.message import Message
 from textual.screen import Screen
 
 from textual_code.commands import (
+    _read_workspace_directories,
+    _read_workspace_files,
+    _read_workspace_paths,
     create_create_file_or_dir_command_provider,
-    create_delete_path_command_provider,
-    create_move_path_command_provider,
-    create_open_file_command_provider,
-    create_rename_path_command_provider,
 )
 from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
@@ -385,6 +384,13 @@ class TextualCode(App):
         # File clipboard for copy/cut/paste in explorer
         self._file_clipboard: tuple[Literal["copy", "cut"], Path] | None = None
 
+        # Workspace scan caches for command palette providers.
+        # Attribute assignments are atomic under CPython's GIL, so reads
+        # from the main thread and writes from worker threads are safe.
+        self._workspace_files_cache: list[Path] | None = None
+        self._workspace_paths_cache: list[Path] | None = None
+        self._workspace_dirs_cache: list[Path] | None = None
+
         # load and apply custom keybindings and display preferences
         kb_path = get_keybindings_path(user_config_path) if user_config_path else None
         self._custom_keybindings: dict[str, str] = load_keybindings(kb_path)
@@ -420,6 +426,29 @@ class TextualCode(App):
             await self.main_view.action_open_code_editor(
                 path=self.with_open_file, focus=True
             )
+        self._preload_workspace_caches()
+
+    def _preload_workspace_caches(self) -> None:
+        """Pre-load workspace file/path/directory caches in a background thread."""
+        self.run_worker(
+            self._do_preload_workspace_caches,
+            thread=True,
+            group="preload_ws",
+            exclusive=True,
+        )
+
+    def _do_preload_workspace_caches(self) -> None:
+        """Thread worker: scan workspace and populate caches."""
+        self._workspace_files_cache = _read_workspace_files(self.workspace_path)
+        self._workspace_paths_cache = _read_workspace_paths(self.workspace_path)
+        self._workspace_dirs_cache = _read_workspace_directories(self.workspace_path)
+
+    def _invalidate_workspace_caches(self) -> None:
+        """Clear workspace caches and re-populate in background."""
+        self._workspace_files_cache = None
+        self._workspace_paths_cache = None
+        self._workspace_dirs_cache = None
+        self._preload_workspace_caches()
 
     # Mapping from binding action names to their SystemCommand titles.
     # Used to filter commands when a user hides them from the command palette.
@@ -1377,6 +1406,7 @@ class TextualCode(App):
         """
         Reload the explorer directory tree.
         """
+        self._invalidate_workspace_caches()
         if self.sidebar is None:
             return
         # call with call_next to ensure the command palette is closed
@@ -1441,18 +1471,22 @@ class TextualCode(App):
         """
         Open a file in the code editor with the command palette.
         """
+        from textual_code.modals import PathSearchModal
+
+        def _on_result(path: Path | None) -> None:
+            if path is not None:
+                self.post_message(
+                    self.OpenFileRequested(path=self.workspace_path / path)
+                )
+
         self.push_screen(
-            CommandPalette(
-                providers=[
-                    create_open_file_command_provider(
-                        self.workspace_path,
-                        post_message_callback=lambda path: self.app.post_message(
-                            self.OpenFileRequested(path=path)
-                        ),
-                    )
-                ],
+            PathSearchModal(
+                self.workspace_path,
+                scan_func=_read_workspace_files,
+                cached_paths=self._workspace_files_cache,
                 placeholder="Search for files...",
             ),
+            callback=_on_result,
         )
 
     def _get_explorer_selected_dir_relative(self) -> str:
@@ -1497,22 +1531,32 @@ class TextualCode(App):
         )
         await self._push_palette_with_prefill(palette, initial_path)
 
-    def action_delete_file_or_dir_with_command_palette(self) -> None:
-        """
-        Delete a file or directory with the command palette.
-        """
+    def _push_path_search(
+        self,
+        message_cls: type,
+        placeholder: str,
+    ) -> None:
+        """Open PathSearchModal for workspace paths, post message_cls on selection."""
+        from textual_code.modals import PathSearchModal
+
+        def _on_result(path: Path | None) -> None:
+            if path is not None:
+                self.post_message(message_cls(path=path))
+
         self.push_screen(
-            CommandPalette(
-                providers=[
-                    create_delete_path_command_provider(
-                        self.workspace_path,
-                        post_message_callback=lambda path: self.app.post_message(
-                            self.DeletePathWithPaletteRequested(path=path)
-                        ),
-                    )
-                ],
-                placeholder="Delete file or directory...",
+            PathSearchModal(
+                self.workspace_path,
+                scan_func=_read_workspace_paths,
+                cached_paths=self._workspace_paths_cache,
+                placeholder=placeholder,
             ),
+            callback=_on_result,
+        )
+
+    def action_delete_file_or_dir_with_command_palette(self) -> None:
+        """Delete a file or directory with the command palette."""
+        self._push_path_search(
+            self.DeletePathWithPaletteRequested, "Delete file or directory..."
         )
 
     async def action_create_directory_with_command_palette(
@@ -1536,21 +1580,9 @@ class TextualCode(App):
         await self._push_palette_with_prefill(palette, initial_path)
 
     def action_rename_file_or_dir_with_command_palette(self) -> None:
-        """
-        Rename a file or directory with the command palette.
-        """
-        self.push_screen(
-            CommandPalette(
-                providers=[
-                    create_rename_path_command_provider(
-                        self.workspace_path,
-                        post_message_callback=lambda path: self.app.post_message(
-                            self.RenamePathWithPaletteRequested(path=path)
-                        ),
-                    )
-                ],
-                placeholder="Rename file or directory...",
-            ),
+        """Rename a file or directory with the command palette."""
+        self._push_path_search(
+            self.RenamePathWithPaletteRequested, "Rename file or directory..."
         )
 
     def action_rename_active_file(self) -> None:
@@ -1612,18 +1644,8 @@ class TextualCode(App):
 
     def action_move_file_or_dir_with_command_palette(self) -> None:
         """Move a file or directory with the command palette."""
-        self.push_screen(
-            CommandPalette(
-                providers=[
-                    create_move_path_command_provider(
-                        self.workspace_path,
-                        post_message_callback=lambda path: self.app.post_message(
-                            self.MovePathWithPaletteRequested(path=path)
-                        ),
-                    )
-                ],
-                placeholder="Move file or directory...",
-            ),
+        self._push_path_search(
+            self.MovePathWithPaletteRequested, "Move file or directory..."
         )
 
     def action_copy_explorer_node(self) -> None:
@@ -1645,25 +1667,39 @@ class TextualCode(App):
         self.sidebar.explorer.action_paste_node()
 
     def _handle_move_path(self, path: Path) -> None:
-        """Open directory picker CommandPalette for moving a file or directory."""
-        from textual_code.commands import create_move_destination_command_provider
+        """Open directory picker for moving a file or directory."""
+        from textual_code.modals import PathSearchModal
 
         name = path.name
-        self.push_screen(
-            CommandPalette(
-                providers=[
-                    create_move_destination_command_provider(
-                        self.workspace_path,
-                        source_path=path,
-                        post_message_callback=lambda dest_dir: self.post_message(
-                            self.MoveDestinationSelected(
-                                source_path=path, destination_dir=dest_dir
-                            )
-                        ),
+        is_source_dir = path.is_dir()
+
+        def _exclude_source(d: Path) -> bool:
+            """Filter out source directory and its subtree."""
+            if is_source_dir:
+                try:
+                    d.relative_to(path)
+                    return False
+                except ValueError:
+                    pass
+            return True
+
+        def _on_result(dest_dir: Path | None) -> None:
+            if dest_dir is not None:
+                self.post_message(
+                    self.MoveDestinationSelected(
+                        source_path=path, destination_dir=dest_dir
                     )
-                ],
+                )
+
+        self.push_screen(
+            PathSearchModal(
+                self.workspace_path,
+                scan_func=_read_workspace_directories,
+                cached_paths=self._workspace_dirs_cache,
                 placeholder=f"Move '{name}' to...",
+                path_filter=_exclude_source,
             ),
+            callback=_on_result,
         )
 
     @on(MoveDestinationSelected)
@@ -2018,6 +2054,10 @@ class TextualCode(App):
     def on_reload_explorer_requested(self, event: ReloadExplorerRequested):
         # reload the explorer when requested
         self.action_reload_explorer()
+
+    def on_filtered_directory_tree_workspace_changed(self, event) -> None:
+        """Invalidate workspace caches when the explorer detects external changes."""
+        self._invalidate_workspace_caches()
 
     @on(OpenFileRequested)
     async def on_open_file_requested(self, event: OpenFileRequested):
