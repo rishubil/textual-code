@@ -11,8 +11,8 @@ from textual import on, work
 from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Grid, Horizontal, Vertical
-from textual.events import Key
 from textual.content import Content
+from textual.events import Key
 from textual.fuzzy import Matcher
 from textual.screen import ModalScreen
 from textual.widget import Widget
