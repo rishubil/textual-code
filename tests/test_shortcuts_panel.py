@@ -21,6 +21,7 @@ from textual_code.app import MainView, TextualCode, _apply_custom_keybindings
 from textual_code.config import (
     ShortcutDisplayEntry,
     get_keybindings_path,
+    load_footer_order,
     load_keybindings,
     load_shortcut_display,
     save_keybindings,
@@ -85,30 +86,10 @@ def test_load_shortcut_display_empty_when_no_file(tmp_path):
 
 def test_load_shortcut_display_reads_entries(tmp_path):
     kb = tmp_path / "keybindings.toml"
-    kb.write_text(
-        "[display.save]\nfooter = true\npalette = false\nfooter_priority = 1\n"
-    )
+    kb.write_text("[display.save]\npalette = false\n")
     result = load_shortcut_display(kb)
     assert "save" in result
-    assert result["save"].footer is True
     assert result["save"].palette is False
-    assert result["save"].footer_priority == 1
-
-
-def test_load_shortcut_display_partial_entry(tmp_path):
-    kb = tmp_path / "keybindings.toml"
-    kb.write_text("[display.find]\nfooter = false\n")
-    result = load_shortcut_display(kb)
-    assert result["find"].footer is False
-    assert result["find"].palette is None
-    assert result["find"].footer_priority is None
-
-
-def test_load_shortcut_display_ignores_malformed(tmp_path):
-    kb = tmp_path / "keybindings.toml"
-    kb.write_text('[display.save]\nfooter = "not_a_bool"\n')
-    result = load_shortcut_display(kb)
-    assert result == {} or result.get("save", ShortcutDisplayEntry()).footer is None
 
 
 def test_load_shortcut_display_backward_compat_no_display(tmp_path):
@@ -118,49 +99,40 @@ def test_load_shortcut_display_backward_compat_no_display(tmp_path):
     assert result == {}
 
 
-def test_save_keybindings_file_writes_both_sections(tmp_path):
+def test_save_keybindings_file_writes_display_section(tmp_path):
     kb = tmp_path / "keybindings.toml"
-    display = {
-        "save": ShortcutDisplayEntry(footer=True, palette=False, footer_priority=1)
-    }
+    display = {"save": ShortcutDisplayEntry(palette=False)}
     save_keybindings_file({"save": "ctrl+s"}, display, kb)
     assert kb.exists()
     text = kb.read_text()
     assert "[bindings]" in text
     assert "ctrl+s" in text
     assert "[display.save]" in text
-    assert "footer = true" in text
     assert "palette = false" in text
-    assert "footer_priority = 1" in text
 
 
 def test_save_keybindings_file_round_trip(tmp_path):
     kb = tmp_path / "keybindings.toml"
     display = {
-        "save": ShortcutDisplayEntry(footer=True, palette=True, footer_priority=1),
-        "find": ShortcutDisplayEntry(footer=False, palette=True, footer_priority=2),
+        "save": ShortcutDisplayEntry(palette=True),
+        "find": ShortcutDisplayEntry(palette=False),
     }
     save_keybindings_file({"save": "ctrl+s"}, display, kb)
     loaded_bindings = load_keybindings(kb)
     loaded_display = load_shortcut_display(kb)
     assert loaded_bindings["save"] == "ctrl+s"
-    assert loaded_display["save"].footer is True
-    assert loaded_display["save"].footer_priority == 1
-    assert loaded_display["find"].footer is False
-    assert loaded_display["find"].footer_priority == 2
+    assert loaded_display["save"].palette is True
+    assert loaded_display["find"].palette is False
 
 
 def test_save_keybindings_preserves_display_section(tmp_path):
     """save_keybindings should preserve existing [display] sections."""
     kb = tmp_path / "keybindings.toml"
-    display = {
-        "save": ShortcutDisplayEntry(footer=True, palette=False, footer_priority=1)
-    }
+    display = {"save": ShortcutDisplayEntry(palette=False)}
     save_keybindings_file({"save": "ctrl+s"}, display, kb)
-    # Now save only keybindings — display should be preserved
     save_keybindings({"save": "ctrl+alt+s"}, kb)
     loaded_display = load_shortcut_display(kb)
-    assert loaded_display["save"].footer is True
+    assert loaded_display["save"].palette is False
 
 
 # ---------------------------------------------------------------------------
@@ -359,16 +331,12 @@ def test_shortcut_settings_result_dataclass():
         is_cancelled=False,
         action_name="save",
         new_key="ctrl+alt+s",
-        footer_visible=True,
         palette_visible=False,
-        footer_priority=1,
     )
     assert not result.is_cancelled
     assert result.action_name == "save"
     assert result.new_key == "ctrl+alt+s"
-    assert result.footer_visible is True
     assert result.palette_visible is False
-    assert result.footer_priority == 1
 
 
 def test_shortcut_settings_result_cancelled():
@@ -381,7 +349,7 @@ def test_shortcut_settings_result_cancelled():
 
 @pytest.mark.asyncio
 async def test_shortcut_settings_screen_renders(workspace):
-    from textual.widgets import Button, Checkbox, Input
+    from textual.widgets import Button, Checkbox
 
     from textual_code.modals import ShortcutSettingsScreen
 
@@ -393,29 +361,20 @@ async def test_shortcut_settings_screen_renders(workspace):
                 action_name="save",
                 description="Save",
                 current_key="ctrl+s",
-                footer_visible=True,
                 palette_visible=True,
-                footer_priority=1,
             )
         )
         await pilot.pause()
         assert isinstance(app.screen, ShortcutSettingsScreen)
-        # Verify checkboxes exist
-        footer_cb = app.screen.query_one("#footer_visible", Checkbox)
         palette_cb = app.screen.query_one("#palette_visible", Checkbox)
-        assert footer_cb.value is True
         assert palette_cb.value is True
-        # Verify priority input
-        priority_input = app.screen.query_one("#footer_priority", Input)
-        assert priority_input.value == "1"
-        # Verify buttons exist
         app.screen.query_one("#save", Button)
         app.screen.query_one("#cancel", Button)
 
 
 @pytest.mark.asyncio
 async def test_shortcut_settings_screen_save_returns_result(workspace):
-    from textual.widgets import Button, Checkbox
+    from textual.widgets import Button
 
     from textual_code.modals import ShortcutSettingsResult, ShortcutSettingsScreen
 
@@ -428,18 +387,11 @@ async def test_shortcut_settings_screen_save_returns_result(workspace):
                 action_name="save",
                 description="Save",
                 current_key="ctrl+s",
-                footer_visible=True,
                 palette_visible=True,
-                footer_priority=1,
             ),
             callback=results.append,
         )
         await pilot.pause()
-        # Toggle footer off
-        footer_cb = app.screen.query_one("#footer_visible", Checkbox)
-        footer_cb.toggle()
-        await pilot.pause()
-        # Click save
         save_btn = app.screen.query_one("#save", Button)
         save_btn.press()
         await pilot.pause()
@@ -447,9 +399,7 @@ async def test_shortcut_settings_screen_save_returns_result(workspace):
         r = results[0]
         assert isinstance(r, ShortcutSettingsResult)
         assert not r.is_cancelled
-        assert r.footer_visible is False
         assert r.palette_visible is True
-        assert r.footer_priority == 1
 
 
 @pytest.mark.asyncio
@@ -467,9 +417,7 @@ async def test_shortcut_settings_screen_cancel(workspace):
                 action_name="save",
                 description="Save",
                 current_key="ctrl+s",
-                footer_visible=True,
                 palette_visible=True,
-                footer_priority=1,
             ),
             callback=results.append,
         )
@@ -479,33 +427,6 @@ async def test_shortcut_settings_screen_cancel(workspace):
         await pilot.pause()
         assert len(results) == 1
         assert results[0].is_cancelled
-
-
-@pytest.mark.asyncio
-async def test_shortcut_settings_screen_validates_priority(workspace):
-    from textual.widgets import Input
-
-    from textual_code.modals import ShortcutSettingsScreen
-
-    app = make_app(workspace, light=True)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        app.push_screen(
-            ShortcutSettingsScreen(
-                action_name="save",
-                description="Save",
-                current_key="ctrl+s",
-                footer_visible=True,
-                palette_visible=True,
-                footer_priority=1,
-            ),
-        )
-        await pilot.pause()
-        priority_input = app.screen.query_one("#footer_priority", Input)
-        # The input has restrict=r"[0-9]*", so non-digit characters
-        # are rejected at the widget level. Verify the restrict is set.
-        assert priority_input.restrict is not None
-        assert priority_input.max_length == 3
 
 
 # ---------------------------------------------------------------------------
@@ -557,64 +478,8 @@ async def test_set_keybinding_saves_to_config(workspace, tmp_path, restore_bindi
 
 
 # ---------------------------------------------------------------------------
-# Group 8: Integration — set_shortcut_display
+# Group 8: Integration — palette display config
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_set_shortcut_display_saves_to_config(
-    workspace, tmp_path, restore_bindings
-):
-    settings_path = tmp_path / "settings.toml"
-    app = TextualCode(
-        workspace_path=workspace,
-        with_open_file=None,
-        user_config_path=settings_path,
-    )
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        app.set_shortcut_display(
-            "save",
-            ShortcutDisplayEntry(footer=False, palette=True, footer_priority=5),
-        )
-        await pilot.pause()
-        kb_path = get_keybindings_path(settings_path)
-        loaded_display = load_shortcut_display(kb_path)
-        assert loaded_display["save"].footer is False
-        assert loaded_display["save"].footer_priority == 5
-
-
-@pytest.mark.asyncio
-async def test_get_footer_priority_returns_custom(
-    workspace, tmp_path, restore_bindings
-):
-    settings_path = tmp_path / "settings.toml"
-    app = TextualCode(
-        workspace_path=workspace,
-        with_open_file=None,
-        user_config_path=settings_path,
-    )
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        app.set_shortcut_display(
-            "save",
-            ShortcutDisplayEntry(footer_priority=42),
-        )
-        await pilot.pause()
-        assert app.get_footer_priority("save") == 42
-
-
-@pytest.mark.asyncio
-async def test_get_footer_priority_falls_back_to_action_order(workspace):
-    app = make_app(workspace, light=True)
-    async with app.run_test() as pilot:
-        await pilot.pause()
-        # "save" is index 0 in ACTION_ORDER
-        priority = app.get_footer_priority("save")
-        assert priority == 0
-        # Unknown action falls back to len(ACTION_ORDER)
-        priority = app.get_footer_priority("nonexistent")
-        assert priority > 0
 
 
 @pytest.mark.asyncio
@@ -650,15 +515,52 @@ async def test_palette_shows_command_by_default(workspace):
 
 
 # ---------------------------------------------------------------------------
-# Group 9: Integration — footer display config applied at runtime
+# Group 9: Footer order config
 # ---------------------------------------------------------------------------
 
 
+def test_load_footer_order_empty_when_no_file(tmp_path):
+    kb = tmp_path / "keybindings.toml"
+    result = load_footer_order(kb)
+    assert result is None
+
+
+def test_load_footer_order_reads_list(tmp_path):
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text('[footer]\norder = ["save", "find", "replace"]\n')
+    result = load_footer_order(kb)
+    assert result == ["save", "find", "replace"]
+
+
+def test_load_footer_order_backward_compat_no_section(tmp_path):
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text('[bindings]\nsave = "ctrl+s"\n')
+    result = load_footer_order(kb)
+    assert result is None
+
+
+def test_save_keybindings_file_includes_footer_order(tmp_path):
+    kb = tmp_path / "keybindings.toml"
+    footer_order = ["save", "find"]
+    save_keybindings_file({}, {}, kb, footer_order=footer_order)
+    loaded = load_footer_order(kb)
+    assert loaded == ["save", "find"]
+
+
+def test_save_keybindings_file_round_trip_all_sections(tmp_path):
+    kb = tmp_path / "keybindings.toml"
+    display = {"save": ShortcutDisplayEntry(palette=False)}
+    footer_order = ["save", "find", "replace"]
+    save_keybindings_file({"save": "ctrl+s"}, display, kb, footer_order=footer_order)
+    assert load_keybindings(kb)["save"] == "ctrl+s"
+    assert load_shortcut_display(kb)["save"].palette is False
+    assert load_footer_order(kb) == ["save", "find", "replace"]
+
+
 @pytest.mark.asyncio
-async def test_footer_shows_binding_when_display_footer_true(
+async def test_set_footer_order_saves_and_applies(
     workspace, tmp_path, restore_bindings
 ):
-    """Setting footer=True for a hidden binding makes it appear in footer."""
     from textual_code.widgets.ordered_footer import OrderedFooter
 
     settings_path = tmp_path / "settings.toml"
@@ -669,35 +571,27 @@ async def test_footer_shows_binding_when_display_footer_true(
     )
     async with app.run_test() as pilot:
         await pilot.pause()
-        # show_shortcuts is show=False by default, verify it's not in footer
-        footer = app.query_one(OrderedFooter)
-        footer_actions_before = {
-            b.action
-            for (_, b, _, _) in app.screen.active_bindings.values()
-            if footer._should_show_in_footer(b)
-        }
-        assert "show_shortcuts" not in footer_actions_before
-        # Now set footer=True for show_shortcuts
-        app.set_shortcut_display(
-            "show_shortcuts",
-            ShortcutDisplayEntry(footer=True),
-        )
+        # Use app-level bindings (new_editor, toggle_sidebar) which are always active
+        app.set_footer_order(["new_editor"])
         await pilot.pause()
-        footer_actions_after = {
+        # Verify saved to disk
+        kb_path = get_keybindings_path(settings_path)
+        loaded = load_footer_order(kb_path)
+        assert loaded == ["new_editor"]
+        # Verify footer respects order
+        footer = app.query_one(OrderedFooter)
+        footer_actions = {
             b.action
             for (_, b, _, _) in app.screen.active_bindings.values()
             if footer._should_show_in_footer(b)
         }
-        assert "show_shortcuts" in footer_actions_after
+        assert "new_editor" in footer_actions
+        # toggle_sidebar not in order should be hidden
+        assert "toggle_sidebar" not in footer_actions
 
 
 @pytest.mark.asyncio
-async def test_footer_hides_binding_when_display_footer_false(
-    workspace, tmp_path, restore_bindings
-):
-    """Setting footer=False for a visible binding removes it from footer."""
-    from textual_code.widgets.ordered_footer import OrderedFooter
-
+async def test_get_footer_priority_with_order(workspace, tmp_path, restore_bindings):
     settings_path = tmp_path / "settings.toml"
     app = TextualCode(
         workspace_path=workspace,
@@ -706,23 +600,19 @@ async def test_footer_hides_binding_when_display_footer_false(
     )
     async with app.run_test() as pilot:
         await pilot.pause()
-        footer = app.query_one(OrderedFooter)
-        # "new_editor" has show=True by default
-        footer_actions_before = {
-            b.action
-            for (_, b, _, _) in app.screen.active_bindings.values()
-            if footer._should_show_in_footer(b)
-        }
-        assert "new_editor" in footer_actions_before
-        # Now hide it
-        app.set_shortcut_display(
-            "new_editor",
-            ShortcutDisplayEntry(footer=False),
-        )
+        app.set_footer_order(["find", "save"])
         await pilot.pause()
-        footer_actions_after = {
-            b.action
-            for (_, b, _, _) in app.screen.active_bindings.values()
-            if footer._should_show_in_footer(b)
-        }
-        assert "new_editor" not in footer_actions_after
+        assert app.get_footer_priority("find") == 0
+        assert app.get_footer_priority("save") == 1
+
+
+@pytest.mark.asyncio
+async def test_get_footer_priority_falls_back_to_action_order(workspace):
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # No footer_order set — falls back to ACTION_ORDER
+        priority = app.get_footer_priority("save")
+        assert priority == 0
+        priority = app.get_footer_priority("nonexistent")
+        assert priority > 0

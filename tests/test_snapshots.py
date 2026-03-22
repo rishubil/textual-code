@@ -346,7 +346,7 @@ def test_snapshot_show_shortcuts_screen(snap_compare, snapshot_workspace: Path):
 
 
 def test_snapshot_shortcut_settings_screen(snap_compare, snapshot_workspace: Path):
-    """ShortcutSettingsScreen modal with display toggles."""
+    """ShortcutSettingsScreen modal with palette toggle."""
     from textual_code.modals import ShortcutSettingsScreen
 
     app = make_app(snapshot_workspace)
@@ -358,14 +358,37 @@ def test_snapshot_shortcut_settings_screen(snap_compare, snapshot_workspace: Pat
                 action_name="save",
                 description="Save",
                 current_key="Ctrl+S",
-                footer_visible=True,
                 palette_visible=True,
-                footer_priority=1,
             )
         )
         await pilot.pause()
 
     assert snap_compare(app, run_before=open_settings, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_footer_config_screen(snap_compare, snapshot_workspace: Path):
+    """FooterConfigScreen modal with reorderable list."""
+    from textual_code.modals import FooterConfigScreen
+
+    app = make_app(snapshot_workspace)
+
+    async def open_footer_config(pilot):
+        await pilot.pause()
+        actions = [
+            ("save", "Save", "Ctrl+S", True),
+            ("find", "Find", "Ctrl+F", True),
+            ("replace", "Replace", "Ctrl+H", True),
+            ("goto_line", "Goto line", "Ctrl+G", True),
+            ("close", "Close tab", "Ctrl+W", True),
+            ("new_editor", "New file", "Ctrl+N", True),
+            ("toggle_sidebar", "Toggle sidebar", "Ctrl+B", True),
+        ]
+        app.push_screen(
+            FooterConfigScreen(actions, current_order=["save", "find", "replace"])
+        )
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=open_footer_config, terminal_size=TERMINAL_SIZE)
 
 
 def test_snapshot_tab_reorder_active_indicator(
