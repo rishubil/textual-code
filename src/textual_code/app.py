@@ -2120,22 +2120,22 @@ class TextualCode(App):
         from textual_code.widgets.explorer import Explorer
         from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
 
-        area_classes: dict[str, list[type]] = {
-            "editor": [MainView, TextualCode, MultiCursorTextArea],
-            "explorer": [Explorer, TextualCode],
-            "search": [TextualCode],
-            "image_preview": [TextualCode],
-            "markdown_preview": [TextualCode],
+        area_binding_sources: dict[str, list[list[Binding]]] = {
+            "editor": [MainView.BINDINGS, TextualCode.BINDINGS, MultiCursorTextArea.BINDINGS],
+            "explorer": [Explorer.BINDINGS, TextualCode.BINDINGS],
+            "search": [TextualCode.BINDINGS],
+            "image_preview": [TextualCode.BINDINGS],
+            "markdown_preview": [TextualCode.BINDINGS],
         }
-        classes = area_classes.get(area, [TextualCode])
+        binding_lists = area_binding_sources.get(area, [TextualCode.BINDINGS])
 
         # For preview areas, also include MainView's "close" binding
         include_close = area in ("image_preview", "markdown_preview")
 
         actions: list[tuple[str, str, str, bool]] = []
         seen: set[str] = set()
-        for cls in classes:
-            for b in cls.BINDINGS:
+        for bindings in binding_lists:
+            for b in bindings:
                 if b.description and b.action not in seen:
                     seen.add(b.action)
                     actions.append((b.action, b.description, b.key, b.show))
