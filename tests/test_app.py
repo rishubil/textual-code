@@ -507,3 +507,54 @@ async def test_action_order_covers_all_visible_bindings():
 
     stale = set(OrderedFooter.ACTION_ORDER) - visible_actions
     assert not stale, f"ACTION_ORDER has stale actions: {stale}"
+
+
+# ── Command palette blocked while modal is active (#34) ──────────────────
+
+
+async def test_command_palette_blocked_while_modal_is_active(
+    workspace: Path, sample_py_file: Path
+):
+    """Ctrl+P should not open the command palette when a modal is already displayed."""
+    from textual.command import CommandPalette
+
+    from textual_code.modals import GotoLineModalScreen
+
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.action_goto_line()
+        await pilot.pause()
+        assert isinstance(app.screen, GotoLineModalScreen)
+
+        await pilot.press("ctrl+p")
+        await pilot.pause()
+
+        assert isinstance(app.screen, GotoLineModalScreen)
+        assert not CommandPalette.is_open(app)
+
+
+async def test_command_palette_blocked_while_path_search_modal_is_active(
+    workspace: Path, sample_py_file: Path
+):
+    """Ctrl+P should not open the command palette when PathSearchModal is displayed."""
+    from textual.command import CommandPalette
+
+    from textual_code.modals import PathSearchModal
+
+    app = make_app(workspace, open_file=sample_py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        app.action_open_file_with_command_palette()
+        await pilot.pause()
+        assert isinstance(app.screen, PathSearchModal)
+
+        await pilot.press("ctrl+p")
+        await pilot.pause()
+
+        assert isinstance(app.screen, PathSearchModal)
+        assert not CommandPalette.is_open(app)
