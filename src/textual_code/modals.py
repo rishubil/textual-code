@@ -1852,7 +1852,6 @@ class PathSearchModal(ModalScreen[Path | None]):
             merged_displays.append(p[1])
         self._all_paths = merged_paths
         self._display_strings = merged_displays
-        self._refresh_display()
 
     def _on_scan_complete(self) -> None:
         """Handle scan completion: update cache and refresh display."""
@@ -1892,15 +1891,9 @@ class PathSearchModal(ModalScreen[Path | None]):
         """Show all paths (up to limit) when query is empty."""
         self._search_generation += 1
         option_list = self.query_one("#path-search-results", OptionList)
-        option_list.clear_options()
-        self._result_paths.clear()
-        for i, path in enumerate(self._all_paths[:_MAX_DISCOVERY]):
-            if i < len(self._display_strings):
-                display = self._display_strings[i]
-            else:
-                display = self._display_path(path)
-            option_list.add_option(display)
-            self._result_paths.append(path)
+        n = min(_MAX_DISCOVERY, len(self._all_paths))
+        self._result_paths = self._all_paths[:n]
+        option_list.set_options(self._display_strings[:n])
         self._update_results_visibility()
 
     def _trigger_search(self, query: str) -> None:
@@ -1968,11 +1961,8 @@ class PathSearchModal(ModalScreen[Path | None]):
         if current != query:
             return
         option_list = self.query_one("#path-search-results", OptionList)
-        option_list.clear_options()
-        self._result_paths.clear()
-        for highlighted, path in results:
-            option_list.add_option(highlighted)
-            self._result_paths.append(path)
+        self._result_paths = [path for _, path in results]
+        option_list.set_options([highlighted for highlighted, _ in results])
         self._update_results_visibility()
 
     @on(OptionList.OptionSelected, "#path-search-results")

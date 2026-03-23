@@ -496,3 +496,49 @@ async def test_keyboard_navigation_down_up(workspace: Path, sample_files: list[P
         # Input should still have focus
         inp = modal.query_one("#path-search-input", Input)
         assert inp.has_focus
+
+
+# ── Cycle 6: Performance regression ──────────────────────────────────────────
+
+
+async def test_large_cache_discovery_and_navigation(workspace: Path):
+    """With many cached files, discovery should show _MAX_DISCOVERY items and
+    cursor navigation should work correctly."""
+    from textual.widgets import Input, OptionList
+
+    from textual_code.commands import _read_workspace_files
+    from textual_code.modals import _MAX_DISCOVERY, PathSearchModal
+
+    # Create 200 files in cache (well above _MAX_DISCOVERY=50)
+    large_files = sorted(Path(f"dir{i // 50}/file_{i:04d}.py") for i in range(200))
+    _populate_cache(workspace, "files", large_files)
+
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.push_screen(
+            PathSearchModal(
+                workspace,
+                scan_func=_read_workspace_files,
+                cache_key="files",
+            )
+        )
+        await pilot.pause()
+        modal = app.screen
+        assert isinstance(modal, PathSearchModal)
+        ol = modal.query_one("#path-search-results", OptionList)
+        # Discovery should cap at _MAX_DISCOVERY
+        assert ol.option_count == _MAX_DISCOVERY
+        # Cursor navigation should work without lag
+        await pilot.press("down")
+        await pilot.pause()
+        assert ol.highlighted is not None
+        first = ol.highlighted
+        # Navigate several items down
+        for _ in range(5):
+            await pilot.press("down")
+        await pilot.pause()
+        assert ol.highlighted == first + 5
+        # Input should keep focus during navigation
+        inp = modal.query_one("#path-search-input", Input)
+        assert inp.has_focus
