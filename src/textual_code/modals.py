@@ -2067,8 +2067,12 @@ class ReplaceAllConfirmModalScreen(ModalScreen[ReplaceAllConfirmModalResult]):
         yield Grid(
             Label("Replace All in Workspace", id="title"),
             Label(summary, id="message"),
-            Label("First match preview:", id="preview-label"),
+            Label("Replace preview for first match:", id="preview-label"),
             Label(preview_content, id="preview"),
+            Label(
+                "Are you sure you want to perform the Replace All operation?",
+                id="confirm-message",
+            ),
             Button("Replace All", variant="warning", id="replace-all"),
             Button("Cancel", variant="default", id="cancel"),
             id="dialog",
