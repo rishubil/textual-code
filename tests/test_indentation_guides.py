@@ -175,8 +175,24 @@ class TestRendering:
             assert _find_guide_positions(strip, gw) == []
 
     @pytest.mark.asyncio
-    async def test_e02_guides_at_correct_positions(self, workspace: Path):
-        """8 spaces indent (width=4) → one guide at content col 4."""
+    async def test_e02_first_level_guide(self, workspace: Path):
+        """4 spaces indent (width=4) → guide at content col 0."""
+        f = workspace / "indent4.py"
+        f.write_text("    code\n")
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            ta = editor.editor
+            gw = ta.gutter_width
+            strip = ta._render_line(0)
+            guides = _find_guide_positions(strip, gw)
+            assert guides == [0]
+
+    @pytest.mark.asyncio
+    async def test_e03_guides_at_correct_positions(self, workspace: Path):
+        """8 spaces indent (width=4) → guides at content col 0 and 4."""
         f = workspace / "indent8.py"
         f.write_text("        code\n")
         app = make_app(workspace, light=True, open_file=f)
@@ -188,12 +204,11 @@ class TestRendering:
             gw = ta.gutter_width
             strip = ta._render_line(0)
             guides = _find_guide_positions(strip, gw)
-            assert 4 in guides
-            assert 0 not in guides  # no guide at column 0
+            assert guides == [0, 4]
 
     @pytest.mark.asyncio
-    async def test_e03_multi_level_indent(self, workspace: Path):
-        """12 spaces indent → guides at col 4 and 8."""
+    async def test_e04_multi_level_indent(self, workspace: Path):
+        """12 spaces indent → guides at col 0, 4, and 8."""
         f = workspace / "indent12.py"
         f.write_text("            code\n")
         app = make_app(workspace, light=True, open_file=f)
@@ -205,10 +220,10 @@ class TestRendering:
             gw = ta.gutter_width
             strip = ta._render_line(0)
             guides = _find_guide_positions(strip, gw)
-            assert guides == [4, 8]
+            assert guides == [0, 4, 8]
 
     @pytest.mark.asyncio
-    async def test_e04_no_guides_when_disabled(self, workspace: Path):
+    async def test_e05_no_guides_when_disabled(self, workspace: Path):
         """Disabled → no guides even on indented lines."""
         f = workspace / "disabled.py"
         f.write_text("        code\n")
@@ -225,7 +240,7 @@ class TestRendering:
             assert _find_guide_positions(strip, gw) == []
 
     @pytest.mark.asyncio
-    async def test_e05_empty_line_no_guides(self, workspace: Path):
+    async def test_e06_empty_line_no_guides(self, workspace: Path):
         """Empty line → no crash, no guides."""
         f = workspace / "empty.py"
         f.write_text("\n")
@@ -240,7 +255,7 @@ class TestRendering:
             assert _find_guide_positions(strip, gw) == []
 
     @pytest.mark.asyncio
-    async def test_e06_indent_shorter_than_width_no_guides(self, workspace: Path):
+    async def test_e07_indent_shorter_than_width_no_guides(self, workspace: Path):
         """2 spaces (width=4) → no guides."""
         f = workspace / "short.py"
         f.write_text("  code\n")
@@ -258,13 +273,13 @@ class TestRendering:
     @pytest.mark.parametrize(
         "text, expected_guide_cols",
         [
-            ("\tcode\n", []),  # 1 tab = 4 spaces, range(4,4,4) = empty
-            ("\t\tcode\n", [4]),  # 2 tabs = 8 spaces, range(4,8,4) = [4]
-            ("\t    code\n", [4]),  # tab + 4 spaces = 8, range(4,8,4) = [4]
+            ("\tcode\n", [0]),  # 1 tab = 4 spaces → guide at col 0
+            ("\t\tcode\n", [0, 4]),  # 2 tabs = 8 spaces → guides at col 0, 4
+            ("\t    code\n", [0, 4]),  # tab + 4 spaces = 8 → guides at col 0, 4
         ],
         ids=["one_tab", "two_tabs", "mixed_tab_spaces"],
     )
-    async def test_e07_tab_expanded_correctly(
+    async def test_e08_tab_expanded_correctly(
         self, workspace: Path, text: str, expected_guide_cols: list[int]
     ):
         f = workspace / "tabs.py"

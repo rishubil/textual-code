@@ -292,8 +292,7 @@ class MultiCursorTextArea(TextArea):
         """Replace leading whitespace at indent-level positions with guide chars.
 
         Guide characters are placed at every ``indent_width`` multiple within
-        the leading whitespace of each line, starting from ``indent_width``
-        (column 0 is excluded to match VS Code behaviour).
+        the leading whitespace of each line, starting from column 0.
         """
         indent_width = self.indent_width
         if indent_width < 1:
@@ -314,7 +313,7 @@ class MultiCursorTextArea(TextArea):
         if leading_spaces < indent_width:
             return strip
 
-        guide_positions = set(range(indent_width, leading_spaces, indent_width))
+        guide_positions = set(range(0, leading_spaces, indent_width))
         gutter_width = self.gutter_width if self.show_line_numbers else 0
 
         # Pick guide color based on theme brightness
