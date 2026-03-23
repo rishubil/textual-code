@@ -18,6 +18,9 @@ from textual_code.modals import (
     GotoLineModalScreen,
     RenameModalResult,
     RenameModalScreen,
+    ReplaceAllConfirmModalResult,
+    ReplaceAllConfirmModalScreen,
+    ReplacePreview,
     SaveAsModalResult,
     SaveAsModalScreen,
     UnsavedChangeModalResult,
@@ -912,3 +915,114 @@ async def test_rename_modal_input_prefilled():
 
         inp = app.screen.query_one(Input)
         assert inp.value == "hello.py"
+
+
+# ── ReplaceAllConfirmModalScreen ─────────────────────────────────────────────
+
+
+def _make_preview() -> ReplacePreview:
+    return ReplacePreview(
+        file="src/app.py",
+        line_num=10,
+        before="hello world",
+        after="hi world",
+    )
+
+
+class _ReplaceAllConfirmApp(App):
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.result: ReplaceAllConfirmModalResult | None = None
+        self.modal_kwargs = kwargs
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(
+            ReplaceAllConfirmModalScreen(**self.modal_kwargs),
+            self._on_result,
+        )
+
+    def _on_result(self, result: ReplaceAllConfirmModalResult | None) -> None:
+        self.result = result
+
+
+async def test_replace_all_confirm_modal_replace_button():
+    app = _ReplaceAllConfirmApp(
+        files_count=3,
+        occurrences_count=5,
+        is_truncated=False,
+        preview=_make_preview(),
+    )
+    async with app.run_test() as pilot:
+        await pilot.click("#replace-all")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.should_replace is True
+
+
+async def test_replace_all_confirm_modal_cancel_button():
+    app = _ReplaceAllConfirmApp(
+        files_count=3,
+        occurrences_count=5,
+        is_truncated=False,
+        preview=_make_preview(),
+    )
+    async with app.run_test() as pilot:
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.should_replace is False
+
+
+async def test_replace_all_confirm_modal_shows_summary():
+    app = _ReplaceAllConfirmApp(
+        files_count=3,
+        occurrences_count=5,
+        is_truncated=False,
+        preview=_make_preview(),
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        message = app.screen.query_one("#message")
+        text = str(message.content)  # ty: ignore[unresolved-attribute]
+        assert "5" in text
+        assert "3" in text
+        assert "occurrence" in text
+        assert "file" in text
+
+
+async def test_replace_all_confirm_modal_shows_preview():
+    app = _ReplaceAllConfirmApp(
+        files_count=1,
+        occurrences_count=1,
+        is_truncated=False,
+        preview=_make_preview(),
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        preview = app.screen.query_one("#preview")
+        text = str(preview.content)  # ty: ignore[unresolved-attribute]
+        assert "- hello world" in text
+        assert "+ hi world" in text
+        assert "src/app.py:10" in text
+
+
+async def test_replace_all_confirm_modal_truncated():
+    app = _ReplaceAllConfirmApp(
+        files_count=42,
+        occurrences_count=500,
+        is_truncated=True,
+        preview=_make_preview(),
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        message = app.screen.query_one("#message")
+        text = str(message.content)  # ty: ignore[unresolved-attribute]
+        assert "500+" in text
+        assert "42+" in text

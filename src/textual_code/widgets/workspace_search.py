@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -11,7 +12,13 @@ from textual.message import Message
 from textual.widgets import Button, Checkbox, Input, Label, ListItem, ListView, Static
 from textual.worker import Worker, WorkerState
 
+from textual_code.modals import (
+    ReplaceAllConfirmModalResult,
+    ReplaceAllConfirmModalScreen,
+    ReplacePreview,
+)
 from textual_code.search import (
+    WorkspaceSearchResponse,
     replace_workspace,
     search_workspace,
 )
@@ -28,6 +35,9 @@ _BTN_MIN_WIDTHS = {
     btn_id: (cell_len(full) + _BTN_PADDING, cell_len(icon) + _BTN_PADDING)
     for btn_id, (full, icon) in _BTN_LABELS.items()
 }
+
+
+_REPLACE_COUNT_MAX = 500  # Must match search_workspace() default max_results
 
 
 class WorkspaceSearchPane(Static):
@@ -185,13 +195,19 @@ class WorkspaceSearchPane(Static):
             )
 
     def on_worker_state_changed(self, event: Worker.StateChanged) -> None:
-        if event.worker.group != "search":
+        if event.worker.group not in ("search", "replace_count"):
             return
         if event.state == WorkerState.ERROR:
-            results_list = self.query_one("#ws-results", ListView)
-            results_list.loading = False
-            results_list.append(ListItem(Label("Search failed")))
-            self.app.log.error(f"Search worker error: {event.worker.error}")
+            if event.worker.group == "search":
+                results_list = self.query_one("#ws-results", ListView)
+                results_list.loading = False
+                results_list.append(ListItem(Label("Search failed")))
+            elif event.worker.group == "replace_count":
+                status = self.query_one("#ws-replace-status", Label)
+                status.update("Replace count failed")
+            self.app.log.error(
+                f"{event.worker.group} worker error: {event.worker.error}"
+            )
 
     # ── Replace execution ──────────────────────────────────────────────────────
 
@@ -205,7 +221,6 @@ class WorkspaceSearchPane(Static):
             files_to_exclude,
         ) = self._read_search_inputs()
         replacement = self.query_one("#ws-replace", Input).value
-        status = self.query_one("#ws-replace-status", Label)
 
         if not query:
             return
@@ -214,18 +229,120 @@ class WorkspaceSearchPane(Static):
         if workspace_path is None:
             return
 
-        result = replace_workspace(
+        self._count_for_replace_worker(
             workspace_path,
             query,
             replacement,
+            use_regex,
+            respect_gitignore,
+            case_sensitive,
+            files_to_include,
+            files_to_exclude,
+        )
+
+    @work(thread=True, exclusive=True, group="replace_count", exit_on_error=False)
+    def _count_for_replace_worker(
+        self,
+        workspace_path: Path,
+        query: str,
+        replacement: str,
+        use_regex: bool,
+        respect_gitignore: bool,
+        case_sensitive: bool,
+        files_to_include: str,
+        files_to_exclude: str,
+    ) -> None:
+        response = search_workspace(
+            workspace_path,
+            query,
             use_regex,
             respect_gitignore=respect_gitignore,
             case_sensitive=case_sensitive,
             files_to_include=files_to_include,
             files_to_exclude=files_to_exclude,
         )
-        n, f = result.replacements_count, result.files_modified
-        status.update(f"Replaced {n} occurrence(s) in {f} file(s)")
+
+        self.app.call_from_thread(
+            self._show_replace_confirm,
+            workspace_path,
+            query,
+            replacement,
+            use_regex,
+            respect_gitignore,
+            case_sensitive,
+            files_to_include,
+            files_to_exclude,
+            response,
+        )
+
+    def _show_replace_confirm(
+        self,
+        workspace_path: Path,
+        query: str,
+        replacement: str,
+        use_regex: bool,
+        respect_gitignore: bool,
+        case_sensitive: bool,
+        files_to_include: str,
+        files_to_exclude: str,
+        response: WorkspaceSearchResponse,
+    ) -> None:
+        results = response.results
+        status = self.query_one("#ws-replace-status", Label)
+
+        if not results:
+            status.update("No matches found")
+            return
+
+        files_count = len({r.file_path for r in results})
+        occurrences_count = len(results)
+        is_truncated = occurrences_count >= _REPLACE_COUNT_MAX
+
+        first = results[0]
+        flags = 0 if case_sensitive else re.IGNORECASE
+        try:
+            pattern = re.compile(query if use_regex else re.escape(query), flags)
+        except re.error:
+            return
+        preview_before = first.line_text.strip()
+        preview_after = pattern.sub(replacement, preview_before, count=1)
+
+        try:
+            preview_file = str(first.file_path.relative_to(workspace_path))
+        except ValueError:
+            preview_file = str(first.file_path)
+
+        preview = ReplacePreview(
+            file=preview_file,
+            line_num=first.line_number,
+            before=preview_before,
+            after=preview_after,
+        )
+
+        modal = ReplaceAllConfirmModalScreen(
+            files_count=files_count,
+            occurrences_count=occurrences_count,
+            is_truncated=is_truncated,
+            preview=preview,
+        )
+
+        def on_result(result: ReplaceAllConfirmModalResult | None) -> None:
+            if result is None or result.is_cancelled or not result.should_replace:
+                return
+            replace_result = replace_workspace(
+                workspace_path,
+                query,
+                replacement,
+                use_regex,
+                respect_gitignore=respect_gitignore,
+                case_sensitive=case_sensitive,
+                files_to_include=files_to_include,
+                files_to_exclude=files_to_exclude,
+            )
+            n, f = replace_result.replacements_count, replace_result.files_modified
+            status.update(f"Replaced {n} occurrence(s) in {f} file(s)")
+
+        self.app.push_screen(modal, on_result)
 
     # ── Event handlers ─────────────────────────────────────────────────────────
 

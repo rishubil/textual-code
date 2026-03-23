@@ -161,6 +161,7 @@ async def test_workspace_search_pane_has_replace_all_button(tmp_path: Path) -> N
 
 @pytest.mark.asyncio
 async def test_replace_all_modifies_files(tmp_path: Path) -> None:
+    """Replace All confirms via modal, then modifies files."""
     f = tmp_path / "test.txt"
     f.write_text("hello world\n")
 
@@ -176,6 +177,12 @@ async def test_replace_all_modifies_files(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "hello"
         ws_pane.query_one("#ws-replace", Input).value = "hi"
         ws_pane._run_replace_all()
+        # Wait for count worker + modal to appear
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
+        # Confirm in the modal
+        await pilot.click("#replace-all")
         await pilot.pause()
 
     assert f.read_text() == "hi world\n"
@@ -197,6 +204,12 @@ async def test_replace_all_updates_status_label(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "foo"
         ws_pane.query_one("#ws-replace", Input).value = "bar"
         ws_pane._run_replace_all()
+        # Wait for count worker + modal
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
+        # Confirm
+        await pilot.click("#replace-all")
         await pilot.pause()
 
         status = ws_pane.query_one("#ws-replace-status", Label)
@@ -226,3 +239,95 @@ async def test_replace_all_empty_query_does_nothing(tmp_path: Path) -> None:
         await pilot.pause()
 
     assert f.read_text() == "hello\n"
+
+
+@pytest.mark.asyncio
+async def test_replace_all_shows_confirmation_modal(tmp_path: Path) -> None:
+    """Replace All triggers confirmation modal before replacing."""
+    (tmp_path / "test.txt").write_text("hello world\n")
+
+    from textual.widgets import Input
+
+    from tests.conftest import make_app
+    from textual_code.modals import ReplaceAllConfirmModalScreen
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "hello"
+        ws_pane.query_one("#ws-replace", Input).value = "hi"
+        ws_pane._run_replace_all()
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
+
+        # Modal should be on the screen stack
+        assert isinstance(app.screen, ReplaceAllConfirmModalScreen)
+
+
+@pytest.mark.asyncio
+async def test_replace_all_cancel_does_not_replace(tmp_path: Path) -> None:
+    """Cancelling the modal leaves files unchanged."""
+    f = tmp_path / "test.txt"
+    f.write_text("hello world\n")
+
+    from textual.widgets import Input
+
+    from tests.conftest import make_app
+    from textual_code.modals import ReplaceAllConfirmModalScreen
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "hello"
+        ws_pane.query_one("#ws-replace", Input).value = "hi"
+        ws_pane._run_replace_all()
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
+
+        assert isinstance(app.screen, ReplaceAllConfirmModalScreen)
+
+        # Cancel
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+        # Modal should be dismissed
+        assert not isinstance(app.screen, ReplaceAllConfirmModalScreen)
+
+    # File should be unchanged
+    assert f.read_text() == "hello world\n"
+
+
+@pytest.mark.asyncio
+async def test_replace_all_no_matches_shows_status_no_modal(tmp_path: Path) -> None:
+    """When no matches, show status message without modal."""
+    (tmp_path / "test.txt").write_text("hello world\n")
+
+    from textual.widgets import Input, Label
+
+    from tests.conftest import make_app
+    from textual_code.modals import ReplaceAllConfirmModalScreen
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "nonexistent_xyz"
+        ws_pane.query_one("#ws-replace", Input).value = "replacement"
+        ws_pane._run_replace_all()
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
+
+        # No modal should appear
+        assert not isinstance(app.screen, ReplaceAllConfirmModalScreen)
+
+        # Status should show "No matches found"
+        status = ws_pane.query_one("#ws-replace-status", Label)
+        assert "No matches found" in str(status.content)
