@@ -33,6 +33,13 @@ Stored in the same directory as the user settings file:
 
 Access via **F1** or **Command Palette → "Show keyboard shortcuts"**.
 
+## Error Handling: warning toast on parse or permission errors
+
+If a config file contains invalid TOML syntax or cannot be read due to permission
+errors, the app falls back to defaults and shows a warning toast at startup identifying
+which file failed and why (e.g. "User settings: parse error" or "Keybindings: permission
+denied"). A missing config file is normal and produces no warning.
+
 ## Settings Priority: defaults < user/project config < auto-detection < .editorconfig
 
 App settings are merged in this order — later sources override earlier ones:

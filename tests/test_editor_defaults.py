@@ -10,6 +10,8 @@ Covers:
 - action_set_default_* methods exist
 """
 
+from unittest.mock import patch
+
 import pytest
 
 from textual_code.app import TextualCode
@@ -17,6 +19,7 @@ from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
     _serialize_editor_settings,
     load_editor_settings,
+    load_keybindings,
     save_project_editor_settings,
     save_user_editor_settings,
 )
@@ -309,3 +312,79 @@ async def test_action_set_default_indentation_saves_to_project(workspace):
     assert proj_cfg.exists()
     content = proj_cfg.read_text()
     assert 'indent_type = "tabs"' in content
+
+
+# ---------------------------------------------------------------------------
+# Group 9: Config parse error warnings (#67)
+# ---------------------------------------------------------------------------
+
+
+def test_invalid_toml_collects_warning(tmp_path):
+    """Invalid user TOML appends a parse-error warning to the list."""
+    cfg = tmp_path / "bad.toml"
+    cfg.write_text("NOT VALID TOML !!!")
+    warnings: list[str] = []
+    load_editor_settings(tmp_path, user_config_path=cfg, warnings=warnings)
+    assert len(warnings) == 1
+    assert "parse error" in warnings[0].lower()
+
+
+def test_invalid_project_config_collects_warning(tmp_path):
+    """Invalid project .textual-code.toml appends a parse-error warning."""
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    proj = ws / ".textual-code.toml"
+    proj.write_text("NOT VALID TOML !!!")
+    warnings: list[str] = []
+    load_editor_settings(ws, user_config_path=tmp_path / "no.toml", warnings=warnings)
+    assert len(warnings) == 1
+    assert "parse error" in warnings[0].lower()
+    assert "project" in warnings[0].lower()
+
+
+def test_permission_error_collects_warning(tmp_path):
+    """PermissionError appends a permission-denied warning."""
+    cfg = tmp_path / "user.toml"
+    cfg.write_text("[editor]\nindent_size = 2\n")
+    warnings: list[str] = []
+    with patch("builtins.open", side_effect=PermissionError("nope")):
+        load_editor_settings(tmp_path, user_config_path=cfg, warnings=warnings)
+    assert len(warnings) >= 1
+    assert "permission" in warnings[0].lower()
+
+
+def test_missing_file_no_warning(tmp_path):
+    """Missing config file does not produce a warning."""
+    warnings: list[str] = []
+    load_editor_settings(
+        tmp_path, user_config_path=tmp_path / "no.toml", warnings=warnings
+    )
+    assert warnings == []
+
+
+def test_invalid_keybindings_collects_warning(tmp_path):
+    """Invalid keybindings.toml appends a parse-error warning."""
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text("NOT VALID TOML !!!")
+    warnings: list[str] = []
+    load_keybindings(kb, warnings=warnings)
+    assert len(warnings) == 1
+    assert "parse error" in warnings[0].lower()
+
+
+@pytest.mark.asyncio
+async def test_app_shows_toast_on_invalid_config(tmp_path):
+    """App shows warning toast when user config has parse errors."""
+    cfg = tmp_path / "user.toml"
+    cfg.write_text("NOT VALID TOML !!!")
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    app = make_app(ws, user_config_path=cfg, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        warning_notifications = [
+            n
+            for n in app._notifications
+            if n.severity == "warning" and "parse error" in n.message.lower()
+        ]
+        assert len(warning_notifications) >= 1

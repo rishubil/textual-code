@@ -67,26 +67,56 @@ def get_project_config_path(workspace_path: Path) -> Path:
     return workspace_path / ".textual-code.toml"
 
 
-def _load_toml_editor_section(path: Path) -> dict[str, str | int]:
+def _report_config_error(
+    path: Path,
+    exception: Exception,
+    label: str,
+    error_type: str,
+    warnings: list[str] | None,
+) -> None:
+    """Log a config loading error and optionally append a user-facing warning."""
+    logger.warning("Failed to load %s: %s", path, exception)
+    if warnings is not None:
+        warnings.append(f"{label}: {error_type}")
+
+
+def _load_toml_editor_section(
+    path: Path,
+    warnings: list[str] | None = None,
+    label: str = "Config",
+) -> dict[str, str | int]:
     """Load [editor] section from a TOML file. Returns {} on missing/error."""
     try:
         with open(path, "rb") as f:
             data = tomllib.load(f)
         return {k: v for k, v in data.get("editor", {}).items() if k in EDITOR_KEYS}
-    except (FileNotFoundError, tomllib.TOMLDecodeError, PermissionError):
+    except FileNotFoundError:
+        return {}
+    except tomllib.TOMLDecodeError as e:
+        _report_config_error(path, e, label, "parse error", warnings)
+        return {}
+    except PermissionError as e:
+        _report_config_error(path, e, label, "permission denied", warnings)
         return {}
 
 
 def load_editor_settings(
     workspace_path: Path,
     user_config_path: Path | None = None,
+    warnings: list[str] | None = None,
 ) -> dict[str, str | int]:
     """Merge defaults <- user config <- project config and return result."""
     if user_config_path is None:
         user_config_path = get_user_config_path()
     settings: dict[str, str | int] = dict(DEFAULT_EDITOR_SETTINGS)
-    settings.update(_load_toml_editor_section(user_config_path))
-    settings.update(_load_toml_editor_section(get_project_config_path(workspace_path)))
+    settings.update(
+        _load_toml_editor_section(user_config_path, warnings, "User settings")
+    )
+    settings.update(
+        _load_toml_editor_section(
+            get_project_config_path(workspace_path), warnings, "Project settings"
+        )
+    )
     return settings
 
 
@@ -125,7 +155,10 @@ def get_keybindings_path(config_path: Path | None = None) -> Path:
     return base.with_name(KEYBINDINGS_FILENAME)
 
 
-def load_keybindings(config_path: Path | None = None) -> dict[str, str]:
+def load_keybindings(
+    config_path: Path | None = None,
+    warnings: list[str] | None = None,
+) -> dict[str, str]:
     """Load custom keybindings. Returns {action_name: key_string}."""
     path = config_path or get_keybindings_path()
     if not path.exists():
@@ -134,12 +167,17 @@ def load_keybindings(config_path: Path | None = None) -> dict[str, str]:
         with open(path, "rb") as f:
             data = tomllib.load(f)
         return {k: str(v) for k, v in data.get("bindings", {}).items()}
-    except (tomllib.TOMLDecodeError, PermissionError):
+    except tomllib.TOMLDecodeError as e:
+        _report_config_error(path, e, "Keybindings", "parse error", warnings)
+        return {}
+    except PermissionError as e:
+        _report_config_error(path, e, "Keybindings", "permission denied", warnings)
         return {}
 
 
 def load_shortcut_display(
     config_path: Path | None = None,
+    warnings: list[str] | None = None,
 ) -> dict[str, ShortcutDisplayEntry]:
     """Load shortcut display preferences from [display.*] sections.
 
@@ -151,7 +189,11 @@ def load_shortcut_display(
     try:
         with open(path, "rb") as f:
             data = tomllib.load(f)
-    except (tomllib.TOMLDecodeError, PermissionError):
+    except tomllib.TOMLDecodeError as e:
+        _report_config_error(path, e, "Keybindings", "parse error", warnings)
+        return {}
+    except PermissionError as e:
+        _report_config_error(path, e, "Keybindings", "permission denied", warnings)
         return {}
     display_section = data.get("display", {})
     if not isinstance(display_section, dict):
@@ -179,7 +221,10 @@ def _serialize_display_section(display: dict[str, ShortcutDisplayEntry]) -> str:
     return "\n".join(lines)
 
 
-def load_footer_orders(config_path: Path | None = None) -> FooterOrders:
+def load_footer_orders(
+    config_path: Path | None = None,
+    warnings: list[str] | None = None,
+) -> FooterOrders:
     """Load per-area footer orders from [footer.<area>] sections.
 
     Falls back: legacy [footer] order → editor area migration.
@@ -191,7 +236,11 @@ def load_footer_orders(config_path: Path | None = None) -> FooterOrders:
     try:
         with open(path, "rb") as f:
             data = tomllib.load(f)
-    except (tomllib.TOMLDecodeError, PermissionError):
+    except tomllib.TOMLDecodeError as e:
+        _report_config_error(path, e, "Keybindings", "parse error", warnings)
+        return FooterOrders()
+    except PermissionError as e:
+        _report_config_error(path, e, "Keybindings", "permission denied", warnings)
         return FooterOrders()
     footer_section = data.get("footer", {})
     if not isinstance(footer_section, dict):
