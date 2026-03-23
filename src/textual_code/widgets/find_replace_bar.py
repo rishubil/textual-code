@@ -129,6 +129,7 @@ class FindReplaceBar(Horizontal):
             )
         )
 
+    @on(Input.Submitted, "#replace_input")
     @on(Button.Pressed, "#replace_btn")
     def _on_replace_current(self) -> None:
         self.post_message(

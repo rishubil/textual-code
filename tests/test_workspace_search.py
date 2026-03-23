@@ -727,6 +727,73 @@ def test_search_response_empty_inaccessible_paths(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_enter_in_include_field_triggers_search(tmp_path: Path) -> None:
+    """Pressing Enter in #ws-include triggers search with the include filter."""
+    from textual.widgets import Input, Label, ListView
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "main.py").write_text("needle\n")
+    (tmp_path / "other.txt").write_text("needle\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle"
+        await pilot.pause()
+
+        # Focus include input, type filter, press Enter
+        await pilot.click("#ws-include")
+        await pilot.press(*"src/**")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        results_list = ws_pane.query_one("#ws-results", ListView)
+        labels = [str(lbl.content) for lbl in results_list.query(Label)]
+        assert any("main.py" in lbl for lbl in labels)
+        assert not any("other.txt" in lbl for lbl in labels)
+
+
+@pytest.mark.asyncio
+async def test_enter_in_exclude_field_triggers_search(tmp_path: Path) -> None:
+    """Pressing Enter in #ws-exclude triggers search with the exclude filter."""
+    from textual.widgets import Input, Label, ListView
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "node_modules").mkdir()
+    (tmp_path / "node_modules" / "pkg.js").write_text("needle\n")
+    (tmp_path / "keep.py").write_text("needle\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle"
+        await pilot.pause()
+
+        # Focus exclude input, type filter, press Enter
+        await pilot.click("#ws-exclude")
+        await pilot.press(*"node_modules")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        results_list = ws_pane.query_one("#ws-results", ListView)
+        labels = [str(lbl.content) for lbl in results_list.query(Label)]
+        assert any("keep.py" in lbl for lbl in labels)
+        assert not any("pkg.js" in lbl for lbl in labels)
+
+
+@pytest.mark.asyncio
 async def test_search_with_permission_error_shows_toast(
     tmp_path: Path, monkeypatch
 ) -> None:

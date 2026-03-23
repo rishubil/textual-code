@@ -375,6 +375,41 @@ async def test_regex_on_disables_case_sensitive_checkbox(workspace: Path):
         assert case_cb.disabled
 
 
+async def test_replace_enter_key_triggers_replace(workspace: Path):
+    """Pressing Enter in replace_input triggers single Replace."""
+    f = await _open_file(workspace, "hello hello\n")
+    app = make_app(workspace, open_file=f, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # Open replace mode
+        editor.action_replace()
+        await pilot.pause()
+
+        # Type find query and find next to select the first match
+        await pilot.click("#find_input")
+        await pilot.press("h", "e", "l", "l", "o")
+        await pilot.click("#next_match")
+        await pilot.pause()
+
+        # Verify match is selected
+        sel = editor.editor.selection
+        assert sel.start == (0, 0)
+        assert sel.end == (0, 5)
+
+        # Type replacement and press Enter in replace input
+        await pilot.click("#replace_input")
+        await pilot.press("h", "i")
+        await pilot.press("enter")
+        await pilot.pause()
+
+        # First "hello" should be replaced with "hi"
+        assert editor.text.startswith("hi")
+        assert "hello" in editor.text  # second occurrence remains
+
+
 async def test_regex_on_get_case_sensitive_always_true(workspace: Path):
     """When regex is on, _get_case_sensitive() always returns True."""
     from textual.widgets import Checkbox

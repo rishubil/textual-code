@@ -304,7 +304,7 @@ After selecting, focus moves to the editor for immediate multi-cursor editing. T
 
 ### Replace: single replacement at current match
 
-The "Replace" button replaces the current match (the text currently selected that matches the find query) with the replacement text. After replacement, the next match is automatically found and selected.
+Pressing `Enter` in the replace input or clicking the "Replace" button replaces the current match (the text currently selected that matches the find query) with the replacement text. After replacement, the next match is automatically found and selected.
 
 If the current selection does not match the find query, Replace first advances to the next match without replacing.
 
