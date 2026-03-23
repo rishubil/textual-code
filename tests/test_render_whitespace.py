@@ -126,7 +126,43 @@ class TestCodeEditor:
             assert state.render_whitespace == "trailing"
 
 
-# ── Group D: cycle action ────────────────────────────────────────────────────
+# ── Group C2: on_mount propagation ────────────────────────────────────────────
+
+
+class TestMountPropagation:
+    @pytest.mark.asyncio
+    async def test_c04_render_whitespace_applied_on_mount(self, workspace: Path):
+        """render_whitespace must be propagated to MultiCursorTextArea on mount."""
+        f = workspace / "mount.py"
+        f.write_text("    code\n")
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            # Change to "all" and verify it reaches the text area
+            editor.render_whitespace = "all"
+            await pilot.pause()
+            assert editor.editor._render_whitespace == "all"
+            # Capture state, remove editor, and restore from state
+            state = editor.capture_state()
+            assert state.render_whitespace == "all"
+            # Open a second file to trigger tab switch (lazy unmount)
+            f2 = workspace / "other.py"
+            f2.write_text("x\n")
+            await app.main_view.action_open_code_editor(path=f2)
+            await pilot.pause()
+            # Switch back to the original tab
+            tc = app.main_view.tabbed_content
+            tc.active = state.pane_id
+            await pilot.pause()
+            restored = app.main_view.get_active_code_editor()
+            assert restored is not None
+            # The key assertion: text area must have the restored value
+            assert restored.editor._render_whitespace == "all"
+
+
+# ── Group D: cycle action + set render whitespace ────────────────────────────
 
 
 class TestCycle:
@@ -154,7 +190,8 @@ class TestCycle:
             assert editor.render_whitespace == "none"
 
     @pytest.mark.asyncio
-    async def test_d02_cycle_via_app_cmd(self, workspace: Path):
+    async def test_d02_set_via_app_callback(self, workspace: Path):
+        """Setting render whitespace via app callback updates editor."""
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -163,9 +200,53 @@ class TestCycle:
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             assert editor.render_whitespace == "none"
-            app._cycle_render_whitespace_cmd()
+            # Simulate what the Provider callback does
+            app._apply_render_whitespace("all")
             await pilot.pause()
             assert editor.render_whitespace == "all"
+
+    @pytest.mark.asyncio
+    async def test_d03_set_updates_app_default_and_settings(self, workspace: Path):
+        """Setting render whitespace updates app default and _build_editor_settings."""
+        app = make_app(workspace, light=True)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await app.main_view.action_open_code_editor()
+            await pilot.pause()
+            assert app.default_render_whitespace == "none"
+            app._apply_render_whitespace("boundary")
+            await pilot.pause()
+            assert app.default_render_whitespace == "boundary"
+            settings = app._build_editor_settings()
+            assert settings["render_whitespace"] == "boundary"
+
+    @pytest.mark.asyncio
+    async def test_d04_set_no_editor_notifies_error(self, workspace: Path):
+        """Setting render whitespace without an open file shows error."""
+        app = make_app(workspace, light=True)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            # No editor open
+            app._apply_render_whitespace("all")
+            await pilot.pause()
+            # default should NOT change when no editor is open
+            assert app.default_render_whitespace == "none"
+
+    @pytest.mark.asyncio
+    async def test_d05_set_all_modes(self, workspace: Path):
+        """All 4 modes can be set via the app callback."""
+        app = make_app(workspace, light=True)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            await app.main_view.action_open_code_editor()
+            await pilot.pause()
+            for mode in ("all", "boundary", "trailing", "none"):
+                app._apply_render_whitespace(mode)
+                await pilot.pause()
+                editor = app.main_view.get_active_code_editor()
+                assert editor is not None
+                assert editor.render_whitespace == mode
+                assert app.default_render_whitespace == mode
 
 
 # ── Group E: rendering logic ─────────────────────────────────────────────────

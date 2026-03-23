@@ -7,7 +7,14 @@ from typing import Literal
 from textual import on
 from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding
-from textual.command import CommandInput, CommandPalette
+from textual.command import (
+    CommandInput,
+    CommandPalette,
+    DiscoveryHit,
+    Hit,
+    Hits,
+    Provider,
+)
 from textual.css.query import NoMatches
 from textual.events import Ready
 from textual.message import Message
@@ -824,9 +831,9 @@ class TextualCode(App):
         _rw_editor = self.main_view.get_active_code_editor()
         _rw_current = _rw_editor.render_whitespace if _rw_editor else "none"
         yield SystemCommand(
-            "Cycle render whitespace",
-            f"Cycle through whitespace display modes (current: {_rw_current})",
-            self._cycle_render_whitespace_cmd,
+            "Set render whitespace",
+            f"Select whitespace display mode (current: {_rw_current})",
+            self._set_render_whitespace_cmd,
         )
         yield SystemCommand(
             "Sort lines ascending",
@@ -1096,13 +1103,56 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def _cycle_render_whitespace_cmd(self) -> None:
-        """Cycle whitespace rendering mode for the active file via command palette."""
+    def _apply_render_whitespace(self, mode: str) -> None:
+        """Apply a render whitespace mode to the active editor."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
-            self.call_next(code_editor.action_cycle_render_whitespace)
+            code_editor.render_whitespace = mode
+            self.default_render_whitespace = mode
+            self.notify(f"Render whitespace: {mode}")
         else:
             self.notify("No file open.", severity="error")
+
+    def _set_render_whitespace_cmd(self) -> None:
+        """Open a command palette to select whitespace rendering mode."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is None:
+            self.notify("No file open.", severity="error")
+            return
+        current_mode = code_editor.render_whitespace
+        apply_fn = self._apply_render_whitespace
+        modes = CodeEditor._RENDER_WHITESPACE_MODES
+        items = [(f"{m} (current)" if m == current_mode else m, m) for m in modes]
+
+        class _RenderWhitespaceProvider(Provider):
+            async def discover(self) -> Hits:
+                for label, m in items:
+                    yield DiscoveryHit(
+                        label,
+                        partial(apply_fn, m),
+                        help=f"Set whitespace rendering to {m}",
+                    )
+
+            async def search(self, query: str) -> Hits:
+                matcher = self.matcher(query)
+                for label, m in items:
+                    score = matcher.match(label)
+                    if score > 0:
+                        yield Hit(
+                            score,
+                            matcher.highlight(label),
+                            partial(apply_fn, m),
+                            help=f"Set whitespace rendering to {m}",
+                        )
+
+        self.call_next(
+            lambda: self.push_screen(
+                CommandPalette(
+                    providers=[_RenderWhitespaceProvider],
+                    placeholder="Select render whitespace mode...",
+                ),
+            )
+        )
 
     def action_set_default_word_wrap(self) -> None:
         """Set default word wrap for new files and save to config."""

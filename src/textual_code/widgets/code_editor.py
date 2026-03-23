@@ -1290,6 +1290,8 @@ class CodeEditor(Static):
         self.editor.soft_wrap = self.word_wrap
         # apply indentation guides (reactive init=False, so set manually)
         self.editor._show_indentation_guides = self.show_indentation_guides
+        # apply render whitespace (reactive init=False, so set manually)
+        self.editor._render_whitespace = self.render_whitespace
         # apply indent settings (reactive init=False, so set manually)
         self.editor.indent_width = self.indent_size
         self.editor.indent_type = self.indent_type

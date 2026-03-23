@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editor**: indentation guides — display vertical `│` guide lines at each indent level within leading whitespace; adapts to dark/light themes; toggleable per-file via command palette ("Toggle indentation guides"); configurable via `show_indentation_guides` setting (default: `true`) (Fix #40)
 - **Editor**: sort selected lines — sort selected lines alphabetically (ascending) or in reverse order (descending) via command palette ("Sort lines ascending" / "Sort lines descending"); case-sensitive sorting matching VS Code default; supports multi-cursor with merged ranges (Fix #37)
 - **Editor**: transform selected text case — convert selected text to uppercase or lowercase via command palette ("Transform to uppercase" / "Transform to lowercase"); no default keybinding (Fix #38)
-- **Editor**: render whitespace — display invisible characters as visible markers: spaces as `·` (middle dot), tabs as `→` (arrow); four modes: `none` (default), `all`, `boundary` (leading + trailing), `trailing`; cycle modes via command palette ("Cycle render whitespace"); configurable via `render_whitespace` setting; coexists with indentation guides (guides take priority at guide positions) (Fix #59)
+- **Editor**: render whitespace — display invisible characters as visible markers: spaces as `·` (middle dot), tabs as `→` (arrow); four modes: `none` (default), `all`, `boundary` (leading + trailing), `trailing`; select mode via command palette ("Set render whitespace"); configurable via `render_whitespace` setting; coexists with indentation guides (guides take priority at guide positions) (Fix #59)
 - **Search**: Enter key support in all search input fields — pressing Enter in the find bar replace input triggers single Replace; pressing Enter in workspace search include/exclude filter inputs triggers search execution (Fix #60)
 
 ### Fixed
@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Testing**: disable cursor blinking in snapshot tests for deterministic SVG capture; wrap `snap_compare` fixture to set `cursor_blink = False` on all `TextArea` and `Input` widgets (Fix #35)
 - **Performance**: fix PathSearchModal UI slowness with many files — replace `clear_options()` + per-item `add_option()` loop (N+1 render cycles) with single `set_options()` call (1 render cycle); remove redundant display refresh on every scan chunk to eliminate repeated OptionList rebuilds during file scanning (Fix #52)
 - **Editor**: show indentation guides on the first indentation level — guide lines now start at column 0 instead of skipping the first indent level (Fix #55)
+- **Editor**: fix render whitespace setting not preserved across tab switches — propagate `render_whitespace` to the underlying text area on mount; replace cycling command with selectable mode picker via command palette ("Set render whitespace") that updates the session default (Fix #65)
 
 ### Changed
 
