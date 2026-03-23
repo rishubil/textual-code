@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from collections import defaultdict
+from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar
 
 from rich.cells import cell_len
@@ -627,6 +628,32 @@ class MultiCursorTextArea(TextArea):
     def action_sort_lines_descending(self) -> None:
         """Sort selected line(s) in descending order."""
         self._sort_lines(reverse=True)
+
+    # ── transform case ───────────────────────────────────────────────────────
+
+    def _transform_case(self, transform: Callable[[str], str]) -> None:
+        """Transform selected text using the given callable (e.g. str.upper)."""
+        from textual.widgets.text_area import Selection
+
+        if self.read_only:
+            return
+
+        text = self.selected_text
+        if not text:
+            return
+
+        sel = self.selection
+        start, end = sel.start, sel.end
+        self.replace(transform(text), start, end)
+        self.selection = Selection(start=start, end=end)
+
+    def action_transform_uppercase(self) -> None:
+        """Transform selected text to uppercase."""
+        self._transform_case(str.upper)
+
+    def action_transform_lowercase(self) -> None:
+        """Transform selected text to lowercase."""
+        self._transform_case(str.lower)
 
     # ── scroll viewport ──────────────────────────────────────────────────────
 

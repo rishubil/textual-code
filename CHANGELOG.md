@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editor**: git diff gutter indicators — display colored markers in the line number gutter to show git changes: green `▎` for added lines, yellow `▎` for modified lines, red `▔`/`▁` for deleted line positions; diff computed against HEAD via background worker; updates live on each keystroke; respects `show_git_status` setting (Fix #41)
 - **Editor**: indentation guides — display vertical `│` guide lines at each indent level within leading whitespace; adapts to dark/light themes; toggleable per-file via command palette ("Toggle indentation guides"); configurable via `show_indentation_guides` setting (default: `true`) (Fix #40)
 - **Editor**: sort selected lines — sort selected lines alphabetically (ascending) or in reverse order (descending) via command palette ("Sort lines ascending" / "Sort lines descending"); case-sensitive sorting matching VS Code default; supports multi-cursor with merged ranges (Fix #37)
+- **Editor**: transform selected text case — convert selected text to uppercase or lowercase via command palette ("Transform to uppercase" / "Transform to lowercase"); no default keybinding (Fix #38)
 
 ### Fixed
 
