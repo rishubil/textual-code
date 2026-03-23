@@ -1206,3 +1206,23 @@ def test_snapshot_render_whitespace(snap_compare, snapshot_workspace: Path):
         await pilot.pause()
 
     assert snap_compare(app, run_before=enable_whitespace, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_replace_all_confirm_modal(snap_compare, snapshot_workspace: Path):
+    """ReplaceAllConfirmModalScreen shown with preview after triggering Replace All."""
+    (snapshot_workspace / "hello.py").write_text("hello world\nprint('hello')\n")
+    app = make_app(snapshot_workspace)
+
+    async def run_before(pilot):
+        await pilot.pause()
+        app.main_view.action_find_in_workspace()
+        await pilot.pause()
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "hello"
+        ws_pane.query_one("#ws-replace", Input).value = "hi"
+        ws_pane._run_replace_all()
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)

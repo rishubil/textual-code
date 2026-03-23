@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editor**: render whitespace — display invisible characters as visible markers: spaces as `·` (middle dot), tabs as `→` (arrow); four modes: `none` (default), `all`, `boundary` (leading + trailing), `trailing`; select mode via command palette ("Set render whitespace"); configurable via `render_whitespace` setting; coexists with indentation guides (guides take priority at guide positions) (Fix #59)
 - **Search**: Enter key support in all search input fields — pressing Enter in the find bar replace input triggers single Replace; pressing Enter in workspace search include/exclude filter inputs triggers search execution (Fix #60)
 - **Input**: standard editing shortcuts in text input widgets — Ctrl+A selects all text (instead of moving cursor to home); Ctrl+D is suppressed when an Input widget has focus to prevent unintended "add next occurrence" action (Fix #54)
+- **Search**: confirmation modal before workspace Replace All — clicking Replace All now shows a confirmation dialog displaying the number of affected files and occurrences, plus a patch-style diff preview of the first match with syntax-highlighted red/green coloring; match counting runs in a background thread to keep the UI responsive; zero-match queries show a "No matches found" status without opening the modal (Fix #61)
 
 ### Fixed
 

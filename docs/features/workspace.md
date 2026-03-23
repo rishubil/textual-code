@@ -32,7 +32,11 @@ Provides project-wide text search and batch replace without leaving the editor. 
 **Replace All:**
 
 - Enter a replacement string in the "Replace with..." input and click "Replace All" or press Enter in the replace input.
-- Replace runs synchronously (not in a background thread) and modifies files on disk directly.
+- Before replacing, a confirmation modal appears showing:
+  - The number of occurrences and files to be modified (capped at 500 matches; shows "500+" when truncated).
+  - A patch-style preview of the first match with syntax-highlighted diff (red for removed, green for added).
+- The match count runs in a background thread to keep the UI responsive. If no matches are found, a "No matches found" status is shown without opening the modal.
+- After the user confirms, the actual replacement runs synchronously and modifies files on disk directly.
 - A status line shows "Replaced N occurrence(s) in M file(s)" after completion.
 - Supports regex capture groups when regex mode is enabled (e.g., replace `(\w+)` with `\1_suffix`).
 

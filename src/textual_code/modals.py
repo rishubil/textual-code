@@ -2011,3 +2011,77 @@ class PathSearchModal(ModalScreen[Path | None]):
         """Dismiss when clicking the background overlay."""
         if self.get_widget_at(event.screen_x, event.screen_y)[0] is self:
             self.dismiss(None)
+
+
+@dataclass
+class ReplacePreview:
+    """Preview data for the first match in a Replace All operation."""
+
+    file: str  # relative path
+    line_num: int  # 1-based
+    before: str  # original line (stripped)
+    after: str  # replaced line (stripped)
+
+
+@dataclass
+class ReplaceAllConfirmModalResult:
+    """Result of the Replace All confirmation modal."""
+
+    is_cancelled: bool
+    should_replace: bool
+
+
+class ReplaceAllConfirmModalScreen(ModalScreen[ReplaceAllConfirmModalResult]):
+    """Confirmation modal before workspace-wide Replace All."""
+
+    def __init__(
+        self,
+        files_count: int,
+        occurrences_count: int,
+        is_truncated: bool,
+        preview: ReplacePreview,
+    ) -> None:
+        super().__init__()
+        self.files_count = files_count
+        self.occurrences_count = occurrences_count
+        self.is_truncated = is_truncated
+        self.preview = preview
+
+    def compose(self) -> ComposeResult:
+        occ = (
+            f"{self.occurrences_count}+"
+            if self.is_truncated
+            else str(self.occurrences_count)
+        )
+        files = f"{self.files_count}+" if self.is_truncated else str(self.files_count)
+        summary = f"{occ} occurrence(s) in {files} file(s)"
+
+        p = self.preview
+        preview_markup = (
+            f"{p.file}:{p.line_num}\n"
+            f"[$text-error]- {p.before}[/]\n"
+            f"[$text-success]+ {p.after}[/]"
+        )
+        preview_content = Content.from_markup(preview_markup)
+
+        yield Grid(
+            Label("Replace All in Workspace", id="title"),
+            Label(summary, id="message"),
+            Label("First match preview:", id="preview-label"),
+            Label(preview_content, id="preview"),
+            Button("Replace All", variant="warning", id="replace-all"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#replace-all")
+    def on_replace_all(self) -> None:
+        self.dismiss(
+            ReplaceAllConfirmModalResult(is_cancelled=False, should_replace=True)
+        )
+
+    @on(Button.Pressed, "#cancel")
+    def on_cancel(self) -> None:
+        self.dismiss(
+            ReplaceAllConfirmModalResult(is_cancelled=True, should_replace=False)
+        )
