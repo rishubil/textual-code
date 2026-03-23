@@ -1152,3 +1152,26 @@ def test_snapshot_indentation_guides(snap_compare, snapshot_workspace: Path):
     )
     app = make_app(snapshot_workspace, open_file=f)
     assert snap_compare(app, run_before=_focus_editor(app), terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_render_whitespace(snap_compare, snapshot_workspace: Path):
+    """Editor shows whitespace markers (middle dots for spaces, arrows for tabs)."""
+    f = snapshot_workspace / "whitespace.py"
+    f.write_text(
+        "def example():\n"
+        "    x = 1\n"
+        "    if x > 0:\n"
+        "        print('hello')  \n"
+        "\treturn x\n"
+    )
+    app = make_app(snapshot_workspace, open_file=f)
+
+    async def enable_whitespace(pilot):
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        if editor is not None:
+            editor.render_whitespace = "all"
+            editor.action_focus()
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=enable_whitespace, terminal_size=TERMINAL_SIZE)

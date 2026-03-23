@@ -644,6 +644,7 @@ class EditorState:
     warn_line_ending: bool
     notified_copy_line_ending: bool
     show_indentation_guides: bool = True
+    render_whitespace: str = "none"
 
 
 class _PathLabel(Label):
@@ -925,6 +926,7 @@ class CodeEditor(Static):
     # whether word wrap is enabled
     word_wrap: reactive[bool] = reactive(False, init=False)
     show_indentation_guides: reactive[bool] = reactive(True, init=False)
+    render_whitespace: reactive[str] = reactive("none", init=False)
 
     # mapping of file extensions to language names
     LANGUAGE_EXTENSIONS = {
@@ -1080,6 +1082,7 @@ class CodeEditor(Static):
         default_syntax_theme: str = "monokai",
         default_word_wrap: bool = False,
         default_show_indentation_guides: bool = True,
+        default_render_whitespace: str = "none",
         default_warn_line_ending: bool = True,
         _from_state: EditorState | None = None,
         **kwargs,
@@ -1122,6 +1125,10 @@ class CodeEditor(Static):
             self.set_reactive(
                 CodeEditor.show_indentation_guides,
                 _from_state.show_indentation_guides,
+            )
+            self.set_reactive(
+                CodeEditor.render_whitespace,
+                _from_state.render_whitespace,
             )
             self._file_mtime = _from_state.file_mtime
             self._ec_search_dirs = list(_from_state.ec_search_dirs)
@@ -1171,6 +1178,10 @@ class CodeEditor(Static):
                 CodeEditor.show_indentation_guides,
                 default_show_indentation_guides,
             )
+            self.set_reactive(
+                CodeEditor.render_whitespace,
+                default_render_whitespace,
+            )
         else:
             # Apply app-level defaults for new untitled files
             self.set_reactive(CodeEditor.indent_type, default_indent_type)
@@ -1181,6 +1192,10 @@ class CodeEditor(Static):
             self.set_reactive(
                 CodeEditor.show_indentation_guides,
                 default_show_indentation_guides,
+            )
+            self.set_reactive(
+                CodeEditor.render_whitespace,
+                default_render_whitespace,
             )
 
     def _apply_editorconfig(
@@ -1462,6 +1477,24 @@ class CodeEditor(Static):
     def action_toggle_indentation_guides(self) -> None:
         """Toggle indentation guides for the current file."""
         self.show_indentation_guides = not self.show_indentation_guides
+
+    def watch_render_whitespace(self, value: str) -> None:
+        self.editor._render_whitespace = value
+        self.editor._line_cache.clear()
+        self.editor.refresh()
+
+    _RENDER_WHITESPACE_MODES = ("none", "all", "boundary", "trailing")
+
+    def action_cycle_render_whitespace(self) -> None:
+        """Cycle through whitespace rendering modes."""
+        modes = self._RENDER_WHITESPACE_MODES
+        try:
+            idx = modes.index(self.render_whitespace)
+        except ValueError:
+            idx = -1
+        new_mode = modes[(idx + 1) % len(modes)]
+        self.render_whitespace = new_mode
+        self.notify(f"Render whitespace: {new_mode}")
 
     def _notify_non_lf_if_needed(self, *, from_clipboard: bool = False) -> None:
         if not self._warn_line_ending:
@@ -2260,6 +2293,7 @@ class CodeEditor(Static):
             indent_size=self.indent_size,
             word_wrap=self.word_wrap,
             show_indentation_guides=self.show_indentation_guides,
+            render_whitespace=self.render_whitespace,
             cursor_end=cursor,
             scroll_offset=scroll,
             file_mtime=self._file_mtime,

@@ -367,6 +367,9 @@ class TextualCode(App):
         self.default_show_indentation_guides: bool = bool(
             settings.get("show_indentation_guides", True)
         )
+        _rw = str(settings.get("render_whitespace", "none"))
+        _valid_rw = ("none", "all", "boundary", "trailing")
+        self.default_render_whitespace: str = _rw if _rw in _valid_rw else "none"
         mode = str(settings.get("path_display_mode", "absolute"))
         self.default_path_display_mode: str = (
             mode if mode in ("absolute", "relative") else "absolute"
@@ -818,6 +821,13 @@ class TextualCode(App):
             "Show or hide indentation guides in the editor",
             self._toggle_indentation_guides_cmd,
         )
+        _rw_editor = self.main_view.get_active_code_editor()
+        _rw_current = _rw_editor.render_whitespace if _rw_editor else "none"
+        yield SystemCommand(
+            "Cycle render whitespace",
+            f"Cycle through whitespace display modes (current: {_rw_current})",
+            self._cycle_render_whitespace_cmd,
+        )
         yield SystemCommand(
             "Sort lines ascending",
             "Sort selected lines in ascending order",
@@ -957,6 +967,7 @@ class TextualCode(App):
             "dim_hidden_files": self.default_dim_hidden_files,
             "show_git_status": self.default_show_git_status,
             "show_indentation_guides": self.default_show_indentation_guides,
+            "render_whitespace": self.default_render_whitespace,
             "sidebar_width": self.default_sidebar_width,
         }
 
@@ -1082,6 +1093,14 @@ class TextualCode(App):
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
             self.call_next(code_editor.action_toggle_indentation_guides)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def _cycle_render_whitespace_cmd(self) -> None:
+        """Cycle whitespace rendering mode for the active file via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.action_cycle_render_whitespace)
         else:
             self.notify("No file open.", severity="error")
 

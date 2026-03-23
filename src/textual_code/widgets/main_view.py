@@ -543,6 +543,9 @@ class MainView(Static):
                 default_show_indentation_guides=getattr(
                     self.app, "default_show_indentation_guides", True
                 ),
+                default_render_whitespace=getattr(
+                    self.app, "default_render_whitespace", "none"
+                ),
                 default_warn_line_ending=getattr(
                     self.app, "default_warn_line_ending", True
                 ),
