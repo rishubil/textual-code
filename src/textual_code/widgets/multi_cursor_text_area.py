@@ -576,6 +576,58 @@ class MultiCursorTextArea(TextArea):
         """Move selected line(s) down by one row."""
         self._move_lines(1)
 
+    # ── sort lines ────────────────────────────────────────────────────────────
+
+    def _sort_lines(self, reverse: bool) -> None:
+        """Sort selected line(s) at all cursors alphabetically."""
+        from textual.widgets.text_area import Selection
+
+        lines = self.text.split("\n")
+
+        # Collect row ranges from primary + extra cursors
+        sel = self.selection
+        extra_cursors = list(self._extra_cursors)
+        extra_anchors = list(self._extra_anchors)
+        ranges = [self._row_range(sel.start, sel.end)]
+        for cursor, anchor in zip(extra_cursors, extra_anchors, strict=True):
+            ranges.append(self._row_range(cursor, anchor))
+
+        # Sort and merge overlapping/adjacent ranges
+        ranges.sort()
+        merged: list[list[int]] = [list(ranges[0])]
+        for s, e in ranges[1:]:
+            if s <= merged[-1][1] + 1:
+                merged[-1][1] = max(merged[-1][1], e)
+            else:
+                merged.append([s, e])
+
+        # Skip if all ranges are single lines (nothing to sort)
+        if all(s == e for s, e in merged):
+            return
+
+        # Sort lines in each range
+        for s, e in merged:
+            lines[s : e + 1] = sorted(lines[s : e + 1], reverse=reverse)
+
+        self.replace("\n".join(lines), self.document.start, self.document.end)
+
+        # Restore primary selection and extra cursors (row positions unchanged)
+        self.selection = Selection(start=sel.start, end=sel.end)
+        if extra_cursors:
+            self._extra_cursors = extra_cursors
+            self._extra_anchors = extra_anchors
+            self._recompute_selection_ranges()
+            self._line_cache.clear()
+            self.refresh()
+
+    def action_sort_lines_ascending(self) -> None:
+        """Sort selected line(s) in ascending order."""
+        self._sort_lines(reverse=False)
+
+    def action_sort_lines_descending(self) -> None:
+        """Sort selected line(s) in descending order."""
+        self._sort_lines(reverse=True)
+
     # ── scroll viewport ──────────────────────────────────────────────────────
 
     def action_scroll_viewport_up(self) -> None:

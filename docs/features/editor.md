@@ -79,7 +79,7 @@ When saving (Ctrl+S), if the file's `mtime` on disk differs from the last known 
 
 **Implementation:** `code_editor.py`, `main_view.py`, `app.py`, `modals.py`, `utils.py`
 
-## Text Editing: selection, copy/cut, move line, indent, word wrap, undo/redo
+## Text Editing: selection, copy/cut, move line, indent, sort lines, word wrap, undo/redo
 
 ### Basic Text Editing: insert, delete, backspace
 
@@ -160,6 +160,14 @@ Scrolls the editor viewport by one line up or down without moving the cursor pos
 Both operations respect `indent_size` and `indent_type` settings from EditorConfig, the Change Indentation modal, or application defaults.
 
 **Keybinding:** `Tab` (indent), `Shift+Tab` (dedent).
+
+### Sort Lines: ascending/descending via command palette
+
+Sorts the selected lines alphabetically (ascending) or in reverse order (descending). Available via the command palette only ("Sort lines ascending" / "Sort lines descending") — no default keybinding. Uses case-sensitive sorting matching VS Code's default behavior.
+
+Supports multi-cursor: ranges from all cursors are collected, merged when overlapping or adjacent, and each merged range is sorted independently. Single-line selections are a no-op (nothing to sort). The selection is preserved after sorting.
+
+**Command palette:** "Sort lines ascending", "Sort lines descending".
 
 ### Word Wrap: toggleable via command palette or settings
 
