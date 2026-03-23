@@ -1,6 +1,7 @@
 Sidebar {
     dock: left;
     width: 28;
+    padding-bottom: 1;
 }
 
 SidebarResizeHandle {
@@ -885,6 +886,12 @@ WorkspaceSearchPane #ws-replace-status {
 
 WorkspaceSearchPane #ws-results {
     height: 1fr;
+    overflow-x: auto;
+}
+
+WorkspaceSearchPane #ws-results > ListItem {
+    width: auto;
+    min-width: 100%;
 }
 
 /* Draggable tab visual feedback */

@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Sidebar**: fix horizontal scrollbar hidden by footer — add `padding-bottom: 1` to the Sidebar so its content area does not extend into the dock-bottom Footer row, preventing the Footer from occluding horizontal scrollbars in both the Explorer tree and search results (Fix #70)
+- **Search**: enable horizontal scrolling in workspace search results — override `VerticalScroll`'s default `overflow-x: hidden` with `auto` on the results `ListView`, and allow `ListItem` children to expand beyond the container width so long result lines remain accessible (Fix #70)
+
 - **Editor**: fix copy/paste working incorrectly on Windows — override `_on_paste` (bracketed paste event handler) in `MultiCursorTextArea` to normalize CRLF line endings, sync with the local clipboard, and delegate to `action_paste` so VS Code line-paste behavior and whitespace preservation work correctly on terminals that intercept Ctrl+V (Fix #58)
 - **Command Palette**: prevent command palette from opening when a modal dialog is already displayed (Fix #34)
 - **Testing**: disable cursor blinking in snapshot tests for deterministic SVG capture; wrap `snap_compare` fixture to set `cursor_blink = False` on all `TextArea` and `Input` widgets (Fix #35)
