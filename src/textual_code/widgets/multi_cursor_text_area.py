@@ -162,10 +162,16 @@ class MultiCursorTextArea(TextArea):
     _GUTTER_MODIFIED_COLOR = "#E5C07B"  # yellow
     _GUTTER_DELETED_COLOR = "#E06C75"  # red
 
+    # ── Shared overlay colors (for indentation guides and whitespace markers) ─
+    _OVERLAY_COLOR_DARK = "#3E3E3E"
+    _OVERLAY_COLOR_LIGHT = "#CCCCCC"
+
     # ── Indentation guide styles ─────────────────────────────────────────────
     _INDENT_GUIDE_CHAR = "│"
-    _INDENT_GUIDE_COLOR_DARK = "#3E3E3E"
-    _INDENT_GUIDE_COLOR_LIGHT = "#CCCCCC"
+
+    # ── Whitespace rendering styles ───────────────────────────────────────────
+    _WHITESPACE_SPACE_CHAR = "·"
+    _WHITESPACE_TAB_CHAR = "→"
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -174,6 +180,7 @@ class MultiCursorTextArea(TextArea):
         self._cached_selection_ranges: dict[int, list[tuple[int, int | None]]] = {}
         self._line_changes: dict[int, LineChangeType] = {}
         self._show_indentation_guides: bool = True
+        self._render_whitespace: str = "none"
 
     # ── git gutter API ───────────────────────────────────────────────────────
 
@@ -206,14 +213,28 @@ class MultiCursorTextArea(TextArea):
             return None
         return line_info
 
+    # ── theme helper ─────────────────────────────────────────────────────────
+
+    def _is_light_theme(self) -> bool:
+        """Return True if the current theme background is light."""
+        theme = self._theme
+        if theme and theme.base_style and theme.base_style.bgcolor:
+            triplet = theme.base_style.bgcolor.triplet
+            if triplet is not None:
+                r, g, b = triplet
+                return 0.299 * r + 0.587 * g + 0.114 * b > 128
+        return False
+
     # ── rendering pipeline ───────────────────────────────────────────────────
 
     def _render_line(self, y: int) -> Strip:
         """Override TextArea._render_line to layer visual enhancements.
 
-        Pipeline: base render → git gutter → indentation guides.
+        Pipeline: base render → git gutter → whitespace rendering → indentation guides.
         """
         strip = self._render_line_with_gutter(y)
+        if self._render_whitespace != "none":
+            strip = self._inject_whitespace_rendering(strip, y)
         if self._show_indentation_guides:
             strip = self._inject_indentation_guides(strip, y)
         return strip
@@ -288,6 +309,124 @@ class MultiCursorTextArea(TextArea):
         indicator = Strip([Segment(char, indicator_style)], cell_length=1)
         return Strip.join([before, indicator, after])
 
+    def _inject_whitespace_rendering(self, strip: Strip, y: int) -> Strip:
+        """Replace whitespace characters with visible markers.
+
+        Modes:
+          - "all": replace every space/tab with a visible marker
+          - "boundary": replace only leading and trailing whitespace
+                        (differs from VS Code's "boundary" which excludes single
+                        spaces between words — here we skip ALL middle whitespace)
+          - "trailing": replace only trailing whitespace
+        """
+        mode = self._render_whitespace
+        if mode == "none":
+            return strip
+
+        line_info = self._resolve_line_index(y)
+        if line_info is None:
+            return strip
+
+        line_index, section_offset = line_info
+        # Only render whitespace on the first section of a wrapped line
+        if section_offset != 0:
+            return strip
+
+        doc_line = self.document.get_line(line_index)
+        if not doc_line:
+            return strip
+
+        indent_width = self.indent_width
+
+        # Build visual-column → marker-char map from original doc line.
+        # Tabs expand to indent_width columns; the first column gets "→",
+        # remaining tab-fill columns get "·".
+        ws_map: dict[int, str] = {}
+        visual_col = 0
+        for ch in doc_line:
+            if ch == "\t":
+                tab_stop = (
+                    indent_width - (visual_col % indent_width)
+                    if indent_width > 0
+                    else 1
+                )
+                ws_map[visual_col] = self._WHITESPACE_TAB_CHAR
+                for i in range(1, tab_stop):
+                    ws_map[visual_col + i] = self._WHITESPACE_SPACE_CHAR
+                visual_col += tab_stop
+            elif ch == " ":
+                ws_map[visual_col] = self._WHITESPACE_SPACE_CHAR
+                visual_col += 1
+            else:
+                visual_col += cell_len(ch)
+
+        if not ws_map:
+            return strip
+
+        # Determine which visual columns to render based on mode.
+        if mode == "all":
+            render_cols = set(ws_map.keys())
+        else:
+            expanded = doc_line.expandtabs(indent_width)
+            stripped = expanded.strip()
+            if not stripped:
+                # All-whitespace line: render everything for all modes
+                render_cols = set(ws_map.keys())
+            else:
+                leading_count = len(expanded) - len(expanded.lstrip())
+                trailing_start = len(expanded.rstrip())
+                if mode == "trailing":
+                    render_cols = {c for c in ws_map if c >= trailing_start}
+                elif mode == "boundary":
+                    render_cols = {
+                        c for c in ws_map if c < leading_count or c >= trailing_start
+                    }
+                else:
+                    render_cols = set()
+
+        if not render_cols:
+            return strip
+
+        gutter_width = self.gutter_width if self.show_line_numbers else 0
+        ws_fg = (
+            self._OVERLAY_COLOR_LIGHT
+            if self._is_light_theme()
+            else self._OVERLAY_COLOR_DARK
+        )
+
+        new_segments: list[Segment] = []
+        cell_pos = 0
+        for seg in strip:
+            seg_text = seg.text
+            seg_style = seg.style
+            seg_len = cell_len(seg_text)
+
+            seg_end = cell_pos + seg_len
+            content_start = cell_pos - gutter_width
+            content_end = seg_end - gutter_width
+
+            # Fast path: segment entirely outside render region
+            if cell_pos < gutter_width or not any(
+                content_start <= c < content_end for c in render_cols
+            ):
+                new_segments.append(seg)
+                cell_pos = seg_end
+                continue
+
+            # Slow path: some render columns fall within this segment
+            existing_bg = seg_style.bgcolor if seg_style else None
+            ws_style = Style(color=ws_fg, bgcolor=existing_bg)
+            for ch in seg_text:
+                content_col = cell_pos - gutter_width
+                marker = ws_map.get(content_col)
+                if content_col in render_cols and marker is not None:
+                    new_segments.append(Segment(marker, ws_style))
+                else:
+                    new_segments.append(Segment(ch, seg_style))
+                cell_pos += cell_len(ch)
+
+        return Strip(new_segments, cell_length=strip.cell_length)
+
     def _inject_indentation_guides(self, strip: Strip, y: int) -> Strip:
         """Replace leading whitespace at indent-level positions with guide chars.
 
@@ -316,16 +455,11 @@ class MultiCursorTextArea(TextArea):
         guide_positions = set(range(0, leading_spaces, indent_width))
         gutter_width = self.gutter_width if self.show_line_numbers else 0
 
-        # Pick guide color based on theme brightness
-        theme = self._theme
-        guide_fg = self._INDENT_GUIDE_COLOR_DARK
-        if theme and theme.base_style and theme.base_style.bgcolor:
-            triplet = theme.base_style.bgcolor.triplet
-            if triplet is not None:
-                r, g, b = triplet
-                luminance = 0.299 * r + 0.587 * g + 0.114 * b
-                if luminance > 128:
-                    guide_fg = self._INDENT_GUIDE_COLOR_LIGHT
+        guide_fg = (
+            self._OVERLAY_COLOR_LIGHT
+            if self._is_light_theme()
+            else self._OVERLAY_COLOR_DARK
+        )
 
         new_segments: list[Segment] = []
         cell_pos = 0

@@ -23,6 +23,7 @@ EDITOR_KEYS = {
     "dim_hidden_files",
     "show_git_status",
     "show_indentation_guides",
+    "render_whitespace",
     "sidebar_width",
 }
 
@@ -41,6 +42,7 @@ DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "dim_hidden_files": False,
     "show_git_status": True,
     "show_indentation_guides": True,
+    "render_whitespace": "none",
     "sidebar_width": 28,
 }
 
