@@ -828,6 +828,16 @@ class TextualCode(App):
             "Sort selected lines in descending order",
             self.action_sort_lines_descending_cmd,
         )
+        yield SystemCommand(
+            "Transform to uppercase",
+            "Convert selected text to uppercase",
+            self.action_transform_uppercase_cmd,
+        )
+        yield SystemCommand(
+            "Transform to lowercase",
+            "Convert selected text to lowercase",
+            self.action_transform_lowercase_cmd,
+        )
 
     def action_sort_lines_ascending_cmd(self) -> None:
         """Sort selected lines ascending via command palette."""
@@ -842,6 +852,22 @@ class TextualCode(App):
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
             self.call_next(code_editor.editor.action_sort_lines_descending)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_transform_uppercase_cmd(self) -> None:
+        """Transform selected text to uppercase via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.editor.action_transform_uppercase)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_transform_lowercase_cmd(self) -> None:
+        """Transform selected text to lowercase via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.editor.action_transform_lowercase)
         else:
             self.notify("No file open.", severity="error")
 
