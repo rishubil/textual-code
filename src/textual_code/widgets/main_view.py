@@ -713,6 +713,10 @@ class MainView(Static):
             code_editor.action_select_all_occurrences()
 
     def action_add_next_occurrence(self) -> None:
+        from textual.widgets import Input
+
+        if isinstance(self.app.focused, Input):
+            return
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_select_next_occurrence()

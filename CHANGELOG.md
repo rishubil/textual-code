@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editor**: transform selected text case — convert selected text to uppercase or lowercase via command palette ("Transform to uppercase" / "Transform to lowercase"); no default keybinding (Fix #38)
 - **Editor**: render whitespace — display invisible characters as visible markers: spaces as `·` (middle dot), tabs as `→` (arrow); four modes: `none` (default), `all`, `boundary` (leading + trailing), `trailing`; select mode via command palette ("Set render whitespace"); configurable via `render_whitespace` setting; coexists with indentation guides (guides take priority at guide positions) (Fix #59)
 - **Search**: Enter key support in all search input fields — pressing Enter in the find bar replace input triggers single Replace; pressing Enter in workspace search include/exclude filter inputs triggers search execution (Fix #60)
+- **Input**: standard editing shortcuts in text input widgets — Ctrl+A selects all text (instead of moving cursor to home); Ctrl+D is suppressed when an Input widget has focus to prevent unintended "add next occurrence" action (Fix #54)
 
 ### Fixed
 
