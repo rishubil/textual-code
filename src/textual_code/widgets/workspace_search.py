@@ -236,6 +236,8 @@ class WorkspaceSearchPane(Static):
             self._run_replace_all()
 
     @on(Input.Submitted, "#ws-query")
+    @on(Input.Submitted, "#ws-include")
+    @on(Input.Submitted, "#ws-exclude")
     def _on_query_submitted(self) -> None:
         self._run_search()
 

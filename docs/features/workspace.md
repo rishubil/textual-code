@@ -49,6 +49,7 @@ Provides project-wide text search and batch replace without leaving the editor. 
 - "Include files" input: comma-separated glob patterns (e.g., `src/**`, `*.py`). Only files matching at least one pattern are searched. Uses gitignore-style pattern syntax via the `pathspec` library.
 - "Exclude files" input: comma-separated glob patterns (e.g., `node_modules`, `dist`). Files matching any pattern are skipped. Directory names without globs match at any depth.
 - Both filters apply to the relative path from the workspace root.
+- Pressing `Enter` in either filter input triggers a search with the current query and filter settings.
 
 **Files skipped during search:**
 
