@@ -818,6 +818,32 @@ class TextualCode(App):
             "Show or hide indentation guides in the editor",
             self._toggle_indentation_guides_cmd,
         )
+        yield SystemCommand(
+            "Sort lines ascending",
+            "Sort selected lines in ascending order",
+            self.action_sort_lines_ascending_cmd,
+        )
+        yield SystemCommand(
+            "Sort lines descending",
+            "Sort selected lines in descending order",
+            self.action_sort_lines_descending_cmd,
+        )
+
+    def action_sort_lines_ascending_cmd(self) -> None:
+        """Sort selected lines ascending via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.editor.action_sort_lines_ascending)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_sort_lines_descending_cmd(self) -> None:
+        """Sort selected lines descending via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.editor.action_sort_lines_descending)
+        else:
+            self.notify("No file open.", severity="error")
 
     def action_find_in_workspace(self) -> None:
         """Open workspace search panel (Ctrl+Shift+F)."""
