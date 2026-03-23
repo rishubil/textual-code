@@ -293,3 +293,39 @@ class TestRendering:
             gw = ta.gutter_width
             strip = ta._render_line(0)
             assert _find_guide_positions(strip, gw) == expected_guide_cols
+
+    @pytest.mark.asyncio
+    async def test_e09_horizontal_scroll_guides_alignment(self, workspace: Path):
+        """Indentation guides must stay aligned when scrolled horizontally.
+
+        Regression test for #69: same offset bug as whitespace rendering.
+        """
+        f = workspace / "long_indent.py"
+        # 8 leading spaces + 'x' + 80 'a' chars
+        content = "        x" + "a" * 80 + "\n"
+        f.write_text(content)
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            ta = editor.editor
+            ta.soft_wrap = False
+            await pilot.pause()
+            gw = ta.gutter_width
+
+            # At scroll_x=0: guides at doc cols 0 and 4
+            strip_at_0 = ta._render_line(0)
+            guides_at_0 = _find_guide_positions(strip_at_0, gw)
+            assert 0 in guides_at_0
+            assert 4 in guides_at_0
+
+            # Scroll right by 10 — all guide positions (0, 4) are off-screen
+            ta.scroll_x = 10
+            await pilot.pause()
+            strip_at_10 = ta._render_line(0)
+            guides_at_10 = _find_guide_positions(strip_at_10, gw)
+            assert guides_at_10 == [], (
+                f"No guides expected after scrolling past indent region, "
+                f"got {guides_at_10}"
+            )
