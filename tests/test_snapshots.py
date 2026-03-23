@@ -20,6 +20,7 @@ import pytest
 from textual.widgets import Input
 
 from tests.conftest import init_git_repo, make_app, make_png, requires_git
+from tests.test_sidebar_scroll import LONG_FILENAME, _populate_wide_workspace
 from textual_code.modals import RebindKeyScreen
 from textual_code.widgets.image_preview import ImagePreviewPane
 from textual_code.widgets.split_tree import all_leaves
@@ -759,6 +760,25 @@ def test_snapshot_workspace_search_results(
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
 
+def test_snapshot_search_results_long_lines(snap_compare, snapshot_workspace: Path):
+    """WorkspaceSearchPane with long search result lines for horizontal scroll."""
+    long_line = "x" * 200
+    (snapshot_workspace / "wide.py").write_text(f"{long_line}\n")
+    app = make_app(snapshot_workspace, open_file=snapshot_workspace / "wide.py")
+
+    async def run_before(pilot):
+        await pilot.pause()
+        app.main_view.action_find_in_workspace()
+        await pilot.pause()
+        pane = app.query_one(WorkspaceSearchPane)
+        pane.query_one("#ws-query", Input).value = "xxx"
+        pane._run_search()
+        for _ in range(5):
+            await pilot.pause()
+
+    assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
+
+
 def test_snapshot_multi_cursor(
     snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
 ):
@@ -1011,6 +1031,17 @@ def test_snapshot_sidebar_custom_width(snap_compare, snapshot_workspace: Path):
     app = make_app(snapshot_workspace, user_config_path=config)
 
     assert snap_compare(app, terminal_size=TERMINAL_SIZE)
+
+
+# ── Sidebar horizontal scroll (#70) ──────────────────────────────────────────
+
+
+def test_snapshot_explorer_horizontal_scroll(snap_compare, snapshot_workspace: Path):
+    """Explorer with many files and a long filename showing horizontal scrollbar."""
+    _populate_wide_workspace(snapshot_workspace, num_files=50)
+    app = make_app(snapshot_workspace, open_file=snapshot_workspace / LONG_FILENAME)
+
+    assert snap_compare(app, run_before=_focus_editor(app), terminal_size=TERMINAL_SIZE)
 
 
 # ── Explorer create file pre-fill ─────────────────────────────────────────────
