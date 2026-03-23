@@ -6,7 +6,7 @@ from typing import Literal
 
 from textual import on
 from textual.app import App, ComposeResult, SystemCommand
-from textual.binding import Binding
+from textual.binding import Binding, BindingType
 from textual.command import (
     CommandInput,
     CommandPalette,
@@ -405,6 +405,7 @@ class TextualCode(App):
             kb_path
         )
         self._footer_orders: FooterOrders = load_footer_orders(kb_path)
+        _patch_input_bindings()
         _apply_custom_keybindings(self._custom_keybindings)
 
     def compose(self) -> ComposeResult:
@@ -2418,6 +2419,47 @@ class TextualCode(App):
     @property
     def footer(self) -> OrderedFooter:
         return self.query_one(OrderedFooter)
+
+
+_input_bindings_patched = False
+
+
+def _patch_input_bindings() -> None:
+    """Remap Input widget bindings for standard editing shortcuts.
+
+    - ctrl+a: select_all (instead of home)
+    - ctrl+d: removed (no action; Delete key still works for delete_right)
+    """
+    global _input_bindings_patched
+    if _input_bindings_patched:
+        return
+    _input_bindings_patched = True
+
+    from textual.widgets import Input
+
+    # Expected binding keys to patch (tied to Textual's Input.BINDINGS layout).
+    # If Textual changes these, the patch silently becomes a no-op.
+    patches = {
+        ("home,ctrl+a", "home"): "home",
+        ("delete,ctrl+d", "delete_right"): "delete",
+    }
+    applied: set[str] = set()
+
+    new_bindings: list[BindingType] = []
+    for b in Input.BINDINGS:
+        if not isinstance(b, Binding):
+            new_bindings.append(b)
+            continue
+        new_key = patches.get((b.key, b.action))
+        if new_key is not None:
+            new_bindings.append(Binding(new_key, b.action, b.description, show=b.show))
+            applied.add(b.key)
+        else:
+            new_bindings.append(b)
+    new_bindings.append(Binding("ctrl+a", "select_all", "Select all", show=False))
+    Input.BINDINGS = new_bindings
+    # Refresh the cached binding map so new instances use the patched bindings
+    Input._merged_bindings = Input._merge_bindings()
 
 
 def _apply_custom_keybindings(custom: dict[str, str]) -> None:
