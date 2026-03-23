@@ -136,6 +136,8 @@ When pasting text that was copied or cut without a selection (whole-line copy/cu
 
 The editor tracks whether the last copy/cut was a whole-line operation. This metadata is shared across all editor tabs. If the clipboard content is changed by another operation (e.g., "Copy File Path"), the line-paste mode is automatically deactivated and normal paste behavior is used.
 
+Both paste paths are supported: the `Ctrl+V` key binding (`action_paste`) and terminal bracketed paste events (`_on_paste`). The latter is the active path on Windows Terminal and other terminals that intercept `Ctrl+V` to send system clipboard content as a Paste event. CRLF line endings from the system clipboard are normalized to LF.
+
 **Keybinding:** `Ctrl+V` (paste).
 
 ### Move Line Up/Down (Alt+Up / Alt+Down)
