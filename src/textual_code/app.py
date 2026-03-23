@@ -350,8 +350,11 @@ class TextualCode(App):
         self._user_config_path = user_config_path
 
         # load editor defaults from config files
+        self._config_warnings: list[str] = []
         settings = load_editor_settings(
-            workspace_path, user_config_path=user_config_path
+            workspace_path,
+            user_config_path=user_config_path,
+            warnings=self._config_warnings,
         )
         self.default_indent_type: str = str(settings["indent_type"])
         self.default_indent_size: int = int(settings["indent_size"])
@@ -400,11 +403,15 @@ class TextualCode(App):
 
         # load and apply custom keybindings and display preferences
         kb_path = get_keybindings_path(user_config_path) if user_config_path else None
-        self._custom_keybindings: dict[str, str] = load_keybindings(kb_path)
-        self._shortcut_display: dict[str, ShortcutDisplayEntry] = load_shortcut_display(
-            kb_path
+        self._custom_keybindings: dict[str, str] = load_keybindings(
+            kb_path, warnings=self._config_warnings
         )
-        self._footer_orders: FooterOrders = load_footer_orders(kb_path)
+        self._shortcut_display: dict[str, ShortcutDisplayEntry] = load_shortcut_display(
+            kb_path, warnings=self._config_warnings
+        )
+        self._footer_orders: FooterOrders = load_footer_orders(
+            kb_path, warnings=self._config_warnings
+        )
         _patch_input_bindings()
         _apply_custom_keybindings(self._custom_keybindings)
 
@@ -429,6 +436,8 @@ class TextualCode(App):
         footer.path_display_mode = self.default_path_display_mode
         if hasattr(self, "_sidebar_width_warning"):
             self.notify(self._sidebar_width_warning, severity="warning")
+        for msg in dict.fromkeys(self._config_warnings):
+            self.notify(msg, severity="warning")
         # open the file in the code editor if provided as with_open_file
         if self.with_open_file is not None:
             await self.main_view.action_open_code_editor(

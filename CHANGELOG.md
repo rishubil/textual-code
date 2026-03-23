@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Settings**: show warning toast when configuration file parsing fails — if `settings.toml` or `keybindings.toml` contains invalid TOML syntax or cannot be read due to permission errors, a warning toast is displayed at startup identifying the file and error type; missing config files produce no warning (Fix #67)
 - **Shortcuts**: per-command shortcut settings via F1 viewer — toggle command palette visibility and rebind keys; dedicated footer configuration modal with reorderable, toggleable list (Fix #28)
 - **Footer**: per-area footer shortcut configuration — each focus area (editor, explorer, search, image preview, markdown preview) can have its own shortcut display order; area selector dropdown in the footer config modal; default action orders per area (Fix #36)
 - **Settings**: "Open keybindings" command palette entry to open the keybindings.toml config file directly in the editor
