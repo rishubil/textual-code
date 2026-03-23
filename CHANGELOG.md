@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Editor**: fix copy/paste working incorrectly on Windows — override `_on_paste` (bracketed paste event handler) in `MultiCursorTextArea` to normalize CRLF line endings, sync with the local clipboard, and delegate to `action_paste` so VS Code line-paste behavior and whitespace preservation work correctly on terminals that intercept Ctrl+V (Fix #58)
 - **Command Palette**: prevent command palette from opening when a modal dialog is already displayed (Fix #34)
 - **Testing**: disable cursor blinking in snapshot tests for deterministic SVG capture; wrap `snap_compare` fixture to set `cursor_blink = False` on all `TextArea` and `Input` widgets (Fix #35)
 - **Performance**: fix PathSearchModal UI slowness with many files — replace `clear_options()` + per-item `add_option()` loop (N+1 render cycles) with single `set_options()` call (1 render cycle); remove redundant display refresh on every scan chunk to eliminate repeated OptionList rebuilds during file scanning (Fix #52)

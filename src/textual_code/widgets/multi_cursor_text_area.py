@@ -820,6 +820,38 @@ class MultiCursorTextArea(TextArea):
         if has_newline:
             self.post_message(self.ClipboardAction(self))
 
+    async def _on_paste(self, event: events.Paste) -> None:
+        """Handle paste from terminal (bracketed paste).
+
+        On Windows Terminal, Ctrl+V sends a Paste event instead of
+        triggering the action_paste key binding.  This override
+        normalizes CRLF, updates the local clipboard, and delegates
+        to action_paste so line-paste logic is applied consistently.
+        """
+        # Stop the base TextArea._on_paste from also running
+        # (Textual dispatches _on_ handlers for every class in the MRO)
+        # and prevent bubbling to parent widgets.
+        event.prevent_default()
+        event.stop()
+
+        if self.read_only:
+            return
+
+        text = event.text.replace("\r\n", "\n").replace("\r", "\n")
+        if not text:
+            return
+
+        # Prefer local clipboard when it matches the pasted text
+        # after CRLF normalization (preserves exact whitespace).
+        local = self.app.clipboard
+        if local != text:
+            # Paste from external source or clipboard changed —
+            # update local clipboard so action_paste uses this text.
+            self.app.copy_to_clipboard(text)
+            MultiCursorTextArea._line_copy_text = None
+
+        self.action_paste()
+
     # ── cursor movement ────────────────────────────────────────────────────────
 
     @staticmethod
