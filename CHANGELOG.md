@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Performance**: fix PathSearchModal UI slowness with many files — replace `clear_options()` + per-item `add_option()` loop (N+1 render cycles) with single `set_options()` call (1 render cycle); remove redundant display refresh on every scan chunk to eliminate repeated OptionList rebuilds during file scanning (Fix #52)
 - **Editor**: show indentation guides on the first indentation level — guide lines now start at column 0 instead of skipping the first indent level (Fix #55)
 - **Editor**: fix render whitespace setting not preserved across tab switches — propagate `render_whitespace` to the underlying text area on mount; replace cycling command with selectable mode picker via command palette ("Set render whitespace") that updates the session default (Fix #65)
+- **Editor**: fix whitespace markers and indentation guides rendered at wrong positions when horizontally scrolling with word wrap disabled — add scroll offset to viewport-to-document column mapping in `_inject_whitespace_rendering` and `_inject_indentation_guides` (Fix #69)
 
 ### Changed
 

@@ -447,6 +447,99 @@ class TestRendering:
             assert positions.get(4) == _SPACE_CHAR
 
     @pytest.mark.asyncio
+    async def test_e10_horizontal_scroll_whitespace_alignment(self, workspace: Path):
+        """Whitespace markers must stay aligned when scrolled horizontally.
+
+        Regression test for #69: when word wrap is off and the editor is
+        scrolled horizontally, whitespace markers appeared at wrong positions
+        because _inject_whitespace_rendering used viewport-relative column
+        indices to look up document-absolute whitespace positions.
+        """
+        f = workspace / "long.py"
+        # 4 leading spaces + 'x' + 80 'a' chars + 4 trailing spaces
+        content = "    x" + "a" * 80 + "    \n"
+        f.write_text(content)
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            editor.render_whitespace = "all"
+            editor.show_indentation_guides = False
+            ta = editor.editor
+            ta.soft_wrap = False
+            await pilot.pause()
+            gw = ta.gutter_width
+
+            # -- At scroll_x = 0: leading spaces at cols 0-3 should be marked
+            strip_at_0 = ta._render_line(0)
+            positions_at_0 = _find_whitespace_positions(strip_at_0, gw)
+            assert positions_at_0.get(0) == _SPACE_CHAR, "leading space at col 0"
+            assert positions_at_0.get(3) == _SPACE_CHAR, "leading space at col 3"
+
+            # -- Scroll right by 10 columns
+            ta.scroll_x = 10
+            await pilot.pause()
+            strip_at_10 = ta._render_line(0)
+            positions_at_10 = _find_whitespace_positions(strip_at_10, gw)
+            # Viewport cols 0-4 now map to doc cols 10-14 (all 'a' chars)
+            for col in range(0, 5):
+                assert col not in positions_at_10, (
+                    f"viewport col {col} (doc col {col + 10}) should NOT have a "
+                    f"marker — it's a non-space 'a' character, got {positions_at_10}"
+                )
+
+    @pytest.mark.asyncio
+    async def test_e12_horizontal_scroll_trailing_visible(self, workspace: Path):
+        """Trailing whitespace markers shift correctly when scrolled.
+
+        Regression test for #69: verifies markers stay at correct relative
+        positions after horizontal scroll.
+        """
+        f = workspace / "scroll_trailing.py"
+        # 80 'a' chars + 4 trailing spaces
+        content = "a" * 80 + "    \n"
+        f.write_text(content)
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test(size=(80, 24)) as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            editor.render_whitespace = "trailing"
+            editor.show_indentation_guides = False
+            ta = editor.editor
+            ta.soft_wrap = False
+            await pilot.pause()
+            gw = ta.gutter_width
+
+            # At scroll_x=0: find trailing marker positions
+            strip_before = ta._render_line(0)
+            markers_before = _find_whitespace_positions(strip_before, gw)
+            assert len(markers_before) == 4, (
+                f"expected 4 trailing markers at scroll_x=0, got {markers_before}"
+            )
+
+            # Scroll right by a small amount (within max_scroll_x bounds)
+            scroll_amount = 3
+            ta.scroll_x = scroll_amount
+            await pilot.pause()
+            strip_after = ta._render_line(0)
+            markers_after = _find_whitespace_positions(strip_after, gw)
+
+            # Should still have exactly 4 trailing markers
+            assert len(markers_after) == 4, (
+                f"expected 4 trailing markers at scroll_x={scroll_amount}, "
+                f"got {markers_after}"
+            )
+            # Markers should shift left by scroll_amount
+            before_positions = sorted(markers_before.keys())
+            after_positions = sorted(markers_after.keys())
+            for b, a in zip(before_positions, after_positions, strict=True):
+                assert a == b - scroll_amount, (
+                    f"expected position {b} to shift to {b - scroll_amount}, got {a}"
+                )
+
+    @pytest.mark.asyncio
     async def test_e11_all_whitespace_line(self, workspace: Path):
         """All-whitespace line → all modes render everything."""
         f = workspace / "allws.py"

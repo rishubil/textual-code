@@ -388,6 +388,7 @@ class MultiCursorTextArea(TextArea):
             return strip
 
         gutter_width = self.gutter_width if self.show_line_numbers else 0
+        scroll_x = self.scroll_offset.x if not self.soft_wrap else 0
         ws_fg = (
             self._OVERLAY_COLOR_LIGHT
             if self._is_light_theme()
@@ -402,8 +403,8 @@ class MultiCursorTextArea(TextArea):
             seg_len = cell_len(seg_text)
 
             seg_end = cell_pos + seg_len
-            content_start = cell_pos - gutter_width
-            content_end = seg_end - gutter_width
+            content_start = cell_pos - gutter_width + scroll_x
+            content_end = seg_end - gutter_width + scroll_x
 
             # Fast path: segment entirely outside render region
             if cell_pos < gutter_width or not any(
@@ -417,7 +418,7 @@ class MultiCursorTextArea(TextArea):
             existing_bg = seg_style.bgcolor if seg_style else None
             ws_style = Style(color=ws_fg, bgcolor=existing_bg)
             for ch in seg_text:
-                content_col = cell_pos - gutter_width
+                content_col = cell_pos - gutter_width + scroll_x
                 marker = ws_map.get(content_col)
                 if content_col in render_cols and marker is not None:
                     new_segments.append(Segment(marker, ws_style))
@@ -454,6 +455,7 @@ class MultiCursorTextArea(TextArea):
 
         guide_positions = set(range(0, leading_spaces, indent_width))
         gutter_width = self.gutter_width if self.show_line_numbers else 0
+        scroll_x = self.scroll_offset.x if not self.soft_wrap else 0
 
         guide_fg = (
             self._OVERLAY_COLOR_LIGHT
@@ -470,8 +472,8 @@ class MultiCursorTextArea(TextArea):
 
             # Fast path: segment entirely outside guide region
             seg_end = cell_pos + seg_len
-            content_start = cell_pos - gutter_width
-            content_end = seg_end - gutter_width
+            content_start = cell_pos - gutter_width + scroll_x
+            content_end = seg_end - gutter_width + scroll_x
 
             if cell_pos < gutter_width or not any(
                 content_start <= p < content_end for p in guide_positions
@@ -485,7 +487,7 @@ class MultiCursorTextArea(TextArea):
             existing_bg = seg_style.bgcolor if seg_style else None
             guide_style = Style(color=guide_fg, bgcolor=existing_bg)
             for ch in seg_text:
-                content_col = cell_pos - gutter_width
+                content_col = cell_pos - gutter_width + scroll_x
                 if content_col in guide_positions:
                     new_segments.append(Segment(self._INDENT_GUIDE_CHAR, guide_style))
                 else:
