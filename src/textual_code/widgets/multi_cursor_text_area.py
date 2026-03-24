@@ -1079,10 +1079,19 @@ class MultiCursorTextArea(TextArea):
         # after CRLF normalization (preserves exact whitespace).
         local = self.app.clipboard
         if local != text:
-            # Paste from external source or clipboard changed —
-            # update local clipboard so action_paste uses this text.
-            self.app.copy_to_clipboard(text)
-            MultiCursorTextArea._line_copy_text = None
+            # Windows Terminal may strip trailing whitespace from each line
+            # and/or trailing newlines.  If texts match after stripping,
+            # prefer the local clipboard to preserve exact whitespace
+            # and line-copy state.
+            local_stripped = "\n".join(
+                line.rstrip() for line in local.rstrip().split("\n")
+            )
+            text_stripped = "\n".join(
+                line.rstrip() for line in text.rstrip().split("\n")
+            )
+            if local_stripped != text_stripped:
+                self.app.copy_to_clipboard(text)
+                MultiCursorTextArea._line_copy_text = None
 
         self.action_paste()
 

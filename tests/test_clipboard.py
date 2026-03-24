@@ -437,7 +437,7 @@ async def test_paste_event_normalizes_crlf(workspace: Path):
 
 
 async def test_paste_event_with_stripped_trailing_spaces(workspace: Path):
-    """Paste event with different text than local clipboard uses event text."""
+    """Paste event with trailing-space-stripped text should prefer local clipboard."""
     f = await _open_file(workspace, "hello\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
@@ -449,13 +449,90 @@ async def test_paste_event_with_stripped_trailing_spaces(workspace: Path):
         app.copy_to_clipboard("foo   ")
         ta.selection = Selection.cursor((0, 0))
         await pilot.pause()
-        # Simulate Paste event with different text (stripped by system clipboard)
-        # Since the texts don't match exactly, the event text is used
+        # Simulate Paste event with stripped text (as Windows Terminal would send)
+        # The local clipboard should be preferred to preserve trailing spaces
         await ta._on_paste(events.Paste("foo"))
         await pilot.pause()
-        # The event text "foo" is used (not local clipboard "foo   ")
-        assert ta.text.startswith("foo")
-        assert not ta.text.startswith("foo   ")
+        # Local clipboard "foo   " should be used (trailing spaces preserved)
+        assert "foo   " in ta.text
+
+
+async def test_paste_event_line_copy_with_stripped_whitespace(workspace: Path):
+    """Line-paste via Paste event works even when terminal strips trailing spaces."""
+    f = await _open_file(workspace, "foo\nbar  \nbaz\nhello\n")
+    app = make_app(workspace, open_file=f, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        ta = editor.editor
+        # Line-copy 'bar  ' (no selection, row 1) → clipboard = "bar  \n"
+        ta.cursor_location = (1, 1)
+        await pilot.press("ctrl+c")
+        await pilot.pause()
+        assert app.clipboard == "bar  \n"
+        # Move cursor to 'hello' line (row 3)
+        ta.cursor_location = (3, 1)
+        # Simulate Paste event with stripped text
+        # (Windows Terminal strips trailing spaces)
+        await ta._on_paste(events.Paste("bar\n"))
+        await pilot.pause()
+        lines = ta.text.split("\n")
+        # Expected: foo, bar  , baz, bar  , hello, (empty)
+        # Line-paste should insert "bar  " ABOVE "hello"
+        assert lines[3] == "bar  "
+        assert lines[4] == "hello"
+        # Cursor should stay on 'hello' (now row 4), same column
+        assert ta.cursor_location == (4, 1)
+
+
+async def test_paste_event_line_copy_with_stripped_trailing_newline(workspace: Path):
+    """Line-paste via Paste event works when terminal strips trailing newline."""
+    f = await _open_file(workspace, "foo\nbar\nbaz\nhello\n")
+    app = make_app(workspace, open_file=f, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        ta = editor.editor
+        # Line-copy 'bar' (no selection, row 1) → clipboard = "bar\n"
+        ta.cursor_location = (1, 1)
+        await pilot.press("ctrl+c")
+        await pilot.pause()
+        assert app.clipboard == "bar\n"
+        # Move cursor to 'hello' line (row 3)
+        ta.cursor_location = (3, 1)
+        # Simulate Paste event with stripped trailing newline
+        # (Windows Terminal may strip trailing newline from clipboard text)
+        await ta._on_paste(events.Paste("bar"))
+        await pilot.pause()
+        lines = ta.text.split("\n")
+        # Line-paste should insert "bar" ABOVE "hello"
+        assert lines[3] == "bar"
+        assert lines[4] == "hello"
+        # Cursor should stay on 'hello' (now row 4), same column
+        assert ta.cursor_location == (4, 1)
+
+
+async def test_paste_event_truly_different_text_uses_event(workspace: Path):
+    """Paste event with genuinely different text should use event text."""
+    f = await _open_file(workspace, "hello\n")
+    app = make_app(workspace, open_file=f, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        ta = editor.editor
+        # Local clipboard has something
+        app.copy_to_clipboard("foo   ")
+        ta.selection = Selection.cursor((0, 0))
+        await pilot.pause()
+        # Simulate Paste event with completely different text
+        await ta._on_paste(events.Paste("completely different"))
+        await pilot.pause()
+        # Event text should be used, not local clipboard
+        assert "completely different" in ta.text
+        assert "foo   " not in ta.text
 
 
 async def test_paste_event_external_text_used_as_is(workspace: Path):
