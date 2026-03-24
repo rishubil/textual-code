@@ -288,6 +288,10 @@ Pressing `Enter` in the find input or clicking the "Next" button searches for th
 
 If no match is found, a warning notification shows "'query' not found".
 
+### Find Previous: Shift+Enter or ↑ Prev button
+
+Pressing `Shift+Enter` in the find input or clicking the "↑ Prev" button searches backward for the previous match before the current cursor position. The search wraps around to the last match in the document when it reaches the beginning.
+
 ### Regex Mode: toggle via `.*` checkbox
 
 The `.*` checkbox enables full Python regex pattern matching. When regex is on, the find query is compiled as-is (not escaped). Invalid regex patterns produce an error notification ("Invalid regex: ...").

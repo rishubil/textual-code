@@ -36,25 +36,6 @@ It’s that simple.
 - Syntax highlighting
 - Image file preview in the terminal
 
-## Troubleshooting
-
-### Keyboard shortcuts not working
-
-Some terminal emulators intercept certain key combinations before they reach the application.
-If a shortcut does not work as expected, run the following command and press the shortcut to verify that your terminal recognizes it:
-
-> [!TIP]
-> We recommend using `uvx` as it requires no separate installation.
-
-```bash
-# Using pip
-pip install textual-dev
-textual keys
-
-# Run without installing (recommended)
-uvx --from textual-dev textual keys
-```
-
 ## Installation
 
 > [!TIP]
@@ -77,6 +58,25 @@ To open the textual code, run the following command in your workspace:
 
 ```bash
 textual-code
+```
+
+## Troubleshooting
+
+### Keyboard shortcuts not working
+
+Some terminal emulators intercept certain key combinations before they reach the application.
+If a shortcut does not work as expected, run the following command and press the shortcut to verify that your terminal recognizes it:
+
+> [!TIP]
+> We recommend using `uvx` as it requires no separate installation.
+
+```bash
+# Using pip
+pip install textual-dev
+textual keys
+
+# Run without installing (recommended)
+uvx --from textual-dev textual keys
 ```
 
 ## Development

@@ -64,35 +64,53 @@ async def test_transform_lowercase(workspace: Path, mixed_case_file: Path):
         assert lines[1] == "foo bar"
 
 
-# ── No-op cases ──────────────────────────────────────────────────────────────
+# ── Collapsed cursor auto-selects word ───────────────────────────────────────
 
 
-async def test_transform_uppercase_no_selection_noop(
+async def test_transform_uppercase_collapsed_cursor_selects_word(
     workspace: Path, mixed_case_file: Path
 ):
-    """Transforming with no selection (just a cursor) is a no-op."""
+    """Collapsed cursor auto-selects word under cursor (VSCode behavior)."""
     app = make_app(workspace, light=True, open_file=mixed_case_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = await _get_editor(app)
-        original = ta.text
+        # Cursor inside "Hello" → auto-selects "Hello" → "HELLO"
         ta.cursor_location = (0, 3)
         ta.action_transform_uppercase()
         await pilot.pause()
-        assert ta.text == original
+        lines = ta.text.split("\n")
+        assert lines[0] == "HELLO World"
 
 
-async def test_transform_lowercase_no_selection_noop(
+async def test_transform_lowercase_collapsed_cursor_selects_word(
     workspace: Path, mixed_case_file: Path
 ):
-    """Transforming with no selection (just a cursor) is a no-op."""
+    """Collapsed cursor auto-selects word under cursor (VSCode behavior)."""
+    app = make_app(workspace, light=True, open_file=mixed_case_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = await _get_editor(app)
+        # Cursor inside "BAR" at (1, 5) → auto-selects "BAR" → "bar"
+        ta.cursor_location = (1, 5)
+        ta.action_transform_lowercase()
+        await pilot.pause()
+        lines = ta.text.split("\n")
+        assert lines[1] == "foo bar"
+
+
+async def test_transform_collapsed_cursor_on_whitespace_noop(
+    workspace: Path, mixed_case_file: Path
+):
+    """Collapsed cursor on whitespace/non-word char is still a no-op."""
     app = make_app(workspace, light=True, open_file=mixed_case_file)
     async with app.run_test() as pilot:
         await pilot.pause()
         ta = await _get_editor(app)
         original = ta.text
-        ta.cursor_location = (1, 0)
-        ta.action_transform_lowercase()
+        # Cursor at the space between "Hello" and "World"
+        ta.cursor_location = (0, 5)
+        ta.action_transform_uppercase()
         await pilot.pause()
         assert ta.text == original
 
@@ -152,7 +170,7 @@ async def test_transform_backward_selection(workspace: Path, mixed_case_file: Pa
 
 
 async def test_transform_command_palette(workspace: Path):
-    """Transform commands are available in the system command palette."""
+    """All 7 transform commands are available in the system command palette."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -160,3 +178,43 @@ async def test_transform_command_palette(workspace: Path):
         titles = [cmd.title for cmd in commands]
         assert "Transform to uppercase" in titles
         assert "Transform to lowercase" in titles
+        assert "Transform to title case" in titles
+        assert "Transform to snake_case" in titles
+        assert "Transform to camelCase" in titles
+        assert "Transform to kebab-case" in titles
+        assert "Transform to PascalCase" in titles
+
+
+# ── Selection length adjustment ─────────────────────────────────────────────
+
+
+async def test_snake_case_selection_grows(workspace: Path):
+    """snake_case adds underscores, selection end column must increase."""
+    f = workspace / "sel.txt"
+    f.write_text("parseHTMLString\n")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = await _get_editor(app)
+        # "parseHTMLString" (15 chars) → "parse_html_string" (17 chars)
+        ta.selection = Selection(start=(0, 0), end=(0, 15))
+        ta.action_transform_snake_case()
+        await pilot.pause()
+        assert ta.document.get_line(0) == "parse_html_string"
+        assert ta.selection == Selection((0, 0), (0, 17))
+
+
+async def test_pascal_case_selection_shrinks(workspace: Path):
+    """PascalCase removes separators, selection end column must decrease."""
+    f = workspace / "sel.txt"
+    f.write_text("hello world\n")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ta = await _get_editor(app)
+        # "hello world" (11 chars) → "HelloWorld" (10 chars)
+        ta.selection = Selection(start=(0, 0), end=(0, 11))
+        ta.action_transform_pascal_case()
+        await pilot.pause()
+        assert ta.document.get_line(0) == "HelloWorld"
+        assert ta.selection == Selection((0, 0), (0, 10))

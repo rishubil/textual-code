@@ -865,6 +865,31 @@ class TextualCode(App):
             "Convert selected text to lowercase",
             self.action_transform_lowercase_cmd,
         )
+        yield SystemCommand(
+            "Transform to title case",
+            "Convert selected text to title case",
+            self.action_transform_title_case_cmd,
+        )
+        yield SystemCommand(
+            "Transform to snake_case",
+            "Convert selected text to snake_case",
+            self.action_transform_snake_case_cmd,
+        )
+        yield SystemCommand(
+            "Transform to camelCase",
+            "Convert selected text to camelCase",
+            self.action_transform_camel_case_cmd,
+        )
+        yield SystemCommand(
+            "Transform to kebab-case",
+            "Convert selected text to kebab-case",
+            self.action_transform_kebab_case_cmd,
+        )
+        yield SystemCommand(
+            "Transform to PascalCase",
+            "Convert selected text to PascalCase",
+            self.action_transform_pascal_case_cmd,
+        )
 
     def action_sort_lines_ascending_cmd(self) -> None:
         """Sort selected lines ascending via command palette."""
@@ -895,6 +920,46 @@ class TextualCode(App):
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
             self.call_next(code_editor.editor.action_transform_lowercase)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_transform_title_case_cmd(self) -> None:
+        """Transform selected text to title case via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.editor.action_transform_title_case)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_transform_snake_case_cmd(self) -> None:
+        """Transform selected text to snake_case via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.editor.action_transform_snake_case)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_transform_camel_case_cmd(self) -> None:
+        """Transform selected text to camelCase via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.editor.action_transform_camel_case)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_transform_kebab_case_cmd(self) -> None:
+        """Transform selected text to kebab-case via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.editor.action_transform_kebab_case)
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_transform_pascal_case_cmd(self) -> None:
+        """Transform selected text to PascalCase via command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(code_editor.editor.action_transform_pascal_case)
         else:
             self.notify("No file open.", severity="error")
 

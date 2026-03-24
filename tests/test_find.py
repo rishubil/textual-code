@@ -22,7 +22,10 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import make_app
-from textual_code.widgets.code_editor import _text_offset_to_location
+from textual_code.widgets.code_editor import (
+    _find_previous,
+    _text_offset_to_location,
+)
 from textual_code.widgets.find_replace_bar import FindReplaceBar
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
@@ -706,3 +709,135 @@ async def test_case_sensitive_find_does_not_match_different_case(workspace: Path
         # No selection change since "hello" != "HELLO" (case-sensitive default)
         sel = editor.editor.selection
         assert sel.start == sel.end  # cursor not moved to a selection
+
+
+# ── _find_previous unit tests ────────────────────────────────────────────────
+
+
+def test_find_previous_basic():
+    """_find_previous finds the match before cursor_offset."""
+    text = "hello world hello"
+    # cursor at offset 17 (end of text), match at 12-17 has end=17 (not < 17),
+    # so it is skipped; first 'hello' at 0-5 is found
+    start, end = _find_previous(text, "hello", 17)
+    assert (start, end) == (0, 5)
+
+
+def test_find_previous_wraps_around():
+    """_find_previous wraps to the last match when no match before cursor."""
+    text = "hello world hello"
+    # cursor at offset 0, no match before it → wraps to last match at 12
+    start, end = _find_previous(text, "hello", 0)
+    assert (start, end) == (12, 17)
+
+
+def test_find_previous_not_found():
+    """_find_previous returns (-1, -1) when query not in text."""
+    assert _find_previous("hello world", "zzz", 5) == (-1, -1)
+
+
+def test_find_previous_regex():
+    """_find_previous works with regex patterns."""
+    text = "abc 123 def 456"
+    # cursor at 12 (start of "456"), previous numeric match is "123" at 4-7
+    start, end = _find_previous(text, r"\d+", 12, use_regex=True)
+    assert (start, end) == (4, 7)
+
+
+def test_find_previous_case_insensitive():
+    """_find_previous respects case_sensitive=False."""
+    text = "Hello HELLO hello"
+    # cursor at 12 (start of last "hello"), previous match is "HELLO" at 6-11
+    start, end = _find_previous(text, "hello", 12, case_sensitive=False)
+    assert (start, end) == (6, 11)
+
+
+# ── Find Previous integration tests ─────────────────────────────────────────
+
+
+async def test_find_previous_selects_previous_match(workspace: Path, search_file: Path):
+    """Shift+Enter in find bar selects the previous match."""
+    # search_file: "hello world\nhello textual\nfoo bar\n"
+    app = make_app(workspace, light=True, open_file=search_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # Place cursor after second 'hello' (row=1, col=5)
+        editor.editor.cursor_location = (1, 5)
+        await pilot.pause()
+
+        editor.action_find()
+        await pilot.pause()
+
+        input_widget = editor.query_one("#find_input")
+        await pilot.click(input_widget)
+        await pilot.press("h", "e", "l", "l", "o")
+
+        # Click prev_match button
+        await pilot.click("#prev_match")
+        await pilot.pause()
+
+        sel = editor.editor.selection
+        # Should find 'hello' at (0, 0)-(0, 5) — the previous match
+        assert sel.start == (0, 0)
+        assert sel.end == (0, 5)
+
+
+async def test_find_previous_wraps_to_last_match(workspace: Path, search_file: Path):
+    """Find previous from before all matches wraps to the last match."""
+    # search_file: "hello world\nhello textual\nfoo bar\n"
+    app = make_app(workspace, light=True, open_file=search_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # Cursor at start
+        editor.editor.cursor_location = (0, 0)
+        await pilot.pause()
+
+        editor.action_find()
+        await pilot.pause()
+
+        input_widget = editor.query_one("#find_input")
+        await pilot.click(input_widget)
+        await pilot.press("h", "e", "l", "l", "o")
+
+        await pilot.click("#prev_match")
+        await pilot.pause()
+
+        sel = editor.editor.selection
+        # Wraps to last 'hello' at (1, 0)-(1, 5)
+        assert sel.start == (1, 0)
+        assert sel.end == (1, 5)
+
+
+async def test_find_previous_shift_enter(workspace: Path, search_file: Path):
+    """Shift+Enter in find input triggers find previous."""
+    app = make_app(workspace, light=True, open_file=search_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # Place cursor at end of file
+        editor.editor.cursor_location = (2, 7)
+        await pilot.pause()
+
+        editor.action_find()
+        await pilot.pause()
+
+        input_widget = editor.query_one("#find_input")
+        await pilot.click(input_widget)
+        await pilot.press("h", "e", "l", "l", "o")
+
+        # Shift+Enter should find previous
+        await pilot.press("shift+enter")
+        await pilot.pause()
+
+        sel = editor.editor.selection
+        # Should find 'hello' at (1, 0)-(1, 5) — the last match before cursor
+        assert sel.start == (1, 0)
+        assert sel.end == (1, 5)
