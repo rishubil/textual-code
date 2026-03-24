@@ -265,8 +265,14 @@ async def test_select_all_occurrences_clears_previous_cursors(
         assert (0, 5) not in editor.editor.extra_cursors
 
 
-async def test_select_all_occurrences_case_sensitive(workspace: Path):
-    """Search is case-sensitive: 'foo' does not match 'Foo'."""
+async def test_select_all_occurrences_case_insensitive_from_selection(
+    workspace: Path,
+):
+    """From selection, search is case-insensitive: 'foo' matches 'Foo' and 'FOO'.
+
+    Matches VSCode behavior where Select All Occurrences from a selection
+    uses case-insensitive matching.
+    """
     from textual.widgets.text_area import Selection
 
     f = workspace / "case.txt"
@@ -282,8 +288,8 @@ async def test_select_all_occurrences_case_sensitive(workspace: Path):
         editor.action_select_all_occurrences()
         await pilot.pause()
 
-        # Only 1 match → no extra cursors
-        assert editor.editor.extra_cursors == []
+        # All 3 case variants matched (case-insensitive)
+        assert len(editor.editor.extra_cursors) == 2
 
 
 async def test_select_all_occurrences_multiline(
