@@ -1097,6 +1097,9 @@ class CodeEditor(Static):
         self._notified_copy_line_ending: bool = False
         # tracks the end offset of the last successful find for sequential search
         self._find_offset: int | None = None
+        # Ctrl+D mode tracking: word-boundary mode when initiated from collapsed cursor
+        self._ctrl_d_word_mode: bool = False
+        self._ctrl_d_query: str = ""
         # EditorConfig save-time transformations (None = not set)
         self._trim_trailing_whitespace: bool | None = None
         self._insert_final_newline: bool | None = None
@@ -2119,6 +2122,10 @@ class CodeEditor(Static):
     def on_cursors_changed(self, event: MultiCursorTextArea.CursorsChanged):
         event.stop()
         self._notify_footer()
+        # Reset Ctrl+D word mode when extra cursors are cleared (e.g. Escape)
+        if not self.editor.extra_cursors:
+            self._ctrl_d_word_mode = False
+            self._ctrl_d_query = ""
 
     @on(MultiCursorTextArea.ClipboardAction)
     def on_clipboard_action(self, event: MultiCursorTextArea.ClipboardAction) -> None:
@@ -2176,16 +2183,23 @@ class CodeEditor(Static):
     def action_select_all_occurrences(self) -> None:
         """Select all occurrences of the current selection or word under cursor.
 
-        Sets the primary selection to the first match and adds extra cursors at
-        the start of each subsequent match. Uses plain-text (re.escape) search,
-        case-sensitive.
+        Matching VSCode behavior:
+        - From collapsed cursor: whole-word, case-sensitive matching.
+        - From existing selection: substring, case-insensitive matching.
         """
+        sel = self.editor.selection
+        from_collapsed = sel.start == sel.end
+
         query = self._get_query_text()
         if not query:
             return
 
         text = self.text
-        matches = list(re.finditer(re.escape(query), text))
+        if from_collapsed:
+            pattern = re.compile(r"\b" + re.escape(query) + r"\b")
+        else:
+            pattern = re.compile(re.escape(query), re.IGNORECASE)
+        matches = list(pattern.finditer(text))
         count = self._apply_matches_as_cursors(matches, text)
         self._find_offset = None
 
@@ -2195,7 +2209,14 @@ class CodeEditor(Static):
             self.notify(f"{count} occurrences selected")
 
     def action_select_next_occurrence(self) -> None:
-        """Add a cursor at the next occurrence (VS Code Ctrl+D style)."""
+        """Add a cursor at the next occurrence (VS Code Ctrl+D style).
+
+        Two modes, matching VSCode behavior:
+        - **Word mode** (from collapsed cursor): case-sensitive, whole-word
+          boundary matching. Activated when Ctrl+D first selects a word.
+        - **Substring mode** (from existing selection): case-insensitive,
+          plain substring matching. Used when user has text selected.
+        """
         from textual.widgets.text_area import Selection
 
         text = self.text
@@ -2205,11 +2226,14 @@ class CodeEditor(Static):
 
         sel = self.editor.selection
 
-        # Case 1: No selection — find and select the word instance under cursor
+        # Case 1: No selection — select word under cursor (word-boundary mode)
         if sel.start == sel.end:
+            self._ctrl_d_word_mode = True
+            self._ctrl_d_query = query
             row, col = self.editor.cursor_location
             line_offset = _location_to_text_offset(text, (row, 0))
-            for m in re.finditer(re.escape(query), text):
+            pattern = r"\b" + re.escape(query) + r"\b"
+            for m in re.finditer(pattern, text):
                 if m.start() <= line_offset + col < m.end():
                     self.editor.selection = Selection(
                         start=_text_offset_to_location(text, m.start()),
@@ -2219,7 +2243,11 @@ class CodeEditor(Static):
             return
 
         # Case 2: Selection exists — find next occurrence
-        # Use max() to get logical end, handling reverse selections (end < start)
+        # Reset word mode if the selected text changed (user selected manually)
+        if self._ctrl_d_word_mode and self.editor.selected_text != self._ctrl_d_query:
+            self._ctrl_d_word_mode = False
+            self._ctrl_d_query = ""
+
         if self.editor.extra_cursors:
             last_cursor = self.editor.extra_cursors[-1]
             last_anchor = self.editor.extra_anchors[-1]
@@ -2227,17 +2255,43 @@ class CodeEditor(Static):
         else:
             search_from = _location_to_text_offset(text, max(sel.start, sel.end))
 
-        start, end = _find_next(text, query, search_from)
+        if self._ctrl_d_word_mode:
+            start, end = _find_next(
+                text,
+                r"\b" + re.escape(query) + r"\b",
+                search_from,
+                use_regex=True,
+                case_sensitive=True,
+            )
+        else:
+            start, end = _find_next(text, query, search_from, case_sensitive=False)
+
         if start == -1:
-            return  # No occurrences at all
+            return
 
         match_start = _text_offset_to_location(text, start)
         match_end = _text_offset_to_location(text, end)
 
-        # Check if we've wrapped around to the primary selection (all selected)
-        if match_start == min(sel.start, sel.end):
-            self.notify("All occurrences already selected", severity="information")
+        # Check if match is already selected (primary or any extra cursor)
+        primary_start = min(sel.start, sel.end)
+        primary_end = max(sel.start, sel.end)
+        if match_start == primary_start and match_end == primary_end:
+            self.notify(
+                "All occurrences already selected",
+                severity="information",
+            )
             return
+        for ec, ea in zip(
+            self.editor.extra_cursors,
+            self.editor.extra_anchors,
+            strict=True,
+        ):
+            if min(ec, ea) == match_start and max(ec, ea) == match_end:
+                self.notify(
+                    "All occurrences already selected",
+                    severity="information",
+                )
+                return
 
         # Match extra cursor direction to primary selection
         cursor, anchor = (

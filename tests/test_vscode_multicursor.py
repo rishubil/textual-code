@@ -12,13 +12,11 @@ Position convention:
   Textual uses 0-based (row, col).
   Conversion: VSCode Position(line, col) → Textual (line-1, col-1)
 
-Behavioral differences from VSCode:
-  1. Our Ctrl+D uses plain substring search; VSCode uses word-boundary matching
-     when starting from a collapsed cursor.
-     → VSCode: "app" in cursor → skips "apples", "whatsapp"; matches only "app"
-     → Ours: "app" in cursor → matches "app" in "apples", "whatsapp" too
-  2. Our Ctrl+D is case-sensitive; VSCode's case sensitivity depends on context.
-     → Documented in test_ctrl_d_case_sensitive_search.
+Matching VSCode behavior:
+  1. From collapsed cursor → word-boundary mode (case-sensitive, whole-word).
+     "app" in cursor → skips "apples", "whatsapp", "App"; matches only "app".
+  2. From existing selection → substring mode (case-insensitive).
+     "test" selected → finds "Test", "test" in "testte", etc.
 """
 
 from pathlib import Path
@@ -232,12 +230,14 @@ class TestCtrlDTouchingRanges:
             assert lines[2] == "zz"
 
 
-class TestCtrlDCaseSensitivity:
+class TestCtrlDCaseInsensitive:
     """Adapted from VSCode issue #20651: case-insensitive matching.
 
-    VSCode behavior: Ctrl+D with "test" selected matches "Test" (case-insensitive).
-    Our behavior: Ctrl+D is case-sensitive — "test" does NOT match "Test".
-    This is a documented behavioral difference.
+    When Ctrl+D starts from an existing selection (not collapsed cursor),
+    it uses case-insensitive substring matching. This matches VSCode behavior.
+
+    Text: ['test', 'testte', 'Test', 'testte', 'test']
+    Select "test" → Ctrl+D finds all occurrences including "Test".
     """
 
     @pytest.fixture
@@ -246,11 +246,12 @@ class TestCtrlDCaseSensitivity:
         f.write_text("test\ntestte\nTest\ntestte\ntest\n")
         return f
 
-    async def test_ctrl_d_case_sensitive_search(self, workspace: Path, case_file: Path):
-        """Ctrl+D is case-sensitive: 'test' matches 'test' and 'testte' but not 'Test'.
+    async def test_ctrl_d_case_insensitive_from_selection(
+        self, workspace: Path, case_file: Path
+    ):
+        """Ctrl+D from selection is case-insensitive: 'test' matches 'Test'.
 
-        Behavioral difference: VSCode finds 'Test' (case-insensitive).
-        Our editor skips 'Test' and only matches exact case.
+        Matches VSCode issue #20651 behavior.
         """
         app = make_app(workspace, light=True, open_file=case_file)
         async with app.run_test() as pilot:
@@ -259,7 +260,7 @@ class TestCtrlDCaseSensitivity:
             assert editor is not None
             ta = editor.editor
 
-            # Select "test" on line 0
+            # Select "test" on line 0 (user selection → substring mode)
             ta.selection = Selection((0, 0), (0, 4))
             await pilot.pause()
 
@@ -269,30 +270,34 @@ class TestCtrlDCaseSensitivity:
             assert len(ta.extra_cursors) == 1
             assert _sel(ta, extra_index=0) == ((1, 0), (1, 4))
 
-            # Second Ctrl+D: skips "Test" (case mismatch),
-            # finds "test" in "testte" line 3
+            # Second Ctrl+D: finds "Test" on line 2 (case-insensitive!)
             await pilot.press("ctrl+d")
             await pilot.pause()
             assert len(ta.extra_cursors) == 2
-            assert _sel(ta, extra_index=1) == ((3, 0), (3, 4))
+            assert _sel(ta, extra_index=1) == ((2, 0), (2, 4))
 
-            # Third Ctrl+D: finds "test" on line 4
+            # Third Ctrl+D: finds "test" in "testte" on line 3
             await pilot.press("ctrl+d")
             await pilot.pause()
             assert len(ta.extra_cursors) == 3
-            assert _sel(ta, extra_index=2) == ((4, 0), (4, 4))
+            assert _sel(ta, extra_index=2) == ((3, 0), (3, 4))
+
+            # Fourth Ctrl+D: finds "test" on line 4
+            await pilot.press("ctrl+d")
+            await pilot.pause()
+            assert len(ta.extra_cursors) == 4
+            assert _sel(ta, extra_index=3) == ((4, 0), (4, 4))
 
 
-class TestCtrlDSubstringMatching:
+class TestCtrlDWordBoundary:
     """Adapted from VSCode 'Find state disassociation - enters mode'.
 
-    VSCode behavior: Ctrl+D from collapsed cursor uses word-boundary matching.
-    Our behavior: Ctrl+D uses plain substring matching — no word boundaries.
-    This is a documented behavioral difference.
+    When Ctrl+D starts from a collapsed cursor, it uses word-boundary matching
+    (case-sensitive, whole-word). This matches VSCode behavior.
 
-    VSCode text: ['app', 'apples', 'whatsapp', 'app', 'App', ' app']
-    VSCode: 'app' from cursor → matches only 'app' (lines 1, 4) and ' app' (line 6)
-    Ours: 'app' from cursor → matches 'app' in 'apples', 'whatsapp', etc.
+    Text: ['app', 'apples', 'whatsapp', 'app', 'App', ' app']
+    Ctrl+D from cursor in "app" → skips "apples", "whatsapp", "App"
+    → matches only whole-word "app" instances.
     """
 
     @pytest.fixture
@@ -301,10 +306,14 @@ class TestCtrlDSubstringMatching:
         f.write_text("app\napples\nwhatsapp\napp\nApp\n app\n")
         return f
 
-    async def test_ctrl_d_matches_substrings(self, workspace: Path, app_file: Path):
-        """Ctrl+D finds 'app' as substring in 'apples' and 'whatsapp'.
+    async def test_ctrl_d_word_boundary_from_collapsed(
+        self, workspace: Path, app_file: Path
+    ):
+        """Ctrl+D from collapsed cursor uses word boundaries.
 
-        This is different from VSCode which uses word boundaries.
+        Matches VSCode 'Find state disassociation - enters mode'.
+        'app' skips 'apples' (no boundary after), 'whatsapp' (no boundary
+        before), 'App' (case mismatch). Matches 'app' and ' app'.
         """
         app = make_app(workspace, light=True, open_file=app_file)
         async with app.run_test() as pilot:
@@ -322,18 +331,19 @@ class TestCtrlDSubstringMatching:
             await pilot.pause()
             assert _sel(ta) == ((0, 0), (0, 3))
 
-            # Second Ctrl+D: finds "app" inside "apples" on line 1
-            # (VSCode would skip this — word boundary mismatch)
+            # Second Ctrl+D: skips "apples" and "whatsapp",
+            # finds whole-word "app" on line 3
             await pilot.press("ctrl+d")
             await pilot.pause()
             assert len(ta.extra_cursors) == 1
-            assert _sel(ta, extra_index=0) == ((1, 0), (1, 3))
+            assert _sel(ta, extra_index=0) == ((3, 0), (3, 3))
 
-            # Third Ctrl+D: finds "app" inside "whatsapp" on line 2
+            # Third Ctrl+D: skips "App" (case-sensitive),
+            # finds " app" on line 5 (space is word boundary)
             await pilot.press("ctrl+d")
             await pilot.pause()
             assert len(ta.extra_cursors) == 2
-            assert _sel(ta, extra_index=1) == ((2, 5), (2, 8))
+            assert _sel(ta, extra_index=1) == ((5, 1), (5, 4))
 
 
 class TestCtrlDMultilineMatch:
