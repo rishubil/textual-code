@@ -162,7 +162,7 @@ async def test_c02_toggle_saves_to_config(tmp_path):
     async with app.run_test() as pilot:
         await pilot.pause()
         assert app.default_path_display_mode == "absolute"
-        app._toggle_path_display_mode_cmd()
+        app.action_toggle_path_display_mode_cmd()
         await pilot.pause()
         assert app.default_path_display_mode == "relative"
         # Verify saved to config

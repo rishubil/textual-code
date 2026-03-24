@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Input**: standard editing shortcuts in text input widgets — Ctrl+A selects all text (instead of moving cursor to home); Ctrl+D is suppressed when an Input widget has focus to prevent unintended "add next occurrence" action (Fix #54)
 - **Search**: confirmation modal before workspace Replace All — clicking Replace All now shows a confirmation dialog displaying the number of affected files and occurrences, plus a patch-style diff preview of the first match with syntax-highlighted red/green coloring; match counting runs in a background thread to keep the UI responsive; zero-match queries show a "No matches found" status without opening the modal (Fix #61)
 
+- **Shortcuts**: unified command registry — all command palette functions can now be assigned keyboard shortcuts via the F1 viewer; all shortcut-only actions now appear in the command palette; "Unbind" button to remove existing shortcuts; dynamic key hints in palette descriptions reflect custom bindings; single source of truth (`command_registry.py`) prevents commands from drifting out of sync (Fix #53)
+
 - **Editor**: all 7 VS Code case transforms — added title case, snake_case, camelCase, kebab-case, PascalCase via command palette; collapsed cursor now auto-selects word under cursor before transforming (Fix #78, Fix #79)
 - **Editor**: Find Previous — search backward via Shift+Enter in find bar or ↑ Prev button; wraps around to last match when no match before cursor
 

@@ -12,10 +12,11 @@ from rich.segment import Segment
 from rich.style import Style
 from rich.text import Text
 from textual import events
-from textual.binding import Binding
 from textual.message import Message
 from textual.strip import Strip
 from textual.widgets import TextArea
+
+from textual_code.command_registry import bindings_for_context as _bindings_for_context
 
 if TYPE_CHECKING:
     from textual_code.widgets.code_editor import LineChangeType
@@ -209,42 +210,7 @@ class MultiCursorTextArea(TextArea):
     # Shared across all instances so line-paste works across tabs.
     _line_copy_text: ClassVar[str | None] = None
 
-    BINDINGS = [
-        Binding("ctrl+shift+z", "redo", "Redo", show=False),
-        Binding("ctrl+a", "select_all", "Select all", show=False),
-        Binding("tab", "indent_line", "Indent", show=False),
-        Binding("shift+tab", "dedent_line", "Dedent", show=False),
-        Binding("alt+up", "move_line_up", "Move line up", show=False),
-        Binding("alt+down", "move_line_down", "Move line down", show=False),
-        Binding("ctrl+up", "scroll_viewport_up", "Scroll up", show=False),
-        Binding("ctrl+down", "scroll_viewport_down", "Scroll down", show=False),
-        Binding(
-            "shift+pageup",
-            "cursor_page_up_select",
-            "Select page up",
-            show=False,
-        ),
-        Binding(
-            "shift+pagedown",
-            "cursor_page_down_select",
-            "Select page down",
-            show=False,
-        ),
-        Binding("ctrl+home", "cursor_document_start", "Go to start", show=False),
-        Binding("ctrl+end", "cursor_document_end", "Go to end", show=False),
-        Binding(
-            "ctrl+shift+home",
-            "cursor_document_start(True)",
-            "Select to start",
-            show=False,
-        ),
-        Binding(
-            "ctrl+shift+end",
-            "cursor_document_end(True)",
-            "Select to end",
-            show=False,
-        ),
-    ]
+    BINDINGS = _bindings_for_context("text_area")
 
     # ── inner message ─────────────────────────────────────────────────────────
 

@@ -285,13 +285,17 @@ The following "Set default..." commands are available via the command palette:
 
 ## Keyboard Shortcuts: command palette, custom keybindings, F1 shortcuts viewer
 
+### Unified command registry: single source of truth for all commands
+
+All bindable commands are defined in `command_registry.py` as a single `COMMAND_REGISTRY` tuple. From this registry, the app derives BINDINGS lists, command palette entries, and the F1 shortcuts viewer rows. This ensures no command can drift out of sync between the palette and keybinding system.
+
 ### Command palette (Ctrl+Shift+P)
 
-The command palette provides fuzzy search across all registered commands. Commands that have a keybinding display the shortcut in their description (e.g. "Save the current file (Ctrl+S)").
+The command palette provides fuzzy search across all registered commands. Commands that have a keybinding display the shortcut dynamically in their description (e.g. "Save the current file (Ctrl+S)"). Key hints update automatically when custom keybindings are set.
 
 ### Default keybindings
 
-Keybindings are defined across three classes: `TextualCode` (app-level), `MainView` (editor view), and `MultiCursorTextArea` (text editing). The full list:
+Keybindings are defined in the unified command registry (`command_registry.py`) and assigned to three contexts: App (global), Editor (active file), and Text Area (text editing). The full list of default keybindings:
 
 | Key | Action | Context |
 |-----|--------|---------|
@@ -329,13 +333,14 @@ Keybindings are defined across three classes: `TextualCode` (app-level), `MainVi
 
 Additional shortcuts inherited from Textual's `TextArea`: Ctrl+C (copy), Ctrl+X (cut), Ctrl+V (paste), Ctrl+Z (undo), Ctrl+Y (redo).
 
-### F1 shortcuts viewer: shortcut settings with key rebinding and palette toggle
+### F1 shortcuts viewer: all commands, key rebinding, unbinding, and palette toggle
 
-Pressing F1 (or command palette "Show keyboard shortcuts") opens a modal dialog listing all keybindings in a `DataTable` with columns: Key, Description, Context.
+Pressing F1 (or command palette "Show keyboard shortcuts") opens a modal dialog listing **all** registered commands (not just those with default keybindings) in a `DataTable` with columns: Key, Description, Context. Commands without a keybinding show `(none)` in the Key column.
 
 Clicking any row opens a **Shortcut Settings** dialog (`ShortcutSettingsScreen`) where the user can:
 
 - **Change Key**: opens the rebind sub-dialog to reassign the shortcut key
+- **Unbind**: removes the current keybinding (saves `action = ""` in `keybindings.toml`; disabled when already unbound)
 - **Show in command palette**: checkbox to toggle whether the shortcut appears in the command palette
 
 ### Footer configuration: per-area modal with reorderable list
@@ -374,7 +379,7 @@ toggle_sidebar = "ctrl+b"
 
 Keys are action names (matching the second argument to `Binding()`). The rebind is saved immediately and a notification is shown: "Shortcut saved. Restart to apply changes."
 
-Custom keybindings are applied at startup by patching the class-level `BINDINGS` lists of `MainView`, `TextualCode`, and `MultiCursorTextArea`.
+Custom keybindings are applied at startup by regenerating class-level `BINDINGS` lists from the command registry with custom overrides. An empty string value (`action = ""`) means the shortcut is explicitly unbound.
 
 ### Command palette display: [display.*] sections in keybindings.toml
 
@@ -396,7 +401,7 @@ All config sections (`[bindings]`, `[display.*]`, `[footer.*]`) are saved atomic
 - No chord/sequence keybindings (e.g. Ctrl+K, Ctrl+C).
 - Keybinding changes require an app restart to take effect. Footer order changes apply immediately.
 
-**Implementation:** `config.py` (`FooterOrders`, `ShortcutDisplayEntry`, `load_keybindings`, `load_shortcut_display`, `load_footer_orders`, `save_keybindings_file`), `app.py` (`_apply_custom_keybindings`, `action_show_shortcuts`, `action_configure_footer`, `_get_focused_area`, `_collect_bindings_for_area`, `set_keybinding`, `set_shortcut_display`, `set_footer_order`, `get_footer_order`, `get_footer_priority`), `modals.py` (`ShowShortcutsScreen`, `ShortcutSettingsScreen`, `FooterConfigScreen`, `RebindKeyScreen`)
+**Implementation:** `command_registry.py` (`CommandEntry`, `COMMAND_REGISTRY`, `bindings_for_context`), `config.py` (`FooterOrders`, `ShortcutDisplayEntry`, `load_keybindings`, `load_shortcut_display`, `load_footer_orders`, `save_keybindings_file`), `app.py` (`_apply_custom_keybindings`, `action_show_shortcuts`, `action_configure_footer`, `_get_focused_area`, `_collect_bindings_for_area`, `set_keybinding`, `set_shortcut_display`, `set_footer_order`, `get_footer_order`, `get_footer_priority`), `modals.py` (`ShowShortcutsScreen`, `ShortcutSettingsScreen`, `FooterConfigScreen`, `RebindKeyScreen`)
 
 ---
 

@@ -8,13 +8,13 @@ from uuid import uuid4
 
 from textual import events, on
 from textual.app import ComposeResult
-from textual.binding import Binding
 from textual.css.query import NoMatches
 from textual.message import Message
 from textual.timer import Timer
 from textual.widget import Widget
 from textual.widgets import Button, Static, TabbedContent, TabPane
 
+from textual_code.command_registry import bindings_for_context as _bindings_for_context
 from textual_code.utils import is_binary_file
 from textual_code.widgets.code_editor import CodeEditor, CodeEditorFooter, EditorState
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
@@ -75,56 +75,7 @@ class MainView(Static):
             super().__init__()
             self.path = path
 
-    BINDINGS = [
-        Binding("ctrl+s", "save", "Save"),
-        Binding("ctrl+shift+s", "save_all", "Save all", show=False),
-        Binding("ctrl+w", "close", "Close tab", priority=True),
-        Binding("ctrl+shift+w", "close_all", "Close all", priority=True, show=False),
-        Binding("ctrl+g", "goto_line", "Goto line"),
-        Binding("ctrl+f", "find", "Find", priority=True),
-        Binding("ctrl+h", "replace", "Replace", priority=True),
-        Binding("ctrl+alt+down", "add_cursor_below", "Add cursor below", show=False),
-        Binding("ctrl+alt+up", "add_cursor_above", "Add cursor above", show=False),
-        Binding(
-            "ctrl+shift+l",
-            "select_all_occurrences",
-            "Select all occurrences",
-            show=False,
-            priority=True,
-        ),
-        Binding(
-            "ctrl+d",
-            "add_next_occurrence",
-            "Add next occurrence",
-            show=False,
-            priority=True,
-        ),
-        Binding(
-            "ctrl+backslash",
-            "split_right",
-            "Split editor right",
-            show=False,
-        ),
-        Binding(
-            "ctrl+shift+backslash",
-            "close_split",
-            "Close split",
-            show=False,
-        ),
-        Binding(
-            "ctrl+shift+m",
-            "open_markdown_preview_tab",
-            "Open markdown preview tab",
-            show=False,
-        ),
-        Binding(
-            "ctrl+alt+backslash",
-            "move_tab_to_other_split",
-            "Move tab to other split",
-            show=False,
-        ),
-        Binding("f2", "rename_file", "Rename", show=False),
-    ]
+    BINDINGS = _bindings_for_context("editor")
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
