@@ -24,7 +24,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Input**: standard editing shortcuts in text input widgets — Ctrl+A selects all text (instead of moving cursor to home); Ctrl+D is suppressed when an Input widget has focus to prevent unintended "add next occurrence" action (Fix #54)
 - **Search**: confirmation modal before workspace Replace All — clicking Replace All now shows a confirmation dialog displaying the number of affected files and occurrences, plus a patch-style diff preview of the first match with syntax-highlighted red/green coloring; match counting runs in a background thread to keep the UI responsive; zero-match queries show a "No matches found" status without opening the modal (Fix #61)
 
+- **Editor**: Ctrl+Home / Ctrl+End — jump to start/end of document; Ctrl+Shift+Home/End extends selection to document boundaries (Fix #63)
+- **Editor**: VS Code-style smart Home key — toggles between first non-whitespace character and column 0 (Fix #63)
+- **Tests**: 257 test cases ported from VSCode's editor test suite covering cursor movement, text editing, selection, multi-cursor, undo/redo, word movement, word selection, case transforms, sort lines, move lines, and find/replace (Fix #63)
+
 ### Fixed
+
+- **Editor**: fix Ctrl+D / Ctrl+Shift+L matching — Ctrl+D from collapsed cursor now uses word-boundary case-sensitive matching (matching VSCode); from existing selection uses case-insensitive substring matching (Fix #63)
+- **Editor**: fix regex find/replace `^` and `$` not matching line boundaries — added `re.MULTILINE` flag when regex mode is enabled (Fix #63)
+- **Editor**: fix regex replace with lookaheads — replace now matches against full document text instead of isolated selection, preserving lookahead/lookbehind context (Fix #63)
 
 - **Sidebar**: fix horizontal scrollbar hidden by footer — add `padding-bottom: 1` to the Sidebar so its content area does not extend into the dock-bottom Footer row, preventing the Footer from occluding horizontal scrollbars in both the Explorer tree and search results (Fix #70)
 - **Search**: enable horizontal scrolling in workspace search results — override `VerticalScroll`'s default `overflow-x: hidden` with `auto` on the results `ListView`, and allow `ListItem` children to expand beyond the container width so long result lines remain accessible (Fix #70)
