@@ -515,3 +515,402 @@ async def test_sticky_column_down_and_up(workspace: Path, cursor_test_file: Path
         assert ta.cursor_location == (0, len(LINE0)), (
             f"Sticky column should restore original column; got {ta.cursor_location}"
         )
+
+
+# ── Cursor clamping ─────────────────────────────────────────────────────────
+# VSCode: cursor.test.ts "move beyond line end", "move empty line",
+# "move one char line" — setting cursor beyond valid range clamps to bounds.
+
+
+@pytest.mark.parametrize(
+    "target, expected",
+    [
+        pytest.param((0, 25), (0, len(LINE0)), id="beyond-line-end-clamps"),
+        pytest.param((3, 20), (3, 0), id="empty-line-clamps-to-0"),
+        pytest.param((4, 20), (4, len(LINE4)), id="one-char-line-clamps"),
+    ],
+)
+async def test_cursor_clamping(workspace, cursor_test_file, target, expected):
+    """VSCode: 'move beyond line end', 'move empty line', 'move one char line'.
+
+    Setting cursor to a column beyond line length should clamp to line end.
+    """
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, target)
+        assert ta.cursor_location == expected, (
+            f"Cursor at {target} should clamp to {expected}; got {ta.cursor_location}"
+        )
+
+
+# ── Emoji / surrogate pair handling ─────────────────────────────────────────
+# VSCode: cursor.test.ts "move left/right with surrogate pair"
+# In Python, emoji are single characters (not surrogate pairs like in JS),
+# but we still verify correct cursor movement over multi-byte characters.
+
+EMOJI_LINE = "    Third Line\U0001f436"  # "    Third Line🐶" — 15 chars in Python
+
+
+@pytest.fixture
+def emoji_test_file(workspace: Path) -> Path:
+    f = workspace / "emoji_test.txt"
+    f.write_text(EMOJI_LINE + "\n")
+    return f
+
+
+async def test_move_left_with_emoji(workspace: Path, emoji_test_file: Path):
+    """VSCode: 'move left with surrogate pair' — left from after emoji."""
+    app = make_app(workspace, light=True, open_file=emoji_test_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ce = app.main_view.get_active_code_editor()
+        assert ce is not None, "No active code editor found"
+        ta = ce.editor
+        ta.selection = Selection.cursor((0, len(EMOJI_LINE)))
+        await pilot.press("left")
+        # Should move past the emoji (one character in Python)
+        assert ta.cursor_location == (0, len(EMOJI_LINE) - 1)
+
+
+async def test_move_right_with_emoji(workspace: Path, emoji_test_file: Path):
+    """VSCode: 'move right with surrogate pair' — right from before emoji."""
+    app = make_app(workspace, light=True, open_file=emoji_test_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        ce = app.main_view.get_active_code_editor()
+        assert ce is not None, "No active code editor found"
+        ta = ce.editor
+        ta.selection = Selection.cursor((0, len(EMOJI_LINE) - 1))
+        await pilot.press("right")
+        # Should move past the emoji
+        assert ta.cursor_location == (0, len(EMOJI_LINE))
+
+
+# ── Issue #44465: sticky column memory after up at first line ────────────────
+# VSCode: cursor.test.ts "issue #44465: cursor position not correct when move"
+
+
+async def test_issue_44465_sticky_column_memory(
+    workspace: Path, cursor_test_file: Path
+):
+    """VSCode issue #44465: cursor position not correct when move.
+
+    Behavioral difference: VSCode remembers sticky column after a single Up
+    on the first line (up → col 0, then down restores original column).
+    Textual resets sticky column when cursor physically moves to (0,0),
+    so the subsequent Down goes to col 0.  Both editors agree that
+    pressing Up twice resets sticky column entirely.
+    """
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 5))
+
+        # Up at first line moves cursor to start
+        await pilot.press("up")
+        assert ta.cursor_location == (0, 0), "Up at first line → start"
+
+        # Down after up — Textual resets sticky column to 0, so we go to (1,0).
+        # VSCode would go to (1,col) with the remembered original column.
+        await pilot.press("down")
+        assert ta.cursor_location == (1, 0), (
+            f"Textual: sticky column reset after up-at-first-line; "
+            f"got {ta.cursor_location}"
+        )
+
+        # Verify the basic sticky column still works for non-boundary cases.
+        # Use keyboard navigation (not direct assignment) to set sticky column.
+        ta.selection = Selection.cursor((0, 0))
+        await pilot.press("end")  # sets last_x_offset to col 20
+        assert ta.cursor_location == (0, len(LINE0))
+        await pilot.press("down")  # LINE1 is shorter → clamped
+        assert ta.cursor_location == (1, len(LINE1))
+        await pilot.press("up")  # sticky column restores to col 20
+        assert ta.cursor_location == (0, len(LINE0))
+
+
+# ── Home collapses active selection ─────────────────────────────────────────
+# VSCode: "move to beginning of line with selection multiline/singleline
+# forward/backward" — Home without Shift collapses selection and moves to
+# smart-home position of the cursor's line.
+
+
+@pytest.mark.parametrize(
+    "selection, expected",
+    [
+        # Multiline forward: cursor on LINE2 → smart-home at col 4
+        pytest.param(
+            Selection((0, 8), (2, 8)),
+            (2, 4),
+            id="multiline-forward",
+        ),
+        # Multiline backward: cursor on LINE0 → smart-home at col 5
+        pytest.param(
+            Selection((2, 8), (0, 8)),
+            (0, 5),
+            id="multiline-backward",
+        ),
+        # Single line forward: cursor on LINE2 → smart-home at col 4
+        pytest.param(
+            Selection((2, 1), (2, 8)),
+            (2, 4),
+            id="singleline-forward",
+        ),
+        # Single line backward: cursor on LINE2 → smart-home at col 4
+        pytest.param(
+            Selection((2, 8), (2, 1)),
+            (2, 4),
+            id="singleline-backward",
+        ),
+    ],
+)
+async def test_home_collapses_selection(
+    workspace, cursor_test_file, selection, expected
+):
+    """VSCode: Home without Shift collapses any active selection to smart-home
+    of the cursor's (selection end's) line."""
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot)
+        ta.selection = selection
+        await pilot.press("home")
+        assert ta.cursor_location == expected, (
+            f"Home should collapse to smart-home {expected}; got {ta.cursor_location}"
+        )
+        assert ta.selection.start == ta.selection.end, "Selection should be collapsed"
+
+
+# ── End collapses active selection ──────────────────────────────────────────
+# VSCode: "move to end of line with selection multiline/singleline
+# forward/backward" — End without Shift collapses selection and moves to
+# end of cursor's line.
+
+
+@pytest.mark.parametrize(
+    "selection, expected",
+    [
+        # Multiline forward: cursor on LINE2 → end at col 14
+        pytest.param(
+            Selection((0, 0), (2, 8)),
+            (2, len(LINE2)),
+            id="multiline-forward",
+        ),
+        # Multiline backward: cursor on LINE0 → end at col 20
+        pytest.param(
+            Selection((2, 8), (0, 0)),
+            (0, len(LINE0)),
+            id="multiline-backward",
+        ),
+        # Single line forward: cursor on LINE2 → end at col 14
+        pytest.param(
+            Selection((2, 0), (2, 8)),
+            (2, len(LINE2)),
+            id="singleline-forward",
+        ),
+        # Single line backward: cursor on LINE2 → end at col 14
+        pytest.param(
+            Selection((2, 8), (2, 0)),
+            (2, len(LINE2)),
+            id="singleline-backward",
+        ),
+    ],
+)
+async def test_end_collapses_selection(
+    workspace, cursor_test_file, selection, expected
+):
+    """VSCode: End without Shift collapses any active selection to end of the
+    cursor's (selection end's) line."""
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot)
+        ta.selection = selection
+        await pilot.press("end")
+        assert ta.cursor_location == expected, (
+            f"End should collapse to line end {expected}; got {ta.cursor_location}"
+        )
+        assert ta.selection.start == ta.selection.end, "Selection should be collapsed"
+
+
+# ── Shift+Home extends from multiline selection ─────────────────────────────
+# VSCode: "issue #17011" adapted for shift+home
+
+
+async def test_shift_home_extends_from_cursor_position(
+    workspace: Path, cursor_test_file: Path
+):
+    """VSCode issue #17011 (home variant): Shift+Home with active multiline
+    selection extends selection to smart-home of cursor's line.
+
+    With selection (0,8)→(2,8), Shift+Home → (0,8)→(2,4).
+    The anchor stays; the cursor moves to first non-WS of its line.
+    """
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot)
+        ta.selection = Selection((0, 8), (2, 8))
+        await pilot.press("shift+home")
+        # Cursor moves to smart-home of LINE2 (first non-WS at col 4)
+        assert ta.selection == Selection((0, 8), (2, 4))
+
+
+# ── Buffer start/end edge cases ─────────────────────────────────────────────
+# VSCode: "move to beginning/end of buffer from within first/last line"
+
+
+@pytest.mark.parametrize(
+    "start, key, expected",
+    [
+        # ctrl+home from within first line → (0,0)
+        pytest.param((0, 3), "ctrl+home", (0, 0), id="ctrl-home-from-first-line"),
+        # ctrl+home from default position (0,0) → stays at (0,0)
+        pytest.param((0, 0), "ctrl+home", (0, 0), id="ctrl-home-already-at-start"),
+        # ctrl+end from within last line → end of last line
+        pytest.param((4, 0), "ctrl+end", (4, len(LINE4)), id="ctrl-end-from-last-line"),
+        # ctrl+end already at end → stays
+        pytest.param(
+            (4, len(LINE4)),
+            "ctrl+end",
+            (4, len(LINE4)),
+            id="ctrl-end-already-at-end",
+        ),
+    ],
+)
+async def test_buffer_boundary_movement(
+    workspace, cursor_test_file, start, key, expected
+):
+    """VSCode: ctrl+home/end from edge positions (first/last line)."""
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, start)
+        await pilot.press(key)
+        assert ta.cursor_location == expected
+
+
+@pytest.mark.parametrize(
+    "start, key, expected_selection",
+    [
+        # ctrl+shift+home from within first line
+        pytest.param(
+            (0, 3),
+            "ctrl+shift+home",
+            Selection((0, 3), (0, 0)),
+            id="ctrl-shift-home-from-first-line",
+        ),
+        # ctrl+shift+end from within last line
+        pytest.param(
+            (4, 0),
+            "ctrl+shift+end",
+            Selection((4, 0), (4, len(LINE4))),
+            id="ctrl-shift-end-from-last-line",
+        ),
+    ],
+)
+async def test_buffer_boundary_selection(
+    workspace, cursor_test_file, start, key, expected_selection
+):
+    """VSCode: ctrl+shift+home/end selection from first/last line."""
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, start)
+        await pilot.press(key)
+        assert ta.selection == expected_selection
+
+
+# ── Move and then select ────────────────────────────────────────────────────
+# VSCode: cursor.test.ts "move and then select"
+
+
+async def test_move_and_then_select(workspace: Path, cursor_test_file: Path):
+    """VSCode: 'move and then select' — move cursor, then shift+move to select,
+    then shift+move in the opposite direction to change selection direction."""
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (1, 2))
+        # Move to (1,14) via shift+end is too specific; let's set selection manually
+        # and then use shift+arrows to extend in both directions
+        ta.selection = Selection.cursor((1, 2))
+
+        # Select forward to (1,14) using shift+end
+        await pilot.press("shift+end")
+        assert ta.selection == Selection((1, 2), (1, len(LINE1)))
+
+        # Now shift+home should reverse selection toward line start
+        await pilot.press("shift+home")
+        # Smart home from col 16 → first non-WS at col 2
+        assert ta.selection == Selection((1, 2), (1, 2))
+
+
+# ── End from whitespace at end of line ──────────────────────────────────────
+# VSCode: "move to end of line from whitespace at end of line"
+
+
+async def test_end_from_whitespace_at_end_of_line(
+    workspace: Path, cursor_test_file: Path
+):
+    """VSCode: 'move to end of line from whitespace at end of line'.
+
+    LINE0 = '     My First Line  ' has trailing whitespace.
+    End from within trailing whitespace should go to actual end of line.
+    """
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 19))
+        await pilot.press("end")
+        assert ta.cursor_location == (0, len(LINE0))
+        # Pressing End again should stay at end
+        await pilot.press("end")
+        assert ta.cursor_location == (0, len(LINE0))
+
+
+# ── Issue #15401 part 2: End key with multiline selection ────────────────────
+# VSCode: cursor.test.ts "issue #15401 part 2"
+
+
+async def test_issue_15401_end_key_with_multiline_selection_part2(
+    workspace: Path, cursor_test_file: Path
+):
+    """VSCode issue #15401 part 2: End key with multiline forward selection.
+
+    With selection (0,0)→(2,8), pressing End (no shift) should collapse
+    and move cursor to end of the line where the cursor is (LINE2 end).
+    """
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot)
+        ta.selection = Selection((0, 0), (2, 8))
+        await pilot.press("end")
+        assert ta.cursor_location == (2, len(LINE2))
+        assert ta.selection.start == ta.selection.end
+
+
+# ── Home selection extending with consecutive presses ────────────────────────
+# VSCode: "move to beginning of line from within line selection" (double press)
+
+
+async def test_home_selection_double_press(workspace: Path, cursor_test_file: Path):
+    """VSCode: shift+home twice — first to first non-WS, then to col 0."""
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 8))
+        # First shift+home: anchor at (0,8), cursor to first non-WS (0,5)
+        await pilot.press("shift+home")
+        assert ta.selection == Selection((0, 8), (0, 5))
+        # Second shift+home: anchor at (0,8), cursor to col 0
+        await pilot.press("shift+home")
+        assert ta.selection == Selection((0, 8), (0, 0))
+
+
+# ── End selection extending with consecutive presses ─────────────────────────
+# VSCode: "move to end of line from within line selection" (double press)
+
+
+async def test_end_selection_double_press(workspace: Path, cursor_test_file: Path):
+    """VSCode: shift+end twice from first non-WS — both go to end of line."""
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 5))
+        # First shift+end
+        await pilot.press("shift+end")
+        assert ta.selection == Selection((0, 5), (0, len(LINE0)))
+        # Second shift+end — stays at end
+        await pilot.press("shift+end")
+        assert ta.selection == Selection((0, 5), (0, len(LINE0)))
