@@ -1217,6 +1217,10 @@ class ShortcutSettingsScreen(ModalScreen[ShortcutSettingsResult]):
         margin-bottom: 1;
     }
     ShortcutSettingsScreen #change_key {
+        margin-bottom: 0;
+        width: 100%;
+    }
+    ShortcutSettingsScreen #unbind {
         margin-bottom: 1;
         width: 100%;
     }
@@ -1246,10 +1250,17 @@ class ShortcutSettingsScreen(ModalScreen[ShortcutSettingsResult]):
         self._new_key: str | None = None
 
     def compose(self) -> ComposeResult:
+        is_unbound = not self._current_key or self._current_key == "(none)"
         yield Vertical(
             Label(f"Shortcut Settings: {self._description}", id="title"),
             Label(f"Current key: {self._current_key}", id="current_key_label"),
             Button("Change Key...", variant="default", id="change_key"),
+            Button(
+                "Unbind",
+                variant="warning",
+                id="unbind",
+                disabled=is_unbound,
+            ),
             Checkbox(
                 "Show in command palette", self._palette_visible, id="palette_visible"
             ),
@@ -1275,6 +1286,13 @@ class ShortcutSettingsScreen(ModalScreen[ShortcutSettingsResult]):
             self.query_one("#current_key_label", Label).update(
                 f"Current key: {result.new_key}"
             )
+
+    @on(Button.Pressed, "#unbind")
+    def on_unbind(self) -> None:
+        self._new_key = ""
+        self._current_key = "(none)"
+        self.query_one("#current_key_label", Label).update("Current key: (none)")
+        self.query_one("#unbind", Button).disabled = True
 
     @on(Button.Pressed, "#save")
     def on_save(self) -> None:
@@ -1614,7 +1632,7 @@ class ShowShortcutsScreen(ModalScreen[None]):
         if result is None or result.is_cancelled:
             return
         app = cast("TextualCode", self.app)
-        if result.new_key and result.action_name:
+        if result.new_key is not None and result.action_name:
             app.set_keybinding(result.action_name, result.new_key)
         if result.action_name:
             from textual_code.config import ShortcutDisplayEntry

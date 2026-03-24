@@ -108,7 +108,7 @@ class TestToggleCommand:
         app = make_app(ws, user_config_path=config)
         async with app.run_test():
             assert app.default_dim_hidden_files is False
-            app._toggle_dim_hidden_files_cmd()
+            app.action_toggle_dim_hidden_files_cmd()
             assert app.default_dim_hidden_files is True
             assert app.sidebar.explorer.directory_tree.dim_hidden_files is True
 
@@ -120,7 +120,7 @@ class TestToggleCommand:
         ws.mkdir()
         app = make_app(ws, user_config_path=config)
         async with app.run_test():
-            app._toggle_dim_hidden_files_cmd()
+            app.action_toggle_dim_hidden_files_cmd()
         loaded = load_editor_settings(ws, user_config_path=config)
         assert loaded["dim_hidden_files"] is True
 

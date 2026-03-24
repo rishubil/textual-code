@@ -20,6 +20,7 @@ from textual.events import Ready
 from textual.message import Message
 from textual.screen import Screen
 
+from textual_code.command_registry import bindings_for_context as _bindings_for_context
 from textual_code.commands import (
     _read_workspace_directories,
     _read_workspace_files,
@@ -74,6 +75,26 @@ from textual_code.widgets.workspace_search import WorkspaceSearchPane
 # Textual's built-in "Theme" command title — used to filter it out from command palette.
 # This string matches the title yielded by textual.app.App.get_system_commands().
 _TEXTUAL_BUILTIN_THEME_CMD = "Theme"
+
+
+_KEY_DISPLAY_NAMES: dict[str, str] = {
+    "backslash": "\\",
+    "pageup": "PageUp",
+    "pagedown": "PageDown",
+}
+
+
+def _pretty_key(key: str) -> str:
+    """Format a Textual key string for display (e.g. ``ctrl+s`` → ``Ctrl+S``)."""
+    parts = []
+    for part in key.split("+"):
+        if part in _KEY_DISPLAY_NAMES:
+            parts.append(_KEY_DISPLAY_NAMES[part])
+        elif part.islower():
+            parts.append(part.capitalize())
+        else:
+            parts.append(part)
+    return "+".join(parts)
 
 
 def _validate_sidebar_width_setting(value: int | float | str) -> int | str | None:
@@ -314,21 +335,7 @@ class TextualCode(App):
 
     CSS_PATH = "style.tcss"
 
-    BINDINGS = [
-        Binding("ctrl+n", "new_editor", "New file"),
-        Binding("ctrl+b", "toggle_sidebar", "Toggle sidebar"),
-        Binding(
-            "ctrl+shift+f",
-            "find_in_workspace",
-            "Find in Workspace",
-            show=False,
-        ),
-        Binding("f1", "show_shortcuts", "Keyboard shortcuts", show=False),
-        Binding("f6", "focus_next", "Next widget", show=False, priority=True),
-        Binding(
-            "shift+f6", "focus_previous", "Previous widget", show=False, priority=True
-        ),
-    ]
+    BINDINGS = _bindings_for_context("app")
 
     def __init__(
         self,
@@ -445,35 +452,16 @@ class TextualCode(App):
             )
 
     # Mapping from binding action names to their SystemCommand titles.
-    # Used to filter commands when a user hides them from the command palette.
-    _ACTION_TO_CMD_TITLES: dict[str, list[str]] = {
-        "show_shortcuts": ["Show keyboard shortcuts"],
-        "toggle_sidebar": ["Toggle sidebar"],
-        "save": ["Save file"],
-        "save_all": ["Save all files"],
-        "new_editor": ["New file"],
-        "close": ["Close file"],
-        "close_all": ["Close all files"],
-        "rename_file": ["Rename file"],
-        "goto_line": ["Goto line"],
-        "find": ["Find"],
-        "replace": ["Replace"],
-        "find_in_workspace": ["Find in Workspace"],
-        "add_cursor_below": ["Add cursor below"],
-        "add_cursor_above": ["Add cursor above"],
-        "select_all_occurrences": ["Select all occurrences"],
-        "add_next_occurrence": ["Add next occurrence"],
-        "split_right": ["Split editor right"],
-        "close_split": ["Close split"],
-    }
-
     def _hidden_palette_titles(self) -> set[str]:
         """Build set of SystemCommand titles that should be hidden."""
+        from textual_code.command_registry import _REGISTRY_BY_ACTION
+
         hidden: set[str] = set()
         for action, entry in self._shortcut_display.items():
             if entry.palette is False:
-                for title in self._ACTION_TO_CMD_TITLES.get(action, []):
-                    hidden.add(title)
+                cmd = _REGISTRY_BY_ACTION.get(action)
+                if cmd:
+                    hidden.add(cmd.title)
         return hidden
 
     def action_command_palette(self) -> None:
@@ -489,407 +477,24 @@ class TextualCode(App):
                 yield cmd
 
     def _all_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
+        from textual_code.command_registry import COMMAND_REGISTRY
+
         for cmd in super().get_system_commands(screen):
             if cmd.title != _TEXTUAL_BUILTIN_THEME_CMD:
                 yield cmd
-        yield SystemCommand(
-            "Show keyboard shortcuts",
-            "View and change keyboard shortcuts (F1)",
-            self.action_show_shortcuts,
-        )
-        yield SystemCommand(
-            "Configure footer shortcuts",
-            "Choose which shortcuts appear in the footer and their order",
-            self.action_configure_footer,
-        )
-        yield SystemCommand(
-            "Open user settings",
-            "Open user settings file (~/.config/textual-code/settings.toml)",
-            self.action_open_user_settings,
-        )
-        yield SystemCommand(
-            "Open project settings",
-            "Open project settings file (.textual-code.toml in workspace root)",
-            self.action_open_project_settings,
-        )
-        yield SystemCommand(
-            "Open keybindings",
-            "Open keybindings config file (keybindings.toml)",
-            self.action_open_keybindings,
-        )
-        yield SystemCommand(
-            "Toggle sidebar",
-            "Show or hide the sidebar (Ctrl+B)",
-            self.action_toggle_sidebar,
-        )
-        yield SystemCommand(
-            "Reload explorer", "Reload the explorer", self.action_reload_explorer
-        )
-        yield SystemCommand(
-            "Save file", "Save the current file (Ctrl+S)", self.action_save_file
-        )
-        yield SystemCommand(
-            "Save all files",
-            "Save all open files (Ctrl+Shift+S)",
-            self.action_save_all_files,
-        )
-        yield SystemCommand(
-            "Save file as",
-            "Save the current file as new file",
-            self.action_save_file_as,
-        )
-        yield SystemCommand(
-            "New file", "Open empty code editor (Ctrl+N)", self.action_new_editor
-        )
-        yield SystemCommand(
-            "Close file", "Close the current file (Ctrl+W)", self.action_close_file
-        )
-        yield SystemCommand(
-            "Close all files",
-            "Close all open files (Ctrl+Shift+W)",
-            self.action_close_all_files,
-        )
-        yield SystemCommand(
-            "Delete file", "Delete the current file", self.action_delete_file
-        )
-        yield SystemCommand(
-            "Rename file",
-            "Rename the current file (F2)",
-            self.action_rename_active_file,
-        )
-        yield SystemCommand(
-            "Copy relative path",
-            "Copy the relative file path to clipboard",
-            self.action_copy_relative_path,
-        )
-        yield SystemCommand(
-            "Copy absolute path",
-            "Copy the absolute file path to clipboard",
-            self.action_copy_absolute_path,
-        )
-        yield SystemCommand(
-            "Open file",
-            "Open a file in the code editor",
-            self.action_open_file_with_command_palette,
-        )
-        yield SystemCommand(
-            "Create file",
-            "Create a new file at a path",
-            self.action_create_file_with_command_palette,
-        )
-        yield SystemCommand(
-            "Create directory",
-            "Create a new directory at a path",
-            self.action_create_directory_with_command_palette,
-        )
-        yield SystemCommand("Open folder", "Quit the app", self.action_quit)
-        yield SystemCommand(
-            "Goto line",
-            "Go to a specific line and column (Ctrl+G)",
-            self.action_goto_line_cmd,
-        )
-        yield SystemCommand(
-            "Change language",
-            "Change the syntax highlighting language",
-            self.action_change_language_cmd,
-        )
-        yield SystemCommand(
-            "Find",
-            "Find text in the current file (Ctrl+F)",
-            self.action_find_cmd,
-        )
-        yield SystemCommand(
-            "Replace",
-            "Find and replace text in the current file (Ctrl+H)",
-            self.action_replace_cmd,
-        )
-        yield SystemCommand(
-            "Delete file or directory",
-            "Delete a file or directory from the workspace",
-            self.action_delete_file_or_dir_with_command_palette,
-        )
-        yield SystemCommand(
-            "Rename file or directory",
-            "Rename a file or directory in the workspace (F2)",
-            self.action_rename_file_or_dir_with_command_palette,
-        )
-        yield SystemCommand(
-            "Move file",
-            "Move the current file to a different path",
-            self.action_move_active_file,
-        )
-        yield SystemCommand(
-            "Move file or directory",
-            "Move a file or directory to a different path",
-            self.action_move_file_or_dir_with_command_palette,
-        )
-        yield SystemCommand(
-            "Copy file or directory",
-            "Copy the selected file or directory in the explorer (Ctrl+C)",
-            self.action_copy_explorer_node,
-        )
-        yield SystemCommand(
-            "Cut file or directory",
-            "Cut the selected file or directory in the explorer (Ctrl+X)",
-            self.action_cut_explorer_node,
-        )
-        yield SystemCommand(
-            "Paste file or directory",
-            "Paste the copied/cut file or directory (Ctrl+V)",
-            self.action_paste_explorer_node,
-        )
-        yield SystemCommand(
-            "Change Indentation",
-            "Change indentation style and size",
-            self.action_change_indent_cmd,
-        )
-        yield SystemCommand(
-            "Change Line Ending",
-            "Change the line ending style (LF, CRLF, CR)",
-            self.action_change_line_ending_cmd,
-        )
-        yield SystemCommand(
-            "Change Encoding",
-            "Change the file encoding (UTF-8, UTF-8 BOM, UTF-16, Latin-1)",
-            self.action_change_encoding_cmd,
-        )
-        yield SystemCommand(
-            "Reload file",
-            "Reload the current file from disk",
-            self.action_reload_file_cmd,
-        )
-        yield SystemCommand(
-            "Resize sidebar",
-            "Set the sidebar width (e.g. 30, +5, -3, 30%)",
-            self.action_resize_sidebar_cmd,
-        )
-        yield SystemCommand(
-            "Resize split",
-            "Set the left split panel width (e.g. 50, +10, -5, 40%)",
-            self.action_resize_split_cmd,
-        )
-        yield SystemCommand(
-            "Add cursor below",
-            "Add an extra cursor one line below (Ctrl+Alt+Down)",
-            self.action_add_cursor_below_cmd,
-        )
-        yield SystemCommand(
-            "Add cursor above",
-            "Add an extra cursor one line above (Ctrl+Alt+Up)",
-            self.action_add_cursor_above_cmd,
-        )
-        yield SystemCommand(
-            "Select all occurrences",
-            "Select all occurrences of the current selection or word (Ctrl+Shift+L)",
-            self.action_select_all_occurrences_cmd,
-        )
-        yield SystemCommand(
-            "Add next occurrence",
-            "Add a cursor at the next occurrence of the selection or word (Ctrl+D)",
-            self.action_add_next_occurrence_cmd,
-        )
-        yield SystemCommand(
-            "Split editor right",
-            "Open current file in a new split to the right (Ctrl+\\)",
-            self.action_split_right_cmd,
-        )
-        yield SystemCommand(
-            "Split editor left",
-            "Open current file in a new split to the left",
-            self.action_split_left_cmd,
-        )
-        yield SystemCommand(
-            "Split editor down",
-            "Open current file in a new split below",
-            self.action_split_down_cmd,
-        )
-        yield SystemCommand(
-            "Split editor up",
-            "Open current file in a new split above",
-            self.action_split_up_cmd,
-        )
-        yield SystemCommand(
-            "Close split",
-            "Close the current split panel (Ctrl+Shift+\\)",
-            self.action_close_split_cmd,
-        )
-        yield SystemCommand(
-            "Focus next split",
-            "Move focus to the next split panel",
-            self.action_focus_next_split_cmd,
-        )
-        yield SystemCommand(
-            "Focus previous split",
-            "Move focus to the previous split panel",
-            self.action_focus_prev_split_cmd,
-        )
-        yield SystemCommand(
-            "Set default indentation",
-            "Set the default indentation for new files",
-            self.action_set_default_indentation,
-        )
-        yield SystemCommand(
-            "Set default line ending",
-            "Set the default line ending for new files",
-            self.action_set_default_line_ending,
-        )
-        yield SystemCommand(
-            "Set default encoding",
-            "Set the default encoding for new files",
-            self.action_set_default_encoding,
-        )
-        yield SystemCommand(
-            "Change syntax highlighting theme",
-            "Select the syntax highlighting theme for the editor",
-            self.action_set_syntax_theme,
-        )
-        yield SystemCommand(
-            "Open markdown preview as tab",
-            "Open a live markdown preview in a new tab (Ctrl+Shift+M)",
-            self.action_open_markdown_preview_tab_cmd,
-        )
-        yield SystemCommand(
-            "Move tab to other split",
-            "Move the current tab to the other split panel (Ctrl+Alt+\\)",
-            self.action_move_tab_to_other_split_cmd,
-        )
-        yield SystemCommand(
-            "Move tab left",
-            "Move the current tab to the split pane on the left",
-            self.action_move_tab_left_cmd,
-        )
-        yield SystemCommand(
-            "Move tab right",
-            "Move the current tab to the split pane on the right",
-            self.action_move_tab_right_cmd,
-        )
-        yield SystemCommand(
-            "Move tab up",
-            "Move the current tab to the split pane above",
-            self.action_move_tab_up_cmd,
-        )
-        yield SystemCommand(
-            "Move tab down",
-            "Move the current tab to the split pane below",
-            self.action_move_tab_down_cmd,
-        )
-        yield SystemCommand(
-            "Reorder tab right",
-            "Move the current tab one position to the right",
-            self.action_reorder_tab_right_cmd,
-        )
-        yield SystemCommand(
-            "Reorder tab left",
-            "Move the current tab one position to the left",
-            self.action_reorder_tab_left_cmd,
-        )
-        yield SystemCommand(
-            "Find in Workspace",
-            "Search all files in the workspace (Ctrl+Shift+F)",
-            self.action_find_in_workspace_cmd,
-        )
-        yield SystemCommand(
-            "Toggle split orientation",
-            "Switch between horizontal and vertical split layout",
-            self.action_toggle_split_vertical_cmd,
-        )
-        yield SystemCommand(
-            "Toggle word wrap",
-            "Toggle word wrap for the active file",
-            self._toggle_word_wrap_cmd,
-        )
-        yield SystemCommand(
-            "Set default word wrap",
-            "Toggle default word wrap for new files",
-            self.action_set_default_word_wrap,
-        )
-        yield SystemCommand(
-            "Change UI theme",
-            "Select the UI theme",
-            self.action_set_ui_theme,
-        )
-        yield SystemCommand(
-            "Toggle hidden files",
-            "Show or hide hidden files in the explorer",
-            self._toggle_hidden_files_cmd,
-        )
-        yield SystemCommand(
-            "Toggle path display mode",
-            "Switch between absolute and relative path in footer",
-            self._toggle_path_display_mode_cmd,
-        )
-        yield SystemCommand(
-            "Toggle dim gitignored files",
-            "Dim or un-dim gitignored files in the explorer",
-            self._toggle_dim_gitignored_cmd,
-        )
-        yield SystemCommand(
-            "Toggle dim hidden files",
-            "Dim or un-dim hidden files (dotfiles) in the explorer",
-            self._toggle_dim_hidden_files_cmd,
-        )
-        yield SystemCommand(
-            "Toggle git status highlighting",
-            "Show or hide git status colors in the explorer",
-            self._toggle_show_git_status_cmd,
-        )
-        yield SystemCommand(
-            "Toggle indentation guides",
-            "Show or hide indentation guides in the editor",
-            self._toggle_indentation_guides_cmd,
-        )
-        _rw_editor = self.main_view.get_active_code_editor()
-        _rw_current = _rw_editor.render_whitespace if _rw_editor else "none"
-        yield SystemCommand(
-            "Set render whitespace",
-            f"Select whitespace display mode (current: {_rw_current})",
-            self._set_render_whitespace_cmd,
-        )
-        yield SystemCommand(
-            "Sort lines ascending",
-            "Sort selected lines in ascending order",
-            self.action_sort_lines_ascending_cmd,
-        )
-        yield SystemCommand(
-            "Sort lines descending",
-            "Sort selected lines in descending order",
-            self.action_sort_lines_descending_cmd,
-        )
-        yield SystemCommand(
-            "Transform to uppercase",
-            "Convert selected text to uppercase",
-            self.action_transform_uppercase_cmd,
-        )
-        yield SystemCommand(
-            "Transform to lowercase",
-            "Convert selected text to lowercase",
-            self.action_transform_lowercase_cmd,
-        )
-        yield SystemCommand(
-            "Transform to title case",
-            "Convert selected text to title case",
-            self.action_transform_title_case_cmd,
-        )
-        yield SystemCommand(
-            "Transform to snake_case",
-            "Convert selected text to snake_case",
-            self.action_transform_snake_case_cmd,
-        )
-        yield SystemCommand(
-            "Transform to camelCase",
-            "Convert selected text to camelCase",
-            self.action_transform_camel_case_cmd,
-        )
-        yield SystemCommand(
-            "Transform to kebab-case",
-            "Convert selected text to kebab-case",
-            self.action_transform_kebab_case_cmd,
-        )
-        yield SystemCommand(
-            "Transform to PascalCase",
-            "Convert selected text to PascalCase",
-            self.action_transform_pascal_case_cmd,
-        )
+        for entry in COMMAND_REGISTRY:
+            if not entry.palette_callback:
+                continue
+            callback = getattr(self, entry.palette_callback, None)
+            if callback is None:
+                continue
+            key = self._custom_keybindings.get(entry.action, entry.default_key)
+            if key:
+                pretty = _pretty_key(key)
+                desc = f"{entry.description} ({pretty})"
+            else:
+                desc = entry.description
+            yield SystemCommand(entry.title, desc, callback)
 
     def action_sort_lines_ascending_cmd(self) -> None:
         """Sort selected lines ascending via command palette."""
@@ -1158,11 +763,45 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
+    # ── TextArea palette wrappers ────────────────────────────────────────
+
+    def _run_text_area_action(self, action_name: str) -> None:
+        """Dispatch a TextArea action from the command palette."""
+        code_editor = self.main_view.get_active_code_editor()
+        if code_editor is not None:
+            self.call_next(getattr(code_editor.editor, action_name))
+        else:
+            self.notify("No file open.", severity="error")
+
+    def action_redo_cmd(self) -> None:
+        self._run_text_area_action("action_redo")
+
+    def action_select_all_text_cmd(self) -> None:
+        self._run_text_area_action("action_select_all")
+
+    def action_indent_line_cmd(self) -> None:
+        self._run_text_area_action("action_indent_line")
+
+    def action_dedent_line_cmd(self) -> None:
+        self._run_text_area_action("action_dedent_line")
+
+    def action_move_line_up_cmd(self) -> None:
+        self._run_text_area_action("action_move_line_up")
+
+    def action_move_line_down_cmd(self) -> None:
+        self._run_text_area_action("action_move_line_down")
+
+    def action_scroll_viewport_up_cmd(self) -> None:
+        self._run_text_area_action("action_scroll_viewport_up")
+
+    def action_scroll_viewport_down_cmd(self) -> None:
+        self._run_text_area_action("action_scroll_viewport_down")
+
     def action_toggle_split_vertical_cmd(self) -> None:
         """Toggle split orientation via command palette."""
         self.call_next(self.main_view.action_toggle_split_vertical)
 
-    def _toggle_word_wrap_cmd(self) -> None:
+    def action_toggle_word_wrap_cmd(self) -> None:
         """Toggle word wrap for the active file via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -1170,7 +809,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def _toggle_indentation_guides_cmd(self) -> None:
+    def action_toggle_indentation_guides_cmd(self) -> None:
         """Toggle indentation guides for the active file via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -1188,7 +827,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def _set_render_whitespace_cmd(self) -> None:
+    def action_set_render_whitespace_cmd(self) -> None:
         """Open a command palette to select whitespace rendering mode."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is None:
@@ -1257,7 +896,7 @@ class TextualCode(App):
         state = on_text if new_value else off_text
         self.notify(f"{label}: {state}")
 
-    def _toggle_hidden_files_cmd(self) -> None:
+    def action_toggle_hidden_files_cmd(self) -> None:
         """Toggle hidden files visibility in the explorer and save to config."""
         self.default_show_hidden_files = not self.default_show_hidden_files
         self._toggle_explorer_tree_setting(
@@ -1268,7 +907,7 @@ class TextualCode(App):
             "hidden",
         )
 
-    def _toggle_path_display_mode_cmd(self) -> None:
+    def action_toggle_path_display_mode_cmd(self) -> None:
         """Toggle between absolute and relative path display in footer."""
         from textual_code.widgets.code_editor import CodeEditorFooter
 
@@ -1280,7 +919,7 @@ class TextualCode(App):
         self._save_editor_settings("user")
         self.notify(f"Path display: {self.default_path_display_mode}")
 
-    def _toggle_dim_gitignored_cmd(self) -> None:
+    def action_toggle_dim_gitignored_cmd(self) -> None:
         """Toggle dim gitignored files in the explorer and save to config."""
         self.default_dim_gitignored = not self.default_dim_gitignored
         self._toggle_explorer_tree_setting(
@@ -1291,7 +930,7 @@ class TextualCode(App):
             "normal",
         )
 
-    def _toggle_dim_hidden_files_cmd(self) -> None:
+    def action_toggle_dim_hidden_files_cmd(self) -> None:
         """Toggle dim hidden files in the explorer and save to config."""
         self.default_dim_hidden_files = not self.default_dim_hidden_files
         self._toggle_explorer_tree_setting(
@@ -1302,7 +941,7 @@ class TextualCode(App):
             "normal",
         )
 
-    def _toggle_show_git_status_cmd(self) -> None:
+    def action_toggle_show_git_status_cmd(self) -> None:
         """Toggle git status highlighting in the explorer and save to config."""
         self.default_show_git_status = not self.default_show_git_status
         self._toggle_explorer_tree_setting(
@@ -2314,18 +1953,17 @@ class TextualCode(App):
         return self.screen_stack[0].query_one(MainView)
 
     def action_show_shortcuts(self) -> None:
-        """Open the keyboard shortcuts panel."""
-        from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+        """Open the keyboard shortcuts panel showing ALL registry commands."""
+        from textual_code.command_registry import COMMAND_REGISTRY
 
+        context_labels = {"app": "App", "editor": "Editor", "text_area": "Editor"}
         rows: list[tuple[str, str, str, str]] = []
-        for cls, ctx in [
-            (MainView, "Editor"),
-            (TextualCode, "App"),
-            (MultiCursorTextArea, "Text Area"),
-        ]:
-            for b in cls.BINDINGS:
-                if b.description:
-                    rows.append((b.key, b.description, ctx, b.action))
+        for entry in COMMAND_REGISTRY:
+            key = self._custom_keybindings.get(entry.action, entry.default_key)
+            display_key = _pretty_key(key) if key else "(none)"
+            rows.append(
+                (display_key, entry.title, context_labels[entry.context], entry.action)
+            )
         self.push_screen(ShowShortcutsScreen(rows, self._shortcut_display))
 
     def _collect_bindings_for_area(self, area: str) -> list[tuple[str, str, str, bool]]:
@@ -2537,19 +2175,13 @@ def _patch_input_bindings() -> None:
 
 
 def _apply_custom_keybindings(custom: dict[str, str]) -> None:
-    """Patch class-level BINDINGS lists with custom key mappings."""
+    """Regenerate class-level BINDINGS from the registry with custom overrides."""
+    from textual_code.command_registry import bindings_for_context
     from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
 
-    for cls in (MainView, TextualCode, MultiCursorTextArea):
-        cls.BINDINGS = [
-            Binding(
-                custom[b.action],
-                b.action,
-                b.description,
-                show=b.show,
-                priority=b.priority,
-            )
-            if b.action in custom
-            else b
-            for b in cls.BINDINGS
-        ]
+    for context, cls in (
+        ("app", TextualCode),
+        ("editor", MainView),
+        ("text_area", MultiCursorTextArea),
+    ):
+        cls.BINDINGS = bindings_for_context(context, custom=custom)

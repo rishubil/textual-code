@@ -265,4 +265,4 @@ def restore_bindings():
     }
     yield
     for cls, bindings in backup.items():
-        cls.BINDINGS[:] = bindings
+        cls.BINDINGS = bindings

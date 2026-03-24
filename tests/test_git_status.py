@@ -324,7 +324,7 @@ class TestAppIntegration:
         app = make_app(ws, user_config_path=config)
         async with app.run_test():
             assert app.default_show_git_status is True
-            app._toggle_show_git_status_cmd()
+            app.action_toggle_show_git_status_cmd()
             assert app.default_show_git_status is False
             assert app.sidebar.explorer.directory_tree.show_git_status is False
 
@@ -336,6 +336,6 @@ class TestAppIntegration:
         ws.mkdir()
         app = make_app(ws, user_config_path=config)
         async with app.run_test():
-            app._toggle_show_git_status_cmd()
+            app.action_toggle_show_git_status_cmd()
         loaded = load_editor_settings(ws, user_config_path=config)
         assert loaded["show_git_status"] is False

@@ -619,3 +619,202 @@ async def test_get_footer_priority_falls_back_to_action_order(workspace):
         assert priority == 0
         priority = app.get_footer_priority("nonexistent")
         assert priority > 0
+
+
+# ---------------------------------------------------------------------------
+# Group 10: Command registry
+# ---------------------------------------------------------------------------
+
+
+def test_registry_no_duplicate_actions():
+    """Every action name in COMMAND_REGISTRY must be unique."""
+    from textual_code.command_registry import COMMAND_REGISTRY
+
+    actions = [e.action for e in COMMAND_REGISTRY]
+    assert len(actions) == len(set(actions)), (
+        f"Duplicate actions: {[a for a in actions if actions.count(a) > 1]}"
+    )
+
+
+def test_registry_all_callbacks_exist():
+    """Every non-empty palette_callback must be a real method on TextualCode."""
+    from textual_code.command_registry import COMMAND_REGISTRY
+
+    missing = []
+    for entry in COMMAND_REGISTRY:
+        if entry.palette_callback and not hasattr(TextualCode, entry.palette_callback):
+            missing.append(f"{entry.action} -> {entry.palette_callback}")
+    assert not missing, f"Missing callbacks on TextualCode: {missing}"
+
+
+def test_registry_contexts_valid():
+    """All context values must be one of the known contexts."""
+    from textual_code.command_registry import COMMAND_REGISTRY
+
+    valid = {"app", "editor", "text_area"}
+    bad = [e.action for e in COMMAND_REGISTRY if e.context not in valid]
+    assert not bad, f"Invalid context for actions: {bad}"
+
+
+def test_binding_description_used_in_footer():
+    """bindings_for_context should use binding_description, not title, for
+    entries that specify a binding_description."""
+    from textual_code.command_registry import bindings_for_context
+
+    bindings = bindings_for_context("editor")
+    save_binding = next((b for b in bindings if b.action == "save"), None)
+    assert save_binding is not None
+    assert save_binding.description == "Save", (
+        f"Expected 'Save' but got '{save_binding.description}'"
+    )
+    close_binding = next((b for b in bindings if b.action == "close"), None)
+    assert close_binding is not None
+    assert close_binding.description == "Close tab"
+
+
+def test_bindings_for_context_applies_custom_override():
+    """bindings_for_context with custom dict should override default keys."""
+    from textual_code.command_registry import bindings_for_context
+
+    bindings = bindings_for_context("editor", custom={"save": "ctrl+alt+s"})
+    save_binding = next((b for b in bindings if b.action == "save"), None)
+    assert save_binding is not None
+    assert save_binding.key == "ctrl+alt+s"
+
+
+def test_bindings_for_context_unbind_with_empty_string():
+    """Setting action to '' in custom dict should remove the binding."""
+    from textual_code.command_registry import bindings_for_context
+
+    bindings = bindings_for_context("editor", custom={"save": ""})
+    save_binding = next((b for b in bindings if b.action == "save"), None)
+    assert save_binding is None
+
+
+def test_bind_previously_unbound_command():
+    """Custom key for a palette-only command should create a new binding."""
+    from textual_code.command_registry import bindings_for_context
+
+    # "open_user_settings" has no default_key — should not be in default bindings
+    default_bindings = bindings_for_context("app")
+    assert not any(b.action == "open_user_settings" for b in default_bindings)
+    # With custom key, it should appear
+    custom_bindings = bindings_for_context(
+        "app", custom={"open_user_settings": "ctrl+alt+o"}
+    )
+    new_binding = next(
+        (b for b in custom_bindings if b.action == "open_user_settings"), None
+    )
+    assert new_binding is not None
+    assert new_binding.key == "ctrl+alt+o"
+
+
+def test_registry_immutable():
+    """COMMAND_REGISTRY should be a tuple (immutable)."""
+    from textual_code.command_registry import COMMAND_REGISTRY
+
+    assert isinstance(COMMAND_REGISTRY, tuple)
+
+
+@pytest.mark.asyncio
+async def test_show_shortcuts_includes_unbound_commands(workspace):
+    """F1 shortcuts panel should show ALL commands, including those without
+    default key bindings (e.g. 'Toggle word wrap')."""
+    from textual.widgets import DataTable
+
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_show_shortcuts()
+        await pilot.pause()
+        assert isinstance(app.screen, ShowShortcutsScreen)
+        table = app.screen.query_one(DataTable)
+        row_keys = {str(rk.value) for rk in table.rows}
+        # These were previously missing from the F1 panel
+        assert "toggle_word_wrap_cmd" in row_keys
+        assert "open_user_settings" in row_keys
+        assert "sort_lines_ascending_cmd" in row_keys
+
+
+@pytest.mark.asyncio
+async def test_show_shortcuts_includes_text_area_actions(workspace):
+    """F1 panel should show TextArea actions like Redo, Select all."""
+    from textual.widgets import DataTable
+
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_show_shortcuts()
+        await pilot.pause()
+        table = app.screen.query_one(DataTable)
+        row_keys = {str(rk.value) for rk in table.rows}
+        assert "redo" in row_keys
+        assert "select_all" in row_keys
+        assert "indent_line" in row_keys
+
+
+@pytest.mark.asyncio
+async def test_dynamic_key_hint_in_palette(workspace, tmp_path, restore_bindings):
+    """Palette description should reflect custom key, not hardcoded default."""
+    settings_path = tmp_path / "settings.toml"
+    app = TextualCode(
+        workspace_path=workspace,
+        with_open_file=None,
+        user_config_path=settings_path,
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Set custom keybinding
+        app.set_keybinding("save", "ctrl+alt+s")
+        await pilot.pause()
+        commands = list(app.get_system_commands(app.screen))
+        save_cmd = next((c for c in commands if c.title == "Save file"), None)
+        assert save_cmd is not None
+        assert "Ctrl+Alt+S" in save_cmd.help
+
+
+@pytest.mark.asyncio
+async def test_unbind_removes_binding(workspace, tmp_path, restore_bindings):
+    """Setting action to '' via set_keybinding should remove the binding."""
+    settings_path = tmp_path / "settings.toml"
+    app = TextualCode(
+        workspace_path=workspace,
+        with_open_file=None,
+        user_config_path=settings_path,
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Verify "save" binding exists initially
+        assert any(b.action == "save" for b in MainView.BINDINGS)
+        # Unbind it
+        app.set_keybinding("save", "")
+        await pilot.pause()
+        # Should be removed from BINDINGS
+        assert not any(b.action == "save" for b in MainView.BINDINGS)
+
+
+def test_unbind_config_round_trip(tmp_path):
+    """Empty string value should survive save/load round trip."""
+    kb = tmp_path / "keybindings.toml"
+    save_keybindings_file({"save": ""}, {}, kb)
+    loaded = load_keybindings(kb)
+    assert loaded["save"] == ""
+
+
+@pytest.mark.asyncio
+async def test_all_registry_commands_in_palette(workspace):
+    """All registry entries with palette_callback should appear in
+    get_system_commands output."""
+    from textual_code.command_registry import COMMAND_REGISTRY
+
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        commands = list(app.get_system_commands(app.screen))
+        cmd_titles = {c.title for c in commands}
+        for entry in COMMAND_REGISTRY:
+            if entry.palette_callback:
+                assert entry.title in cmd_titles, (
+                    f"Registry entry '{entry.title}' (action={entry.action}) "
+                    f"not found in command palette"
+                )

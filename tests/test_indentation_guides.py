@@ -128,7 +128,7 @@ class TestToggle:
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             assert editor.show_indentation_guides is True
-            app._toggle_indentation_guides_cmd()
+            app.action_toggle_indentation_guides_cmd()
             await pilot.pause()
             assert editor.show_indentation_guides is False
 
