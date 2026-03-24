@@ -244,6 +244,8 @@ def test_snapshot_markdown_preview_open(snap_compare, snapshot_workspace: Path):
         await pilot.pause()
         await app.main_view.action_open_markdown_preview_tab()
         await pilot.pause()
+        # Extra pause: let tab underline settle (call_after_refresh chain)
+        await pilot.pause()
 
     assert snap_compare(app, run_before=open_preview, terminal_size=TERMINAL_SIZE)
 
