@@ -1126,7 +1126,13 @@ class MultiCursorTextArea(TextArea):
 
         elif base_key == "ctrl+left":
             if row > 0 and col == 0:
-                return (row - 1, len(lines[row - 1]))
+                prev = lines[row - 1]
+                if not prev.strip():
+                    return (row - 1, 0)
+                # Skip trailing whitespace, land on last word boundary
+                rstripped = prev.rstrip()
+                m = list(_WORD_PATTERN.finditer(rstripped))
+                return (row - 1, m[-1].start() if m else 0)
             line = lines[row][:col] if row < len(lines) else ""
             matches = list(_WORD_PATTERN.finditer(line.rstrip()))
             return (row, matches[-1].start() if matches else 0)
@@ -1134,7 +1140,17 @@ class MultiCursorTextArea(TextArea):
         elif base_key == "ctrl+right":
             line = lines[row] if row < len(lines) else ""
             if row < last_row and col == len(line):
-                return (row + 1, 0)
+                nxt = lines[row + 1]
+                if not nxt.strip():
+                    return (row + 1, 0)
+                # Skip leading whitespace, land on first word boundary
+                s = nxt
+                off = len(s) - len(s.lstrip())
+                s = s.lstrip()
+                m = list(_WORD_PATTERN.finditer(s))
+                if m:
+                    return (row + 1, m[0].start() + off)
+                return (row + 1, len(nxt))
             search = line[col:]
             strip_offset = len(search) - len(search.lstrip())
             search = search.lstrip()
