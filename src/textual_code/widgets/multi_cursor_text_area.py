@@ -894,6 +894,21 @@ class MultiCursorTextArea(TextArea):
 
     # ── smart home (VSCode-style) ─────────────────────────────────────────────
 
+    @staticmethod
+    def _smart_home_col(line: str, col: int) -> int:
+        """Return the target column for VSCode-style smart home.
+
+        Toggles between the first non-whitespace column and column 0.
+        """
+        first_non_ws = 0
+        for i, ch in enumerate(line):
+            if not ch.isspace():
+                first_non_ws = i
+                break
+        else:
+            return 0
+        return 0 if col == first_non_ws else first_non_ws
+
     def get_cursor_line_start_location(
         self, smart_home: bool = False
     ) -> tuple[int, int]:
@@ -908,21 +923,7 @@ class MultiCursorTextArea(TextArea):
             return super().get_cursor_line_start_location(smart_home=False)
 
         row, col = self.cursor_location
-        line = self.document[row]
-
-        # Find first non-whitespace position
-        first_non_ws = 0
-        for i, ch in enumerate(line):
-            if not ch.isspace():
-                first_non_ws = i
-                break
-        else:
-            # All whitespace or empty — always go to col 0
-            return (row, 0)
-
-        if col == first_non_ws:
-            return (row, 0)
-        return (row, first_non_ws)
+        return (row, self._smart_home_col(self.document[row], col))
 
     # ── rendering ─────────────────────────────────────────────────────────────
 
@@ -1130,18 +1131,8 @@ class MultiCursorTextArea(TextArea):
             return (row, col)
 
         elif base_key == "home":
-            # VSCode-style smart home: toggle between first non-WS and col 0
             line = lines[row] if row < len(lines) else ""
-            first_non_ws = 0
-            for i, ch in enumerate(line):
-                if not ch.isspace():
-                    first_non_ws = i
-                    break
-            else:
-                return (row, 0)
-            if col == first_non_ws:
-                return (row, 0)
-            return (row, first_non_ws)
+            return (row, MultiCursorTextArea._smart_home_col(line, col))
 
         elif base_key == "end":
             return (row, len(lines[row]) if row < len(lines) else 0)

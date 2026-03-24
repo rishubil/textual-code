@@ -426,6 +426,11 @@ def _location_to_text_offset(text: str, location: tuple[int, int]) -> int:
     return offset + col
 
 
+def _word_boundary_pattern(query: str) -> str:
+    """Build a regex pattern that matches *query* at word boundaries."""
+    return r"\b" + re.escape(query) + r"\b"
+
+
 def _find_next(
     text: str,
     query: str,
@@ -1099,8 +1104,7 @@ class CodeEditor(Static):
         self._notified_copy_line_ending: bool = False
         # tracks the end offset of the last successful find for sequential search
         self._find_offset: int | None = None
-        # Ctrl+D mode tracking: word-boundary mode when initiated from collapsed cursor
-        self._ctrl_d_word_mode: bool = False
+        # Ctrl+D word-boundary mode: non-empty when initiated from collapsed cursor
         self._ctrl_d_query: str = ""
         # EditorConfig save-time transformations (None = not set)
         self._trim_trailing_whitespace: bool | None = None
@@ -2128,7 +2132,6 @@ class CodeEditor(Static):
         self._notify_footer()
         # Reset Ctrl+D word mode when extra cursors are cleared (e.g. Escape)
         if not self.editor.extra_cursors:
-            self._ctrl_d_word_mode = False
             self._ctrl_d_query = ""
 
     @on(MultiCursorTextArea.ClipboardAction)
@@ -2200,7 +2203,7 @@ class CodeEditor(Static):
 
         text = self.text
         if from_collapsed:
-            pattern = re.compile(r"\b" + re.escape(query) + r"\b")
+            pattern = re.compile(_word_boundary_pattern(query))
         else:
             pattern = re.compile(re.escape(query), re.IGNORECASE)
         matches = list(pattern.finditer(text))
@@ -2232,12 +2235,10 @@ class CodeEditor(Static):
 
         # Case 1: No selection — select word under cursor (word-boundary mode)
         if sel.start == sel.end:
-            self._ctrl_d_word_mode = True
             self._ctrl_d_query = query
             row, col = self.editor.cursor_location
             line_offset = _location_to_text_offset(text, (row, 0))
-            pattern = r"\b" + re.escape(query) + r"\b"
-            for m in re.finditer(pattern, text):
+            for m in re.finditer(_word_boundary_pattern(query), text):
                 if m.start() <= line_offset + col < m.end():
                     self.editor.selection = Selection(
                         start=_text_offset_to_location(text, m.start()),
@@ -2248,8 +2249,7 @@ class CodeEditor(Static):
 
         # Case 2: Selection exists — find next occurrence
         # Reset word mode if the selected text changed (user selected manually)
-        if self._ctrl_d_word_mode and self.editor.selected_text != self._ctrl_d_query:
-            self._ctrl_d_word_mode = False
+        if self._ctrl_d_query and self.editor.selected_text != self._ctrl_d_query:
             self._ctrl_d_query = ""
 
         if self.editor.extra_cursors:
@@ -2259,10 +2259,10 @@ class CodeEditor(Static):
         else:
             search_from = _location_to_text_offset(text, max(sel.start, sel.end))
 
-        if self._ctrl_d_word_mode:
+        if self._ctrl_d_query:
             start, end = _find_next(
                 text,
-                r"\b" + re.escape(query) + r"\b",
+                _word_boundary_pattern(query),
                 search_from,
                 use_regex=True,
                 case_sensitive=True,
