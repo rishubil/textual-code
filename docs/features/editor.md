@@ -96,6 +96,7 @@ Undo reverses the last text edit. Redo re-applies it. Two redo keybindings are s
 - **Click**: places cursor at click position, clears selection and any active extra cursors.
 - **Shift+Click**: extends selection from current cursor to click position.
 - **Shift+Arrow keys**: extends selection character by character (left/right) or line by line (up/down).
+- **Home**: moves cursor to first non-whitespace character on the line; press again to toggle to column 0 (VS Code smart home).
 - **Shift+Home/End**: extends selection to start/end of current line.
 - **Shift+PageUp/PageDown**: extends selection one page up or down. Works with both single cursor and multi-cursor.
 - **Ctrl+Shift+Left/Right**: extends selection word by word.
@@ -213,9 +214,10 @@ Adds an extra cursor one line below or above the primary cursor, at the same col
 
 Incrementally selects occurrences of the current word or selection:
 
-1. **First press (no selection)**: selects the word under the cursor using `\w+` boundaries. The primary selection spans the matched word.
-2. **Subsequent presses (selection exists)**: searches forward from the last cursor's position for the next occurrence using plain-text, case-sensitive matching. Adds a new cursor at the match with selection spanning the matched text. Search wraps around to the beginning of the document.
-3. **All selected**: when the search wraps back to the primary selection, a notification shows "All occurrences already selected."
+1. **First press (no selection)**: selects the word under the cursor using `\w+` boundaries. The primary selection spans the matched word. This activates **word mode**: subsequent Ctrl+D presses use whole-word (`\b`) matching, case-sensitive.
+2. **Subsequent presses (word mode)**: searches forward from the last cursor's position for the next whole-word occurrence. Adds a new cursor at the match with selection spanning the matched text. Search wraps around to the beginning of the document.
+3. **From existing selection (substring mode)**: if the user manually selects text and then presses Ctrl+D, the search uses case-insensitive substring matching instead of word boundaries. This allows selecting partial words or mixed-case variants.
+4. **All selected**: when the search wraps back to an already-selected match, a notification shows "All occurrences already selected."
 
 Extra cursor direction matches the primary selection direction (handles both forward and reverse selections correctly). When the newly added cursor is off-screen, the viewport automatically scrolls to bring it into view.
 
@@ -223,7 +225,7 @@ Extra cursor direction matches the primary selection direction (handles both for
 
 ### Select All Occurrences (Ctrl+Shift+L)
 
-Selects every occurrence of the current selection (or word under cursor if no selection) in the entire document. Uses plain-text, case-sensitive search. The primary selection is set to the first match, and extra cursors with selections are added at all remaining matches.
+Selects every occurrence of the current selection (or word under cursor if no selection) in the entire document. Matching VSCode behavior, uses two modes: from a collapsed cursor, uses whole-word (`\b`) case-sensitive matching; from an existing selection, uses case-insensitive substring matching. The primary selection is set to the first match, and extra cursors with selections are added at all remaining matches.
 
 Shows a notification with the count (e.g., "5 occurrences selected"). If no matches are found, shows a warning notification.
 
