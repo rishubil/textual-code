@@ -200,6 +200,8 @@ When both render whitespace and indentation guides are enabled, guide characters
 - No code folding.
 - No auto-indent or smart indent (no bracket-aware indentation).
 
+See [editor-vscode-differences.md](editor-vscode-differences.md) for a comprehensive list of behavioral differences from VS Code discovered during test porting.
+
 **Implementation:** `multi_cursor_text_area.py`, `code_editor.py`
 
 ## Multiple Cursors: add cursor, Ctrl+D next occurrence, Ctrl+Shift+L select all occurrences
