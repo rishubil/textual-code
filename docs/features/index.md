@@ -28,9 +28,9 @@ Language detection, EditorConfig compliance, encoding/line-ending management, ap
 
 Markdown live preview, image file preview (PNG, JPG, GIF, BMP, WebP, TIFF via rich-pixels), status bar indicators, command-line interface, and drag-and-drop visual feedback.
 
-### [VS Code Behavioral Differences](editor-vscode-differences.md): remaining gaps, accepted differences, fixed issues
+### [VS Code Behavioral Differences](editor-vscode-differences.md): accepted differences and feature gaps
 
-Comprehensive record of how textual-code differs from VS Code, discovered during the VSCode test suite porting effort (PR #76). Covers undo/redo batching, case transforms, find/replace, word movement, cursor behavior, and unsupported features.
+How textual-code's editor behavior differs from VS Code. Covers undo/redo batching, find/replace, word movement, cursor behavior, and unsupported features.
 
 ### [Implementation Internals](internals.md): design decisions, event flows, internal architecture
 

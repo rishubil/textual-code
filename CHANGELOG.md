@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Input**: standard editing shortcuts in text input widgets — Ctrl+A selects all text (instead of moving cursor to home); Ctrl+D is suppressed when an Input widget has focus to prevent unintended "add next occurrence" action (Fix #54)
 - **Search**: confirmation modal before workspace Replace All — clicking Replace All now shows a confirmation dialog displaying the number of affected files and occurrences, plus a patch-style diff preview of the first match with syntax-highlighted red/green coloring; match counting runs in a background thread to keep the UI responsive; zero-match queries show a "No matches found" status without opening the modal (Fix #61)
 
+- **Editor**: all 7 VS Code case transforms — added title case, snake_case, camelCase, kebab-case, PascalCase via command palette; collapsed cursor now auto-selects word under cursor before transforming (Fix #78, Fix #79)
+- **Editor**: Find Previous — search backward via Shift+Enter in find bar or ↑ Prev button; wraps around to last match when no match before cursor
+
 - **Editor**: Ctrl+Home / Ctrl+End — jump to start/end of document; Ctrl+Shift+Home/End extends selection to document boundaries (Fix #63)
 - **Editor**: VS Code-style smart Home key — toggles between first non-whitespace character and column 0 (Fix #63)
 - **Tests**: 257 test cases ported from VSCode's editor test suite covering cursor movement, text editing, selection, multi-cursor, undo/redo, word movement, word selection, case transforms, sort lines, move lines, and find/replace (Fix #63)

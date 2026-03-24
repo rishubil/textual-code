@@ -88,6 +88,108 @@ def _is_movement_key(event: events.Key) -> bool:
     )
 
 
+# ── Case transform helpers ────────────────────────────────────────────────────
+#
+# Ported from VSCode's linesOperations.ts — SnakeCaseAction, CamelCaseAction,
+# KebabCaseAction, PascalCaseAction.  Python's ``re`` module does not support
+# Unicode property escapes (``\p{Lu}``), so we use character-level
+# ``str.isupper()``/``str.islower()`` checks which are fully Unicode-aware.
+
+
+def _insert_separator_at_case_boundaries(text: str, sep: str) -> str:
+    """Insert *sep* at camelCase / acronym boundaries.
+
+    Boundary rules (matching VSCode):
+    1. lowercase → uppercase  (e.g. ``parse|HTML``)
+    2. (uppercase-or-digit)(uppercase)(lowercase) — last char of an acronym run
+       starts a new word  (e.g. ``CSS|Selectors``, ``M4A|To``)
+    """
+    result: list[str] = []
+    n = len(text)
+    for i, ch in enumerate(text):
+        if i > 0:
+            prev = text[i - 1]
+            # Rule 1: lowercase → uppercase
+            if prev.islower() and ch.isupper():  # noqa: SIM114
+                result.append(sep)
+            # Rule 2: (upper|digit)(upper)(lower) — insert before the (upper)
+            elif (
+                (prev.isupper() or prev.isdigit())
+                and ch.isupper()
+                and i + 1 < n
+                and text[i + 1].islower()
+            ):
+                result.append(sep)
+        result.append(ch)
+    return "".join(result)
+
+
+def _to_snake_case(text: str) -> str:
+    """Convert *text* to snake_case (VSCode SnakeCaseAction port)."""
+    return _insert_separator_at_case_boundaries(text, "_").lower()
+
+
+def _to_kebab_case(text: str) -> str:
+    """Convert *text* to kebab-case (VSCode KebabCaseAction port)."""
+    # Step 1: replace underscores between non-whitespace with hyphens
+    text = re.sub(r"(\S)_(\S)", r"\1-\2", text)
+    # Step 2: insert hyphens at case boundaries
+    text = _insert_separator_at_case_boundaries(text, "-")
+    return text.lower()
+
+
+def _to_camel_case(text: str) -> str:
+    """Convert *text* to camelCase (VSCode CamelCaseAction port)."""
+    # Multiline: split only on _ and - (preserve spaces/tabs/newlines).
+    # Single line: also split on whitespace.
+    if "\n" in text or "\r" in text:
+        boundary = re.compile(r"[_-]+")
+    else:
+        boundary = re.compile(r"[_\s-]+")
+
+    parts = boundary.split(text)
+    if not parts:
+        return text
+
+    result_parts: list[str] = []
+    for idx, part in enumerate(parts):
+        if idx == 0:
+            # First word: lowercase start if it begins with single uppercase
+            # followed by non-uppercase (e.g. "From" → "from", but "XML" stays "XML")
+            if part and part[0].isupper() and len(part) > 1 and not part[1].isupper():
+                part = part[0].lower() + part[1:]
+            result_parts.append(part)
+        else:
+            # Subsequent words: capitalize first char
+            if part:
+                part = part[0].upper() + part[1:]
+            result_parts.append(part)
+
+    return "".join(result_parts)
+
+
+def _to_pascal_case(text: str) -> str:
+    """Convert *text* to PascalCase (VSCode PascalCaseAction port)."""
+    # Split on word boundaries, preserving dots as join points
+    # VSCode: wordBoundary = /[_ \t-]/gm, wordBoundaryToMaintain = /(?<=\.)/gm
+    parts_by_dot = re.split(r"(?<=\.)", text)
+    words: list[str] = []
+    for part in parts_by_dot:
+        words.extend(re.split(r"[_ \t-]+", part))
+
+    result_words: list[str] = []
+    for word in words:
+        if not word:
+            continue
+        normalized = word[0].upper() + word[1:]
+        # If the word is ALL uppercase letters and length > 1, title-case it
+        if len(normalized) > 1 and normalized.isalpha() and normalized.isupper():
+            normalized = normalized[0] + normalized[1:].lower()
+        result_words.append(normalized)
+
+    return "".join(result_words)
+
+
 class MultiCursorTextArea(TextArea):
     """TextArea with multi-cursor support.
 
@@ -821,8 +923,22 @@ class MultiCursorTextArea(TextArea):
 
     # ── transform case ───────────────────────────────────────────────────────
 
+    @staticmethod
+    def _end_location_after_insert(
+        start: tuple[int, int], new_text: str
+    ) -> tuple[int, int]:
+        """Compute end (row, col) after inserting *new_text* at *start*."""
+        lines = new_text.split("\n")
+        if len(lines) == 1:
+            return (start[0], start[1] + len(new_text))
+        return (start[0] + len(lines) - 1, len(lines[-1]))
+
     def _transform_case(self, transform: Callable[[str], str]) -> None:
-        """Transform selected text using the given callable (e.g. str.upper)."""
+        """Transform selected text using the given callable (e.g. str.upper).
+
+        When the cursor is collapsed (no selection), auto-selects the word
+        under the cursor before transforming, matching VS Code behavior.
+        """
         from textual.widgets.text_area import Selection
 
         if self.read_only:
@@ -830,12 +946,22 @@ class MultiCursorTextArea(TextArea):
 
         text = self.selected_text
         if not text:
-            return
+            # Auto-select word under cursor (VS Code behavior)
+            row, col = self.cursor_location
+            bounds = self._word_bounds_at(self.text, row, col)
+            if bounds is None:
+                return
+            start = (row, bounds[0])
+            end = (row, bounds[1])
+            text = self.document.get_line(row)[bounds[0] : bounds[1]]
+        else:
+            sel = self.selection
+            start, end = sel.start, sel.end
 
-        sel = self.selection
-        start, end = sel.start, sel.end
-        self.replace(transform(text), start, end)
-        self.selection = Selection(start=start, end=end)
+        new_text = transform(text)
+        self.replace(new_text, start, end)
+        new_end = self._end_location_after_insert(start, new_text)
+        self.selection = Selection(start=start, end=new_end)
 
     def action_transform_uppercase(self) -> None:
         """Transform selected text to uppercase."""
@@ -844,6 +970,26 @@ class MultiCursorTextArea(TextArea):
     def action_transform_lowercase(self) -> None:
         """Transform selected text to lowercase."""
         self._transform_case(str.lower)
+
+    def action_transform_title_case(self) -> None:
+        """Transform selected text to title case."""
+        self._transform_case(str.title)
+
+    def action_transform_snake_case(self) -> None:
+        """Transform selected text to snake_case."""
+        self._transform_case(_to_snake_case)
+
+    def action_transform_camel_case(self) -> None:
+        """Transform selected text to camelCase."""
+        self._transform_case(_to_camel_case)
+
+    def action_transform_kebab_case(self) -> None:
+        """Transform selected text to kebab-case."""
+        self._transform_case(_to_kebab_case)
+
+    def action_transform_pascal_case(self) -> None:
+        """Transform selected text to PascalCase."""
+        self._transform_case(_to_pascal_case)
 
     # ── scroll viewport ──────────────────────────────────────────────────────
 

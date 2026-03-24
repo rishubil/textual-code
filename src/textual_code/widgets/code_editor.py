@@ -455,6 +455,36 @@ def _find_next(
     return -1, -1
 
 
+def _find_previous(
+    text: str,
+    query: str,
+    cursor_offset: int,
+    use_regex: bool = False,
+    case_sensitive: bool = True,
+) -> tuple[int, int]:
+    """Return (start, end) of previous match before cursor_offset, wrapping around.
+
+    A match whose end >= cursor_offset is skipped (it overlaps the cursor).
+    Returns (-1, -1) if not found.
+    Raises re.error for invalid regex when use_regex=True.
+    """
+    flags = 0 if case_sensitive else re.IGNORECASE
+    if use_regex:
+        flags |= re.MULTILINE
+    pattern = re.compile(query if use_regex else re.escape(query), flags)
+    # Single pass: track the last match before cursor and the last match overall
+    last_before = None
+    last_overall = None
+    for m in pattern.finditer(text):
+        last_overall = m
+        if m.end() < cursor_offset:
+            last_before = m
+    result = last_before or last_overall
+    if result is not None:
+        return result.start(), result.end()
+    return -1, -1
+
+
 def _get_word_at_location(text: str, row: int, col: int) -> str:
     """Return the word under (row, col) using \\w+ boundaries.
 
@@ -1880,6 +1910,46 @@ class CodeEditor(Static):
             return
 
         self._find_offset = end_idx
+        self.editor.selection = Selection(
+            start=_text_offset_to_location(text, start_idx),
+            end=_text_offset_to_location(text, end_idx),
+        )
+
+    def on_find_replace_bar_find_previous(
+        self, event: FindReplaceBar.FindPrevious
+    ) -> None:
+        if not event.query:
+            return
+
+        from textual.widgets.text_area import Selection
+
+        query = event.query
+        text = self.text
+
+        # Use tracked offset for sequential finds; fall back to cursor position
+        if self._find_offset is not None:
+            cursor_offset = self._find_offset
+        else:
+            cursor_row, cursor_col = self.editor.cursor_location
+            lines = text.split("\n")
+            cursor_offset = (
+                sum(len(lines[i]) + 1 for i in range(cursor_row)) + cursor_col
+            )
+
+        try:
+            start_idx, end_idx = _find_previous(
+                text, query, cursor_offset, event.use_regex, event.case_sensitive
+            )
+        except re.error as e:
+            self.notify(f"Invalid regex: {e}", severity="error")
+            return
+
+        if start_idx == -1:
+            self._find_offset = None
+            self.notify(f"'{query}' not found", severity="warning")
+            return
+
+        self._find_offset = start_idx
         self.editor.selection = Selection(
             start=_text_offset_to_location(text, start_idx),
             end=_text_offset_to_location(text, end_idx),

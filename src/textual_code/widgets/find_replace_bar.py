@@ -22,6 +22,15 @@ class FindReplaceBar(Horizontal):
             self.use_regex = use_regex
             self.case_sensitive = case_sensitive
 
+    class FindPrevious(Message):
+        """Emitted when the user requests the previous match."""
+
+        def __init__(self, query: str, use_regex: bool, case_sensitive: bool) -> None:
+            super().__init__()
+            self.query = query
+            self.use_regex = use_regex
+            self.case_sensitive = case_sensitive
+
     class ReplaceCurrent(Message):
         """Emitted when the user requests a single replacement."""
 
@@ -63,6 +72,7 @@ class FindReplaceBar(Horizontal):
             yield Input(placeholder="Find...", id="find_input")
             yield Checkbox(".*", id="use_regex", value=False)
             yield Checkbox("Aa", id="case_sensitive", value=True)
+            yield Button("↑ Prev", id="prev_match")
             yield Button("↓ Next", id="next_match")
             yield Button("Select All", id="select_all_btn")
             yield Button("✕", id="close_btn")
@@ -110,7 +120,6 @@ class FindReplaceBar(Horizontal):
         """Disable case_sensitive checkbox when regex is on."""
         self.query_one("#case_sensitive", Checkbox).disabled = event.value
 
-    @on(Input.Submitted, "#find_input")
     @on(Button.Pressed, "#next_match")
     def _on_find_next(self) -> None:
         self.post_message(
@@ -120,6 +129,20 @@ class FindReplaceBar(Horizontal):
         )
         # Return focus to input so the button can be clicked again
         self.query_one("#find_input", Input).focus()
+
+    @on(Button.Pressed, "#prev_match")
+    def _on_find_previous(self) -> None:
+        self.post_message(
+            FindReplaceBar.FindPrevious(
+                self._get_query(), self._get_use_regex(), self._get_case_sensitive()
+            )
+        )
+        self.query_one("#find_input", Input).focus()
+
+    @on(Input.Submitted, "#find_input")
+    def _on_find_input_submitted(self) -> None:
+        """Enter in find input → find next."""
+        self._on_find_next()
 
     @on(Button.Pressed, "#select_all_btn")
     def _on_select_all(self) -> None:
@@ -158,7 +181,11 @@ class FindReplaceBar(Horizontal):
         self.post_message(FindReplaceBar.Closed())
 
     def on_key(self, event) -> None:
-        if event.key == "escape":
+        if event.key == "shift+enter":
+            event.stop()
+            event.prevent_default()
+            self._on_find_previous()
+        elif event.key == "escape":
             event.stop()
             self.display = False
             self.post_message(FindReplaceBar.Closed())
