@@ -8,12 +8,11 @@ for Textual's TextArea widget with 0-based position indexing.
 Source: src/vs/editor/test/browser/controller/cursor.test.ts
 VSCode uses 1-based positions; all values here are converted to 0-based.
 
-Behavioral differences documented inline:
-- No "smart home" — Home always goes to column 0 (VSCode toggles
-  between first non-whitespace and column 0).
-- No sticky column — up/down uses current column, not a remembered one.
-- ctrl+home / ctrl+end — not bound in single-cursor mode (only works
-  with extra cursors active via MultiCursorTextArea.on_key).
+All known behavioral differences from VSCode have been resolved:
+- Smart home now uses VSCode-style toggle (first non-WS ↔ col 0).
+- Sticky column is handled by Textual's TextArea via last_x_offset.
+- ctrl+home / ctrl+end now bound in single-cursor mode via BINDINGS.
+- Down at last line / Up at first line handled by Textual's navigator.
 """
 
 from pathlib import Path
@@ -239,8 +238,9 @@ async def test_move_down_clamps_to_shorter_line(
         pytest.param((0, 5), (0, 0), id="from-first-non-ws-to-col-0"),
         # From column 0 → go to first non-WS
         pytest.param((0, 0), (0, 5), id="from-col-0-to-first-non-ws"),
-        # From within indent (between col 0 and first non-WS) → go to col 0
-        pytest.param((0, 2), (0, 0), id="from-indent-to-col-0"),
+        # From within indent (between col 0 and first non-WS) → go to first non-WS
+        # (VSCode behavior: anything not at first-non-WS goes to first-non-WS)
+        pytest.param((0, 2), (0, 5), id="from-indent-to-first-non-ws"),
         # Different line with different indent
         pytest.param((2, 7), (2, 4), id="line2-to-first-non-ws"),
         pytest.param((2, 4), (2, 0), id="line2-from-first-non-ws-to-col-0"),
@@ -375,3 +375,143 @@ async def test_shift_end_extends_from_cursor_position(
         await pilot.press("shift+end")
         # Shift+End extends from anchor (0,8) to end of cursor's line (2,14)
         assert ta.selection == Selection((0, 8), (2, len(LINE2)))
+
+
+# ── VSCode behavioral difference tests ──────────────────────────────────────
+# Tests below verify VSCode-matching behavior for known differences.
+# Marked xfail where our editor intentionally or unavoidably differs.
+
+
+async def test_down_at_last_line_moves_to_end(workspace: Path, cursor_test_file: Path):
+    """VSCode: pressing Down on the last line should move cursor to end of line.
+
+    VSCode cursor.test.ts 'move down': after reaching line 5 (content "1"),
+    pressing Down again moves to (5, 2) in 1-based = (4, 1) in 0-based.
+    """
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (4, 0))
+        await pilot.press("down")
+        assert ta.cursor_location == (4, len(LINE4)), (
+            f"Down at last line should move to end; got {ta.cursor_location}"
+        )
+
+
+async def test_up_at_first_line_moves_to_start(workspace: Path, cursor_test_file: Path):
+    """VSCode: pressing Up on the first line should move cursor to start of line.
+
+    Symmetric to the Down-at-last-line behavior.
+    """
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 5))
+        await pilot.press("up")
+        assert ta.cursor_location == (0, 0), (
+            f"Up at first line should move to start; got {ta.cursor_location}"
+        )
+
+
+async def test_ctrl_home_single_cursor(workspace: Path, cursor_test_file: Path):
+    """ctrl+home should move to document start even without extra cursors."""
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (2, 5))
+        await pilot.press("ctrl+home")
+        assert ta.cursor_location == (0, 0), (
+            f"ctrl+home should go to (0,0); got {ta.cursor_location}"
+        )
+
+
+async def test_ctrl_end_single_cursor(workspace: Path, cursor_test_file: Path):
+    """ctrl+end should move to document end even without extra cursors."""
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+        await pilot.press("ctrl+end")
+        assert ta.cursor_location == (4, len(LINE4)), (
+            f"ctrl+end should go to end of document; got {ta.cursor_location}"
+        )
+
+
+async def test_ctrl_shift_home_single_cursor(workspace: Path, cursor_test_file: Path):
+    """ctrl+shift+home should select from cursor to document start."""
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (2, 5))
+        await pilot.press("ctrl+shift+home")
+        assert ta.selection == Selection((2, 5), (0, 0)), (
+            f"ctrl+shift+home should select to (0,0); got {ta.selection}"
+        )
+
+
+async def test_ctrl_shift_end_single_cursor(workspace: Path, cursor_test_file: Path):
+    """ctrl+shift+end should select from cursor to document end."""
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+        await pilot.press("ctrl+shift+end")
+        assert ta.selection == Selection((0, 0), (4, len(LINE4))), (
+            f"ctrl+shift+end should select to end; got {ta.selection}"
+        )
+
+
+async def test_smart_home_from_within_indent(workspace: Path, cursor_test_file: Path):
+    """VSCode: Home from within indent should go to first non-WS, not col 0.
+
+    VSCode smart home logic: if cursor == firstNonBlank → go to col 0;
+    otherwise → go to firstNonBlank.  When cursor is between col 0 and
+    firstNonBlank (but not at either), VSCode goes to firstNonBlank.
+    Our editor currently goes to col 0.
+    """
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 2))
+        await pilot.press("home")
+        # VSCode: from col 2 (within indent of LINE0, first non-WS at 5) → col 5
+        assert ta.cursor_location == (0, 5), (
+            f"Home from within indent should go to first non-WS; "
+            f"got {ta.cursor_location}"
+        )
+
+
+async def test_smart_home_from_within_indent_line2(
+    workspace: Path, cursor_test_file: Path
+):
+    """VSCode: Home from within indent on LINE2 should go to first non-WS."""
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (2, 2))
+        await pilot.press("home")
+        # LINE2 = "    Third Line", first non-WS at col 4
+        assert ta.cursor_location == (2, 4), (
+            f"Home from within indent should go to first non-WS; "
+            f"got {ta.cursor_location}"
+        )
+
+
+async def test_sticky_column_down_and_up(workspace: Path, cursor_test_file: Path):
+    """VSCode: column should be remembered when moving through shorter lines.
+
+    Start at end of LINE0 (col 20), move down through shorter lines,
+    then back up.  The original column should be restored on the longer line.
+    """
+    app = make_app(workspace, light=True, open_file=cursor_test_file)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+        await pilot.press("end")  # (0, 20)
+        assert ta.cursor_location == (0, len(LINE0))
+
+        await pilot.press("down")  # (1, 16) — clamped
+        assert ta.cursor_location == (1, len(LINE1))
+
+        await pilot.press("down")  # (2, 14) — clamped
+        assert ta.cursor_location == (2, len(LINE2))
+
+        # Now go back up — sticky column should restore
+        await pilot.press("up")  # Back to LINE1 — should go to 16 (clamped from 20)
+        assert ta.cursor_location == (1, len(LINE1))
+
+        await pilot.press("up")  # Back to LINE0 — should restore to col 20
+        assert ta.cursor_location == (0, len(LINE0)), (
+            f"Sticky column should restore original column; got {ta.cursor_location}"
+        )

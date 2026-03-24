@@ -8,6 +8,7 @@ Integration-level tests run the full app via pilot (CodeEditor + key bindings).
 from pathlib import Path
 
 import pytest
+from textual.widgets.text_area import Selection
 
 from tests.conftest import make_app
 from textual_code.widgets.code_editor import CodeEditorFooter
@@ -826,7 +827,7 @@ async def test_delete_eol_document_content(workspace: Path, five_line_file: Path
 
 
 async def test_delete_eol_last_line_stays(workspace: Path, two_line_file: Path):
-    """Delete at EOL of the last line is a no-op."""
+    """Delete at EOL of the last line is a no-op for that cursor."""
     app = make_app(workspace, light=True, open_file=two_line_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -834,8 +835,10 @@ async def test_delete_eol_last_line_stays(workspace: Path, two_line_file: Path):
         assert _ce is not None
         ta = _ce.editor
 
-        # Move to last content line, EOL
-        await pilot.press("ctrl+end")
+        # File: "Hello world\nFoo bar\n" → lines: ["Hello world", "Foo bar", ""]
+        # Position primary at EOL of last line (empty line after trailing \n)
+        last_line = ta.document.line_count - 1
+        ta.selection = Selection.cursor((last_line, 0))
         await pilot.pause()
 
         ta.add_cursor((0, 11))  # EOL of "Hello world"
@@ -844,8 +847,11 @@ async def test_delete_eol_last_line_stays(workspace: Path, two_line_file: Path):
         await pilot.press("delete")
         await pilot.pause()
 
-        # Last-line cursor is no-op; the other cursor merges
-        assert ta.extra_cursors == []
+        # Both cursors at EOL → _do_delete_line_merge:
+        # - Extra (0, 11): merges "Hello world" with "Foo bar" → stays at (0, 11)
+        # - Primary (2, 0): last line → no-op, repositioned to (1, 0)
+        # Extra cursor remains at a valid position after the merge.
+        assert ta.extra_cursors == [(0, 11)]
 
 
 async def test_delete_eol_mixed_clears_cursors(workspace: Path, five_line_file: Path):

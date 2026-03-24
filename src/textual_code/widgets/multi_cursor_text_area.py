@@ -128,6 +128,20 @@ class MultiCursorTextArea(TextArea):
             "Select page down",
             show=False,
         ),
+        Binding("ctrl+home", "cursor_document_start", "Go to start", show=False),
+        Binding("ctrl+end", "cursor_document_end", "Go to end", show=False),
+        Binding(
+            "ctrl+shift+home",
+            "cursor_document_start(True)",
+            "Select to start",
+            show=False,
+        ),
+        Binding(
+            "ctrl+shift+end",
+            "cursor_document_end(True)",
+            "Select to end",
+            show=False,
+        ),
     ]
 
     # ── inner message ─────────────────────────────────────────────────────────
@@ -827,6 +841,48 @@ class MultiCursorTextArea(TextArea):
         """Move cursor one page down while extending selection."""
         self._cursor_page_select(1)
 
+    def action_cursor_document_start(self, select: bool = False) -> None:
+        """Move cursor to the start of the document (ctrl+home)."""
+        self.move_cursor((0, 0), select=select)
+
+    def action_cursor_document_end(self, select: bool = False) -> None:
+        """Move cursor to the end of the document (ctrl+end)."""
+        last_line = self.document.line_count - 1
+        last_col = len(self.document[last_line])
+        self.move_cursor((last_line, last_col), select=select)
+
+    # ── smart home (VSCode-style) ─────────────────────────────────────────────
+
+    def get_cursor_line_start_location(
+        self, smart_home: bool = False
+    ) -> tuple[int, int]:
+        """Override to implement VSCode-style smart home.
+
+        VSCode logic: if cursor is at the first non-whitespace character,
+        go to column 0.  Otherwise, go to the first non-whitespace character.
+        Textual's default goes to column 0 when cursor is within the indent
+        area (between col 0 and first non-WS); VSCode goes to first non-WS.
+        """
+        if not smart_home:
+            return super().get_cursor_line_start_location(smart_home=False)
+
+        row, col = self.cursor_location
+        line = self.document[row]
+
+        # Find first non-whitespace position
+        first_non_ws = 0
+        for i, ch in enumerate(line):
+            if not ch.isspace():
+                first_non_ws = i
+                break
+        else:
+            # All whitespace or empty — always go to col 0
+            return (row, 0)
+
+        if col == first_non_ws:
+            return (row, 0)
+        return (row, first_non_ws)
+
     # ── rendering ─────────────────────────────────────────────────────────────
 
     def get_line(self, line_index: int) -> Text:
@@ -1033,7 +1089,18 @@ class MultiCursorTextArea(TextArea):
             return (row, col)
 
         elif base_key == "home":
-            return (row, 0)
+            # VSCode-style smart home: toggle between first non-WS and col 0
+            line = lines[row] if row < len(lines) else ""
+            first_non_ws = 0
+            for i, ch in enumerate(line):
+                if not ch.isspace():
+                    first_non_ws = i
+                    break
+            else:
+                return (row, 0)
+            if col == first_non_ws:
+                return (row, 0)
+            return (row, first_non_ws)
 
         elif base_key == "end":
             return (row, len(lines[row]) if row < len(lines) else 0)
