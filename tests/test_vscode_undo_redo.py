@@ -2,11 +2,18 @@
 Undo/redo tests ported from VSCode's cursor.test.ts.
 
 These tests verify undo/redo behavior including undo stop boundaries for
-whitespace, full undo/redo cycles with cursor position tracking, and
-multi-cursor undo.
+whitespace, full undo/redo cycles with cursor position tracking,
+multi-cursor undo, backspace undo chains, and unicode undo correctness.
 
 Source: src/vs/editor/test/browser/controller/cursor.test.ts
 VSCode uses 1-based positions; all values here are converted to 0-based.
+
+Textual's EditHistory creates new undo batches when:
+  - _force_end_batch (cursor movement, redo, etc.)
+  - edit contains newline (in inserted or replaced text)
+  - multi-character paste (>1 char inserted)
+  - is_replacement flag changes (typing → backspace transition)
+  - timer expired or max character count reached
 """
 
 from pathlib import Path
@@ -378,3 +385,314 @@ async def test_undo_after_selection_replace(workspace: Path):
         # Undo the 'X' replacement (first batch — replaced selection)
         await pilot.press("ctrl+z")
         assert ta.text == "abcdef"
+
+
+# -- Backspace Across Lines: Undo/Redo Chain --------------------------------
+# Adapted from VSCode Bug 9121: 'Auto indent + undo + redo is funky'.
+# Original test uses Tab indentation (insertSpaces: false); we use spaces.
+
+
+async def test_undo_redo_backspace_across_lines(workspace: Path):
+    """VSCode: 'Bug 9121: Auto indent + undo + redo is funky'.
+
+    Adapted: type text across two lines, then backspace across the line
+    boundary.  Textual batches consecutive same-line backspaces together
+    but creates a new batch when a backspace removes a newline character.
+
+    Undo groups:
+      batch 1: typing 'hi'
+      batch 2: Enter (newline)
+      batch 3: typing 'bye'
+      (cursor movement creates checkpoint)
+      batch 4: backspace 'e', 'y', 'b' (same-line, batched)
+      batch 5: backspace '\\n' (newline removal = new batch)
+    """
+    f = workspace / "test.txt"
+    f.write_text("")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+
+        # Type 'hi' + Enter + 'bye'
+        for ch in "hi":
+            await pilot.press(ch)
+        await pilot.press("enter")
+        for ch in "bye":
+            await pilot.press(ch)
+        assert ta.text == "hi\nbye"
+        assert ta.cursor_location == (1, 3)
+
+        # Move cursor to create checkpoint, then back
+        await pilot.press("left")
+        await pilot.press("right")
+
+        # Backspace 3 times to delete 'bye' (same-line, one batch)
+        await pilot.press("backspace")
+        await pilot.press("backspace")
+        await pilot.press("backspace")
+        assert ta.text == "hi\n"
+        assert ta.cursor_location == (1, 0)
+
+        # Backspace to delete newline (new batch — contains newline)
+        await pilot.press("backspace")
+        assert ta.text == "hi"
+        assert ta.cursor_location == (0, 2)
+
+        # Undo: restore newline (batch 5)
+        await pilot.press("ctrl+z")
+        assert ta.text == "hi\n"
+        assert ta.cursor_location == (1, 0)
+
+        # Undo: restore 'bye' (batch 4 — all 3 backspaces undone together)
+        await pilot.press("ctrl+z")
+        assert ta.text == "hi\nbye"
+        assert ta.cursor_location == (1, 3)
+
+        # Redo: delete 'bye' again (batch 4)
+        await pilot.press("ctrl+shift+z")
+        assert ta.text == "hi\n"
+
+        # Redo: delete newline again (batch 5)
+        await pilot.press("ctrl+shift+z")
+        assert ta.text == "hi"
+
+
+# -- Programmatic Delete + Undo Cursor Position ----------------------------
+# Adapted from VSCode issue #42783.
+
+
+async def test_undo_programmatic_delete_cursor(workspace: Path):
+    """VSCode: 'issue #42783: API Calls with Undo Leave Cursor in Wrong Position'.
+
+    Programmatic delete of text via API, then undo — cursor should be
+    restored to its pre-undo position.
+    """
+    f = workspace / "ab.txt"
+    f.write_text("ab")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+        assert ta.text == "ab"
+
+        # Programmatic delete: remove all text
+        ta.delete((0, 0), (0, 2))
+        assert ta.text == ""
+
+        # Undo restores text
+        await pilot.press("ctrl+z")
+        assert ta.text == "ab"
+
+        # Second programmatic delete: remove only 'a'
+        ta.delete((0, 0), (0, 1))
+        assert ta.text == "b"
+        assert ta.cursor_location[1] == 0  # cursor stays at col 0
+
+
+# -- Unicode Undo Correctness -----------------------------------------------
+# Adapted from VSCode issue #47733.
+
+
+async def test_undo_after_unicode_edit(workspace: Path):
+    """VSCode: 'issue #47733: Undo mangles unicode characters'.
+
+    Adapted: original test uses surroundingPairs to auto-wrap selected
+    text with '%'.  We test that editing text containing emoji/unicode
+    and then undoing restores the characters correctly without mangling.
+    """
+    f = workspace / "emoji.txt"
+    f.write_text("'👁'")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+        assert ta.text == "'👁'"
+
+        # Select the first quote character
+        ta.selection = Selection((0, 0), (0, 1))
+
+        # Type replacement — replaces the quote with 'X'
+        await pilot.press("X")
+        assert ta.text == "X👁'"
+
+        # Undo should restore the original quote without mangling emoji
+        await pilot.press("ctrl+z")
+        assert ta.text == "'👁'"
+
+
+# -- Backspace Creates Boundary From Typing ---------------------------------
+
+
+async def test_undo_backspace_boundary_from_typing(workspace: Path):
+    """Verify that switching from typing to backspace creates an undo boundary.
+
+    Textual's EditHistory tracks is_replacement: typing is a pure insertion
+    (is_replacement=False), while backspace is a deletion (is_replacement=True).
+    When the mode changes, a new batch is created.
+    """
+    f = workspace / "empty.txt"
+    f.write_text("")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+
+        # Type 'hello'
+        for ch in "hello":
+            await pilot.press(ch)
+        assert ta.text == "hello"
+
+        # Immediately backspace twice (no cursor movement in between)
+        await pilot.press("backspace")
+        await pilot.press("backspace")
+        assert ta.text == "hel"
+
+        # Undo: restores the two deleted characters (backspace batch)
+        await pilot.press("ctrl+z")
+        assert ta.text == "hello"
+        assert ta.cursor_location == (0, 5)
+
+        # Undo: removes 'hello' (typing batch)
+        await pilot.press("ctrl+z")
+        assert ta.text == ""
+
+
+# -- Newline Backspace Creates Separate Batches -----------------------------
+
+
+async def test_undo_newline_backspaces_separate_batches(workspace: Path):
+    """Verify that backspacing over a newline is a separate undo group.
+
+    When backspace deletes a '\\n', the edit's replaced_text contains a
+    newline, triggering a new batch.  Additionally, checkpoint() is called
+    after, so the next edit also starts a new batch.
+    """
+    f = workspace / "lines.txt"
+    f.write_text("a\nb\nc")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (2, 1))
+        assert ta.text == "a\nb\nc"
+
+        # Backspace 'c' — is_replacement, starts new batch (force_end_batch
+        # from initial cursor_location assignment)
+        await pilot.press("backspace")
+        assert ta.text == "a\nb\n"
+
+        # Backspace newline — contains_newline → new batch
+        await pilot.press("backspace")
+        assert ta.text == "a\nb"
+        assert ta.cursor_location == (1, 1)
+
+        # Backspace 'b' — new batch (checkpoint after newline removal)
+        await pilot.press("backspace")
+        assert ta.text == "a\n"
+
+        # Backspace newline — contains_newline → new batch
+        await pilot.press("backspace")
+        assert ta.text == "a"
+        assert ta.cursor_location == (0, 1)
+
+        # Undo chain: each step is a separate batch
+        await pilot.press("ctrl+z")
+        assert ta.text == "a\n"
+
+        await pilot.press("ctrl+z")
+        assert ta.text == "a\nb"
+
+        await pilot.press("ctrl+z")
+        assert ta.text == "a\nb\n"
+
+        await pilot.press("ctrl+z")
+        assert ta.text == "a\nb\nc"
+
+        # Redo chain
+        await pilot.press("ctrl+shift+z")
+        assert ta.text == "a\nb\n"
+
+        await pilot.press("ctrl+shift+z")
+        assert ta.text == "a\nb"
+
+        await pilot.press("ctrl+shift+z")
+        assert ta.text == "a\n"
+
+        await pilot.press("ctrl+shift+z")
+        assert ta.text == "a"
+
+
+# -- Delete Right (Forward Delete) + Undo -----------------------------------
+
+
+async def test_undo_delete_right(workspace: Path):
+    """Verify that forward delete (Delete key) can be undone.
+
+    Forward delete removes the character to the right of the cursor.
+    Like backspace, it is a replacement edit (is_replacement=True).
+    """
+    f = workspace / "test.txt"
+    f.write_text("abcde")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 1))
+
+        # Delete 'b' and 'c' (forward delete)
+        await pilot.press("delete")
+        await pilot.press("delete")
+        assert ta.text == "ade"
+        assert ta.cursor_location == (0, 1)
+
+        # Undo restores both characters (batched together)
+        await pilot.press("ctrl+z")
+        assert ta.text == "abcde"
+        assert ta.cursor_location == (0, 1)
+
+        # Redo
+        await pilot.press("ctrl+shift+z")
+        assert ta.text == "ade"
+
+
+# -- Paste Creates Isolated Undo Batch --------------------------------------
+
+
+async def test_undo_paste_isolated_batch(workspace: Path):
+    """Verify that pasting text creates an isolated undo batch.
+
+    Textual's EditHistory creates a new batch when edit_characters > 1
+    (multi-char insert = paste).  After such an edit, checkpoint() is
+    also called, so the next edit starts yet another batch.
+    """
+    f = workspace / "test.txt"
+    f.write_text("")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+
+        # Type 'ab'
+        for ch in "ab":
+            await pilot.press(ch)
+        assert ta.text == "ab"
+
+        # Move to create checkpoint
+        await pilot.press("left")
+        await pilot.press("right")
+
+        # Paste 'XYZ' via clipboard
+        app.copy_to_clipboard("XYZ")
+        await pilot.press("ctrl+v")
+        await pilot.pause()
+        assert ta.text == "abXYZ"
+
+        # Move and type more
+        await pilot.press("left")
+        await pilot.press("right")
+        await pilot.press("!")
+        assert ta.text == "abXYZ!"
+
+        # Undo: removes '!' (post-paste typing batch)
+        await pilot.press("ctrl+z")
+        assert ta.text == "abXYZ"
+
+        # Undo: removes 'XYZ' (paste batch — isolated)
+        await pilot.press("ctrl+z")
+        assert ta.text == "ab"
+
+        # Undo: removes 'ab' (initial typing batch)
+        await pilot.press("ctrl+z")
+        assert ta.text == ""
