@@ -20,13 +20,10 @@ Word boundary logic:
   operator sequences like ``+=`` produce two stops (before ``+`` and before ``=``).
 
 Behavioral differences from VSCode (documented, not bugs):
-  1. **Line transitions (Ctrl+Left)**: from col 0, our editor jumps to the END
-     of the previous line first, then word boundaries.  VSCode jumps directly to
-     the last word boundary on the previous line.
-  2. **Emoji at word boundary**: ``Line🐶`` — our editor treats the emoji as a
+  1. **Emoji at word boundary**: ``Line🐶`` — our editor treats the emoji as a
      separate \\W token, creating extra stops around it.  VSCode treats the
      entire ``Line🐶`` as one unit.
-  3. **Operator grouping**: ``+=`` creates one stop in VSCode but two in ours
+  2. **Operator grouping**: ``+=`` creates one stop in VSCode but two in ours
      (before ``+`` and before ``=``).  Same for ``*/``, ``-3``, etc.
 """
 
@@ -433,11 +430,29 @@ class TestCtrlLeftEdgeCases:
         result = MultiCursorTextArea._move_location(["    hello"], 0, 4, "ctrl+left")
         assert result == (0, 0)
 
-    def test_line_start_goes_to_prev_line_end(self):
-        """Ctrl+left from col 0 goes to end of previous line."""
+    def test_line_start_goes_to_prev_line_word_boundary(self):
+        """Ctrl+left from col 0 goes to last word boundary on previous line."""
+        lines = ["hello world", "test"]
+        result = MultiCursorTextArea._move_location(lines, 1, 0, "ctrl+left")
+        assert result == (0, 6)  # before 'world' (last word start)
+
+    def test_line_start_single_word_prev_line(self):
+        """Ctrl+left from col 0, previous line has one word → go to start."""
         lines = ["hello", "world"]
         result = MultiCursorTextArea._move_location(lines, 1, 0, "ctrl+left")
-        assert result == (0, 5)
+        assert result == (0, 0)
+
+    def test_line_start_prev_line_empty(self):
+        """Ctrl+left from col 0, previous line is empty → stop at (row-1, 0)."""
+        lines = ["", "world"]
+        result = MultiCursorTextArea._move_location(lines, 1, 0, "ctrl+left")
+        assert result == (0, 0)
+
+    def test_line_start_prev_line_trailing_whitespace(self):
+        """Ctrl+left from col 0 skips trailing whitespace on previous line."""
+        lines = ["hello world   ", "test"]
+        result = MultiCursorTextArea._move_location(lines, 1, 0, "ctrl+left")
+        assert result == (0, 6)  # before 'world', skip trailing spaces
 
     def test_trailing_whitespace_skipped(self):
         """Ctrl+left from end of 'hello   ' skips trailing spaces."""
@@ -469,11 +484,29 @@ class TestCtrlRightEdgeCases:
         result = MultiCursorTextArea._move_location(["hello world"], 0, 3, "ctrl+right")
         assert result == (0, 5)
 
-    def test_line_end_goes_to_next_line_start(self):
-        """Ctrl+right from end of line goes to start of next line."""
+    def test_line_end_goes_to_next_line_word_boundary(self):
+        """Ctrl+right from end of line goes to first word boundary on next line."""
+        lines = ["hello", "foo bar"]
+        result = MultiCursorTextArea._move_location(lines, 0, 5, "ctrl+right")
+        assert result == (1, 3)  # after 'foo' (first word end)
+
+    def test_line_end_next_line_single_word(self):
+        """Ctrl+right from end of line, next line has one word → go to end."""
         lines = ["hello", "world"]
         result = MultiCursorTextArea._move_location(lines, 0, 5, "ctrl+right")
+        assert result == (1, 5)  # end of 'world'
+
+    def test_line_end_next_line_empty(self):
+        """Ctrl+right from end of line, next line is empty → stop at start."""
+        lines = ["hello", ""]
+        result = MultiCursorTextArea._move_location(lines, 0, 5, "ctrl+right")
         assert result == (1, 0)
+
+    def test_line_end_next_line_leading_whitespace(self):
+        """Ctrl+right from end of line skips leading whitespace on next line."""
+        lines = ["hello", "   world test"]
+        result = MultiCursorTextArea._move_location(lines, 0, 5, "ctrl+right")
+        assert result == (1, 8)  # after 'world' (skip "   ", end of word)
 
     def test_skips_leading_whitespace(self):
         """Ctrl+right from start of '   hello' skips whitespace to word end."""
