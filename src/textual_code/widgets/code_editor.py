@@ -439,6 +439,8 @@ def _find_next(
     Raises re.error for invalid regex when use_regex=True.
     """
     flags = 0 if case_sensitive else re.IGNORECASE
+    if use_regex:
+        flags |= re.MULTILINE
     pattern = re.compile(query if use_regex else re.escape(query), flags)
     match = pattern.search(text, cursor_offset)
     if match is None:
@@ -1888,6 +1890,8 @@ class CodeEditor(Static):
         use_regex = event.use_regex
         case_sensitive = event.case_sensitive
         flags = 0 if case_sensitive else re.IGNORECASE
+        if use_regex:
+            flags |= re.MULTILINE
         try:
             pattern = re.compile(
                 find_query if use_regex else re.escape(find_query), flags
@@ -1916,6 +1920,8 @@ class CodeEditor(Static):
         use_regex = event.use_regex
         case_sensitive = event.case_sensitive
         flags = 0 if case_sensitive else re.IGNORECASE
+        if use_regex:
+            flags |= re.MULTILINE
 
         sel = self.editor.selection
         text = self.text
@@ -1924,29 +1930,25 @@ class CodeEditor(Static):
             sum(len(lines[i]) + 1 for i in range(sel.start[0])) + sel.start[1]
         )
         end_offset = sum(len(lines[i]) + 1 for i in range(sel.end[0])) + sel.end[1]
-        selected_text = text[start_offset:end_offset]
 
         try:
-            match_found = bool(
-                re.fullmatch(
-                    find_query if use_regex else re.escape(find_query),
-                    selected_text,
-                    flags,
-                )
+            # Match against full text so lookaheads/lookbehinds can see context
+            pattern = re.compile(
+                find_query if use_regex else re.escape(find_query), flags
             )
+            m = pattern.match(text, start_offset)
+            match_found = m is not None and m.end() == end_offset
         except re.error as e:
             self.notify(f"Invalid regex: {e}", severity="error")
             return
 
         if match_found:
             try:
-                rep = re.sub(
-                    find_query if use_regex else re.escape(find_query),
-                    replacement,
-                    selected_text,
-                    flags=flags,
-                )
-            except re.error:
+                # Use match.expand() to process backreferences with full
+                # text context — re.sub on isolated selected_text would
+                # break lookaheads/lookbehinds that need surrounding text.
+                rep = m.expand(replacement)  # type: ignore[union-attr]
+            except (re.error, IndexError):
                 rep = replacement
             new_text = text[:start_offset] + rep + text[end_offset:]
             search_from = start_offset + len(rep)
@@ -1994,6 +1996,8 @@ class CodeEditor(Static):
 
         text = self.text
         flags = 0 if event.case_sensitive else re.IGNORECASE
+        if event.use_regex:
+            flags |= re.MULTILINE
         try:
             pattern = re.compile(
                 event.query if event.use_regex else re.escape(event.query), flags
