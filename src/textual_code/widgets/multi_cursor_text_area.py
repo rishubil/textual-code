@@ -767,17 +767,46 @@ class MultiCursorTextArea(TextArea):
         if all(s == e for s, e in merged):
             return
 
+        # Snapshot old lines per range for position tracking
+        old_range_lines = {(s, e): lines[s : e + 1] for s, e in merged}
+
         # Sort lines in each range
         for s, e in merged:
             lines[s : e + 1] = sorted(lines[s : e + 1], reverse=reverse)
 
+        # Snapshot new lines per range
+        new_range_lines = {(s, e): lines[s : e + 1] for s, e in merged}
+
         self.replace("\n".join(lines), self.document.start, self.document.end)
 
-        # Restore primary selection and extra cursors (row positions unchanged)
-        self.selection = Selection(start=sel.start, end=sel.end)
+        # Adjust positions via character offset tracking (VSCode behavior):
+        # convert (row, col) → char offset in old text → same offset in new text
+        # → convert back to (row, col).
+        def adjust(pos: tuple[int, int]) -> tuple[int, int]:
+            row, col = pos
+            for s, e in merged:
+                if s <= row <= e:
+                    old_ls = old_range_lines[(s, e)]
+                    new_ls = new_range_lines[(s, e)]
+                    # Character offset in old range text
+                    offset = sum(len(old_ls[r - s]) + 1 for r in range(s, row)) + col
+                    # Clamp to new range text length
+                    total = sum(len(ln) + 1 for ln in new_ls[:-1]) + len(new_ls[-1])
+                    offset = min(offset, total)
+                    # Convert back to (row, col)
+                    remaining = offset
+                    for r in range(s, e + 1):
+                        line_len = len(new_ls[r - s])
+                        if remaining <= line_len:
+                            return (r, remaining)
+                        remaining -= line_len + 1
+                    return (e, len(new_ls[-1]))
+            return pos
+
+        self.selection = Selection(start=adjust(sel.start), end=adjust(sel.end))
         if extra_cursors:
-            self._extra_cursors = extra_cursors
-            self._extra_anchors = extra_anchors
+            self._extra_cursors = [adjust(c) for c in extra_cursors]
+            self._extra_anchors = [adjust(a) for a in extra_anchors]
             self._recompute_selection_ranges()
             self._line_cache.clear()
             self.refresh()
