@@ -540,6 +540,18 @@ class MultiCursorTextArea(TextArea):
             self.refresh()
             self.post_message(self.CursorsChanged(self))
 
+    def action_undo(self) -> None:
+        """Block undo in read-only mode to match VSCode behavior."""
+        if self.read_only:
+            return
+        super().action_undo()
+
+    def action_redo(self) -> None:
+        """Block redo in read-only mode to match VSCode behavior."""
+        if self.read_only:
+            return
+        super().action_redo()
+
     def action_select_all(self) -> None:
         """Select all text and clear extra cursors."""
         with self.app.batch_update():
