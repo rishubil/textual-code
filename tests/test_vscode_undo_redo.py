@@ -305,14 +305,11 @@ async def test_undo_multi_cursor_edit(workspace: Path):
 # -- Read-Only Undo Blocked ---------------------------------------------------
 
 
-async def test_undo_allowed_in_read_only_mode(workspace: Path):
+async def test_undo_blocked_in_read_only_mode(workspace: Path):
     """VSCode: 'issue #44805: Should not be able to undo in readonly editor'.
 
-    Behavioral difference from VSCode:
-    VSCode blocks undo in read-only mode.  Textual allows undo/redo even
-    when read_only=True — only new edits (typing, backspace, delete) are
-    blocked.  This means users can still navigate undo history in a
-    read-only editor.
+    Undo and redo should be blocked when the editor is in read-only mode,
+    matching VSCode behavior.
     """
     f = workspace / "readonly.txt"
     f.write_text("")
@@ -326,11 +323,11 @@ async def test_undo_allowed_in_read_only_mode(workspace: Path):
 
         ta.read_only = True
 
-        # Textual allows undo in read-only mode (unlike VSCode)
+        # Undo should be blocked in read-only mode
         await pilot.press("ctrl+z")
-        assert ta.text == ""
+        assert ta.text == "Hello world!"
 
-        # Redo also works
+        # Redo should also be blocked
         await pilot.press("ctrl+shift+z")
         assert ta.text == "Hello world!"
 
