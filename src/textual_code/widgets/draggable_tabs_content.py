@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import cast
 
-from textual import events
+from textual import errors, events
 from textual.css.query import NoMatches
 from textual.geometry import Region
 from textual.message import Message
@@ -333,10 +333,19 @@ class DraggableTabbedContent(TabbedContent):
             None,
         )
 
+    def _get_widget_at_or_none(
+        self, screen_x: int, screen_y: int
+    ) -> tuple[Widget | None, Region | None]:
+        """Like screen.get_widget_at but returns (None, None) at screen edges."""
+        try:
+            return self.screen.get_widget_at(screen_x, screen_y)
+        except errors.NoWidget:
+            return None, None
+
     def _update_drop_target(self, screen_x: int, screen_y: int) -> None:
         """Show/hide drop overlay on the sibling DTC under the cursor."""
-        widget, _ = self.screen.get_widget_at(screen_x, screen_y)
-        target = self._find_ancestor_dtc(widget)
+        widget, _ = self._get_widget_at_or_none(screen_x, screen_y)
+        target = self._find_ancestor_dtc(widget) if widget is not None else None
         if target is self or target is None:
             target = None
 
@@ -352,7 +361,7 @@ class DraggableTabbedContent(TabbedContent):
     # ── Mouse event handlers ───────────────────────────────────────────────────
 
     def on_mouse_down(self, event: events.MouseDown) -> None:
-        widget, _ = self.screen.get_widget_at(event.screen_x, event.screen_y)
+        widget, _ = self._get_widget_at_or_none(event.screen_x, event.screen_y)
         # Verify the widget is a ContentTab owned by this TabbedContent
         if (
             isinstance(widget, ContentTab)
@@ -428,7 +437,7 @@ class DraggableTabbedContent(TabbedContent):
         self._pop_overlay_screen()
 
         # Determine drop target
-        widget, region = self.screen.get_widget_at(event.screen_x, event.screen_y)
+        widget, region = self._get_widget_at_or_none(event.screen_x, event.screen_y)
         self.release_mouse()
 
         if not isinstance(widget, ContentTab) or not widget.id:
@@ -446,7 +455,7 @@ class DraggableTabbedContent(TabbedContent):
             # Use tracked drop target (highlighted DTC) as primary,
             # fall back to hit-test
             target_dtc = tracked_target
-            if target_dtc is None:
+            if target_dtc is None and widget is not None:
                 target_dtc = self._find_ancestor_dtc(widget)
             if target_dtc is not None and target_dtc is not self:
                 self.post_message(
@@ -460,6 +469,7 @@ class DraggableTabbedContent(TabbedContent):
 
         if widget in self.query(ContentTab):
             # Same-split reorder (existing logic)
+            assert region is not None  # widget found ⇒ region exists
             target_id = ContentTab.sans_prefix(widget.id)
             if drag_id and target_id != drag_id:
                 before = (event.screen_x - region.x) < region.width / 2
@@ -468,6 +478,7 @@ class DraggableTabbedContent(TabbedContent):
 
         # Cross-split: find sibling DraggableTabbedContent that owns this tab
         if drag_id:
+            assert region is not None  # widget found ⇒ region exists
             owner = self._find_ancestor_dtc(widget)
             if owner is not None and owner is not self:
                 target_id = ContentTab.sans_prefix(widget.id)

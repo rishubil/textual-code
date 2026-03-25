@@ -1,6 +1,8 @@
 """Unit tests for DraggableTabbedContent and DropTargetScreen."""
 
 from textual.app import App, ComposeResult
+from textual.events import MouseDown, MouseUp
+from textual.widget import Widget
 from textual.widgets import TabPane
 
 from textual_code.widgets.draggable_tabs_content import (
@@ -8,6 +10,40 @@ from textual_code.widgets.draggable_tabs_content import (
     DropHintBox,
     DropTargetScreen,
 )
+
+
+def _mouse_down(widget: Widget, sx: int, sy: int) -> MouseDown:
+    """Create a MouseDown at the given screen coordinates with default modifiers."""
+    return MouseDown(
+        widget=widget,
+        x=sx,
+        y=sy,
+        delta_x=0,
+        delta_y=0,
+        button=1,
+        shift=False,
+        meta=False,
+        ctrl=False,
+        screen_x=sx,
+        screen_y=sy,
+    )
+
+
+def _mouse_up(widget: Widget, sx: int, sy: int) -> MouseUp:
+    """Create a MouseUp at the given screen coordinates with default modifiers."""
+    return MouseUp(
+        widget=widget,
+        x=sx,
+        y=sy,
+        delta_x=0,
+        delta_y=0,
+        button=1,
+        shift=False,
+        meta=False,
+        ctrl=False,
+        screen_x=sx,
+        screen_y=sy,
+    )
 
 
 class EdgeZoneApp(App):
@@ -544,3 +580,125 @@ async def test_hint_box_clamped_in_small_region():
             assert hint_y >= small.y, (
                 f"edge-{direction}: hint_y={hint_y} < region.y={small.y}"
             )
+
+
+# ── NoWidget crash tests ─────────────────────────────────────────────────────
+
+
+async def test_update_drop_target_no_crash_at_screen_edge():
+    """_update_drop_target does not crash when cursor is at screen boundary."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        # Coordinates at and beyond screen edge — should not raise NoWidget
+        dtc._update_drop_target(80, 12)  # x == screen width
+        dtc._update_drop_target(100, 12)  # x beyond screen
+        dtc._update_drop_target(40, 24)  # y == screen height
+        dtc._update_drop_target(40, 100)  # y beyond screen
+
+
+async def test_on_mouse_down_no_crash_at_screen_edge():
+    """on_mouse_down does not crash when click is at screen boundary."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        dtc.on_mouse_down(_mouse_down(dtc, 80, 12))  # should not raise
+
+
+async def test_on_mouse_up_no_crash_at_screen_edge():
+    """on_mouse_up does not crash when release is at screen boundary."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        # Set up drag state to make on_mouse_up process the event
+        dtc._dragging = True
+        dtc._drag_pane_id = "pane1"
+        dtc._drag_start = (40, 12)
+        dtc.on_mouse_up(_mouse_up(dtc, 80, 12))  # should not raise
+
+
+async def test_update_drop_target_negative_coordinates():
+    """_update_drop_target does not crash with negative coordinates."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        dtc._update_drop_target(-1, 12)
+        dtc._update_drop_target(40, -1)
+        dtc._update_drop_target(-10, -10)
+
+
+async def test_update_drop_target_corner_out_of_bounds():
+    """_update_drop_target does not crash at corners beyond screen bounds."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        # All four corners beyond screen
+        dtc._update_drop_target(80, 24)  # bottom-right
+        dtc._update_drop_target(-1, -1)  # top-left beyond
+        dtc._update_drop_target(80, -1)  # top-right beyond
+        dtc._update_drop_target(-1, 24)  # bottom-left beyond
+
+
+async def test_update_drop_target_clears_existing_target_on_edge():
+    """When cursor moves to screen edge, any existing drop target is cleared."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        # First call with valid coordinate to set _drop_target
+        dtc._update_drop_target(40, 12)
+        # Then move to screen edge — should clear without crash
+        dtc._update_drop_target(80, 12)
+        assert dtc._drop_target is None
+
+
+async def test_on_mouse_down_at_screen_edge_no_drag_start():
+    """Mouse down at screen edge does not initiate drag."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        assert dtc._drag_start is None
+        dtc.on_mouse_down(_mouse_down(dtc, 80, 12))
+        # Drag should not have started because no ContentTab at that position
+        assert dtc._drag_start is None
+        assert dtc._drag_pane_id is None
+
+
+async def test_on_mouse_up_at_screen_edge_with_edge_direction():
+    """on_mouse_up at screen edge with an edge_direction does not crash."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        # Set up drag state with edge direction (as if dragging to edge zone)
+        dtc._dragging = True
+        dtc._drag_pane_id = "pane1"
+        dtc._drag_start = (40, 12)
+        dtc._edge_direction = "right"
+        dtc.on_mouse_up(_mouse_up(dtc, 80, 12))
+        # Drag state should be cleaned up
+        assert dtc._dragging is False
+        assert dtc._drag_pane_id is None
+
+
+async def test_on_mouse_up_at_screen_edge_resets_drag_state():
+    """on_mouse_up at screen edge properly resets all drag state."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.pause()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        dtc._dragging = True
+        dtc._drag_pane_id = "pane1"
+        dtc._drag_start = (40, 12)
+        dtc._edge_direction = None
+        dtc._drop_target = None
+        dtc.on_mouse_up(_mouse_up(dtc, -1, -1))
+        assert dtc._dragging is False
+        assert dtc._drag_start is None
+        assert dtc._drag_pane_id is None
