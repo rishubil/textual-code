@@ -150,13 +150,13 @@ async def test_get_system_commands_contains_delete_file_or_directory(workspace: 
         assert "Delete File or Directory" in titles
 
 
-async def test_action_delete_file_or_dir_with_command_palette_opens_palette(
+async def test_action_delete_file_or_directory_opens_palette(
     workspace: Path,
 ):
-    """action_delete_file_or_dir_with_command_palette() → CommandPalette opens."""
+    """action_delete_file_or_directory() → CommandPalette opens."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_delete_file_or_dir_with_command_palette()
+        app.action_delete_file_or_directory()
         await pilot.pause()
         assert isinstance(app.screen, PathSearchModal)

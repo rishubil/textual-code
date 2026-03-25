@@ -53,7 +53,7 @@ async def test_handle_removed_when_split_closes(workspace, py_file):
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
-        await app.main_view.action_close_split()
+        await app.main_view.action_close_editor_group()
         await pilot.pause()
         await pilot.pause()
         handles = list(app.main_view.query(SplitResizeHandle))
@@ -157,7 +157,7 @@ async def test_resize_split_vertical(workspace, py_file):
         await pilot.pause()
 
         # Toggle to vertical orientation
-        app.main_view.action_toggle_split_vertical()
+        app.main_view.action_toggle_split_orientation()
         await pilot.pause()
 
         handle = app.main_view.query_one(SplitResizeHandle)

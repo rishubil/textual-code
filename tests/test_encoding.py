@@ -405,7 +405,7 @@ async def test_encoding_cmd_no_editor(tmp_path: Path):
             return original_notify(message, severity=severity, **kwargs)
 
         tc_app.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
-        tc_app.action_change_encoding_cmd()
+        tc_app.action_change_encoding()
         await pilot.pause()
 
     assert any("error" in n for n in notified)
@@ -422,7 +422,7 @@ async def test_encoding_cmd_with_editor(tmp_path: Path):
     tc_app = make_app(tmp_path, open_file=f, light=True)
     async with tc_app.run_test() as pilot:
         await pilot.pause()
-        tc_app.action_change_encoding_cmd()
+        tc_app.action_change_encoding()
         await pilot.pause()
         assert isinstance(tc_app.screen, ChangeEncodingModalScreen)
 

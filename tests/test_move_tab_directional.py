@@ -69,7 +69,7 @@ async def test_move_tab_right(
         assert py_file3 in leaves[0].opened_files
 
         # Move py_file3 to the right
-        await app.main_view.action_move_tab_right()
+        await app.main_view.action_move_editor_right()
         await pilot.pause()
 
         # py_file3 should now be in the right leaf
@@ -103,7 +103,7 @@ async def test_move_tab_left(
         assert py_file3 in right_leaf.opened_files
 
         # Move py_file3 to the left
-        await app.main_view.action_move_tab_left()
+        await app.main_view.action_move_editor_left()
         await pilot.pause()
 
         # py_file3 should now be in the left leaf
@@ -129,7 +129,7 @@ async def test_move_tab_creates_split_right_when_none_exists(
         assert len(all_leaves(app.main_view._split_root)) == 1
 
         # Move the active tab (py_file2) to the right — should create a split
-        await app.main_view.action_move_tab_right()
+        await app.main_view.action_move_editor_right()
         await pilot.pause()
 
         leaves = all_leaves(app.main_view._split_root)
@@ -151,7 +151,7 @@ async def test_move_tab_creates_split_left_when_none_exists(
         await app.main_view.action_open_code_editor(py_file2)
         await pilot.pause()
 
-        await app.main_view.action_move_tab_left()
+        await app.main_view.action_move_editor_left()
         await pilot.pause()
 
         leaves = all_leaves(app.main_view._split_root)
@@ -171,7 +171,7 @@ async def test_move_tab_creates_split_down_when_none_exists(
         await app.main_view.action_open_code_editor(py_file2)
         await pilot.pause()
 
-        await app.main_view.action_move_tab_down()
+        await app.main_view.action_move_editor_down()
         await pilot.pause()
 
         leaves = all_leaves(app.main_view._split_root)
@@ -187,7 +187,7 @@ async def test_move_single_tab_is_noop(workspace: Path, py_file: Path):
 
         assert len(all_leaves(app.main_view._split_root)) == 1
 
-        await app.main_view.action_move_tab_right()
+        await app.main_view.action_move_editor_right()
         await pilot.pause()
 
         remaining = all_leaves(app.main_view._split_root)
@@ -201,7 +201,7 @@ async def test_move_tab_noop_no_editor(workspace: Path):
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        await app.main_view.action_move_tab_right()
+        await app.main_view.action_move_editor_right()
         await pilot.pause()
 
         assert len(all_leaves(app.main_view._split_root)) == 1
@@ -244,7 +244,7 @@ async def test_move_only_tab_auto_closes_source(
         assert py_file3 in right_leaf.opened_files
 
         # Move the only tab from right to left
-        await app.main_view.action_move_tab_left()
+        await app.main_view.action_move_editor_left()
         await pilot.pause()
 
         # Source leaf should have been auto-closed, collapsing back to 1 leaf

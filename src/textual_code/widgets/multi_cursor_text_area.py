@@ -688,7 +688,7 @@ class MultiCursorTextArea(TextArea):
             # Single line or no selection: insert at cursor
             self.replace(indent, self.cursor_location, self.cursor_location)
 
-    def action_dedent_line(self) -> None:
+    def action_outdent_line(self) -> None:
         """Remove up to one indent level of leading whitespace from each line."""
         from textual.widgets.text_area import Selection
 
@@ -959,11 +959,11 @@ class MultiCursorTextArea(TextArea):
 
     # ── scroll viewport ──────────────────────────────────────────────────────
 
-    def action_scroll_viewport_up(self) -> None:
+    def action_scroll_up(self) -> None:
         """Scroll viewport one line up without moving cursor."""
         self.scroll_up(animate=False)
 
-    def action_scroll_viewport_down(self) -> None:
+    def action_scroll_down(self) -> None:
         """Scroll viewport one line down without moving cursor."""
         self.scroll_down(animate=False)
 
@@ -1390,7 +1390,7 @@ class MultiCursorTextArea(TextArea):
             event.stop()
             self._apply_to_all_cursors(event)
 
-        # tab/shift+tab fall through to action_indent_line / action_dedent_line
+        # tab/shift+tab fall through to action_indent_line / action_outdent_line
 
     # ── multi-cursor editing ──────────────────────────────────────────────────
 

@@ -514,7 +514,7 @@ class TextualCode(App):
                 desc = entry.description
             yield SystemCommand(entry.title, desc, callback)
 
-    def action_sort_lines_ascending_cmd(self) -> None:
+    def action_sort_lines_ascending(self) -> None:
         """Sort selected lines ascending via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -522,7 +522,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_sort_lines_descending_cmd(self) -> None:
+    def action_sort_lines_descending(self) -> None:
         """Sort selected lines descending via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -530,7 +530,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_transform_uppercase_cmd(self) -> None:
+    def action_transform_uppercase(self) -> None:
         """Transform selected text to uppercase via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -538,7 +538,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_transform_lowercase_cmd(self) -> None:
+    def action_transform_lowercase(self) -> None:
         """Transform selected text to lowercase via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -546,7 +546,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_transform_title_case_cmd(self) -> None:
+    def action_transform_title_case(self) -> None:
         """Transform selected text to title case via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -554,7 +554,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_transform_snake_case_cmd(self) -> None:
+    def action_transform_snake_case(self) -> None:
         """Transform selected text to snake_case via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -562,7 +562,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_transform_camel_case_cmd(self) -> None:
+    def action_transform_camel_case(self) -> None:
         """Transform selected text to camelCase via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -570,7 +570,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_transform_kebab_case_cmd(self) -> None:
+    def action_transform_kebab_case(self) -> None:
         """Transform selected text to kebab-case via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -578,7 +578,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_transform_pascal_case_cmd(self) -> None:
+    def action_transform_pascal_case(self) -> None:
         """Transform selected text to PascalCase via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -586,13 +586,13 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_find_in_workspace(self) -> None:
+    def action_find_in_files(self) -> None:
         """Open workspace search panel (Ctrl+Shift+F)."""
-        self.main_view.action_find_in_workspace()
+        self.main_view.action_find_in_files()
 
-    def action_find_in_workspace_cmd(self) -> None:
+    def action_find_in_files_cmd(self) -> None:
         """Open workspace search panel via command palette."""
-        self.call_next(self.action_find_in_workspace)
+        self.call_next(self.action_find_in_files)
 
     @on(WorkspaceSearchPane.OpenFileAtLineRequested)
     async def on_open_file_at_line_requested(
@@ -608,30 +608,30 @@ class TextualCode(App):
                 if 0 <= row < line_count:
                     editor.editor.cursor_location = (row, 0)
 
-    def action_open_markdown_preview_tab_cmd(self) -> None:
+    def action_open_markdown_preview_cmd(self) -> None:
         """Open markdown preview as tab from command palette."""
-        self.call_next(self.main_view.action_open_markdown_preview_tab)
+        self.call_next(self.main_view.action_open_markdown_preview)
 
-    def action_move_tab_to_other_split_cmd(self) -> None:
+    def action_move_editor_to_next_group_cmd(self) -> None:
         """Move current tab to the other split via command palette."""
-        self.call_next(self.main_view.action_move_tab_to_other_split)
+        self.call_next(self.main_view.action_move_editor_to_next_group)
 
-    def action_move_tab_left_cmd(self) -> None:
-        self.call_next(self.main_view.action_move_tab_left)
+    def action_move_editor_left(self) -> None:
+        self.call_next(self.main_view.action_move_editor_left)
 
-    def action_move_tab_right_cmd(self) -> None:
-        self.call_next(self.main_view.action_move_tab_right)
+    def action_move_editor_right(self) -> None:
+        self.call_next(self.main_view.action_move_editor_right)
 
-    def action_move_tab_up_cmd(self) -> None:
-        self.call_next(self.main_view.action_move_tab_up)
+    def action_move_editor_up(self) -> None:
+        self.call_next(self.main_view.action_move_editor_up)
 
-    def action_move_tab_down_cmd(self) -> None:
-        self.call_next(self.main_view.action_move_tab_down)
+    def action_move_editor_down(self) -> None:
+        self.call_next(self.main_view.action_move_editor_down)
 
-    def action_reorder_tab_right_cmd(self) -> None:
+    def action_reorder_tab_right(self) -> None:
         self.call_next(self.main_view.action_reorder_tab_right)
 
-    def action_reorder_tab_left_cmd(self) -> None:
+    def action_reorder_tab_left(self) -> None:
         self.call_next(self.main_view.action_reorder_tab_left)
 
     def _save_config(self, save_fn, *args) -> None:
@@ -732,7 +732,7 @@ class TextualCode(App):
             )
         )
 
-    def action_set_syntax_theme(self) -> None:
+    def action_change_syntax_theme(self) -> None:
         """Set the syntax highlighting theme and apply it to all open editors."""
 
         def do_change(result: ChangeSyntaxThemeModalResult | None) -> None:
@@ -800,8 +800,8 @@ class TextualCode(App):
     def action_indent_line_cmd(self) -> None:
         self._run_text_area_action("action_indent_line")
 
-    def action_dedent_line_cmd(self) -> None:
-        self._run_text_area_action("action_dedent_line")
+    def action_outdent_line_cmd(self) -> None:
+        self._run_text_area_action("action_outdent_line")
 
     def action_move_line_up_cmd(self) -> None:
         self._run_text_area_action("action_move_line_up")
@@ -809,17 +809,17 @@ class TextualCode(App):
     def action_move_line_down_cmd(self) -> None:
         self._run_text_area_action("action_move_line_down")
 
-    def action_scroll_viewport_up_cmd(self) -> None:
-        self._run_text_area_action("action_scroll_viewport_up")
+    def action_scroll_up_cmd(self) -> None:
+        self._run_text_area_action("action_scroll_up")
 
-    def action_scroll_viewport_down_cmd(self) -> None:
-        self._run_text_area_action("action_scroll_viewport_down")
+    def action_scroll_down_cmd(self) -> None:
+        self._run_text_area_action("action_scroll_down")
 
-    def action_toggle_split_vertical_cmd(self) -> None:
+    def action_toggle_split_orientation(self) -> None:
         """Toggle split orientation via command palette."""
-        self.call_next(self.main_view.action_toggle_split_vertical)
+        self.call_next(self.main_view.action_toggle_split_orientation)
 
-    def action_toggle_word_wrap_cmd(self) -> None:
+    def action_toggle_word_wrap(self) -> None:
         """Toggle word wrap for the active file via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -827,7 +827,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_toggle_indentation_guides_cmd(self) -> None:
+    def action_toggle_indentation_guides(self) -> None:
         """Toggle indentation guides for the active file via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
@@ -845,7 +845,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_set_render_whitespace_cmd(self) -> None:
+    def action_set_render_whitespace(self) -> None:
         """Open a command palette to select whitespace rendering mode."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is None:
@@ -914,7 +914,7 @@ class TextualCode(App):
         state = on_text if new_value else off_text
         self.notify(f"{label}: {state}")
 
-    def action_toggle_hidden_files_cmd(self) -> None:
+    def action_toggle_hidden_files(self) -> None:
         """Toggle hidden files visibility in the explorer and save to config."""
         self.default_show_hidden_files = not self.default_show_hidden_files
         self._toggle_explorer_tree_setting(
@@ -925,7 +925,7 @@ class TextualCode(App):
             "hidden",
         )
 
-    def action_toggle_path_display_mode_cmd(self) -> None:
+    def action_toggle_path_display_mode(self) -> None:
         """Toggle between absolute and relative path display in footer."""
         from textual_code.widgets.code_editor import CodeEditorFooter
 
@@ -937,7 +937,7 @@ class TextualCode(App):
         self._save_editor_settings("user")
         self.notify(f"Path display: {self.default_path_display_mode}")
 
-    def action_toggle_dim_gitignored_cmd(self) -> None:
+    def action_toggle_dim_gitignored(self) -> None:
         """Toggle dim gitignored files in the explorer and save to config."""
         self.default_dim_gitignored = not self.default_dim_gitignored
         self._toggle_explorer_tree_setting(
@@ -948,7 +948,7 @@ class TextualCode(App):
             "normal",
         )
 
-    def action_toggle_dim_hidden_files_cmd(self) -> None:
+    def action_toggle_dim_hidden_files(self) -> None:
         """Toggle dim hidden files in the explorer and save to config."""
         self.default_dim_hidden_files = not self.default_dim_hidden_files
         self._toggle_explorer_tree_setting(
@@ -959,7 +959,7 @@ class TextualCode(App):
             "normal",
         )
 
-    def action_toggle_show_git_status_cmd(self) -> None:
+    def action_toggle_git_status(self) -> None:
         """Toggle git status highlighting in the explorer and save to config."""
         self.default_show_git_status = not self.default_show_git_status
         self._toggle_explorer_tree_setting(
@@ -1046,7 +1046,7 @@ class TextualCode(App):
             partial(self.main_view.action_open_code_editor, path=path, focus=True)
         )
 
-    def action_open_keybindings(self) -> None:
+    def action_open_keyboard_shortcuts_file(self) -> None:
         """Open keybindings config file in the editor."""
         path = self._keybindings_path()
         if not self._ensure_config_file(path):
@@ -1055,7 +1055,7 @@ class TextualCode(App):
             partial(self.main_view.action_open_code_editor, path=path, focus=True)
         )
 
-    def action_set_ui_theme(self) -> None:
+    def action_change_ui_theme(self) -> None:
         """Set the UI theme."""
 
         def do_change(result: ChangeUIThemeModalResult | None) -> None:
@@ -1075,21 +1075,21 @@ class TextualCode(App):
         """Split editor right via command palette."""
         self.call_next(self.main_view.action_split_right)
 
-    def action_split_left_cmd(self) -> None:
+    def action_split_left(self) -> None:
         """Split editor left via command palette."""
         self.call_next(self.main_view.action_split_left)
 
-    def action_split_down_cmd(self) -> None:
+    def action_split_down(self) -> None:
         """Split editor down via command palette."""
         self.call_next(self.main_view.action_split_down)
 
-    def action_split_up_cmd(self) -> None:
+    def action_split_up(self) -> None:
         """Split editor up via command palette."""
         self.call_next(self.main_view.action_split_up)
 
-    def action_close_split_cmd(self) -> None:
+    def action_close_editor_group_cmd(self) -> None:
         """Close split via command palette."""
-        self.call_next(self.main_view.action_close_split)
+        self.call_next(self.main_view.action_close_editor_group)
 
     def action_focus_left_split_cmd(self) -> None:
         """Focus left split via command palette."""
@@ -1099,13 +1099,13 @@ class TextualCode(App):
         """Focus right split via command palette."""
         self.main_view.action_focus_right_split()
 
-    def action_focus_next_split_cmd(self) -> None:
+    def action_focus_next_group(self) -> None:
         """Focus next split via command palette."""
-        self.main_view.action_focus_next_split()
+        self.main_view.action_focus_next_group()
 
-    def action_focus_prev_split_cmd(self) -> None:
+    def action_focus_previous_group(self) -> None:
         """Focus previous split via command palette."""
-        self.main_view.action_focus_prev_split()
+        self.main_view.action_focus_previous_group()
 
     def action_goto_line_cmd(self) -> None:
         """
@@ -1117,7 +1117,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_change_language_cmd(self) -> None:
+    def action_change_language(self) -> None:
         """
         Open the Change Language modal via command palette.
         """
@@ -1147,7 +1147,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_change_indent_cmd(self) -> None:
+    def action_change_indentation(self) -> None:
         """
         Open the Change Indentation modal via command palette.
         """
@@ -1157,7 +1157,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_change_line_ending_cmd(self) -> None:
+    def action_change_line_ending(self) -> None:
         """
         Open the Change Line Ending modal via command palette.
         """
@@ -1167,7 +1167,7 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_change_encoding_cmd(self) -> None:
+    def action_change_encoding(self) -> None:
         """
         Open the Change Encoding modal via command palette.
         """
@@ -1177,15 +1177,15 @@ class TextualCode(App):
         else:
             self.notify("No file open.", severity="error")
 
-    def action_reload_file_cmd(self) -> None:
+    def action_revert_file(self) -> None:
         """Reload current file via command palette."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is not None:
-            self.call_next(code_editor.action_reload_file)
+            self.call_next(code_editor.action_revert_file)
         else:
             self.notify("No file open.", severity="error")
 
-    def action_resize_sidebar_cmd(self) -> None:
+    def action_resize_sidebar(self) -> None:
         """Open the Resize Sidebar modal via command palette."""
 
         def on_result(result: SidebarResizeModalResult | None) -> None:
@@ -1208,7 +1208,7 @@ class TextualCode(App):
 
         self.call_next(lambda: self.push_screen(SidebarResizeModalScreen(), on_result))
 
-    def action_resize_split_cmd(self) -> None:
+    def action_resize_split(self) -> None:
         """Open the Resize Split modal via command palette."""
         if not self.main_view._split_visible:
             self.notify("No split view open.", severity="error")
@@ -1251,9 +1251,9 @@ class TextualCode(App):
         """Save all open files."""
         self.call_next(self.main_view.action_save_all)
 
-    def action_close_all_files(self) -> None:
+    def action_close_all_editors_cmd(self) -> None:
         """Close all open files."""
-        self.call_next(self.main_view.action_close_all)
+        self.call_next(self.main_view.action_close_all_editors)
 
     def action_toggle_sidebar(self) -> None:
         """
@@ -1263,7 +1263,7 @@ class TextualCode(App):
         if sb is not None:
             sb.display = not sb.display
 
-    def action_reload_explorer(self) -> None:
+    def action_refresh_explorer(self) -> None:
         """
         Reload the explorer directory tree.
         """
@@ -1286,7 +1286,7 @@ class TextualCode(App):
         else:
             self.notify("No file to save. Please open a file first.", severity="error")
 
-    def action_save_file_as(self) -> None:
+    def action_save_as(self) -> None:
         """
         Save the file in the active code editor as a new file.
         """
@@ -1297,7 +1297,7 @@ class TextualCode(App):
         else:
             self.notify("No file to save. Please open a file first.", severity="error")
 
-    async def action_new_editor(self) -> None:
+    async def action_new_untitled_file(self) -> None:
         """
         Open a new code editor with an empty file.
         """
@@ -1306,7 +1306,7 @@ class TextualCode(App):
             partial(self.main_view.action_open_code_editor, path=None, focus=True)
         )
 
-    def action_close_file(self) -> None:
+    def action_close_editor_cmd(self) -> None:
         """
         Close the file in the active code editor.
         """
@@ -1330,7 +1330,7 @@ class TextualCode(App):
                 "No file to delete. Please open a file first.", severity="error"
             )
 
-    def action_open_file_with_command_palette(self) -> None:
+    def action_open_file(self) -> None:
         """
         Open a file in the code editor with the command palette.
         """
@@ -1374,9 +1374,7 @@ class TextualCode(App):
             except NoMatches:
                 pass
 
-    async def action_create_file_with_command_palette(
-        self, initial_path: str = ""
-    ) -> None:
+    async def action_new_file(self, initial_path: str = "") -> None:
         """
         Create a new file with the command palette.
         """
@@ -1416,15 +1414,13 @@ class TextualCode(App):
             callback=_on_result,
         )
 
-    def action_delete_file_or_dir_with_command_palette(self) -> None:
+    def action_delete_file_or_directory(self) -> None:
         """Delete a file or directory with the command palette."""
         self._push_path_search(
             self.DeletePathWithPaletteRequested, "Delete file or directory..."
         )
 
-    async def action_create_directory_with_command_palette(
-        self, initial_path: str = ""
-    ) -> None:
+    async def action_new_folder(self, initial_path: str = "") -> None:
         """
         Create a new directory with the command palette.
         """
@@ -1442,7 +1438,7 @@ class TextualCode(App):
         )
         await self._push_palette_with_prefill(palette, initial_path)
 
-    def action_rename_file_or_dir_with_command_palette(self) -> None:
+    def action_rename_file_or_directory(self) -> None:
         """Rename a file or directory with the command palette."""
         self._push_path_search(
             self.RenamePathWithPaletteRequested, "Rename file or directory..."
@@ -1489,13 +1485,13 @@ class TextualCode(App):
                 return
 
             self._update_open_tabs_after_rename(path, new_path, is_directory)
-            self.action_reload_explorer()
+            self.action_refresh_explorer()
             self.log.info("Renamed: %s → %s", path, new_path)
             self.notify(f"Renamed to '{new_name}'", severity="information")
 
         self.push_screen(RenameModalScreen(current_name), do_rename)
 
-    def action_move_active_file(self) -> None:
+    def action_move_file(self) -> None:
         """Move the active file in the editor to a new path."""
         code_editor = self.main_view.get_active_code_editor()
         if code_editor is None or code_editor.path is None:
@@ -1505,25 +1501,25 @@ class TextualCode(App):
             return
         self._handle_move_path(code_editor.path)
 
-    def action_move_file_or_dir_with_command_palette(self) -> None:
+    def action_move_file_or_directory(self) -> None:
         """Move a file or directory with the command palette."""
         self._push_path_search(
             self.MovePathWithPaletteRequested, "Move file or directory..."
         )
 
-    def action_copy_explorer_node(self) -> None:
+    def action_copy_file_or_directory(self) -> None:
         """Copy the selected explorer node via command palette."""
         if self.sidebar is None:
             return
         self.sidebar.explorer.action_copy_node()
 
-    def action_cut_explorer_node(self) -> None:
+    def action_cut_file_or_directory(self) -> None:
         """Cut the selected explorer node via command palette."""
         if self.sidebar is None:
             return
         self.sidebar.explorer.action_cut_node()
 
-    def action_paste_explorer_node(self) -> None:
+    def action_paste_file_or_directory(self) -> None:
         """Paste from clipboard to the explorer location via command palette."""
         if self.sidebar is None:
             return
@@ -1633,7 +1629,7 @@ class TextualCode(App):
             return
 
         self._update_open_tabs_after_rename(path, new_path, is_directory)
-        self.action_reload_explorer()
+        self.action_refresh_explorer()
         try:
             new_relative = str(new_path.relative_to(self.workspace_path))
         except ValueError:
@@ -1735,7 +1731,7 @@ class TextualCode(App):
                     partial(self.main_view.action_close_code_editor, pane_id)
                 )
 
-            self.action_reload_explorer()
+            self.action_refresh_explorer()
             self.notify(f"Deleted: {path.name}", severity="information")
 
         self.push_screen(DeleteFileModalScreen(path), do_delete)
@@ -1767,7 +1763,7 @@ class TextualCode(App):
                     partial(self.main_view.action_close_code_editor, pane_id)
                 )
 
-            self.action_reload_explorer()
+            self.action_refresh_explorer()
             self.notify(f"Deleted: {path.name}", severity="information")
 
         self.push_screen(DeleteFileModalScreen(path), do_delete)
@@ -1883,7 +1879,7 @@ class TextualCode(App):
             self.notify(f"Error pasting: {e}", severity="error")
             return
 
-        self.action_reload_explorer()
+        self.action_refresh_explorer()
         try:
             dest_relative = str(dest_path.relative_to(self.workspace_path))
         except ValueError:
@@ -1911,12 +1907,12 @@ class TextualCode(App):
         self, event: CodeEditor.Saved | CodeEditor.SavedAs | CodeEditor.Deleted
     ):
         # reload the explorer when a file is saved or deleted
-        self.action_reload_explorer()
+        self.action_refresh_explorer()
 
     @on(ReloadExplorerRequested)
     def on_reload_explorer_requested(self, event: ReloadExplorerRequested):
         # reload the explorer when requested
-        self.action_reload_explorer()
+        self.action_refresh_explorer()
 
     def on_filtered_directory_tree_workspace_changed(self, event) -> None:
         """Invalidate workspace caches when the explorer detects external changes."""
@@ -1959,7 +1955,7 @@ class TextualCode(App):
                 return
 
         # reload the explorer after creating the file or directory
-        self.action_reload_explorer()
+        self.action_refresh_explorer()
 
         # open the file in the code editor if it is a file
         if not event.is_dir:
@@ -1970,7 +1966,7 @@ class TextualCode(App):
         # Use the base screen so this works even when a modal is active
         return self.screen_stack[0].query_one(MainView)
 
-    def action_show_shortcuts(self) -> None:
+    def action_show_keyboard_shortcuts(self) -> None:
         """Open the keyboard shortcuts panel showing ALL registry commands."""
         from textual_code.command_registry import COMMAND_REGISTRY
 

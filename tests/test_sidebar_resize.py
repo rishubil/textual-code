@@ -4,7 +4,7 @@ Tests for the sidebar resize feature.
 Covers:
 - _parse_sidebar_resize helper (pure function)
 - SidebarResizeModalScreen modal dialog
-- action_resize_sidebar_cmd integration
+- action_resize_sidebar integration
 """
 
 from textual.app import App, ComposeResult
@@ -160,14 +160,14 @@ async def test_sidebar_resize_modal_enter_submits():
     assert app.result.value == "25%"
 
 
-# ── action_resize_sidebar_cmd integration ─────────────────────────────────────
+# ── action_resize_sidebar integration ─────────────────────────────────────
 
 
 async def test_sidebar_resize_absolute_changes_width(workspace):
     app = make_app(workspace)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
-        app.action_resize_sidebar_cmd()
+        app.action_resize_sidebar()
         await pilot.pause()
 
         # Type absolute value and submit
@@ -190,7 +190,7 @@ async def test_sidebar_resize_relative_plus_changes_width(workspace):
         assert app.sidebar is not None
         initial_width = app.sidebar.size.width
 
-        app.action_resize_sidebar_cmd()
+        app.action_resize_sidebar()
         await pilot.pause()
 
         input_widget = app.screen.query_one("#value")
@@ -210,7 +210,7 @@ async def test_sidebar_resize_relative_minus_changes_width(workspace):
         assert app.sidebar is not None
         initial_width = app.sidebar.size.width
 
-        app.action_resize_sidebar_cmd()
+        app.action_resize_sidebar()
         await pilot.pause()
 
         input_widget = app.screen.query_one("#value")
@@ -228,7 +228,7 @@ async def test_sidebar_resize_percentage_changes_width(workspace):
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
 
-        app.action_resize_sidebar_cmd()
+        app.action_resize_sidebar()
         await pilot.pause()
 
         input_widget = app.screen.query_one("#value")
@@ -253,7 +253,7 @@ async def test_sidebar_resize_invalid_shows_error_and_keeps_width(workspace):
         assert app.sidebar is not None
         initial_width = app.sidebar.size.width
 
-        app.action_resize_sidebar_cmd()
+        app.action_resize_sidebar()
         await pilot.pause()
 
         input_widget = app.screen.query_one("#value")
@@ -273,7 +273,7 @@ async def test_sidebar_resize_cancel_keeps_width(workspace):
         assert app.sidebar is not None
         initial_width = app.sidebar.size.width
 
-        app.action_resize_sidebar_cmd()
+        app.action_resize_sidebar()
         await pilot.pause()
 
         await pilot.click("#cancel")

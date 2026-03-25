@@ -216,7 +216,7 @@ async def test_reorder_markdown_preview_tab(
         # Open markdown file, then open its preview
         await app.main_view.action_open_code_editor(md_file)
         await pilot.pause()
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
 
         tc = app.main_view.tabbed_content

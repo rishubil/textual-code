@@ -4,7 +4,7 @@ Tests for the split view resize from command palette feature.
 Covers:
 - _parse_split_resize helper (pure function)
 - SplitResizeModalScreen modal dialog
-- action_resize_split_cmd integration
+- action_resize_split integration
 """
 
 from pathlib import Path
@@ -178,7 +178,7 @@ def py_file(workspace: Path) -> Path:
     return f
 
 
-# ── action_resize_split_cmd integration ───────────────────────────────────────
+# ── action_resize_split integration ───────────────────────────────────────
 
 
 async def test_resize_split_absolute_changes_width(workspace, py_file):
@@ -188,7 +188,7 @@ async def test_resize_split_absolute_changes_width(workspace, py_file):
         await app.main_view.action_split_right()
         await pilot.pause()
 
-        app.action_resize_split_cmd()
+        app.action_resize_split()
         await pilot.pause()
 
         input_widget = app.screen.query_one("#value")
@@ -213,7 +213,7 @@ async def test_resize_split_relative_plus_changes_width(workspace, py_file):
         first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
         initial_width = first_dtc.size.width
 
-        app.action_resize_split_cmd()
+        app.action_resize_split()
         await pilot.pause()
 
         input_widget = app.screen.query_one("#value")
@@ -232,7 +232,7 @@ async def test_resize_split_percentage_changes_width(workspace, py_file):
         await app.main_view.action_split_right()
         await pilot.pause()
 
-        app.action_resize_split_cmd()
+        app.action_resize_split()
         await pilot.pause()
 
         input_widget = app.screen.query_one("#value")
@@ -257,7 +257,7 @@ async def test_resize_split_invalid_shows_error(workspace, py_file):
         first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
         initial_width = first_dtc.size.width
 
-        app.action_resize_split_cmd()
+        app.action_resize_split()
         await pilot.pause()
 
         input_widget = app.screen.query_one("#value")
@@ -281,7 +281,7 @@ async def test_resize_split_cancel_keeps_width(workspace, py_file):
         first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
         initial_width = first_dtc.size.width
 
-        app.action_resize_split_cmd()
+        app.action_resize_split()
         await pilot.pause()
 
         await pilot.click("#cancel")
@@ -298,7 +298,7 @@ async def test_resize_split_no_split_visible_shows_error(workspace, py_file):
         await pilot.pause()
         assert app.main_view._split_visible is False
 
-        app.action_resize_split_cmd()
+        app.action_resize_split()
         await pilot.pause()
 
         # No modal pushed — still on the main screen only

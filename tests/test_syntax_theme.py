@@ -4,7 +4,7 @@ Tests for syntax highlighting theme selection.
 Covers:
 1. ChangeSyntaxThemeModalScreen can be imported
 2. Modal has a Select widget with built-in theme names
-3. action_set_syntax_theme exists on TextualCode
+3. action_change_syntax_theme exists on TextualCode
 4. Selecting a theme + Apply → all editors' theme changes
 5. Cancel → editor theme unchanged
 6. Theme saved to config after Apply
@@ -92,9 +92,9 @@ def test_app_has_default_syntax_theme_attr(tmp_path):
     assert app.default_syntax_theme == "monokai"
 
 
-def test_action_set_syntax_theme_exists(tmp_path):
+def test_action_change_syntax_theme_exists(tmp_path):
     app = TextualCode(workspace_path=tmp_path, with_open_file=None)
-    assert callable(getattr(app, "action_set_syntax_theme", None))
+    assert callable(getattr(app, "action_change_syntax_theme", None))
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +144,7 @@ async def test_all_editors_update_when_theme_changes(workspace):
         await app.main_view.action_open_code_editor()
         await pilot.pause()
 
-        # Simulate what action_set_syntax_theme does
+        # Simulate what action_change_syntax_theme does
         from textual_code.widgets.code_editor import CodeEditor
 
         app.default_syntax_theme = "github_light"
@@ -216,7 +216,7 @@ def test_modal_result_cancelled():
 
 
 @pytest.mark.asyncio
-async def test_action_set_syntax_theme_save_level_user(workspace):
+async def test_action_change_syntax_theme_save_level_user(workspace):
     cfg = workspace / "settings.toml"
     proj = workspace / ".textual-code.toml"
     app = TextualCode(
@@ -224,7 +224,7 @@ async def test_action_set_syntax_theme_save_level_user(workspace):
     )
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_set_syntax_theme()
+        app.action_change_syntax_theme()
         await pilot.pause()
         from textual_code.modals import ChangeSyntaxThemeModalScreen
 
@@ -243,7 +243,7 @@ async def test_action_set_syntax_theme_save_level_user(workspace):
 
 
 @pytest.mark.asyncio
-async def test_action_set_syntax_theme_save_level_project(workspace):
+async def test_action_change_syntax_theme_save_level_project(workspace):
     cfg = workspace / "settings.toml"
     proj = workspace / ".textual-code.toml"
     app = TextualCode(
@@ -251,7 +251,7 @@ async def test_action_set_syntax_theme_save_level_project(workspace):
     )
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_set_syntax_theme()
+        app.action_change_syntax_theme()
         await pilot.pause()
         from textual_code.modals import ChangeSyntaxThemeModalScreen
 
@@ -268,7 +268,7 @@ async def test_action_set_syntax_theme_save_level_project(workspace):
 
 
 @pytest.mark.asyncio
-async def test_action_set_syntax_theme_cancel(workspace):
+async def test_action_change_syntax_theme_cancel(workspace):
     cfg = workspace / "settings.toml"
     app = TextualCode(
         workspace_path=workspace, with_open_file=None, user_config_path=cfg
@@ -276,7 +276,7 @@ async def test_action_set_syntax_theme_cancel(workspace):
     original = app.default_syntax_theme
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_set_syntax_theme()
+        app.action_change_syntax_theme()
         await pilot.pause()
         from textual_code.modals import ChangeSyntaxThemeModalScreen
 

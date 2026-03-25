@@ -39,7 +39,7 @@ async def test_preview_tab_opens_for_markdown_file(workspace: Path, md_file: Pat
     async with app.run_test() as pilot:
         await pilot.pause()
         initial_count = len(app.main_view.opened_pane_ids)
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == initial_count + 1
 
@@ -53,7 +53,7 @@ async def test_preview_tab_not_opened_for_non_markdown(workspace: Path, py_file:
     async with app.run_test() as pilot:
         await pilot.pause()
         initial_count = len(app.main_view.opened_pane_ids)
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == initial_count
 
@@ -67,7 +67,7 @@ async def test_preview_tab_not_opened_without_open_file(workspace: Path):
     async with app.run_test() as pilot:
         await pilot.pause()
         initial_count = len(app.main_view.opened_pane_ids)
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == initial_count
 
@@ -80,10 +80,10 @@ async def test_preview_tab_switch_to_existing(workspace: Path, md_file: Path):
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
         count_after_first = len(app.main_view.opened_pane_ids)
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == count_after_first
 
@@ -96,7 +96,7 @@ async def test_preview_tab_title(workspace: Path, md_file: Path):
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
         pane_id = app.main_view._preview_pane_ids[md_file]
         tc = app.main_view._tc_for_pane(pane_id)
@@ -134,7 +134,7 @@ async def test_preview_tab_updates_on_text_change(workspace: Path, md_file: Path
         editor = app.main_view._get_active_code_editor_in_split("left")
         assert editor is not None
 
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
 
         pane_id = app.main_view._preview_pane_ids[md_file]
@@ -159,7 +159,7 @@ async def test_preview_no_update_when_tab_closed(workspace: Path, md_file: Path)
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
 
         pane_id = app.main_view._preview_pane_ids.get(md_file)
@@ -189,7 +189,7 @@ async def test_preview_tab_closes_with_source(workspace: Path, md_file: Path):
         editor = app.main_view._get_active_code_editor_in_split("left")
         assert editor is not None
 
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
 
         preview_pane_id = app.main_view._preview_pane_ids.get(md_file)
@@ -213,7 +213,7 @@ async def test_ctrl_w_closes_preview_tab(workspace: Path, md_file: Path):
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
 
         preview_pane_id = app.main_view._preview_pane_ids.get(md_file)
@@ -223,7 +223,7 @@ async def test_ctrl_w_closes_preview_tab(workspace: Path, md_file: Path):
         # Focus the preview tab then close via action_close
         app.main_view.focus_pane(preview_pane_id)
         await pilot.pause()
-        await app.main_view.action_close()
+        await app.main_view.action_close_editor()
         await pilot.pause()
 
         assert not app.main_view.is_opened_pane(preview_pane_id)
@@ -243,7 +243,7 @@ async def test_preview_tab_and_split_coexist(workspace: Path, md_file: Path):
         # Go back to left split and open preview
         app.main_view.action_focus_left_split()
         await pilot.pause()
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
 
         assert md_file in app.main_view._preview_pane_ids
@@ -265,7 +265,7 @@ async def test_clicking_preview_pane_updates_active_leaf(
         editor = app.main_view._get_active_code_editor_in_split("left")
         assert editor is not None
 
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
 
         preview_pane_id = app.main_view._preview_pane_ids[md_file]
@@ -304,7 +304,7 @@ async def test_preview_update_is_debounced(workspace: Path, md_file: Path):
         editor = app.main_view._get_active_code_editor_in_split("left")
         assert editor is not None
 
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
 
         pane_id = app.main_view._preview_pane_ids[md_file]
@@ -350,7 +350,7 @@ async def test_preview_tab_focus_resets_footer(workspace: Path, md_file: Path):
         footer = app.main_view.query_one(CodeEditorFooter)
         assert footer.path is not None
 
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
 
         preview_pane_id = app.main_view._preview_pane_ids[md_file]
@@ -369,7 +369,7 @@ async def test_preview_focus_does_not_shift_content(workspace: Path, md_file: Pa
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
 
         preview_pane_id = app.main_view._preview_pane_ids[md_file]
@@ -401,7 +401,7 @@ async def test_preview_tab_receives_focus_on_open(workspace: Path, md_file: Path
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
 
         preview_pane_id = app.main_view._preview_pane_ids[md_file]
@@ -501,7 +501,7 @@ async def test_markdown_widget_renders_with_space(workspace: Path):
     app = make_app(workspace, open_file=bold_md_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
 
         pane_id = app.main_view._preview_pane_ids[bold_md_file]

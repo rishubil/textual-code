@@ -485,7 +485,7 @@ async def test_close_all_noop_when_no_files_open(workspace: Path):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 0
 
@@ -498,7 +498,7 @@ async def test_close_all_closes_single_clean_file(
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 0
@@ -521,7 +521,7 @@ async def test_close_all_closes_all_clean_files(workspace: Path):
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 3
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 0
 
@@ -537,7 +537,7 @@ async def test_close_all_single_unsaved_shows_modal(
         editor.text = "modified\n"
         await pilot.pause()
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
         assert isinstance(app.screen, UnsavedChangeModalScreen)
 
@@ -559,7 +559,7 @@ async def test_close_all_single_unsaved_save_closes(
         editor.text = "modified\n"
         await pilot.pause()
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
         assert isinstance(app.screen, UnsavedChangeModalScreen)
 
@@ -583,7 +583,7 @@ async def test_close_all_single_unsaved_dont_save_closes(
         editor.text = "modified\n"
         await pilot.pause()
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
         assert isinstance(app.screen, UnsavedChangeModalScreen)
 
@@ -606,7 +606,7 @@ async def test_close_all_single_unsaved_cancel_stops(
         editor.text = "modified\n"
         await pilot.pause()
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
         assert isinstance(app.screen, UnsavedChangeModalScreen)
 
@@ -637,7 +637,7 @@ async def test_close_all_mixed_clean_and_dirty(
 
         assert len(app.main_view.opened_pane_ids) == 2
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
 
         # Modal should appear for the dirty file
@@ -676,7 +676,7 @@ async def test_close_all_cancel_stops_remaining(workspace: Path):
 
         assert len(app.main_view.opened_pane_ids) == 3
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
 
         # Unmounted clean editors are closed directly; 1 modal for the dirty active one
@@ -706,7 +706,7 @@ async def test_close_all_sequential_multiple_unsaved(
         active_editor.text = "modified\n"
         await pilot.pause()
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
 
         # Unmounted py editor is closed directly; 1 modal for the dirty json editor
@@ -731,7 +731,7 @@ async def test_close_all_untitled_unsaved_save_shows_error(workspace: Path):
         pane.query_one(CodeEditor).text = "modified\n"
         await pilot.pause()
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
         assert isinstance(app.screen, UnsavedChangeModalScreen)
 
@@ -755,7 +755,7 @@ async def test_close_all_untitled_dont_save_closes(workspace: Path):
         pane.query_one(CodeEditor).text = "modified\n"
         await pilot.pause()
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
         assert isinstance(app.screen, UnsavedChangeModalScreen)
 
@@ -790,7 +790,7 @@ async def test_close_all_clears_opened_files_dict(
         await pilot.pause()
         assert len(app.main_view.opened_files) == 2
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
         assert len(app.main_view.opened_files) == 0
 
@@ -802,7 +802,7 @@ async def test_close_all_allows_reopen_same_file(workspace: Path, sample_py_file
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 0
@@ -836,7 +836,7 @@ async def test_close_all_active_dirty_save_writes_to_disk(workspace: Path):
         active_editor.text = "saved_b\n"
         await pilot.pause()
 
-        await app.main_view.action_close_all()
+        await app.main_view.action_close_all_editors()
         await pilot.pause()
         # Unmounted file_a is closed directly (no modal); modal for dirty file_b
         assert isinstance(app.screen, UnsavedChangeModalScreen)

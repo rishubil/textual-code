@@ -28,8 +28,8 @@ class OrderedFooter(Footer):
         "find",
         "replace",
         "goto_line",
-        "close",
-        "new_editor",
+        "close_editor",
+        "new_untitled_file",
         "toggle_sidebar",
     )
 
@@ -41,21 +41,21 @@ class OrderedFooter(Footer):
             "create_directory",
             "delete_node",
             "rename_node",
-            "new_editor",
+            "new_untitled_file",
             "toggle_sidebar",
         ),
         "search": (
-            "new_editor",
+            "new_untitled_file",
             "toggle_sidebar",
         ),
         "image_preview": (
-            "close",
-            "new_editor",
+            "close_editor",
+            "new_untitled_file",
             "toggle_sidebar",
         ),
         "markdown_preview": (
-            "close",
-            "new_editor",
+            "close_editor",
+            "new_untitled_file",
             "toggle_sidebar",
         ),
     }

@@ -4,7 +4,7 @@ File External Change Detection + Auto/Manual Reload tests.
 Group A — _file_mtime tracking
 Group B — _reload_file() behavior
 Group C — _poll_file_change() auto-reload
-Group D — action_reload_file() manual reload with modal
+Group D — action_revert_file() manual reload with modal
 Group E — action_save() with external change modal
 """
 
@@ -184,13 +184,13 @@ async def test_poll_does_nothing_without_mtime_change(
         assert editor.text == original_text
 
 
-# ── Group D: action_reload_file() manual reload with modal ───────────────────
+# ── Group D: action_revert_file() manual reload with modal ───────────────────
 
 
-async def test_action_reload_file_no_unsaved_reloads_directly(
+async def test_action_revert_file_no_unsaved_reloads_directly(
     workspace: Path, sample_py_file: Path
 ):
-    """T-10: action_reload_file() with no unsaved changes reloads without modal."""
+    """T-10: action_revert_file() with no unsaved changes reloads without modal."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -200,7 +200,7 @@ async def test_action_reload_file_no_unsaved_reloads_directly(
 
         sample_py_file.write_text("manually reloaded\n")
 
-        editor.action_reload_file()
+        editor.action_revert_file()
         await pilot.pause()
 
         # No modal should appear
@@ -208,10 +208,10 @@ async def test_action_reload_file_no_unsaved_reloads_directly(
         assert editor.text == "manually reloaded\n"
 
 
-async def test_action_reload_file_with_unsaved_shows_modal(
+async def test_action_revert_file_with_unsaved_shows_modal(
     workspace: Path, sample_py_file: Path
 ):
-    """T-11: action_reload_file() with unsaved changes shows DiscardAndReloadModal."""
+    """T-11: action_revert_file() with unsaved changes shows DiscardAndReloadModal."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -221,7 +221,7 @@ async def test_action_reload_file_with_unsaved_shows_modal(
         editor.text = "unsaved\n"
         await pilot.pause()
 
-        editor.action_reload_file()
+        editor.action_revert_file()
         await pilot.pause()
 
         assert isinstance(app.screen, DiscardAndReloadModalScreen)
@@ -233,8 +233,8 @@ async def test_action_reload_file_with_unsaved_shows_modal(
         assert editor.text == "print('hello')\n"
 
 
-async def test_action_reload_file_no_path_shows_error(workspace: Path):
-    """T-12: action_reload_file() with no path shows error notification."""
+async def test_action_revert_file_no_path_shows_error(workspace: Path):
+    """T-12: action_revert_file() with no path shows error notification."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
@@ -243,7 +243,7 @@ async def test_action_reload_file_no_path_shows_error(workspace: Path):
         assert editor is not None
         assert editor.path is None
 
-        editor.action_reload_file()
+        editor.action_revert_file()
         await pilot.pause()
 
         # No modal should appear

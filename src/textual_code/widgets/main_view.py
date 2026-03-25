@@ -605,7 +605,7 @@ class MainView(Static):
             tc.active = editor.pane_id
             editor.action_save_as(on_complete=lambda: self._save_next(remaining))
 
-    async def action_close(self) -> None:
+    async def action_close_editor(self) -> None:
         code_editor = self.get_active_code_editor()
         if code_editor is not None:
             code_editor.action_close()
@@ -672,7 +672,7 @@ class MainView(Static):
         if code_editor is not None:
             code_editor.action_select_next_occurrence()
 
-    async def action_close_all(self) -> None:
+    async def action_close_all_editors(self) -> None:
         # Close unmounted editors directly (no modal — they aren't visible)
         for pane_id in list(self.opened_pane_ids):
             if pane_id in self._editor_states:
@@ -853,7 +853,7 @@ class MainView(Static):
                     await new_container.mount(new_dtc)
                 new_container.refresh(layout=True)
 
-    async def action_close_split(self) -> None:
+    async def action_close_editor_group(self) -> None:
         """Close all tabs in the active split (unless it's the last one)."""
         if isinstance(self._split_root, LeafNode):
             return
@@ -869,7 +869,7 @@ class MainView(Static):
                 # Binary pane: close directly
                 self.app.call_later(self.action_close_code_editor, pane_id)
 
-    def action_find_in_workspace(self) -> None:
+    def action_find_in_files(self) -> None:
         app = cast("TextualCode", self.app)
         sidebar = app.sidebar
         if sidebar is None:
@@ -890,13 +890,13 @@ class MainView(Static):
         if len(leaves) > 1:
             self._set_active_leaf(leaves[1])
 
-    def action_focus_next_split(self) -> None:
+    def action_focus_next_group(self) -> None:
         """Focus the next split (wrapping around)."""
         result = adjacent_leaf(self._split_root, self._active_leaf_id, delta=+1)
         if result:
             self._set_active_leaf(result)
 
-    def action_focus_prev_split(self) -> None:
+    def action_focus_previous_group(self) -> None:
         """Focus the previous split (wrapping around)."""
         result = adjacent_leaf(self._split_root, self._active_leaf_id, delta=-1)
         if result:
@@ -1043,7 +1043,7 @@ class MainView(Static):
             self._split_root = new_root
             await self._mount_new_split(new_leaf, "horizontal")
 
-    async def action_move_tab_to_other_split(self) -> None:
+    async def action_move_editor_to_next_group(self) -> None:
         editor = self.get_active_code_editor()
         if editor is None:
             return
@@ -1118,16 +1118,16 @@ class MainView(Static):
             tc.active = new_pane_id
             self._set_active_leaf(dest_leaf)
 
-    async def action_move_tab_left(self) -> None:
+    async def action_move_editor_left(self) -> None:
         await self._move_tab_directional("left")
 
-    async def action_move_tab_right(self) -> None:
+    async def action_move_editor_right(self) -> None:
         await self._move_tab_directional("right")
 
-    async def action_move_tab_up(self) -> None:
+    async def action_move_editor_up(self) -> None:
         await self._move_tab_directional("up")
 
-    async def action_move_tab_down(self) -> None:
+    async def action_move_editor_down(self) -> None:
         await self._move_tab_directional("down")
 
     # ── Tab reorder (within same group) ────────────────────────────────────
@@ -1463,7 +1463,7 @@ class MainView(Static):
             except Exception:
                 pass
 
-    def action_toggle_split_vertical(self) -> None:
+    def action_toggle_split_orientation(self) -> None:
         """Toggle between horizontal and vertical split orientation."""
         # Find the top-level SplitContainer if any
         containers = list(self.query(SplitContainer))
@@ -1475,7 +1475,7 @@ class MainView(Static):
             else:
                 container._direction = "horizontal"
 
-    async def action_open_markdown_preview_tab(self) -> None:
+    async def action_open_markdown_preview(self) -> None:
         """Open a markdown preview tab for the active editor's file."""
         editor = self.get_active_code_editor()
         if editor is None or editor.path is None:

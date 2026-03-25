@@ -88,7 +88,7 @@ async def test_close_middle_split_collapses_correctly(
         # Focus middle leaf and close it
         middle_leaf = leaves[1]
         app.main_view._active_leaf_id = middle_leaf.leaf_id
-        await app.main_view.action_close_split()
+        await app.main_view.action_close_editor_group()
         await pilot.pause()
 
         leaves_after = all_leaves(app.main_view._split_root)
@@ -99,7 +99,7 @@ async def test_close_middle_split_collapses_correctly(
 
 
 async def test_focus_next_split(workspace, py_file):
-    """action_focus_next_split moves to the next leaf."""
+    """action_focus_next_group moves to the next leaf."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
@@ -111,13 +111,13 @@ async def test_focus_next_split(workspace, py_file):
         assert app.main_view._active_leaf_id == leaves[1].leaf_id
 
         # Focus next should wrap to leaf 0
-        app.main_view.action_focus_next_split()
+        app.main_view.action_focus_next_group()
         await pilot.pause()
         assert app.main_view._active_leaf_id == leaves[0].leaf_id
 
 
 async def test_focus_prev_split(workspace, py_file):
-    """action_focus_prev_split moves to the previous leaf."""
+    """action_focus_previous_group moves to the previous leaf."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
         await pilot.pause()
@@ -129,7 +129,7 @@ async def test_focus_prev_split(workspace, py_file):
         assert app.main_view._active_leaf_id == leaves[1].leaf_id
 
         # Focus prev should go to leaf 0
-        app.main_view.action_focus_prev_split()
+        app.main_view.action_focus_previous_group()
         await pilot.pause()
         assert app.main_view._active_leaf_id == leaves[0].leaf_id
 
@@ -155,17 +155,17 @@ async def test_focus_cycle_three_splits(workspace, py_file, py_file2, py_file3):
         assert app.main_view._active_leaf_id == leaves[2].leaf_id
 
         # Next wraps to leaf 0
-        app.main_view.action_focus_next_split()
+        app.main_view.action_focus_next_group()
         await pilot.pause()
         assert app.main_view._active_leaf_id == leaves[0].leaf_id
 
         # Next goes to leaf 1
-        app.main_view.action_focus_next_split()
+        app.main_view.action_focus_next_group()
         await pilot.pause()
         assert app.main_view._active_leaf_id == leaves[1].leaf_id
 
         # Next goes to leaf 2
-        app.main_view.action_focus_next_split()
+        app.main_view.action_focus_next_group()
         await pilot.pause()
         assert app.main_view._active_leaf_id == leaves[2].leaf_id
 

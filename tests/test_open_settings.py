@@ -141,7 +141,7 @@ async def test_e01_open_keybindings_creates_file_if_missing(workspace, tmp_path)
     app = make_app(workspace, user_config_path=user_cfg, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_open_keybindings()
+        app.action_open_keyboard_shortcuts_file()
         await pilot.pause()
         kb_path = user_cfg.with_name("keybindings.toml")
         assert kb_path.exists()
@@ -153,7 +153,7 @@ async def test_e02_open_keybindings_opens_in_editor(workspace, tmp_path):
     app = make_app(workspace, user_config_path=user_cfg, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_open_keybindings()
+        app.action_open_keyboard_shortcuts_file()
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None

@@ -253,13 +253,13 @@ async def test_path_search_modal_sorted_discovery(
 async def test_action_opens_path_search_modal(
     workspace: Path, sample_files: list[Path]
 ):
-    """action_open_file_with_command_palette opens PathSearchModal."""
+    """action_open_file opens PathSearchModal."""
     from textual_code.modals import PathSearchModal
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_open_file_with_command_palette()
+        app.action_open_file()
         await pilot.pause()
         assert isinstance(app.screen, PathSearchModal)
 
@@ -273,7 +273,7 @@ async def test_file_search_opens_selected_file(
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_open_file_with_command_palette()
+        app.action_open_file()
         await pilot.pause()
         # Type to search for "alpha"
         await pilot.press("a", "l", "p", "h", "a")

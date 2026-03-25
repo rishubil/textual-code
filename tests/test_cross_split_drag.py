@@ -517,7 +517,7 @@ async def test_drag_markdown_preview_to_other_split(
         tc.active = md_pane_id  # ty: ignore[unresolved-attribute]
         await pilot.pause()
 
-        await main.action_open_markdown_preview_tab()
+        await main.action_open_markdown_preview()
         await pilot.pause()
         await pilot.pause()
 
@@ -925,7 +925,7 @@ async def test_e2e_drag_tab_mixed_nested_split(
 async def test_drag_cross_split_focuses_moved_tab(
     workspace: Path, py_file: Path, py_file2: Path
 ):
-    """action_move_tab_to_other_split focuses the destination pane."""
+    """action_move_editor_to_next_group focuses the destination pane."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -950,7 +950,7 @@ async def test_drag_cross_split_focuses_moved_tab(
         await pilot.pause()
 
         # Move to right via action
-        await main.action_move_tab_to_other_split()
+        await main.action_move_editor_to_next_group()
         await pilot.pause()
 
         # Find where py_file landed

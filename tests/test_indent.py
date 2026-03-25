@@ -430,7 +430,7 @@ async def test_change_indent_cmd_no_editor_notifies(workspace: Path):
             return original_notify(message, severity=severity, **kwargs)
 
         tc_app.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
-        tc_app.action_change_indent_cmd()
+        tc_app.action_change_indentation()
         await pilot.pause()
 
     assert any("error" in n for n in notified)

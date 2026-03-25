@@ -359,10 +359,10 @@ Config is stored in `[footer.<area>]` sections of `keybindings.toml`:
 
 ```toml
 [footer.editor]
-order = ["save", "find", "replace", "goto_line", "close", "new_editor", "toggle_sidebar"]
+order = ["save", "find", "replace", "goto_line", "close_editor", "new_untitled_file", "toggle_sidebar"]
 
 [footer.explorer]
-order = ["create_file", "create_directory", "delete_node", "rename_node", "new_editor", "toggle_sidebar"]
+order = ["create_file", "create_directory", "delete_node", "rename_node", "new_untitled_file", "toggle_sidebar"]
 ```
 
 Only actions listed in `order` appear in the footer for that area. When no `[footer.<area>]` section exists, the default `DEFAULT_ACTION_ORDERS[area]` is used.
@@ -401,7 +401,7 @@ All config sections (`[bindings]`, `[display.*]`, `[footer.*]`) are saved atomic
 - No chord/sequence keybindings (e.g. Ctrl+K, Ctrl+C).
 - Keybinding changes require an app restart to take effect. Footer order changes apply immediately.
 
-**Implementation:** `command_registry.py` (`CommandEntry`, `COMMAND_REGISTRY`, `bindings_for_context`), `config.py` (`FooterOrders`, `ShortcutDisplayEntry`, `load_keybindings`, `load_shortcut_display`, `load_footer_orders`, `save_keybindings_file`), `app.py` (`_apply_custom_keybindings`, `action_show_shortcuts`, `action_configure_footer`, `_get_focused_area`, `_collect_bindings_for_area`, `set_keybinding`, `set_shortcut_display`, `set_footer_order`, `get_footer_order`, `get_footer_priority`), `modals.py` (`ShowShortcutsScreen`, `ShortcutSettingsScreen`, `FooterConfigScreen`, `RebindKeyScreen`)
+**Implementation:** `command_registry.py` (`CommandEntry`, `COMMAND_REGISTRY`, `bindings_for_context`), `config.py` (`FooterOrders`, `ShortcutDisplayEntry`, `load_keybindings`, `load_shortcut_display`, `load_footer_orders`, `save_keybindings_file`), `app.py` (`_apply_custom_keybindings`, `action_show_keyboard_shortcuts`, `action_configure_footer`, `_get_focused_area`, `_collect_bindings_for_area`, `set_keybinding`, `set_shortcut_display`, `set_footer_order`, `get_footer_order`, `get_footer_priority`), `modals.py` (`ShowShortcutsScreen`, `ShortcutSettingsScreen`, `FooterConfigScreen`, `RebindKeyScreen`)
 
 ---
 

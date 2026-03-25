@@ -55,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editor**: fix whitespace markers and indentation guides rendered at wrong positions when horizontally scrolling with word wrap disabled — add scroll offset to viewport-to-document column mapping in `_inject_whitespace_rendering` and `_inject_indentation_guides` (Fix #69)
 
 - **Command Palette**: align command titles with VS Code conventions — apply Title Case to all command titles, adopt VS Code terminology ("Editor" instead of "file/tab", "Group" instead of "split"), add ellipsis (`...`) to commands that open dialogs/pickers, use plain words for transform case names ("Snake Case" instead of "snake_case"); update descriptions and binding descriptions for consistency (Fix #85)
+- **Breaking**: rename all command action IDs to match new titles — remove `_cmd` suffixes, adopt VS Code terminology in IDs (e.g. `close` → `close_editor`, `new_editor` → `new_untitled_file`, `close_split` → `close_editor_group`); existing `keybindings.toml` custom bindings using old action IDs will need manual update (Fix #85)
 
 ### Changed
 
