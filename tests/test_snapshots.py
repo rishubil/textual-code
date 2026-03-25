@@ -383,16 +383,16 @@ def test_snapshot_footer_config_screen(snap_compare, snapshot_workspace: Path):
             ("save", "Save", "Ctrl+S", True),
             ("find", "Find", "Ctrl+F", True),
             ("replace", "Replace", "Ctrl+H", True),
-            ("goto_line", "Goto line", "Ctrl+G", True),
-            ("close", "Close tab", "Ctrl+W", True),
-            ("new_editor", "New file", "Ctrl+N", True),
-            ("toggle_sidebar", "Toggle sidebar", "Ctrl+B", True),
+            ("goto_line", "Go to Line", "Ctrl+G", True),
+            ("close", "Close", "Ctrl+W", True),
+            ("new_editor", "New Untitled File", "Ctrl+N", True),
+            ("toggle_sidebar", "Toggle Sidebar", "Ctrl+B", True),
         ]
         explorer_actions = [
-            ("create_file", "Create file", "Ctrl+N", True),
-            ("create_directory", "Create directory", "Ctrl+D", True),
-            ("new_editor", "New file", "Ctrl+N", True),
-            ("toggle_sidebar", "Toggle sidebar", "Ctrl+B", True),
+            ("create_file", "New File", "Ctrl+N", True),
+            ("create_directory", "New Folder", "Ctrl+D", True),
+            ("new_editor", "New Untitled File", "Ctrl+N", True),
+            ("toggle_sidebar", "Toggle Sidebar", "Ctrl+B", True),
         ]
         all_area_actions = {
             "editor": editor_actions,

@@ -89,9 +89,9 @@ async def test_c01_settings_commands_in_system_commands(workspace):
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
-        assert "Open user settings" in titles
-        assert "Open project settings" in titles
-        assert "Open keybindings" in titles
+        assert "Open User Settings" in titles
+        assert "Open Project Settings" in titles
+        assert "Open Keyboard Shortcuts File" in titles
 
 
 # ---------------------------------------------------------------------------

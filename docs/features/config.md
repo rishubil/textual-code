@@ -335,7 +335,7 @@ Additional shortcuts inherited from Textual's `TextArea`: Ctrl+C (copy), Ctrl+X 
 
 ### F1 shortcuts viewer: all commands, key rebinding, unbinding, and palette toggle
 
-Pressing F1 (or command palette "Show keyboard shortcuts") opens a modal dialog listing **all** registered commands (not just those with default keybindings) in a `DataTable` with columns: Key, Description, Context. Commands without a keybinding show `(none)` in the Key column.
+Pressing F1 (or command palette "Show Keyboard Shortcuts") opens a modal dialog listing **all** registered commands (not just those with default keybindings) in a `DataTable` with columns: Key, Description, Context. Commands without a keybinding show `(none)` in the Key column.
 
 Clicking any row opens a **Shortcut Settings** dialog (`ShortcutSettingsScreen`) where the user can:
 

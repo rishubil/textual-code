@@ -147,7 +147,7 @@ async def test_get_system_commands_contains_delete_file_or_directory(workspace: 
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
         titles = [cmd.title for cmd in commands]
-        assert "Delete file or directory" in titles
+        assert "Delete File or Directory" in titles
 
 
 async def test_action_delete_file_or_dir_with_command_palette_opens_palette(

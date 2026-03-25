@@ -629,8 +629,8 @@ class Explorer(Static):
     """
 
     BINDINGS = [
-        Binding("ctrl+n", "create_file", "Create file"),
-        Binding("ctrl+d", "create_directory", "Create directory"),
+        Binding("ctrl+n", "create_file", "New File"),
+        Binding("ctrl+d", "create_directory", "New Folder"),
         Binding("delete", "delete_node", "Delete"),
         Binding("f2", "rename_node", "Rename"),
         Binding("ctrl+c", "copy_node", "Copy", show=False),

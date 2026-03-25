@@ -152,7 +152,7 @@ async def test_c01_system_command_exists(workspace):
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
-        assert "Toggle path display mode" in titles
+        assert "Toggle Path Display Mode" in titles
 
 
 @pytest.mark.asyncio

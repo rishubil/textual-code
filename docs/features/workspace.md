@@ -13,7 +13,7 @@ Provides project-wide text search and batch replace without leaving the editor. 
 **Opening the search panel:**
 
 - `Ctrl+Shift+F` opens the sidebar (if hidden), switches to the Search tab, and focuses the query input.
-- Also accessible via command palette: "Find in Workspace".
+- Also accessible via command palette: "Find in Files".
 
 **Search execution:**
 
@@ -102,7 +102,7 @@ Enables comparing or referencing multiple files simultaneously without switching
 
 - `Ctrl+Shift+\` closes the active split pane. All tabs in that pane are closed (with unsaved-change prompts).
 - When a split is closed and its parent branch has only one remaining child, the parent collapses (the remaining child replaces it).
-- Also accessible via command palette: "Close split".
+- Also accessible via command palette: "Close Editor Group".
 
 **Recursive N-way split tree:**
 
@@ -243,7 +243,7 @@ Provides visual file navigation, file/folder management, and quick access to wor
 
 - The sidebar contains a `TabbedContent` with two tabs: Explorer (`explorer_pane`) and Search (`search_pane`).
 - A `SidebarResizeHandle` is docked at the right border for drag resizing.
-- Toggle visibility with `Ctrl+B` or command palette: "Toggle sidebar".
+- Toggle visibility with `Ctrl+B` or command palette: "Toggle Sidebar".
 
 **Directory tree:**
 
@@ -269,7 +269,7 @@ Provides visual file navigation, file/folder management, and quick access to wor
 - File/folder renaming opens a modal pre-filled with the current name, with the filename stem (before the extension) pre-selected. Renaming a directory updates the paths of all open tabs under that directory. Path separator characters are rejected to prevent accidental file moves.
 - File/folder moving opens a command palette showing all workspace directories with fuzzy search, including dot-prefixed directories (e.g. `.github/`, `.vscode/`) but excluding `.git` directories and their subtrees. The user selects a destination folder and the file or directory is moved there, keeping its original name. The workspace root is listed as `"."`. Moving a directory updates the paths of all open tabs under that directory. Destination must be within the workspace boundary.
 - File/folder copy/cut/paste uses an app-level file clipboard. Copy (`Ctrl+C`) stores the selected path; the clipboard persists so the user can paste multiple times. Cut (`Ctrl+X`) stores the path and clears the clipboard after paste. Paste (`Ctrl+V`) duplicates (copy) or moves (cut) the file/folder into the currently selected directory. Name conflicts are auto-resolved with a " copy" suffix (e.g. `file.py` → `file copy.py` → `file copy 2.py`). Cutting an open file updates the editor tab path. Pasting a directory into itself is prevented. These bindings only activate when the Explorer has focus; when the editor has focus, `Ctrl+C/X/V` perform text copy/cut/paste as usual.
-- Also accessible via command palette: "Create file", "Create directory", "Delete file or directory", "Rename file or directory", "Rename file", "Move file", "Move file or directory", "Copy file or directory", "Cut file or directory", "Paste file or directory".
+- Also accessible via command palette: "New File...", "New Folder...", "Delete File or Directory", "Rename File or Directory...", "Rename...", "Move File...", "Move File or Directory...", "Copy File or Directory", "Cut File or Directory", "Paste File or Directory".
 
 **Hidden files:**
 
@@ -326,7 +326,7 @@ Provides visual file navigation, file/folder management, and quick access to wor
 
 **Reload explorer:**
 
-- The command palette offers "Reload explorer" to manually refresh the directory tree. This re-reads all expanded directories and updates git status indicators.
+- The command palette offers "Refresh Explorer" to manually refresh the directory tree. This re-reads all expanded directories and updates git status indicators.
 
 **Italic rendering fix:**
 

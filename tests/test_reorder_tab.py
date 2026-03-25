@@ -247,5 +247,5 @@ async def test_reorder_commands_registered(workspace: Path, py_file: Path):
         await pilot.pause()
         cmds = {cmd.title for cmd in app.get_system_commands(app.screen)}
 
-        assert "Reorder tab right" in cmds
-        assert "Reorder tab left" in cmds
+        assert "Reorder Tab Right" in cmds
+        assert "Reorder Tab Left" in cmds

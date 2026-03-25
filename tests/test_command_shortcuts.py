@@ -29,66 +29,66 @@ async def commands(tmp_path: Path) -> dict[str, str]:
 
 
 async def test_save_file_shows_ctrl_s(tmp_path: Path):
-    """'Save file' command description contains Ctrl+S shortcut."""
+    """'Save' command description contains Ctrl+S shortcut."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+S" in cmds["Save file"]
+    assert "Ctrl+S" in cmds["Save"]
 
 
 async def test_save_all_shows_ctrl_shift_s(tmp_path: Path):
-    """'Save all files' command description contains Ctrl+Shift+S."""
+    """'Save All' command description contains Ctrl+Shift+S."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+Shift+S" in cmds["Save all files"]
+    assert "Ctrl+Shift+S" in cmds["Save All"]
 
 
 async def test_new_file_shows_ctrl_n(tmp_path: Path):
-    """'New file' command description contains Ctrl+N."""
+    """'New Untitled File' command description contains Ctrl+N."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+N" in cmds["New file"]
+    assert "Ctrl+N" in cmds["New Untitled File"]
 
 
 async def test_close_file_shows_ctrl_w(tmp_path: Path):
-    """'Close file' command description contains Ctrl+W."""
+    """'Close Editor' command description contains Ctrl+W."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+W" in cmds["Close file"]
+    assert "Ctrl+W" in cmds["Close Editor"]
 
 
 async def test_close_all_files_shows_ctrl_shift_w(tmp_path: Path):
-    """'Close all files' command description contains Ctrl+Shift+W."""
+    """'Close All Editors' command description contains Ctrl+Shift+W."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+Shift+W" in cmds["Close all files"]
+    assert "Ctrl+Shift+W" in cmds["Close All Editors"]
 
 
 async def test_toggle_sidebar_shows_ctrl_b(tmp_path: Path):
-    """'Toggle sidebar' command description contains Ctrl+B."""
+    """'Toggle Sidebar' command description contains Ctrl+B."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+B" in cmds["Toggle sidebar"]
+    assert "Ctrl+B" in cmds["Toggle Sidebar"]
 
 
 async def test_goto_line_shows_ctrl_g(tmp_path: Path):
-    """'Goto line' command description contains Ctrl+G."""
+    """'Go to Line/Column...' command description contains Ctrl+G."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+G" in cmds["Goto line"]
+    assert "Ctrl+G" in cmds["Go to Line/Column..."]
 
 
 async def test_find_shows_ctrl_f(tmp_path: Path):
@@ -110,69 +110,69 @@ async def test_replace_shows_ctrl_h(tmp_path: Path):
 
 
 async def test_select_all_occurrences_shows_ctrl_shift_l(tmp_path: Path):
-    """'Select all occurrences' command description contains Ctrl+Shift+L."""
+    """'Select All Occurrences of Find Match' description contains Ctrl+Shift+L."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+Shift+L" in cmds["Select all occurrences"]
+    assert "Ctrl+Shift+L" in cmds["Select All Occurrences of Find Match"]
 
 
 async def test_close_split_shows_ctrl_shift_backslash(tmp_path: Path):
-    """'Close split' command description contains Ctrl+Shift+\\."""
+    """'Close Editor Group' description contains Ctrl+Shift+\\."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+Shift+\\" in cmds["Close split"]
+    assert "Ctrl+Shift+\\" in cmds["Close Editor Group"]
 
 
 async def test_focus_next_split_command_exists(tmp_path: Path):
-    """'Focus next split' command is registered in system commands."""
+    """'Focus Next Group' command is registered in system commands."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Focus next split" in cmds
+    assert "Focus Next Group" in cmds
 
 
 async def test_focus_prev_split_command_exists(tmp_path: Path):
-    """'Focus previous split' command is registered in system commands."""
+    """'Focus Previous Group' command is registered in system commands."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Focus previous split" in cmds
+    assert "Focus Previous Group" in cmds
 
 
 # ── Verify already-existing shortcuts still work ──────────────────────────────
 
 
 async def test_add_cursor_below_still_shows_shortcut(tmp_path: Path):
-    """'Add cursor below' description still contains Ctrl+Alt+Down."""
+    """'Add Cursor Below' description still contains Ctrl+Alt+Down."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+Alt+Down" in cmds["Add cursor below"]
+    assert "Ctrl+Alt+Down" in cmds["Add Cursor Below"]
 
 
 async def test_add_next_occurrence_still_shows_shortcut(tmp_path: Path):
-    """'Add next occurrence' description still contains Ctrl+D."""
+    """'Add Selection to Next Find Match' description still contains Ctrl+D."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+D" in cmds["Add next occurrence"]
+    assert "Ctrl+D" in cmds["Add Selection to Next Find Match"]
 
 
 async def test_find_in_workspace_still_shows_shortcut(tmp_path: Path):
-    """'Find in Workspace' description still contains Ctrl+Shift+F."""
+    """'Find in Files' description still contains Ctrl+Shift+F."""
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.pause()
         cmds = _get_commands(app)
-    assert "Ctrl+Shift+F" in cmds["Find in Workspace"]
+    assert "Ctrl+Shift+F" in cmds["Find in Files"]
 
 
 # ── Verify Textual built-in commands are excluded ─────────────────────────────

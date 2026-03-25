@@ -217,5 +217,5 @@ async def test_sort_lines_command_palette(workspace: Path):
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
         titles = [cmd.title for cmd in commands]
-        assert "Sort lines ascending" in titles
-        assert "Sort lines descending" in titles
+        assert "Sort Lines Ascending" in titles
+        assert "Sort Lines Descending" in titles

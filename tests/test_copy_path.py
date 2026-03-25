@@ -106,8 +106,8 @@ async def test_d01_copy_path_commands_in_system_commands(workspace):
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
-        assert "Copy relative path" in titles
-        assert "Copy absolute path" in titles
+        assert "Copy Relative Path" in titles
+        assert "Copy Absolute Path" in titles
 
 
 # ---------------------------------------------------------------------------
