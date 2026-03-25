@@ -18,6 +18,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.12"
       - run: uv sync --frozen
       - run: uv run ruff check
       - run: uv run ruff format --check
@@ -28,6 +30,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.12"
       - run: uv sync --frozen
       - run: uv run ty check
 
@@ -39,27 +43,37 @@ jobs:
       - run: bash scripts/check-language.sh --all
 
   test:
-    name: Test
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: ${{ matrix.python-version }}
       - run: uv sync --frozen
       - run: uv run pytest tests/ -n auto -m "not serial"
 
   test-snapshot:
-    name: Snapshot Test
+    name: Snapshot Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: ${{ matrix.python-version }}
       - run: uv sync --frozen
       - run: uv run pytest tests/ -m serial
       - name: Upload snapshot report
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: snapshot-report
+          name: snapshot-report-python-${{ matrix.python-version }}
           path: snapshot_report.html
 
   build:
@@ -68,4 +82,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
+        with:
+          python-version: "3.12"
       - run: uv build
