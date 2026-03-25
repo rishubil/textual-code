@@ -79,6 +79,13 @@ When saving (Ctrl+S), if the file's `mtime` on disk differs from the last known 
 
 **Implementation:** `code_editor.py`, `main_view.py`, `app.py`, `modals.py`, `utils.py`
 
+### Quit and Double Ctrl+Q Force Quit
+
+- `Ctrl+Q` triggers `action_quit` (Textual's default binding).
+- If there are unsaved changes, a confirmation modal is shown.
+- **Double Ctrl+Q force quit**: pressing `Ctrl+Q` twice within 1 second always exits the app immediately, bypassing the unsaved-changes modal. This is a safety mechanism to ensure the user can always quit even if the quit binding is misconfigured or the modal is stuck.
+- The double-press detection is implemented in `TextualCode.on_event()` using `time.monotonic()` to track the last `Ctrl+Q` timestamp (`_last_ctrl_q_time`). Runs before Textual's normal event forwarding.
+
 ## Text Editing: selection, copy/cut, move line, indent, sort lines, word wrap, undo/redo
 
 ### Basic Text Editing: insert, delete, backspace

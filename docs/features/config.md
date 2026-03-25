@@ -430,13 +430,13 @@ Textual Code exposes all 20 built-in themes from the Textual framework:
 - The selected theme applies immediately without restart.
 - The theme name is persisted as the `ui_theme` key in the `[editor]` section of the chosen config file.
 
-### Textual built-in "Theme" command
+### Textual built-in commands
 
-Textual's own "Theme" system command is filtered out from the command palette to avoid duplication with Textual Code's "Change UI theme" command. This is done by checking `cmd.title != "Theme"` in `get_system_commands()`.
+Textual's default built-in system commands (Theme, Quit, Keys, Maximize/Minimize, Screenshot) are excluded from the command palette. The `_all_system_commands()` method does not call `super().get_system_commands()` and instead sources all commands exclusively from the project's `COMMAND_REGISTRY`.
 
 ### Known Limitations
 
 - No custom theme creation; only the 20 built-in Textual themes are available.
 - No per-editor theming; the theme applies globally to the entire application.
 
-**Implementation:** `app.py` (`action_set_ui_theme`, `_TEXTUAL_BUILTIN_THEME_CMD`, theme filtering in `get_system_commands`), `modals.py` (`ChangeUIThemeModalScreen`), `config.py` (`save_user_editor_settings`, `save_project_editor_settings`)
+**Implementation:** `app.py` (`action_set_ui_theme`), `modals.py` (`ChangeUIThemeModalScreen`), `config.py` (`save_user_editor_settings`, `save_project_editor_settings`)

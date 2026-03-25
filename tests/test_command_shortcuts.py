@@ -171,3 +171,27 @@ async def test_find_in_workspace_still_shows_shortcut(tmp_path: Path):
         await pilot.pause()
         cmds = _get_commands(app)
     assert "Ctrl+Shift+F" in cmds["Find in Workspace"]
+
+
+# ── Verify Textual built-in commands are excluded ─────────────────────────────
+
+_TEXTUAL_BUILTIN_TITLES = {"Keys", "Screenshot", "Maximize", "Minimize", "Theme"}
+
+
+async def test_no_textual_builtin_commands(tmp_path: Path):
+    """Textual's default built-in commands must not appear in the palette."""
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        cmds = _get_commands(app)
+    found = _TEXTUAL_BUILTIN_TITLES & set(cmds)
+    assert not found, f"Built-in commands should be removed: {found}"
+
+
+async def test_project_quit_command_exists(tmp_path: Path):
+    """The project's own 'Quit' command must still appear in the palette."""
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        cmds = _get_commands(app)
+    assert "Quit" in cmds

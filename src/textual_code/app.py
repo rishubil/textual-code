@@ -1,10 +1,11 @@
+import time
 from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from typing import Literal
 
-from textual import on
+from textual import events, on
 from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding, BindingType
 from textual.command import (
@@ -71,11 +72,6 @@ from textual_code.widgets.main_view import MainView
 from textual_code.widgets.ordered_footer import OrderedFooter
 from textual_code.widgets.sidebar import SIDEBAR_MIN_WIDTH, Sidebar
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
-# Textual's built-in "Theme" command title — used to filter it out from command palette.
-# This string matches the title yielded by textual.app.App.get_system_commands().
-_TEXTUAL_BUILTIN_THEME_CMD = "Theme"
-
 
 _KEY_DISPLAY_NAMES: dict[str, str] = {
     "backslash": "\\",
@@ -422,6 +418,31 @@ class TextualCode(App):
         _patch_input_bindings()
         _apply_custom_keybindings(self._custom_keybindings)
 
+        # Double Ctrl+Q force-quit: timestamp of last Ctrl+Q press
+        self._last_ctrl_q_time: float = 0.0
+
+    _FORCE_QUIT_INTERVAL = 1.0  # seconds
+
+    async def on_event(self, event: events.Event) -> None:
+        """Intercept Ctrl+Q for double-press force quit before forwarding.
+
+        If Ctrl+Q is pressed twice within 1 second, exit immediately
+        regardless of unsaved changes.  This is a safety mechanism to
+        ensure the user can always quit even if the quit binding is
+        misconfigured or removed.
+        """
+        if (
+            isinstance(event, events.Key)
+            and not event.is_forwarded
+            and event.key == "ctrl+q"
+        ):
+            now = time.monotonic()
+            if now - self._last_ctrl_q_time < self._FORCE_QUIT_INTERVAL:
+                self.exit()
+                return
+            self._last_ctrl_q_time = now
+        await super().on_event(event)
+
     def compose(self) -> ComposeResult:
         if not self._skip_sidebar:
             yield Sidebar(
@@ -479,9 +500,6 @@ class TextualCode(App):
     def _all_system_commands(self, screen: Screen) -> Iterable[SystemCommand]:
         from textual_code.command_registry import COMMAND_REGISTRY
 
-        for cmd in super().get_system_commands(screen):
-            if cmd.title != _TEXTUAL_BUILTIN_THEME_CMD:
-                yield cmd
         for entry in COMMAND_REGISTRY:
             if not entry.palette_callback:
                 continue
