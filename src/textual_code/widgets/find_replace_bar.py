@@ -1,17 +1,58 @@
 """Inline find/replace bar widget (VS Code style)."""
 
-from textual import on
+from __future__ import annotations
+
+import contextlib
+
+from rich.cells import cell_len
+from textual import events, on
 from textual.app import ComposeResult
 from textual.containers import Horizontal
+from textual.css.query import NoMatches
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Button, Checkbox, Input
+
+# Full and compact (icon-only) label variants for each button.
+# Mirrors the _BTN_LABELS pattern in workspace_search.py.
+_BTN_LABELS = {
+    "prev_match": ("↑ Prev", "↑"),
+    "next_match": ("↓ Next", "↓"),
+    "select_all_btn": ("Select All", "All"),
+    "replace_btn": ("↪ Replace", "↪"),
+    "replace_all_btn": ("🔄 Replace All", "🔄"),
+}
+
+_BTN_PADDING = 2  # Button left + right padding (1 cell each side)
+_BTN_MIN_ICON_WIDTH = 5  # Minimum width for icon-only buttons
+
+# Precomputed min-width for each label variant: {btn_id: (full_width, icon_width)}
+_BTN_MIN_WIDTHS = {
+    btn_id: (
+        cell_len(full) + _BTN_PADDING,
+        max(cell_len(icon) + _BTN_PADDING, _BTN_MIN_ICON_WIDTH),
+    )
+    for btn_id, (full, icon) in _BTN_LABELS.items()
+}
+
+# Only show full labels when the bar is very wide.
+_COMPACT_THRESHOLD = 120
+
+_TOOLTIPS = {
+    "prev_match": "Previous Match (Shift+Enter)",
+    "next_match": "Next Match (Enter)",
+    "select_all_btn": "Select All Matches",
+    "replace_btn": "Replace",
+    "replace_all_btn": "Replace All",
+    "close_btn": "Close (Escape)",
+}
 
 
 class FindReplaceBar(Horizontal):
     """Inline find/replace bar docked to the top of the CodeEditor."""
 
     replace_mode: reactive[bool] = reactive(False, init=False)
+    _compact: bool | None = None
 
     class FindNext(Message):
         """Emitted when the user requests the next match."""
@@ -72,29 +113,73 @@ class FindReplaceBar(Horizontal):
             yield Input(placeholder="Find...", id="find_input")
             yield Checkbox(".*", id="use_regex", value=False)
             yield Checkbox("Aa", id="case_sensitive", value=True)
-            yield Button("↑ Prev", id="prev_match")
-            yield Button("↓ Next", id="next_match")
-            yield Button("Select All", id="select_all_btn")
+            yield Button(_BTN_LABELS["prev_match"][0], id="prev_match")
+            yield Button(_BTN_LABELS["next_match"][0], id="next_match")
+            yield Button(
+                _BTN_LABELS["select_all_btn"][0],
+                id="select_all_btn",
+                variant="primary",
+            )
             yield Button("✕", id="close_btn")
         with Horizontal(id="replace_row"):
             yield Input(placeholder="Replace with...", id="replace_input")
-            yield Button("Replace", id="replace_btn")
-            yield Button("Replace All", id="replace_all_btn")
+            yield Button(
+                _BTN_LABELS["replace_btn"][0], id="replace_btn", variant="primary"
+            )
+            yield Button(
+                _BTN_LABELS["replace_all_btn"][0],
+                id="replace_all_btn",
+                variant="warning",
+            )
+
+    def on_mount(self) -> None:
+        for btn_id, tooltip in _TOOLTIPS.items():
+            with contextlib.suppress(NoMatches):
+                self.query_one(f"#{btn_id}", Button).tooltip = tooltip
 
     def watch_replace_mode(self, value: bool) -> None:
         self.query_one("#replace_row").display = value
+
+    # ── Responsive labels ──────────────────────────────────────────────────────
+
+    def update_button_labels(self, *, compact: bool) -> None:
+        """Switch button labels between icon+text and icon-only."""
+        idx = 1 if compact else 0
+        for btn_id, labels in _BTN_LABELS.items():
+            try:
+                btn = self.query_one(f"#{btn_id}", Button)
+                btn.label = labels[idx]
+                btn.styles.min_width = _BTN_MIN_WIDTHS[btn_id][idx]
+            except NoMatches:
+                pass  # replace row buttons may not be mounted yet
+
+    def _refresh_labels(self) -> None:
+        """Apply compact/full labels based on current width."""
+        if self.size.width > 0:
+            compact = self.size.width < _COMPACT_THRESHOLD
+            self._compact = compact
+            self.update_button_labels(compact=compact)
+
+    def on_resize(self, event: events.Resize) -> None:
+        """Update button labels based on bar width."""
+        compact = event.size.width < _COMPACT_THRESHOLD
+        if compact != self._compact:
+            self._compact = compact
+            self.update_button_labels(compact=compact)
 
     def show_find(self) -> None:
         """Show the bar in find mode and focus the find input."""
         self.replace_mode = False
         self.display = True
         self.query_one("#find_input", Input).focus()
+        self.call_after_refresh(self._refresh_labels)
 
     def show_replace(self) -> None:
         """Show the bar in replace mode (replace row visible) and focus find input."""
         self.replace_mode = True
         self.display = True
         self.query_one("#find_input", Input).focus()
+        self.call_after_refresh(self._refresh_labels)
 
     def _get_query(self) -> str:
         return self.query_one("#find_input", Input).value
