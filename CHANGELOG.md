@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Shortcuts**: unified command registry — all command palette functions can now be assigned keyboard shortcuts via the F1 viewer; all shortcut-only actions now appear in the command palette; "Unbind" button to remove existing shortcuts; dynamic key hints in palette descriptions reflect custom bindings; single source of truth (`command_registry.py`) prevents commands from drifting out of sync (Fix #53)
 
+- **Editor**: Ctrl+Backspace and Ctrl+Delete word deletion — delete from cursor to previous/next word boundary; works with multi-cursor; requires terminal with enhanced keyboard protocol support for Ctrl+Backspace (Fix #77)
 - **Editor**: all 7 VS Code case transforms — added title case, snake_case, camelCase, kebab-case, PascalCase via command palette; collapsed cursor now auto-selects word under cursor before transforming (Fix #78, Fix #79)
 - **Editor**: Find Previous — search backward via Shift+Enter in find bar or ↑ Prev button; wraps around to last match when no match before cursor
 - **Command Palette**: remove Textual built-in commands — Textual's default system commands (Theme, Keys, Maximize/Minimize, Screenshot) are excluded from the command palette; only project-defined commands appear (Fix #87)

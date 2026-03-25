@@ -86,11 +86,24 @@ When saving (Ctrl+S), if the file's `mtime` on disk differs from the last known 
 - **Double Ctrl+Q force quit**: pressing `Ctrl+Q` twice within 1 second always exits the app immediately, bypassing the unsaved-changes modal. This is a safety mechanism to ensure the user can always quit even if the quit binding is misconfigured or the modal is stuck.
 - The double-press detection is implemented in `TextualCode.on_event()` using `time.monotonic()` to track the last `Ctrl+Q` timestamp (`_last_ctrl_q_time`). Runs before Textual's normal event forwarding.
 
-## Text Editing: selection, copy/cut, move line, indent, sort lines, word wrap, undo/redo
+## Text Editing: selection, copy/cut, word deletion, move line, indent, sort lines, word wrap, undo/redo
 
 ### Basic Text Editing: insert, delete, backspace
 
 Standard character insertion at the cursor position, `Delete` key removes the character to the right, `Backspace` removes the character to the left. All operations work with multi-cursor when active (see Multiple Cursors section).
+
+### Delete Word Left (Ctrl+Backspace) / Delete Word Right (Ctrl+Delete)
+
+- **Ctrl+Backspace**: deletes from the cursor to the start of the previous word (matching VS Code's `deleteWordLeft`).
+- **Ctrl+Delete**: deletes from the cursor to the start of the next word (matching VS Code's `deleteWordRight`).
+
+Both operations work with multi-cursor: when extra cursors are active, the word deletion is applied at every cursor position simultaneously. If any cursor has a selection, the selection content is deleted instead of applying word boundary logic.
+
+Word boundaries use the same `\w`/`\W` transition pattern as `Ctrl+Left`/`Ctrl+Right` word movement. Note that `Ctrl+Delete` does not skip leading whitespace (unlike `Ctrl+Right` movement), matching VS Code's behavior.
+
+**Terminal note:** `Ctrl+Backspace` requires a terminal that supports the kitty keyboard protocol or CSI u sequences (e.g., kitty, WezTerm, iTerm2, Windows Terminal). In terminals without enhanced keyboard support, `Ctrl+Backspace` may be indistinguishable from regular `Backspace`.
+
+**Keybinding:** `Ctrl+Backspace` (delete word left), `Ctrl+Delete` (delete word right).
 
 ### Undo (Ctrl+Z) / Redo (Ctrl+Shift+Z or Ctrl+Y)
 
