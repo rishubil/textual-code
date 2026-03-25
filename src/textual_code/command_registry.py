@@ -340,6 +340,8 @@ COMMAND_REGISTRY: tuple[CommandEntry, ...] = (
         "Open a file in the code editor",
         "app",
         "action_open_file",
+        default_key="ctrl+o",
+        binding_description="Open File",
     ),
     CommandEntry(
         "new_file",

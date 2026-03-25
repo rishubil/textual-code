@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Shortcuts**: assign Ctrl+O as default keyboard shortcut for "Open File..." command — opens the file search modal from any context; displayed in the footer, command palette, and F1 shortcuts viewer (Fix #101)
+
 ### Changed
 
 - **CI**: add Python 3.13 and 3.14 to supported versions and CI test matrix; remove `.python-version` file (#97)
