@@ -42,16 +42,24 @@ FindReplaceBar #replace_input {
     width: 1fr;
 }
 
-FindReplaceBar #next_match,
+FindReplaceBar #prev_match,
+FindReplaceBar #next_match {
+    width: auto;
+    background: $primary 25%;
+    border: tall $primary 25%;
+}
+
 FindReplaceBar #select_all_btn,
 FindReplaceBar #replace_btn,
 FindReplaceBar #replace_all_btn {
     width: auto;
-    min-width: 10;
 }
 
 FindReplaceBar #close_btn {
-    width: 5;
+    width: auto;
+    min-width: 3;
+    background: $surface;
+    border: tall $surface;
 }
 
 CodeEditorFooter {

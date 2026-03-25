@@ -278,19 +278,19 @@ Opens the inline find bar docked to the top of the editor (VS Code style). The f
 
 ### Replace (Ctrl+H): extends find bar with replace input
 
-Opens the find bar in replace mode, showing an additional row with a "Replace with..." input field, a "Replace" button, and a "Replace All" button. The find input is focused.
+Opens the find bar in replace mode, showing an additional row with a "Replace with..." input field, a Replace button (`↪`), and a Replace All button (`🔄`). The find input is focused.
 
 **Keybinding:** `Ctrl+H`.
 
 ### Find Next: Enter or button
 
-Pressing `Enter` in the find input or clicking the "Next" button searches for the next match from the current cursor position. The search wraps around to the beginning of the document when it reaches the end. The matched text is selected (primary cursor moves to the match). Sequential "Next" clicks advance through matches without reopening the bar.
+Pressing `Enter` in the find input or clicking the `↓` (Next) button searches for the next match from the current cursor position. The search wraps around to the beginning of the document when it reaches the end. The matched text is selected (primary cursor moves to the match). Sequential "Next" clicks advance through matches without reopening the bar.
 
 If no match is found, a warning notification shows "'query' not found".
 
-### Find Previous: Shift+Enter or ↑ Prev button
+### Find Previous: Shift+Enter or ↑ button
 
-Pressing `Shift+Enter` in the find input or clicking the "↑ Prev" button searches backward for the previous match before the current cursor position. The search wraps around to the last match in the document when it reaches the beginning.
+Pressing `Shift+Enter` in the find input or clicking the `↑` (Prev) button searches backward for the previous match before the current cursor position. The search wraps around to the last match in the document when it reaches the beginning.
 
 ### Regex Mode: toggle via `.*` checkbox
 
@@ -306,19 +306,19 @@ When regex mode is turned on, the `Aa` checkbox is automatically disabled becaus
 
 ### Select All: button for multi-cursor selection of all matches
 
-The "Select All" button in the find bar selects all matches in the document using multi-cursors. The primary selection is set to the first match, and extra cursors with selections are placed at all remaining matches. Respects the current regex and case sensitivity settings.
+The "All" (Select All) button in the find bar selects all matches in the document using multi-cursors. The primary selection is set to the first match, and extra cursors with selections are placed at all remaining matches. Respects the current regex and case sensitivity settings.
 
 After selecting, focus moves to the editor for immediate multi-cursor editing. The find bar stays open so the query can be refined. A notification shows the count of occurrences selected.
 
 ### Replace: single replacement at current match
 
-Pressing `Enter` in the replace input or clicking the "Replace" button replaces the current match (the text currently selected that matches the find query) with the replacement text. After replacement, the next match is automatically found and selected.
+Pressing `Enter` in the replace input or clicking the Replace (`↪`) button replaces the current match (the text currently selected that matches the find query) with the replacement text. After replacement, the next match is automatically found and selected.
 
 If the current selection does not match the find query, Replace first advances to the next match without replacing.
 
 ### Replace All: batch replacement
 
-The "Replace All" button replaces all occurrences of the find query in the document with the replacement text in one operation. A notification shows the count (e.g., "Replaced 5 occurrence(s)"). Respects regex and case sensitivity settings.
+The Replace All (`🔄`) button replaces all occurrences of the find query in the document with the replacement text in one operation. A notification shows the count (e.g., "Replaced 5 occurrence(s)"). Respects regex and case sensitivity settings.
 
 ### Escape Closes the Bar
 

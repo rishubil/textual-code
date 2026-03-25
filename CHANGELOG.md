@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Editor**: all 7 VS Code case transforms — added title case, snake_case, camelCase, kebab-case, PascalCase via command palette; collapsed cursor now auto-selects word under cursor before transforming (Fix #78, Fix #79)
 - **Editor**: Find Previous — search backward via Shift+Enter in find bar or ↑ Prev button; wraps around to last match when no match before cursor
+- **UI**: compact find/replace bar buttons — replace text labels with responsive icons (↑, ↓, All, ↪, 🔄) that switch between icon-only and icon+text based on bar width; add tooltips for discoverability; color-code buttons by importance (primary blue for actions, warning yellow for Replace All, subtle tint for navigation); mirrors the sidebar's `_BTN_LABELS` responsive pattern (Fix #84)
 
 - **Editor**: Ctrl+Home / Ctrl+End — jump to start/end of document; Ctrl+Shift+Home/End extends selection to document boundaries (Fix #63)
 - **Editor**: VS Code-style smart Home key — toggles between first non-whitespace character and column 0 (Fix #63)
