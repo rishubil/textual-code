@@ -15,11 +15,11 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.12"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
-        with:
-          python-version: "3.12"
       - run: uv sync --frozen
       - run: uv run ruff check
       - run: uv run ruff format --check
@@ -27,11 +27,11 @@ jobs:
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.12"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
-        with:
-          python-version: "3.12"
       - run: uv sync --frozen
       - run: uv run ty check
 
@@ -53,8 +53,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
-        with:
-          python-version: ${{ matrix.python-version }}
       - run: uv sync --frozen
       - run: uv run pytest tests/ -n auto -m "not serial"
 
@@ -69,8 +67,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
-        with:
-          python-version: ${{ matrix.python-version }}
       - run: uv sync --frozen
       - run: uv run pytest tests/ -m serial
       - name: Upload snapshot report
@@ -83,9 +79,9 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.12"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
-        with:
-          python-version: "3.12"
       - run: uv build
