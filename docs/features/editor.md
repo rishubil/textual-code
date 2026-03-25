@@ -13,7 +13,8 @@ Creates an untitled tab with application defaults (encoding, indentation, line e
 Files can be opened through three paths:
 
 - **CLI arguments**: `textual-code file.py` or `textual-code --workspace /project file.py`. The `--workspace` / `-w` flag overrides the sidebar root directory independently of the target file path.
-- **Command palette**: "Open file" enumerates workspace files (skipping hidden paths and directories) and fuzzy-matches on relative paths.
+- **Keyboard shortcut**: Ctrl+O opens the file search modal (same as command palette "Open File...").
+- **Command palette**: "Open File..." enumerates workspace files (skipping hidden paths and directories) and fuzzy-matches on relative paths.
 - **Explorer double-click**: double-clicking a file node in the sidebar opens it in the active split. If the file is already open in a tab, that tab is focused instead.
 
 Binary files (null byte detected in the first 8 KiB) cannot be edited. Image files (`.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp`, `.tiff`, `.tif`) open in a read-only image preview tab; all other binary files show a warning tab ("Binary file -- not supported"). The same file cannot be opened twice in the same split pane.

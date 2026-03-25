@@ -208,6 +208,25 @@ async def test_quit_shows_ctrl_q(tmp_path: Path):
     assert "Ctrl+Q" in cmds["Quit"]
 
 
+async def test_open_file_shows_ctrl_o(tmp_path: Path):
+    """'Open File...' command description contains Ctrl+O shortcut."""
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        cmds = _get_commands(app)
+    assert "Ctrl+O" in cmds["Open File..."]
+
+
+async def test_open_file_ctrl_o_opens_modal(tmp_path: Path):
+    """Pressing Ctrl+O opens the PathSearchModal."""
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+o")
+        await pilot.pause()
+        assert app.screen.__class__.__name__ == "PathSearchModal"
+
+
 # ── Guard: Textual base App.BINDINGS must be reflected in COMMAND_REGISTRY ────
 
 

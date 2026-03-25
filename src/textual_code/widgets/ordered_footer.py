@@ -29,6 +29,7 @@ class OrderedFooter(Footer):
         "replace",
         "goto_line",
         "close_editor",
+        "open_file",
         "new_untitled_file",
         "toggle_sidebar",
     )
@@ -41,20 +42,24 @@ class OrderedFooter(Footer):
             "create_directory",
             "delete_node",
             "rename_node",
+            "open_file",
             "new_untitled_file",
             "toggle_sidebar",
         ),
         "search": (
+            "open_file",
             "new_untitled_file",
             "toggle_sidebar",
         ),
         "image_preview": (
             "close_editor",
+            "open_file",
             "new_untitled_file",
             "toggle_sidebar",
         ),
         "markdown_preview": (
             "close_editor",
+            "open_file",
             "new_untitled_file",
             "toggle_sidebar",
         ),

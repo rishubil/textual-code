@@ -419,6 +419,7 @@ async def test_footer_shortcut_order_is_deterministic(
             "Replace",
             "Go to Line",
             "Close",
+            "Open File",
             "New Untitled File",
             "Toggle Sidebar",
         ]
@@ -457,6 +458,7 @@ async def test_footer_order_stable_across_focus(workspace: Path, sample_py_file:
             "Replace",
             "Go to Line",
             "Close",
+            "Open File",
             "New Untitled File",
             "Toggle Sidebar",
         ]
@@ -485,6 +487,7 @@ async def test_footer_shortcut_order_empty_app(workspace: Path):
             "Replace",
             "Go to Line",
             "Close",
+            "Open File",
             "New Untitled File",
             "Toggle Sidebar",
         ]
