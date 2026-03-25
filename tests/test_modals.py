@@ -9,13 +9,19 @@ from textual.app import App, ComposeResult
 from textual.widgets import Label
 
 from textual_code.modals import (
+    ChangeEncodingModalScreen,
     ChangeIndentModalResult,
     ChangeLanguageModalResult,
     ChangeLineEndingModalResult,
+    ChangeSyntaxThemeModalScreen,
+    ChangeUIThemeModalScreen,
+    ChangeWordWrapModalScreen,
     DeleteFileModalResult,
     DeleteFileModalScreen,
+    DiscardAndReloadModalScreen,
     GotoLineModalResult,
     GotoLineModalScreen,
+    OverwriteConfirmModalScreen,
     RenameModalResult,
     RenameModalScreen,
     ReplaceAllConfirmModalResult,
@@ -23,6 +29,8 @@ from textual_code.modals import (
     ReplacePreview,
     SaveAsModalResult,
     SaveAsModalScreen,
+    SidebarResizeModalScreen,
+    SplitResizeModalScreen,
     UnsavedChangeModalResult,
     UnsavedChangeModalScreen,
     UnsavedChangeQuitModalResult,
@@ -86,6 +94,29 @@ async def test_save_as_modal_enter_submits():
     assert app.result.file_path == "my.py"
 
 
+async def test_save_as_modal_escape_dismisses():
+    app = _SaveAsApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.file_path is None
+
+
+async def test_save_as_modal_escape_dismisses_with_input_focused():
+    app = _SaveAsApp()
+    async with app.run_test() as pilot:
+        await pilot.click(app.screen.query_one("#path"))
+        await pilot.press("t", "e", "s", "t")
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+
+
 # ── UnsavedChangeModalScreen ─────────────────────────────────────────────────
 
 
@@ -137,6 +168,16 @@ async def test_unsaved_change_modal_cancel_button():
     assert app.result.should_save is None
 
 
+async def test_unsaved_change_modal_escape_does_not_dismiss():
+    """Escape must NOT dismiss a destructive confirmation modal."""
+    app = _UnsavedChangeApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is None
+
+
 # ── UnsavedChangeQuitModalScreen ─────────────────────────────────────────────
 
 
@@ -173,6 +214,16 @@ async def test_unsaved_quit_modal_cancel_button():
 
     assert app.result is not None
     assert app.result.should_quit is False
+
+
+async def test_unsaved_quit_modal_escape_does_not_dismiss():
+    """Escape must NOT dismiss a destructive quit confirmation modal."""
+    app = _UnsavedQuitApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is None
 
 
 # ── DeleteFileModalScreen ─────────────────────────────────────────────────────
@@ -278,6 +329,18 @@ async def test_delete_modal_directory_warning_cannot_be_undone(tmp_path):
         assert "cannot be undone" in str(warning_label.content).lower()  # ty: ignore[unresolved-attribute]
 
 
+async def test_delete_modal_escape_does_not_dismiss(tmp_path):
+    """Escape must NOT dismiss a destructive delete confirmation modal."""
+    f = tmp_path / "to_delete.txt"
+    f.write_text("content")
+    app = _DeleteFileApp(f)
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is None
+
+
 # ── GotoLineModalScreen ───────────────────────────────────────────────────────
 
 
@@ -333,6 +396,29 @@ async def test_goto_line_modal_enter_submits():
     assert app.result is not None
     assert app.result.is_cancelled is False
     assert app.result.value == "3:7"
+
+
+async def test_goto_line_modal_escape_dismisses():
+    app = _GotoLineApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.value is None
+
+
+async def test_goto_line_modal_escape_dismisses_with_input_focused():
+    app = _GotoLineApp()
+    async with app.run_test() as pilot:
+        await pilot.click(app.screen.query_one("#location"))
+        await pilot.press("5")
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
 
 
 # ── ChangeLanguageModalScreen ─────────────────────────────────────────────────
@@ -422,6 +508,17 @@ async def test_change_language_modal_initial_value_is_current_language():
         assert select.value == "rust"
 
 
+async def test_change_language_modal_escape_dismisses():
+    app = _ChangeLanguageApp(languages=["python"], current_language="python")
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.language is None
+
+
 # ── FindModalScreen ───────────────────────────────────────────────────────────
 
 
@@ -491,6 +588,29 @@ async def test_find_modal_empty_query_allowed():
     assert app.result is not None
     assert app.result.is_cancelled is False
     assert app.result.query == ""
+
+
+async def test_find_modal_escape_dismisses():
+    app = _FindApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.query is None
+
+
+async def test_find_modal_escape_dismisses_with_input_focused():
+    app = _FindApp()
+    async with app.run_test() as pilot:
+        await pilot.click(app.screen.query_one("#query"))
+        await pilot.press("h", "i")
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
 
 
 # ── ReplaceModalScreen ────────────────────────────────────────────────────────
@@ -572,6 +692,29 @@ async def test_replace_modal_empty_replace_text_returns_empty_string():
 
     assert app.result is not None
     assert app.result.replace_text == ""
+
+
+async def test_replace_modal_escape_dismisses():
+    app = _ReplaceApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.action is None
+
+
+async def test_replace_modal_escape_dismisses_with_input_focused():
+    app = _ReplaceApp()
+    async with app.run_test() as pilot:
+        await pilot.click(app.screen.query_one("#find_query"))
+        await pilot.press("f", "o", "o")
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
 
 
 # ── FindModalScreen use_regex ──────────────────────────────────────────────────
@@ -743,6 +886,18 @@ async def test_change_indent_modal_cancel_returns_cancelled():
     assert app.result.indent_size is None
 
 
+async def test_change_indent_modal_escape_dismisses():
+    app = _ChangeIndentApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.indent_type is None
+    assert app.result.indent_size is None
+
+
 # ── ChangeLineEndingModalScreen ───────────────────────────────────────────────
 
 
@@ -831,6 +986,17 @@ async def test_change_line_ending_modal_initial_value_is_current():
         assert select.value == "crlf"
 
 
+async def test_change_line_ending_modal_escape_dismisses():
+    app = _ChangeLineEndingApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.line_ending is None
+
+
 # ── RebindKeyScreen and ShowShortcutsScreen align CSS ─────────────────────────
 
 
@@ -915,6 +1081,30 @@ async def test_rename_modal_input_prefilled():
 
         inp = app.screen.query_one(Input)
         assert inp.value == "hello.py"
+
+
+async def test_rename_modal_escape_dismisses():
+    app = _RenameApp("hello.py")
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.new_name is None
+
+
+async def test_rename_modal_escape_dismisses_with_input_focused():
+    app = _RenameApp("hello.py")
+    async with app.run_test() as pilot:
+        from textual.widgets import Input
+
+        await pilot.click(app.screen.query_one(Input))
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
 
 
 # ── ReplaceAllConfirmModalScreen ─────────────────────────────────────────────
@@ -1026,3 +1216,360 @@ async def test_replace_all_confirm_modal_truncated():
         text = str(message.content)  # ty: ignore[unresolved-attribute]
         assert "500+" in text
         assert "42+" in text
+
+
+async def test_replace_all_confirm_modal_escape_does_not_dismiss():
+    """Escape must NOT dismiss a destructive replace-all confirmation modal."""
+    app = _ReplaceAllConfirmApp(
+        files_count=3,
+        occurrences_count=5,
+        is_truncated=False,
+        preview=_make_preview(),
+    )
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is None
+
+
+# ── ChangeEncodingModalScreen (Escape) ──────────────────────────────────────
+
+
+class _ChangeEncodingApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(ChangeEncodingModalScreen(), self._on_result)
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_change_encoding_modal_escape_dismisses():
+    app = _ChangeEncodingApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.encoding is None
+
+
+# ── ChangeSyntaxThemeModalScreen (Escape) ───────────────────────────────────
+
+
+class _ChangeSyntaxThemeApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(ChangeSyntaxThemeModalScreen(), self._on_result)
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_change_syntax_theme_modal_escape_dismisses():
+    app = _ChangeSyntaxThemeApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.theme is None
+
+
+# ── ChangeWordWrapModalScreen (Escape) ──────────────────────────────────────
+
+
+class _ChangeWordWrapApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(ChangeWordWrapModalScreen(), self._on_result)
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_change_word_wrap_modal_escape_dismisses():
+    app = _ChangeWordWrapApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.word_wrap is None
+
+
+# ── ChangeUIThemeModalScreen (Escape) ───────────────────────────────────────
+
+
+class _ChangeUIThemeApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(ChangeUIThemeModalScreen(), self._on_result)
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_change_ui_theme_modal_escape_dismisses():
+    app = _ChangeUIThemeApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.theme is None
+
+
+# ── SidebarResizeModalScreen (Escape) ───────────────────────────────────────
+
+
+class _SidebarResizeApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(SidebarResizeModalScreen(), self._on_result)
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_sidebar_resize_modal_escape_dismisses():
+    app = _SidebarResizeApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.value is None
+
+
+# ── SplitResizeModalScreen (Escape) ─────────────────────────────────────────
+
+
+class _SplitResizeApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(SplitResizeModalScreen(), self._on_result)
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_split_resize_modal_escape_dismisses():
+    app = _SplitResizeApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.value is None
+
+
+# ── OverwriteConfirmModalScreen (Escape defense) ───────────────────────────
+
+
+class _OverwriteConfirmApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(OverwriteConfirmModalScreen(), self._on_result)
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_overwrite_confirm_modal_escape_does_not_dismiss():
+    """Escape must NOT dismiss a destructive overwrite confirmation modal."""
+    app = _OverwriteConfirmApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is None
+
+
+# ── DiscardAndReloadModalScreen (Escape defense) ───────────────────────────
+
+
+class _DiscardAndReloadApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(DiscardAndReloadModalScreen(), self._on_result)
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_discard_and_reload_modal_escape_does_not_dismiss():
+    """Escape must NOT dismiss a destructive discard-and-reload modal."""
+    app = _DiscardAndReloadApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is None
+
+
+# ── ShortcutSettingsScreen (Escape) ─────────────────────────────────────────
+
+
+class _ShortcutSettingsApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        from textual_code.modals import ShortcutSettingsScreen
+
+        self.push_screen(
+            ShortcutSettingsScreen(
+                action_name="test_action",
+                description="Test Action",
+                current_key="ctrl+t",
+            ),
+            self._on_result,
+        )
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_shortcut_settings_escape_dismisses():
+    app = _ShortcutSettingsApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+
+
+# ── FooterConfigScreen (Escape) ─────────────────────────────────────────────
+
+
+class _FooterConfigApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        from textual_code.config import FooterOrders
+        from textual_code.modals import FooterConfigScreen
+
+        self.push_screen(
+            FooterConfigScreen(
+                all_area_actions={
+                    "editor": [("test_action", "Test", "ctrl+t", True)],
+                },
+                footer_orders=FooterOrders(areas={"editor": ["test_action"]}),
+            ),
+            self._on_result,
+        )
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_footer_config_escape_dismisses():
+    app = _FooterConfigApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+
+
+# ── ShowShortcutsScreen (Escape) ────────────────────────────────────────────
+
+_UNSET = object()
+
+
+class _ShowShortcutsApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result = _UNSET
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        from textual_code.modals import ShowShortcutsScreen
+
+        self.push_screen(
+            ShowShortcutsScreen(
+                rows=[("ctrl+s", "Save", "Editor", "save")],
+            ),
+            self._on_result,
+        )
+
+    def _on_result(self, result) -> None:
+        self.result = result
+
+
+async def test_show_shortcuts_escape_dismisses():
+    app = _ShowShortcutsApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is None

@@ -332,3 +332,11 @@ Tab drag-and-drop supports reordering tabs within the same split and moving tabs
 - The last tab in a split cannot be edge-dragged out to create a new split (the split would become empty).
 
 **Implementation:** `widgets/draggable_tabs_content.py` (classes `DropHintBox`, `DropHighlight`, `DropTargetScreen`, `DraggableTabbedContent`), `style.tcss` (`Tab.-dragging` styles), `widgets/main_view.py` (`on_tab_moved_to_other_split` handler)
+
+## Modal Dialogs: Escape key dismisses non-destructive modals
+
+Pressing `Escape` dismisses any modal where cancellation is safe and has no side effects. This includes: Save As, Rename, Go to Line, Find, Replace, Change Language, Change Indentation, Change Line Ending, Change Encoding, Change Syntax Theme, Change Word Wrap, Change UI Theme, Sidebar Resize, Split Resize, Shortcut Settings, Footer Configuration, and Show Keyboard Shortcuts.
+
+Escape does **not** dismiss destructive confirmation modals that require a deliberate choice: Unsaved Changes, Unsaved Changes (Quit), Delete File/Folder, Overwrite Confirm, Discard & Reload, and Replace All Confirm. These require clicking the explicit Cancel button.
+
+**Implementation:** Each non-destructive modal declares `BINDINGS = [Binding("escape", "cancel", ...)]` and an `action_cancel` method that produces the same result as clicking the Cancel button (`modals.py`).

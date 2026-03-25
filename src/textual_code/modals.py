@@ -51,6 +51,8 @@ class SaveAsModalScreen(ModalScreen[SaveAsModalResult]):
     Modal dialog for saving a file to a specific path.
     """
 
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
+
     def compose(self) -> ComposeResult:
         yield Grid(
             Label("Save As", id="title"),
@@ -68,7 +70,7 @@ class SaveAsModalScreen(ModalScreen[SaveAsModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(SaveAsModalResult(is_cancelled=True, file_path=None))
 
 
@@ -206,6 +208,8 @@ class RenameModalScreen(ModalScreen[RenameModalResult]):
     Modal dialog for renaming a file or directory.
     """
 
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
+
     def __init__(self, current_name: str) -> None:
         super().__init__()
         self.current_name = current_name
@@ -237,7 +241,7 @@ class RenameModalScreen(ModalScreen[RenameModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(RenameModalResult(is_cancelled=True, new_name=None))
 
 
@@ -258,6 +262,8 @@ class GotoLineModalScreen(ModalScreen[GotoLineModalResult]):
     Modal dialog for jumping to a specific line and column.
     """
 
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
+
     def compose(self) -> ComposeResult:
         yield Grid(
             Label("Go to Line", id="title"),
@@ -275,7 +281,7 @@ class GotoLineModalScreen(ModalScreen[GotoLineModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(GotoLineModalResult(is_cancelled=True, value=None))
 
 
@@ -297,6 +303,8 @@ class FindModalScreen(ModalScreen[FindModalResult]):
     """
     Modal dialog for finding text in the current file.
     """
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
 
     def compose(self) -> ComposeResult:
         yield Grid(
@@ -320,7 +328,7 @@ class FindModalScreen(ModalScreen[FindModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(FindModalResult(is_cancelled=True, query=None))
 
 
@@ -346,6 +354,8 @@ class ReplaceModalScreen(ModalScreen[ReplaceModalResult]):
     """
     Modal dialog for finding and replacing text in the current file.
     """
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
 
     def compose(self) -> ComposeResult:
         yield Grid(
@@ -384,7 +394,7 @@ class ReplaceModalScreen(ModalScreen[ReplaceModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(
             ReplaceModalResult(
                 is_cancelled=True, action=None, find_query=None, replace_text=None
@@ -409,6 +419,8 @@ class ChangeLanguageModalScreen(ModalScreen[ChangeLanguageModalResult]):
     Modal dialog for changing the syntax highlighting language.
     """
 
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
+
     def __init__(self, languages: list[str], current_language: str | None) -> None:
         super().__init__()
         self._languages = languages
@@ -432,7 +444,7 @@ class ChangeLanguageModalScreen(ModalScreen[ChangeLanguageModalResult]):
         self.dismiss(ChangeLanguageModalResult(is_cancelled=False, language=language))
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(ChangeLanguageModalResult(is_cancelled=True, language=None))
 
 
@@ -456,6 +468,8 @@ class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
     """
     Modal dialog for changing indentation style and size.
     """
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
 
     def __init__(
         self,
@@ -531,7 +545,7 @@ class ChangeIndentModalScreen(ModalScreen[ChangeIndentModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(
             ChangeIndentModalResult(
                 is_cancelled=True, indent_type=None, indent_size=None
@@ -557,6 +571,8 @@ class ChangeLineEndingModalScreen(ModalScreen[ChangeLineEndingModalResult]):
     """
     Modal dialog for changing the line ending style.
     """
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
 
     def __init__(
         self, current_line_ending: str = "lf", show_save_level: bool = True
@@ -615,7 +631,7 @@ class ChangeLineEndingModalScreen(ModalScreen[ChangeLineEndingModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(ChangeLineEndingModalResult(is_cancelled=True, line_ending=None))
 
 
@@ -715,6 +731,8 @@ class SidebarResizeModalScreen(ModalScreen[SidebarResizeModalResult]):
     Accepts: absolute ("30"), relative ("+5" or "-3"), or percentage ("30%").
     """
 
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
+
     def compose(self) -> ComposeResult:
         yield Grid(
             Label("Resize Sidebar", id="title"),
@@ -734,7 +752,7 @@ class SidebarResizeModalScreen(ModalScreen[SidebarResizeModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(SidebarResizeModalResult(is_cancelled=True, value=None))
 
 
@@ -756,6 +774,8 @@ class SplitResizeModalScreen(ModalScreen[SplitResizeModalResult]):
     Accepts: absolute ("50"), relative ("+10" or "-5"), or percentage ("40%").
     """
 
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
+
     def compose(self) -> ComposeResult:
         yield Grid(
             Label("Resize Split", id="title"),
@@ -775,7 +795,7 @@ class SplitResizeModalScreen(ModalScreen[SplitResizeModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(SplitResizeModalResult(is_cancelled=True, value=None))
 
 
@@ -797,6 +817,8 @@ class ChangeEncodingModalScreen(ModalScreen[ChangeEncodingModalResult]):
     """
     Modal dialog for changing the file encoding.
     """
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
 
     def __init__(
         self, current_encoding: str = "utf-8", show_save_level: bool = True
@@ -899,7 +921,7 @@ class ChangeEncodingModalScreen(ModalScreen[ChangeEncodingModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(ChangeEncodingModalResult(is_cancelled=True, encoding=None))
 
 
@@ -924,6 +946,8 @@ class ChangeSyntaxThemeModalScreen(ModalScreen[ChangeSyntaxThemeModalResult]):
     """
     Modal dialog for selecting the syntax highlighting theme.
     """
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
 
     def __init__(self, current_theme: str = "monokai") -> None:
         super().__init__()
@@ -959,7 +983,7 @@ class ChangeSyntaxThemeModalScreen(ModalScreen[ChangeSyntaxThemeModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(ChangeSyntaxThemeModalResult(is_cancelled=True, theme=None))
 
 
@@ -981,6 +1005,8 @@ class ChangeWordWrapModalScreen(ModalScreen[ChangeWordWrapModalResult]):
     """
     Modal dialog for setting the default word wrap setting.
     """
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
 
     def __init__(self, current_word_wrap: bool = True) -> None:
         super().__init__()
@@ -1019,7 +1045,7 @@ class ChangeWordWrapModalScreen(ModalScreen[ChangeWordWrapModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(ChangeWordWrapModalResult(is_cancelled=True, word_wrap=None))
 
 
@@ -1041,6 +1067,8 @@ class ChangeUIThemeModalScreen(ModalScreen[ChangeUIThemeModalResult]):
     """
     Modal dialog for selecting the UI theme.
     """
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
 
     def __init__(self, current_theme: str = "textual-dark") -> None:
         super().__init__()
@@ -1076,7 +1104,7 @@ class ChangeUIThemeModalScreen(ModalScreen[ChangeUIThemeModalResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(ChangeUIThemeModalResult(is_cancelled=True, theme=None))
 
 
@@ -1193,6 +1221,8 @@ class ShortcutSettingsResult:
 class ShortcutSettingsScreen(ModalScreen[ShortcutSettingsResult]):
     """Modal for configuring a single shortcut's display preferences."""
 
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
+
     DEFAULT_CSS = """
     ShortcutSettingsScreen {
         align: center middle;
@@ -1307,7 +1337,7 @@ class ShortcutSettingsScreen(ModalScreen[ShortcutSettingsResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(ShortcutSettingsResult(is_cancelled=True))
 
 
@@ -1373,6 +1403,7 @@ class FooterConfigScreen(ModalScreen[FooterConfigResult]):
     """
 
     BINDINGS = [
+        Binding("escape", "cancel", "Cancel", show=False),
         Binding("space", "toggle_item", "Toggle", show=False),
         Binding("ctrl+up", "move_up", "Move up", show=False),
         Binding("ctrl+down", "move_down", "Move down", show=False),
@@ -1549,12 +1580,14 @@ class FooterConfigScreen(ModalScreen[FooterConfigResult]):
         )
 
     @on(Button.Pressed, "#cancel")
-    def on_cancel(self) -> None:
+    def action_cancel(self) -> None:
         self.dismiss(FooterConfigResult(is_cancelled=True))
 
 
 class ShowShortcutsScreen(ModalScreen[None]):
     """Modal that lists all keyboard shortcuts and allows rebinding."""
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
 
     DEFAULT_CSS = """
     ShowShortcutsScreen {
@@ -1643,6 +1676,9 @@ class ShowShortcutsScreen(ModalScreen[None]):
 
     @on(Button.Pressed, "#close")
     def on_close(self) -> None:
+        self.action_cancel()
+
+    def action_cancel(self) -> None:
         self.dismiss(None)
 
 
