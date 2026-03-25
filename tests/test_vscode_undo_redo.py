@@ -696,3 +696,343 @@ async def test_undo_paste_isolated_batch(workspace: Path):
         # Undo: removes 'ab' (initial typing batch)
         await pilot.press("ctrl+z")
         assert ta.text == ""
+
+
+# -- Helpers (edge case tests) -----------------------------------------------
+
+
+async def _paste(app, pilot, text: str) -> None:
+    """Copy *text* to the system clipboard and paste it via Ctrl+V."""
+    app.copy_to_clipboard(text)
+    await pilot.press("ctrl+v")
+    await pilot.pause()
+
+
+# -- Emoji Undo Correctness (Edge Cases) ------------------------------------
+
+
+async def test_undo_emoji_zwj_sequence_insert(workspace: Path):
+    """Verify that undoing a ZWJ emoji removes all codepoints atomically.
+
+    A ZWJ (Zero-Width Joiner) emoji like 👨‍👩‍👧‍👦 consists of multiple
+    codepoints joined by U+200D.  When inserted via the API (which is
+    the same path used by paste), a single undo should remove the entire
+    sequence — not individual codepoints.
+    """
+    zwj_emoji = "\U0001f468\u200d\U0001f469\u200d\U0001f467\u200d\U0001f466"  # 👨‍👩‍👧‍👦
+    f = workspace / "emoji.txt"
+    f.write_text("hello ")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 6))
+
+        # Insert ZWJ emoji via API (same undo path as paste)
+        ta.insert(zwj_emoji)
+        assert zwj_emoji in ta.text
+        cursor_after_insert = ta.cursor_location
+
+        # Undo: entire emoji removed in one step
+        await pilot.press("ctrl+z")
+        assert ta.text == "hello "
+        assert ta.cursor_location == (0, 6)
+
+        # Redo: entire emoji restored
+        await pilot.press("ctrl+shift+z")
+        assert zwj_emoji in ta.text
+        assert ta.cursor_location == cursor_after_insert
+
+
+async def test_undo_mixed_emoji_and_ascii(workspace: Path):
+    """Verify that emoji and ASCII text in separate undo batches round-trip correctly.
+
+    Typing ASCII, pasting emoji, and typing more ASCII should create three
+    independent undo groups that can be walked through in order.
+    """
+    f = workspace / "empty.txt"
+    f.write_text("")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+
+        # Group 1: type "abc"
+        for ch in "abc":
+            await pilot.press(ch)
+        assert ta.text == "abc"
+
+        # Create checkpoint via cursor movement
+        await pilot.press("left")
+        await pilot.press("right")
+
+        # Group 2: paste emoji via clipboard (multi-char → isolated batch)
+        await _paste(app, pilot, "\U0001f389")  # 🎉
+        assert "\U0001f389" in ta.text
+
+        # Create checkpoint via cursor movement
+        await pilot.press("left")
+        await pilot.press("right")
+
+        # Group 3: type "xyz"
+        for ch in "xyz":
+            await pilot.press(ch)
+        full_text = ta.text
+        assert "abc" in full_text and "xyz" in full_text
+
+        # Undo group 3: "xyz" removed
+        await pilot.press("ctrl+z")
+        assert "xyz" not in ta.text
+        assert "\U0001f389" in ta.text
+
+        # Undo group 2: emoji removed
+        await pilot.press("ctrl+z")
+        assert ta.text == "abc"
+        assert ta.cursor_location == (0, 3)
+
+        # Undo group 1: "abc" removed
+        await pilot.press("ctrl+z")
+        assert ta.text == ""
+
+        # Redo chain: restore everything
+        await pilot.press("ctrl+shift+z")
+        assert ta.text == "abc"
+
+        await pilot.press("ctrl+shift+z")
+        assert "\U0001f389" in ta.text
+
+        await pilot.press("ctrl+shift+z")
+        assert ta.text == full_text
+
+
+# -- Paste Undo Edge Cases ---------------------------------------------------
+
+
+async def test_undo_multiline_paste_single_step(workspace: Path):
+    """Verify that pasting multi-line text is undone in a single step.
+
+    Multi-character inserts (including multi-line pastes) get an isolated
+    batch in EditHistory.  A single undo should remove all pasted lines.
+    """
+    f = workspace / "start.txt"
+    f.write_text("start")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 5))
+
+        # Paste multi-line text
+        await _paste(app, pilot, "\nline1\nline2\nline3")
+        assert ta.text == "start\nline1\nline2\nline3"
+        assert ta.cursor_location == (3, 5)
+
+        # Single undo removes entire multi-line paste
+        await pilot.press("ctrl+z")
+        assert ta.text == "start"
+        assert ta.cursor_location == (0, 5)
+
+        # Redo restores all pasted lines
+        await pilot.press("ctrl+shift+z")
+        assert ta.text == "start\nline1\nline2\nline3"
+
+
+async def test_undo_paste_over_selection_restores_original(workspace: Path):
+    """Verify that pasting over a selection can be undone to restore the original.
+
+    When text is selected and a paste replaces it, undo should restore both
+    the original text and the original selection.
+    """
+    f = workspace / "hello.txt"
+    f.write_text("hello world")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 6))
+
+        # Select "world" (cols 6-11)
+        ta.selection = Selection((0, 6), (0, 11))
+
+        # Paste "universe" — replaces the selection
+        await _paste(app, pilot, "universe")
+        assert ta.text == "hello universe"
+
+        # Undo: restores "hello world" and the original selection
+        await pilot.press("ctrl+z")
+        assert ta.text == "hello world"
+
+
+async def test_undo_large_paste_exceeding_char_limit(workspace: Path):
+    """Verify that a paste exceeding checkpoint_max_characters is a single undo batch.
+
+    EditHistory creates new batches when the character count exceeds
+    checkpoint_max_characters, but multi-character inserts (edit_characters > 1)
+    always get an isolated batch regardless.  A large paste should still be
+    undone in one step.
+    """
+    f = workspace / "empty.txt"
+    f.write_text("")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+
+        # Type "a" first, create checkpoint
+        await pilot.press("a")
+        await pilot.press("left")
+        await pilot.press("right")
+
+        # Paste text exceeding checkpoint_max_characters
+        char_limit = ta.history.checkpoint_max_characters
+        large_text = "X" * (char_limit + 50)
+        await _paste(app, pilot, large_text)
+        assert ta.text == "a" + large_text
+
+        # Single undo removes the entire large paste
+        await pilot.press("ctrl+z")
+        assert ta.text == "a"
+        assert ta.cursor_location == (0, 1)
+
+        # Undo the "a"
+        await pilot.press("ctrl+z")
+        assert ta.text == ""
+
+
+async def test_undo_paste_at_multi_cursor_primary_only(workspace: Path):
+    """Document that paste only applies to the primary cursor.
+
+    Behavioral documentation: when multiple cursors are active, Ctrl+V
+    pastes text only at the primary cursor position.  Extra cursors are
+    not involved in paste operations.  Undo reverts only the primary paste.
+    """
+    f = workspace / "multi.txt"
+    f.write_text("aaa\nbbb")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 3))
+
+        # Add a second cursor at end of line 2
+        ta.add_cursor((1, 3), (1, 3))
+
+        # Paste "ZZ" — only applies to primary cursor
+        await _paste(app, pilot, "ZZ")
+
+        # Verify paste happened at primary cursor only
+        lines = ta.text.split("\n")
+        assert "ZZ" in lines[0]
+
+        # Undo: revert the paste
+        await pilot.press("ctrl+z")
+        assert ta.text == "aaa\nbbb"
+
+
+# -- Undo History Limits (Integration) ----------------------------------------
+
+
+async def test_undo_stack_max_capacity_drops_oldest(workspace: Path):
+    """Verify that the undo stack respects max_checkpoints capacity.
+
+    When the undo stack is full and new edits are made, the oldest entries
+    should be dropped (deque with maxlen behavior).  After undoing all
+    available entries, no further undo is possible.
+    """
+    f = workspace / "capacity.txt"
+    f.write_text("")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+
+        max_cp = ta.history.max_checkpoints
+
+        # Fill the undo stack to exactly max_checkpoints using API inserts
+        # (faster than key presses).  Each insert + checkpoint = 1 batch.
+        for i in range(max_cp):
+            ta.insert(str(i % 10))
+            ta.history.checkpoint()
+        assert len(ta.history.undo_stack) == max_cp
+
+        # Add one more — oldest entry should be dropped
+        ta.insert("!")
+        ta.history.checkpoint()
+        assert len(ta.history.undo_stack) == max_cp
+
+        # Undo all available entries
+        await pilot.press(*["ctrl+z"] * max_cp)
+
+        # No further undo possible — text should not be empty since the
+        # oldest batch was dropped
+        text_after_all_undos = ta.text
+        assert len(ta.history.undo_stack) == 0
+
+        # Extra undo does nothing
+        await pilot.press("ctrl+z")
+        assert ta.text == text_after_all_undos
+
+
+async def test_redo_stack_cleared_after_new_edit_following_undo(workspace: Path):
+    """Verify that the redo stack is cleared when a new edit is made after undo.
+
+    After undoing and then making a new edit, the redo stack should be
+    emptied — you cannot redo the previously undone operations.
+    """
+    f = workspace / "redo_clear.txt"
+    f.write_text("")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+
+        # Type "abc" (group 1)
+        for ch in "abc":
+            await pilot.press(ch)
+        # Create checkpoint via cursor movement
+        await pilot.press("left")
+        await pilot.press("right")
+
+        # Type "def" (group 2)
+        for ch in "def":
+            await pilot.press(ch)
+        assert ta.text == "abcdef"
+
+        # Undo twice — removes "def" and "abc"
+        await pilot.press("ctrl+z")
+        assert ta.text == "abc"
+        await pilot.press("ctrl+z")
+        assert ta.text == ""
+
+        assert len(ta.history.redo_stack) == 2
+
+        # New edit: type "new"
+        for ch in "new":
+            await pilot.press(ch)
+        assert ta.text == "new"
+
+        # Redo stack should be cleared
+        assert len(ta.history.redo_stack) == 0
+
+        # Redo via keyboard does nothing
+        await pilot.press("ctrl+shift+z")
+        assert ta.text == "new"
+        assert ta.cursor_location == (0, 3)
+
+
+# -- Rapid Typing Undo -------------------------------------------------------
+
+
+async def test_undo_rapid_typing_then_immediate_undo(workspace: Path):
+    """Verify that rapid consecutive typing is undone in a single step.
+
+    Textual does NOT create undo boundaries for space characters (unlike
+    VSCode).  All consecutive character insertions — including spaces —
+    are batched into a single undo group.  This test documents that behavior
+    with a longer sequence than the existing whitespace tests.
+    """
+    f = workspace / "rapid.txt"
+    f.write_text("")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        ta = await _get_ta(app, pilot, (0, 0))
+
+        # Type 24 characters including spaces — no cursor movement
+        typed_text = "the quick brown fox jumps"
+        for ch in typed_text:
+            await pilot.press(ch)
+        assert ta.text == typed_text
+        assert ta.cursor_location == (0, len(typed_text))
+
+        # Single undo removes ALL typed characters (one batch)
+        await pilot.press("ctrl+z")
+        assert ta.text == ""
+        assert ta.cursor_location == (0, 0)
