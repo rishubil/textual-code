@@ -176,13 +176,13 @@ async def test_transform_command_palette(workspace: Path):
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
         titles = [cmd.title for cmd in commands]
-        assert "Transform to uppercase" in titles
-        assert "Transform to lowercase" in titles
-        assert "Transform to title case" in titles
-        assert "Transform to snake_case" in titles
-        assert "Transform to camelCase" in titles
-        assert "Transform to kebab-case" in titles
-        assert "Transform to PascalCase" in titles
+        assert "Transform to Uppercase" in titles
+        assert "Transform to Lowercase" in titles
+        assert "Transform to Title Case" in titles
+        assert "Transform to Snake Case" in titles
+        assert "Transform to Camel Case" in titles
+        assert "Transform to Kebab Case" in titles
+        assert "Transform to Pascal Case" in titles
 
 
 # ── Selection length adjustment ─────────────────────────────────────────────

@@ -263,7 +263,7 @@ async def test_directional_move_commands_registered(workspace: Path, py_file: Pa
         await pilot.pause()
         cmds = {cmd.title for cmd in app.get_system_commands(app.screen)}
 
-        assert "Move tab left" in cmds
-        assert "Move tab right" in cmds
-        assert "Move tab up" in cmds
-        assert "Move tab down" in cmds
+        assert "Move Editor into Left Group" in cmds
+        assert "Move Editor into Right Group" in cmds
+        assert "Move Editor into Group Above" in cmds
+        assert "Move Editor into Group Below" in cmds

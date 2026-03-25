@@ -6,7 +6,7 @@ Core editing capabilities of the Textual Code editor: file management, text edit
 
 ### New File (Ctrl+N)
 
-Creates an untitled tab with application defaults (encoding, indentation, line ending, word wrap from user/project settings). The tab title shows "Untitled". Saving requires Save As (prompted on first Ctrl+S). Available via the command palette ("New file") or Ctrl+N; when the explorer sidebar is focused, Ctrl+N triggers "Create file" instead (creates a file on disk in the selected directory).
+Creates an untitled tab with application defaults (encoding, indentation, line ending, word wrap from user/project settings). The tab title shows "Untitled". Saving requires Save As (prompted on first Ctrl+S). Available via the command palette ("New Untitled File") or Ctrl+N; when the explorer sidebar is focused, Ctrl+N triggers "New File..." instead (creates a file on disk in the selected directory).
 
 ### Open File: CLI args, command palette, explorer double-click
 

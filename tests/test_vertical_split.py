@@ -32,7 +32,7 @@ async def test_toggle_split_vertical_command_exists(workspace: Path):
         screen_mock = MagicMock()
         commands = list(app.get_system_commands(screen_mock))
         titles = [c.title for c in commands]
-        assert "Toggle split orientation" in titles
+        assert "Toggle Split Orientation" in titles
 
 
 async def test_toggle_split_vertical_adds_css_class(workspace: Path, py_file: Path):

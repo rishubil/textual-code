@@ -200,7 +200,7 @@ async def test_command_palette_has_show_shortcuts(workspace):
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
-        assert "Show keyboard shortcuts" in titles
+        assert "Show Keyboard Shortcuts" in titles
 
 
 # ---------------------------------------------------------------------------
@@ -502,7 +502,7 @@ async def test_palette_hides_command_when_palette_false(
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
-        assert "Save file" not in titles
+        assert "Save" not in titles
 
 
 @pytest.mark.asyncio
@@ -512,7 +512,7 @@ async def test_palette_shows_command_by_default(workspace):
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
-        assert "Save file" in titles
+        assert "Save" in titles
 
 
 # ---------------------------------------------------------------------------
@@ -669,7 +669,7 @@ def test_binding_description_used_in_footer():
     )
     close_binding = next((b for b in bindings if b.action == "close"), None)
     assert close_binding is not None
-    assert close_binding.description == "Close tab"
+    assert close_binding.description == "Close"
 
 
 def test_bindings_for_context_applies_custom_override():
@@ -768,7 +768,7 @@ async def test_dynamic_key_hint_in_palette(workspace, tmp_path, restore_bindings
         app.set_keybinding("save", "ctrl+alt+s")
         await pilot.pause()
         commands = list(app.get_system_commands(app.screen))
-        save_cmd = next((c for c in commands if c.title == "Save file"), None)
+        save_cmd = next((c for c in commands if c.title == "Save"), None)
         assert save_cmd is not None
         assert "Ctrl+Alt+S" in save_cmd.help
 

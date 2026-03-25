@@ -31,7 +31,7 @@ Stored in the same directory as the user settings file:
 %APPDATA%\textual-code\keybindings.toml   (Windows)
 ```
 
-Access via **F1** or **Command Palette → "Show keyboard shortcuts"**.
+Access via **F1** or **Command Palette → "Show Keyboard Shortcuts"**.
 
 ## Error Handling: warning toast on parse or permission errors
 
@@ -137,7 +137,7 @@ toggle_sidebar = "ctrl+b"
 
 ### How to rebind a key
 
-1. Press **F1** (or open Command Palette → "Show keyboard shortcuts")
+1. Press **F1** (or open Command Palette → "Show Keyboard Shortcuts")
 2. Select the action you want to configure
 3. Click **Change Key...** and press the new key combination
 4. The binding is saved immediately; restart the app to apply

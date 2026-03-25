@@ -97,7 +97,7 @@ class TestToggleCommand:
         async with app.run_test():
             cmds = list(app.get_system_commands(app.screen))
             titles = [c.title for c in cmds]
-            assert "Toggle dim hidden files" in titles
+            assert "Toggle Dim Hidden Files" in titles
 
     @pytest.mark.asyncio
     async def test_d02_toggle_changes_value(self, tmp_path: Path):

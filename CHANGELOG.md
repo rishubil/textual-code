@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editor**: fix render whitespace setting not preserved across tab switches — propagate `render_whitespace` to the underlying text area on mount; replace cycling command with selectable mode picker via command palette ("Set render whitespace") that updates the session default (Fix #65)
 - **Editor**: fix whitespace markers and indentation guides rendered at wrong positions when horizontally scrolling with word wrap disabled — add scroll offset to viewport-to-document column mapping in `_inject_whitespace_rendering` and `_inject_indentation_guides` (Fix #69)
 
+- **Command Palette**: align command titles with VS Code conventions — apply Title Case to all command titles, adopt VS Code terminology ("Editor" instead of "file/tab", "Group" instead of "split"), add ellipsis (`...`) to commands that open dialogs/pickers, use plain words for transform case names ("Snake Case" instead of "snake_case"); update descriptions and binding descriptions for consistency (Fix #85)
+
 ### Changed
 
 - **Performance**: replace CommandPalette with dedicated `PathSearchModal` for file search, delete, rename, and move palettes; UI matches CommandPalette look & feel (top-aligned, semi-transparent overlay, search icon, keyboard navigation); fuzzy matching runs in a background thread with class-level cache and automatic dirty-flag invalidation; generation counter prevents stale search results from overwriting current display

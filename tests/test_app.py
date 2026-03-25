@@ -417,10 +417,10 @@ async def test_footer_shortcut_order_is_deterministic(
             "Save",
             "Find",
             "Replace",
-            "Goto line",
-            "Close tab",
-            "New file",
-            "Toggle sidebar",
+            "Go to Line",
+            "Close",
+            "New Untitled File",
+            "Toggle Sidebar",
         ]
         assert descriptions == expected
 
@@ -455,15 +455,15 @@ async def test_footer_order_stable_across_focus(workspace: Path, sample_py_file:
             "Save",
             "Find",
             "Replace",
-            "Goto line",
-            "Close tab",
-            "New file",
-            "Toggle sidebar",
+            "Go to Line",
+            "Close",
+            "New Untitled File",
+            "Toggle Sidebar",
         ]
 
         # Sidebar-focused: at minimum app-level bindings in correct order
-        assert "New file" in sidebar_descs
-        assert "Toggle sidebar" in sidebar_descs
+        assert "New Untitled File" in sidebar_descs
+        assert "Toggle Sidebar" in sidebar_descs
         # Common bindings must share the same relative order
         common = [d for d in editor_descs if d in sidebar_descs]
         common_sidebar = [d for d in sidebar_descs if d in common]
@@ -483,10 +483,10 @@ async def test_footer_shortcut_order_empty_app(workspace: Path):
             "Save",
             "Find",
             "Replace",
-            "Goto line",
-            "Close tab",
-            "New file",
-            "Toggle sidebar",
+            "Go to Line",
+            "Close",
+            "New Untitled File",
+            "Toggle Sidebar",
         ]
 
 
@@ -634,7 +634,7 @@ async def test_footer_order_differs_by_area(workspace: Path, sample_py_file: Pat
         assert "Save" in editor_descs
         assert "Find" in editor_descs
         # Explorer should have create file, delete etc.
-        assert "Create file" in explorer_descs
+        assert "New File" in explorer_descs
         assert "Delete" in explorer_descs
         # The two sets are different
         assert editor_descs != explorer_descs
