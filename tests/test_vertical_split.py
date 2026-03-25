@@ -36,7 +36,7 @@ async def test_toggle_split_vertical_command_exists(workspace: Path):
 
 
 async def test_toggle_split_vertical_adds_css_class(workspace: Path, py_file: Path):
-    """action_toggle_split_vertical toggles 'split-vertical' class on SplitContainer."""
+    """Toggle split orientation toggles 'split-vertical' CSS class."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -48,7 +48,7 @@ async def test_toggle_split_vertical_adds_css_class(workspace: Path, py_file: Pa
         assert containers, "Expected a SplitContainer after split"
         container = containers[0]
 
-        app.main_view.action_toggle_split_vertical()
+        app.main_view.action_toggle_split_orientation()
         await pilot.pause()
 
         assert "split-vertical" in container.classes
@@ -57,7 +57,7 @@ async def test_toggle_split_vertical_adds_css_class(workspace: Path, py_file: Pa
 async def test_toggle_split_vertical_twice_removes_class(
     workspace: Path, py_file: Path
 ):
-    """Calling action_toggle_split_vertical twice reverts to horizontal layout."""
+    """Calling action_toggle_split_orientation twice reverts to horizontal layout."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -67,11 +67,11 @@ async def test_toggle_split_vertical_twice_removes_class(
         containers = list(app.main_view.query(SplitContainer))
         container = containers[0]
 
-        app.main_view.action_toggle_split_vertical()
+        app.main_view.action_toggle_split_orientation()
         await pilot.pause()
         assert "split-vertical" in container.classes
 
-        app.main_view.action_toggle_split_vertical()
+        app.main_view.action_toggle_split_orientation()
         await pilot.pause()
         assert "split-vertical" not in container.classes
 
@@ -89,7 +89,7 @@ async def test_horizontal_split_still_works_after_vertical_toggle(
         await pilot.pause()
 
         # Toggle to vertical orientation
-        app.main_view.action_toggle_split_vertical()
+        app.main_view.action_toggle_split_orientation()
         await pilot.pause()
 
         # Split should still be visible
@@ -112,7 +112,7 @@ def test_vertical_split_snapshot(snap_compare, snapshot_workspace: Path):
         # Enable split and toggle to vertical
         await app.main_view.action_split_right()
         await pilot.pause()
-        app.main_view.action_toggle_split_vertical()
+        app.main_view.action_toggle_split_orientation()
         await pilot.pause()
 
     assert snap_compare(app, run_before=setup, terminal_size=(120, 40))

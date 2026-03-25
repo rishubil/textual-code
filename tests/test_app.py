@@ -217,7 +217,7 @@ async def test_close_all_files_via_app_action(workspace: Path, sample_py_file: P
         await pilot.pause()
         assert len(app.main_view.opened_pane_ids) == 1
 
-        app.action_close_all_files()
+        app.action_close_all_editors_cmd()
         await pilot.pause()
         await pilot.pause()  # call_next + post_message chain needs two cycles
         assert len(app.main_view.opened_pane_ids) == 0
@@ -288,7 +288,7 @@ async def test_change_language_cmd_no_editor_opens_no_modal(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_change_language_cmd()
+        app.action_change_language()
         await pilot.pause()
         assert not isinstance(app.screen, ChangeLanguageModalScreen)
 
@@ -713,7 +713,7 @@ async def test_command_palette_blocked_while_path_search_modal_is_active(
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        app.action_open_file_with_command_palette()
+        app.action_open_file()
         await pilot.pause()
         assert isinstance(app.screen, PathSearchModal)
 

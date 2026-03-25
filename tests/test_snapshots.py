@@ -242,7 +242,7 @@ def test_snapshot_markdown_preview_open(snap_compare, snapshot_workspace: Path):
 
     async def open_preview(pilot):
         await pilot.pause()
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
         # Extra pause: let tab underline settle (call_after_refresh chain)
         await pilot.pause()
@@ -276,7 +276,7 @@ def test_snapshot_readme_preview(snap_compare, snapshot_workspace: Path):
     async def setup_preview_split(pilot):
         await pilot.pause()
         # Open markdown preview (tab in left/only leaf)
-        await app.main_view.action_open_markdown_preview_tab()
+        await app.main_view.action_open_markdown_preview()
         await pilot.pause()
         # Move preview to a new right split
         preview_pane_id = app.main_view._preview_pane_ids[readme]
@@ -329,7 +329,7 @@ def test_snapshot_discard_and_reload_modal(
         editor.action_focus()
         editor.text = "unsaved changes\n"
         await pilot.pause()
-        editor.action_reload_file()
+        editor.action_revert_file()
         await pilot.pause()
 
     assert snap_compare(
@@ -343,7 +343,7 @@ def test_snapshot_show_shortcuts_screen(snap_compare, snapshot_workspace: Path):
 
     async def open_shortcuts(pilot):
         await pilot.pause()
-        app.action_show_shortcuts()
+        app.action_show_keyboard_shortcuts()
         await pilot.pause()
 
     assert snap_compare(app, run_before=open_shortcuts, terminal_size=TERMINAL_SIZE)
@@ -606,7 +606,7 @@ def test_snapshot_change_syntax_theme_modal(snap_compare, snapshot_workspace: Pa
     app = make_app(snapshot_workspace)
     assert snap_compare(
         app,
-        run_before=_open_app_modal(app, lambda a: a.action_set_syntax_theme()),
+        run_before=_open_app_modal(app, lambda a: a.action_change_syntax_theme()),
         terminal_size=TERMINAL_SIZE,
     )
 
@@ -626,17 +626,17 @@ def test_snapshot_change_ui_theme_modal(snap_compare, snapshot_workspace: Path):
     app = make_app(snapshot_workspace)
     assert snap_compare(
         app,
-        run_before=_open_app_modal(app, lambda a: a.action_set_ui_theme()),
+        run_before=_open_app_modal(app, lambda a: a.action_change_ui_theme()),
         terminal_size=TERMINAL_SIZE,
     )
 
 
 def test_snapshot_sidebar_resize_modal(snap_compare, snapshot_workspace: Path):
-    """SidebarResizeModalScreen open via app action_resize_sidebar_cmd()."""
+    """SidebarResizeModalScreen open via app action_resize_sidebar()."""
     app = make_app(snapshot_workspace)
     assert snap_compare(
         app,
-        run_before=_open_app_modal(app, lambda a: a.action_resize_sidebar_cmd()),
+        run_before=_open_app_modal(app, lambda a: a.action_resize_sidebar()),
         terminal_size=TERMINAL_SIZE,
     )
 
@@ -644,14 +644,14 @@ def test_snapshot_sidebar_resize_modal(snap_compare, snapshot_workspace: Path):
 def test_snapshot_split_resize_modal(
     snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
 ):
-    """SplitResizeModalScreen open after split_right then action_resize_split_cmd()."""
+    """SplitResizeModalScreen open after split_right then action_resize_split()."""
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def run_before(pilot):
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
-        app.action_resize_split_cmd()
+        app.action_resize_split()
         await pilot.pause()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
@@ -736,7 +736,7 @@ def test_snapshot_sidebar_search_tab(snap_compare, snapshot_workspace: Path):
 
     async def run_before(pilot):
         await pilot.pause()
-        app.main_view.action_find_in_workspace()
+        app.main_view.action_find_in_files()
         await pilot.pause()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
@@ -750,7 +750,7 @@ def test_snapshot_workspace_search_results(
 
     async def run_before(pilot):
         await pilot.pause()
-        app.main_view.action_find_in_workspace()
+        app.main_view.action_find_in_files()
         await pilot.pause()
         pane = app.query_one(WorkspaceSearchPane)
         pane.query_one("#ws-query", Input).value = "print"
@@ -770,7 +770,7 @@ def test_snapshot_search_results_long_lines(snap_compare, snapshot_workspace: Pa
 
     async def run_before(pilot):
         await pilot.pause()
-        app.main_view.action_find_in_workspace()
+        app.main_view.action_find_in_files()
         await pilot.pause()
         pane = app.query_one(WorkspaceSearchPane)
         pane.query_one("#ws-query", Input).value = "xxx"
@@ -974,7 +974,7 @@ def test_snapshot_narrow_sidebar_icon_only(snap_compare, snapshot_workspace: Pat
 
     async def run_before(pilot):
         await pilot.pause()
-        app.main_view.action_find_in_workspace()
+        app.main_view.action_find_in_files()
         await pilot.pause()
         assert app.sidebar is not None
         app.sidebar.styles.width = 12
@@ -1112,7 +1112,7 @@ def test_snapshot_move_modal(
 def test_snapshot_file_search_modal(
     snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
 ):
-    """File search PathSearchModal via action_open_file_with_command_palette()."""
+    """File search PathSearchModal via action_open_file()."""
     # Create files for visual richness
     (snapshot_workspace / "main.py").write_text("# main\n")
     (snapshot_workspace / "utils.py").write_text("# utils\n")
@@ -1121,9 +1121,7 @@ def test_snapshot_file_search_modal(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
     assert snap_compare(
         app,
-        run_before=_open_app_modal(
-            app, lambda a: a.action_open_file_with_command_palette()
-        ),
+        run_before=_open_app_modal(app, lambda a: a.action_open_file()),
         terminal_size=TERMINAL_SIZE,
     )
 
@@ -1217,7 +1215,7 @@ def test_snapshot_replace_all_confirm_modal(snap_compare, snapshot_workspace: Pa
 
     async def run_before(pilot):
         await pilot.pause()
-        app.main_view.action_find_in_workspace()
+        app.main_view.action_find_in_files()
         await pilot.pause()
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "hello"

@@ -5,7 +5,7 @@ Covers:
 1. Config: get_keybindings_path, load_keybindings, save_keybindings
 2. Binding patch: _apply_custom_keybindings patches class BINDINGS
 3. Startup: app loads and applies custom keybindings on __init__
-4. App attributes: action_show_shortcuts exists, F1 binding present
+4. App attributes: action_show_keyboard_shortcuts exists, F1 binding present
 5. Command palette: "Show keyboard shortcuts" entry
 6. ShowShortcutsScreen: has DataTable, rows include known bindings
 7. RebindKeyScreen: captures keys, Escape dismisses, Apply returns result
@@ -61,10 +61,10 @@ def test_save_keybindings_writes_toml(tmp_path):
 
 def test_save_keybindings_round_trip(tmp_path):
     kb = tmp_path / "keybindings.toml"
-    save_keybindings({"save": "ctrl+alt+s", "new_editor": "ctrl+m"}, kb)
+    save_keybindings({"save": "ctrl+alt+s", "new_untitled_file": "ctrl+m"}, kb)
     loaded = load_keybindings(kb)
     assert loaded["save"] == "ctrl+alt+s"
-    assert loaded["new_editor"] == "ctrl+m"
+    assert loaded["new_untitled_file"] == "ctrl+m"
 
 
 def test_get_keybindings_path_uses_same_dir_as_settings(tmp_path):
@@ -173,9 +173,9 @@ def test_custom_keybinding_applied_on_startup(tmp_path, restore_bindings):
 # ---------------------------------------------------------------------------
 
 
-def test_action_show_shortcuts_exists(tmp_path):
+def test_action_show_keyboard_shortcuts_exists(tmp_path):
     app = TextualCode(workspace_path=tmp_path, with_open_file=None)
-    assert callable(getattr(app, "action_show_shortcuts", None))
+    assert callable(getattr(app, "action_show_keyboard_shortcuts", None))
 
 
 def test_set_keybinding_method_exists(tmp_path):
@@ -215,7 +215,7 @@ async def test_show_shortcuts_screen_has_datatable(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_show_shortcuts()
+        app.action_show_keyboard_shortcuts()
         await pilot.pause()
         assert isinstance(app.screen, ShowShortcutsScreen)
         table = app.screen.query_one(DataTable)
@@ -229,7 +229,7 @@ async def test_show_shortcuts_screen_rows_include_save(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_show_shortcuts()
+        app.action_show_keyboard_shortcuts()
         await pilot.pause()
         table = app.screen.query_one(DataTable)
         row_keys = {str(rk.value) for rk in table.rows}
@@ -444,7 +444,7 @@ async def test_show_shortcuts_row_click_opens_settings_screen(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_show_shortcuts()
+        app.action_show_keyboard_shortcuts()
         await pilot.pause()
         assert isinstance(app.screen, ShowShortcutsScreen)
         table = app.screen.query_one(DataTable)
@@ -574,12 +574,12 @@ async def test_set_footer_order_saves_and_applies(
     async with app.run_test() as pilot:
         await pilot.pause()
         # Use app-level bindings (new_editor, toggle_sidebar) which are always active
-        app.set_footer_order(["new_editor"], area="editor")
+        app.set_footer_order(["new_untitled_file"], area="editor")
         await pilot.pause()
         # Verify saved to disk
         kb_path = get_keybindings_path(settings_path)
         loaded = load_footer_orders(kb_path)
-        assert loaded.for_area("editor") == ["new_editor"]
+        assert loaded.for_area("editor") == ["new_untitled_file"]
         # Verify footer respects order
         footer = app.query_one(OrderedFooter)
         footer_actions = {
@@ -587,7 +587,7 @@ async def test_set_footer_order_saves_and_applies(
             for (_, b, _, _) in app.screen.active_bindings.values()
             if footer._should_show_in_footer(b)
         }
-        assert "new_editor" in footer_actions
+        assert "new_untitled_file" in footer_actions
         # toggle_sidebar not in order should be hidden
         assert "toggle_sidebar" not in footer_actions
 
@@ -667,7 +667,7 @@ def test_binding_description_used_in_footer():
     assert save_binding.description == "Save", (
         f"Expected 'Save' but got '{save_binding.description}'"
     )
-    close_binding = next((b for b in bindings if b.action == "close"), None)
+    close_binding = next((b for b in bindings if b.action == "close_editor"), None)
     assert close_binding is not None
     assert close_binding.description == "Close"
 
@@ -725,15 +725,15 @@ async def test_show_shortcuts_includes_unbound_commands(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_show_shortcuts()
+        app.action_show_keyboard_shortcuts()
         await pilot.pause()
         assert isinstance(app.screen, ShowShortcutsScreen)
         table = app.screen.query_one(DataTable)
         row_keys = {str(rk.value) for rk in table.rows}
         # These were previously missing from the F1 panel
-        assert "toggle_word_wrap_cmd" in row_keys
+        assert "toggle_word_wrap" in row_keys
         assert "open_user_settings" in row_keys
-        assert "sort_lines_ascending_cmd" in row_keys
+        assert "sort_lines_ascending" in row_keys
 
 
 @pytest.mark.asyncio
@@ -744,7 +744,7 @@ async def test_show_shortcuts_includes_text_area_actions(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_show_shortcuts()
+        app.action_show_keyboard_shortcuts()
         await pilot.pause()
         table = app.screen.query_one(DataTable)
         row_keys = {str(rk.value) for rk in table.rows}

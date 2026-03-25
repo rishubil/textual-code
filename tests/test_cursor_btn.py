@@ -92,7 +92,7 @@ async def test_cursor_btn_click_opens_modal_untitled(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        await app.action_new_editor()
+        await app.action_new_untitled_file()
         await pilot.pause()
         await pilot.click("#cursor_btn")
         await pilot.pause()

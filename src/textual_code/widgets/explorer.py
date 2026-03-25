@@ -887,9 +887,7 @@ class Explorer(Static):
         from textual_code.app import TextualCode
 
         assert isinstance(self.app, TextualCode)
-        await self.app.action_create_file_with_command_palette(
-            initial_path=self._get_selected_dir_relative()
-        )
+        await self.app.action_new_file(initial_path=self._get_selected_dir_relative())
 
     def action_delete_node(self) -> None:
         """
@@ -944,9 +942,7 @@ class Explorer(Static):
         from textual_code.app import TextualCode
 
         assert isinstance(self.app, TextualCode)
-        await self.app.action_create_directory_with_command_palette(
-            initial_path=self._get_selected_dir_relative()
-        )
+        await self.app.action_new_folder(initial_path=self._get_selected_dir_relative())
 
     @on(DirectoryTree.FileSelected)
     def on_file_selected(self, event: DirectoryTree.FileSelected):

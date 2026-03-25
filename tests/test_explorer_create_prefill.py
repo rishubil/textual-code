@@ -211,7 +211,7 @@ async def test_create_file_prefills_from_editor_focus(workspace: Path):
         await pilot.pause()
 
         # Trigger create file via app action (as command palette would)
-        await app.action_create_file_with_command_palette()
+        await app.action_new_file()
         await pilot.pause()
 
         assert isinstance(app.screen, CommandPalette)

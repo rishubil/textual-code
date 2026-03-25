@@ -1623,7 +1623,7 @@ class CodeEditor(Static):
             self._file_mtime = self.path.stat().st_mtime
         self.notify("File reloaded.", severity="information")
 
-    def action_reload_file(self) -> None:
+    def action_revert_file(self) -> None:
         """Manually reload the current file from disk."""
         if self.path is None:
             self.notify("No file to reload.", severity="error")

@@ -206,65 +206,65 @@ async def test_focus_right_split_noop_when_closed(workspace: Path, py_file: Path
 
 
 async def test_close_split_returns_to_single_leaf(workspace: Path, py_file: Path):
-    """action_close_split removes the active split and returns to single leaf."""
+    """action_close_editor_group removes the active split and returns to single leaf."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
-        await app.main_view.action_close_split()
+        await app.main_view.action_close_editor_group()
         await pilot.pause()
         await pilot.pause()
         assert app.main_view._split_visible is False
 
 
 async def test_close_split_sets_split_visible_false(workspace: Path, py_file: Path):
-    """action_close_split sets _split_visible to False."""
+    """action_close_editor_group sets _split_visible to False."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
-        await app.main_view.action_close_split()
+        await app.main_view.action_close_editor_group()
         await pilot.pause()
         await pilot.pause()
         assert app.main_view._split_visible is False
 
 
 async def test_close_split_focuses_left(workspace: Path, py_file: Path):
-    """action_close_split sets _active_split back to 'left'."""
+    """action_close_editor_group sets _active_split back to 'left'."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
-        await app.main_view.action_close_split()
+        await app.main_view.action_close_editor_group()
         await pilot.pause()
         await pilot.pause()
         assert app.main_view._active_split == "left"
 
 
 async def test_close_split_clears_right_pane_ids(workspace: Path, py_file: Path):
-    """action_close_split removes all right pane tracking."""
+    """action_close_editor_group removes all right pane tracking."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         await app.main_view.action_split_right()
         await pilot.pause()
         assert len(app.main_view._pane_ids["right"]) > 0
-        await app.main_view.action_close_split()
+        await app.main_view.action_close_editor_group()
         await pilot.pause()
         await pilot.pause()
         assert app.main_view._pane_ids["right"] == set()
 
 
 async def test_close_split_noop_when_not_open(workspace: Path, py_file: Path):
-    """action_close_split does nothing when no split is visible."""
+    """action_close_editor_group does nothing when no split is visible."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         assert not app.main_view._split_visible
-        await app.main_view.action_close_split()  # should not raise
+        await app.main_view.action_close_editor_group()  # should not raise
         await pilot.pause()
         assert app.main_view._active_split == "left"
 
@@ -446,7 +446,7 @@ async def test_move_tab_left_to_right(workspace: Path, py_file: Path, py_file2: 
         await pilot.pause()
         await pilot.pause()
 
-        await app.main_view.action_move_tab_to_other_split()
+        await app.main_view.action_move_editor_to_next_group()
         await pilot.pause()
         await pilot.pause()
         await pilot.pause()
@@ -469,7 +469,7 @@ async def test_move_tab_right_to_left(workspace: Path, py_file: Path):
         assert py_file in app.main_view._opened_files["right"]
 
         # Now move back to left
-        await app.main_view.action_move_tab_to_other_split()
+        await app.main_view.action_move_editor_to_next_group()
         await pilot.pause()
 
         assert py_file in app.main_view._opened_files["left"]
@@ -495,7 +495,7 @@ async def test_move_tab_creates_right_split(
         await pilot.pause()
         await pilot.pause()
 
-        await app.main_view.action_move_tab_to_other_split()
+        await app.main_view.action_move_editor_to_next_group()
         await pilot.pause()
         await pilot.pause()
         await pilot.pause()
@@ -517,7 +517,7 @@ async def test_move_tab_transfers_unsaved_content(workspace: Path, py_file: Path
         await pilot.pause()
         assert editor.text == "unsaved content here"
 
-        await app.main_view.action_move_tab_to_other_split()
+        await app.main_view.action_move_editor_to_next_group()
         await pilot.pause()
 
         # The destination editor should have the unsaved content
@@ -529,12 +529,12 @@ async def test_move_tab_transfers_unsaved_content(workspace: Path, py_file: Path
 
 
 async def test_move_tab_no_op_without_editor(workspace: Path):
-    """action_move_tab_to_other_split is a no-op when no editor is open."""
+    """action_move_editor_to_next_group is a no-op when no editor is open."""
     app = make_app(workspace, open_file=None, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
         # Should not raise — no editor open
-        await app.main_view.action_move_tab_to_other_split()
+        await app.main_view.action_move_editor_to_next_group()
         await pilot.pause()
         # State unchanged
         assert app.main_view._active_split == "left"
@@ -877,7 +877,7 @@ async def test_split_left_then_close(workspace: Path, py_file: Path):
         await app.main_view.action_split_left()
         await pilot.pause()
         assert app.main_view._split_visible is True
-        await app.main_view.action_close_split()
+        await app.main_view.action_close_editor_group()
         await pilot.pause()
         await pilot.pause()
         assert app.main_view._split_visible is False
@@ -928,7 +928,7 @@ async def test_split_left_resize_handle_works(workspace: Path, py_file: Path):
 async def test_move_tab_focuses_destination_pane(
     workspace: Path, py_file: Path, py_file2: Path
 ):
-    """action_move_tab_to_other_split focuses the destination pane and moved tab."""
+    """action_move_editor_to_next_group focuses the destination pane and moved tab."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -943,7 +943,7 @@ async def test_move_tab_focuses_destination_pane(
         await pilot.pause()
         await pilot.pause()
 
-        await app.main_view.action_move_tab_to_other_split()
+        await app.main_view.action_move_editor_to_next_group()
         await pilot.pause()
         await pilot.pause()
         await pilot.pause()
@@ -969,7 +969,7 @@ async def test_move_tab_focuses_moved_tab_when_split_collapses(
 
         # Now move py_file from right to left (right has 1 tab, will collapse)
         assert app.main_view._active_split == "right"
-        await app.main_view.action_move_tab_to_other_split()
+        await app.main_view.action_move_editor_to_next_group()
         await pilot.pause()
 
         # Right split should have collapsed
@@ -992,7 +992,7 @@ async def test_move_tab_focuses_moved_tab_when_split_collapses(
 async def test_move_tab_directional_focuses_destination(
     workspace: Path, py_file: Path, py_file2: Path
 ):
-    """action_move_tab_right focuses the destination split and moved tab."""
+    """action_move_editor_right focuses the destination split and moved tab."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -1017,7 +1017,7 @@ async def test_move_tab_directional_focuses_destination(
         await pilot.pause()
 
         # Move tab right
-        await app.main_view.action_move_tab_right()
+        await app.main_view.action_move_editor_right()
         await pilot.pause()
 
         # Find dest leaf (right)
@@ -1042,7 +1042,7 @@ async def test_move_tab_directional_noop_single_tab(workspace: Path, py_file: Pa
 
         # Attempt to move right (no-op: single tab, can't create split without
         # keeping the source non-empty)
-        await app.main_view.action_move_tab_right()
+        await app.main_view.action_move_editor_right()
         await pilot.pause()
 
         # Nothing should change
@@ -1091,7 +1091,7 @@ async def test_move_tab_duplicate_file_focuses_existing(
         await pilot.pause()
 
         # Move py_file from left to right (duplicate)
-        await main.action_move_tab_to_other_split()
+        await main.action_move_editor_to_next_group()
         await pilot.pause()
         await pilot.pause()
         await pilot.pause()

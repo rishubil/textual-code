@@ -180,13 +180,13 @@ Control which shortcuts appear in the footer bar per focus area. Each area (edit
 
 ```toml
 [footer.editor]
-order = ["save", "find", "replace", "goto_line", "close", "new_editor", "toggle_sidebar"]
+order = ["save", "find", "replace", "goto_line", "close_editor", "new_untitled_file", "toggle_sidebar"]
 
 [footer.explorer]
-order = ["create_file", "create_directory", "delete_node", "rename_node", "new_editor", "toggle_sidebar"]
+order = ["create_file", "create_directory", "delete_node", "rename_node", "new_untitled_file", "toggle_sidebar"]
 
 [footer.search]
-order = ["new_editor", "toggle_sidebar"]
+order = ["new_untitled_file", "toggle_sidebar"]
 ```
 
 ### How to configure

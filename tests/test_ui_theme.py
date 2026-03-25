@@ -5,7 +5,7 @@ Covers:
 1. Default ui_theme in config settings
 2. App starts with default ui_theme attribute
 3. App loads ui_theme from config file
-4. action_set_ui_theme opens modal and applies/saves the theme
+4. action_change_ui_theme opens modal and applies/saves the theme
 5. Cancel leaves theme unchanged
 6. ChangeUIThemeModalScreen and ChangeUIThemeModalResult can be imported
 """
@@ -74,9 +74,9 @@ def test_app_has_default_ui_theme_attr(tmp_path):
     assert app.default_ui_theme == "textual-dark"
 
 
-def test_action_set_ui_theme_exists(tmp_path):
+def test_action_change_ui_theme_exists(tmp_path):
     app = TextualCode(workspace_path=tmp_path, with_open_file=None)
-    assert callable(getattr(app, "action_set_ui_theme", None))
+    assert callable(getattr(app, "action_change_ui_theme", None))
 
 
 # ---------------------------------------------------------------------------
@@ -117,19 +117,19 @@ async def test_app_loads_ui_theme_from_config(workspace):
 
 
 # ---------------------------------------------------------------------------
-# Group 5: action_set_ui_theme applies and saves
+# Group 5: action_change_ui_theme applies and saves
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_action_set_ui_theme_applies_and_saves(workspace):
+async def test_action_change_ui_theme_applies_and_saves(workspace):
     cfg = workspace / "settings.toml"
     app = TextualCode(
         workspace_path=workspace, with_open_file=None, user_config_path=cfg
     )
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_set_ui_theme()
+        app.action_change_ui_theme()
         await pilot.pause()
         assert isinstance(app.screen, ChangeUIThemeModalScreen)
         app.screen.dismiss(
@@ -145,7 +145,7 @@ async def test_action_set_ui_theme_applies_and_saves(workspace):
 
 
 @pytest.mark.asyncio
-async def test_action_set_ui_theme_save_level_user(workspace):
+async def test_action_change_ui_theme_save_level_user(workspace):
     cfg = workspace / "settings.toml"
     proj = workspace / ".textual-code.toml"
     app = TextualCode(
@@ -153,7 +153,7 @@ async def test_action_set_ui_theme_save_level_user(workspace):
     )
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_set_ui_theme()
+        app.action_change_ui_theme()
         await pilot.pause()
         app.screen.dismiss(
             ChangeUIThemeModalResult(
@@ -169,7 +169,7 @@ async def test_action_set_ui_theme_save_level_user(workspace):
 
 
 @pytest.mark.asyncio
-async def test_action_set_ui_theme_save_level_project(workspace):
+async def test_action_change_ui_theme_save_level_project(workspace):
     cfg = workspace / "settings.toml"
     proj = workspace / ".textual-code.toml"
     app = TextualCode(
@@ -177,7 +177,7 @@ async def test_action_set_ui_theme_save_level_project(workspace):
     )
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.action_set_ui_theme()
+        app.action_change_ui_theme()
         await pilot.pause()
         app.screen.dismiss(
             ChangeUIThemeModalResult(
@@ -201,7 +201,7 @@ async def test_builtin_theme_command_removed(workspace):
 
 
 @pytest.mark.asyncio
-async def test_action_set_ui_theme_cancel_leaves_theme(workspace):
+async def test_action_change_ui_theme_cancel_leaves_theme(workspace):
     cfg = workspace / "settings.toml"
     app = TextualCode(
         workspace_path=workspace, with_open_file=None, user_config_path=cfg
@@ -209,7 +209,7 @@ async def test_action_set_ui_theme_cancel_leaves_theme(workspace):
     async with app.run_test() as pilot:
         await pilot.pause()
         original_theme = app.theme
-        app.action_set_ui_theme()
+        app.action_change_ui_theme()
         await pilot.pause()
         assert isinstance(app.screen, ChangeUIThemeModalScreen)
         app.screen.dismiss(ChangeUIThemeModalResult(is_cancelled=True, theme=None))

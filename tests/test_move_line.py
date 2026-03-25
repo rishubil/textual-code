@@ -353,7 +353,7 @@ async def test_ctrl_down_scrolls(workspace: Path) -> None:
         ta.cursor_location = (0, 0)
         await pilot.pause()
         cursor_before = ta.cursor_location
-        ta.action_scroll_viewport_down()
+        ta.action_scroll_down()
         await pilot.pause()
         assert ta.cursor_location == cursor_before
 
@@ -369,6 +369,6 @@ async def test_ctrl_up_scrolls(workspace: Path) -> None:
         ta.cursor_location = (0, 0)
         await pilot.pause()
         cursor_before = ta.cursor_location
-        ta.action_scroll_viewport_up()
+        ta.action_scroll_up()
         await pilot.pause()
         assert ta.cursor_location == cursor_before

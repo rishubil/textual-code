@@ -262,7 +262,7 @@ class TestToggleCommand:
         app = make_app(ws, user_config_path=config)
         async with app.run_test():
             assert app.default_dim_gitignored is True
-            app.action_toggle_dim_gitignored_cmd()
+            app.action_toggle_dim_gitignored()
             assert app.default_dim_gitignored is False
             assert app.sidebar.explorer.directory_tree.dim_gitignored is False
 
@@ -274,7 +274,7 @@ class TestToggleCommand:
         ws.mkdir()
         app = make_app(ws, user_config_path=config)
         async with app.run_test():
-            app.action_toggle_dim_gitignored_cmd()
+            app.action_toggle_dim_gitignored()
         loaded = load_editor_settings(ws, user_config_path=config)
         assert loaded["dim_gitignored"] is False
 
@@ -331,7 +331,7 @@ class TestRenderLabelDim:
             tree = app.sidebar.explorer.directory_tree
             assert tree._is_gitignored(ws / "debug.log") is True
             # Toggle off
-            app.action_toggle_dim_gitignored_cmd()
+            app.action_toggle_dim_gitignored()
             await pilot.pause()
             assert tree.dim_gitignored is False
             assert tree._is_gitignored(ws / "debug.log") is False

@@ -106,7 +106,7 @@ async def test_search_results_horizontal_scroll(workspace: Path) -> None:
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
-        app.main_view.action_find_in_workspace()
+        app.main_view.action_find_in_files()
         await pilot.pause()
 
         pane = app.query_one(WorkspaceSearchPane)
