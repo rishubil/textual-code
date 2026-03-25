@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editor**: Find Previous — search backward via Shift+Enter in find bar or ↑ Prev button; wraps around to last match when no match before cursor
 - **Command Palette**: remove Textual built-in commands — Textual's default system commands (Theme, Keys, Maximize/Minimize, Screenshot) are excluded from the command palette; only project-defined commands appear (Fix #87)
 - **App**: double Ctrl+Q force quit — pressing Ctrl+Q twice within 1 second exits immediately, bypassing the unsaved-changes modal; safety mechanism to ensure the user can always quit
+- **Command Palette**: show Ctrl+Q shortcut hint on Quit command — add `default_key="ctrl+q"` to the quit entry in `COMMAND_REGISTRY` so the keyboard shortcut appears in the command palette description; add guard test to catch future Textual base binding ↔ registry mismatches
 - **UI**: compact find/replace bar buttons — replace text labels with responsive icons (↑, ↓, All, ↪, 🔄) that switch between icon-only and icon+text based on bar width; add tooltips for discoverability; color-code buttons by importance (primary blue for actions, warning yellow for Replace All, subtle tint for navigation); mirrors the sidebar's `_BTN_LABELS` responsive pattern (Fix #84)
 
 - **Editor**: Ctrl+Home / Ctrl+End — jump to start/end of document; Ctrl+Shift+Home/End extends selection to document boundaries (Fix #63)

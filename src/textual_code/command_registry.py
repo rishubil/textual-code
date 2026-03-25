@@ -360,6 +360,9 @@ COMMAND_REGISTRY: tuple[CommandEntry, ...] = (
         "Quit the app",
         "app",
         "action_quit",
+        "ctrl+q",
+        show=False,
+        priority=True,
     ),
     CommandEntry(
         "change_language_cmd",

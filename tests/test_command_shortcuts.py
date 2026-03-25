@@ -8,6 +8,8 @@ for commands that have associated key bindings.
 from pathlib import Path
 
 import pytest
+from textual.app import App
+from textual.binding import Binding
 
 from tests.conftest import make_app
 
@@ -195,3 +197,39 @@ async def test_project_quit_command_exists(tmp_path: Path):
         await pilot.pause()
         cmds = _get_commands(app)
     assert "Quit" in cmds
+
+
+async def test_quit_shows_ctrl_q(tmp_path: Path):
+    """'Quit' command description contains Ctrl+Q shortcut."""
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        cmds = _get_commands(app)
+    assert "Ctrl+Q" in cmds["Quit"]
+
+
+# ── Guard: Textual base App.BINDINGS must be reflected in COMMAND_REGISTRY ────
+
+
+def test_textual_base_bindings_reflected_in_registry():
+    """Every non-system Textual App.BINDINGS action must have a matching
+    default_key in COMMAND_REGISTRY to prevent shortcut hints from going
+    missing in the command palette."""
+    from textual_code.command_registry import COMMAND_REGISTRY
+
+    registry_by_action = {e.action: e for e in COMMAND_REGISTRY}
+
+    for raw_binding in App.BINDINGS:
+        if not isinstance(raw_binding, Binding):
+            continue
+        # Skip system bindings (e.g. ctrl+c help_quit) — not user-facing
+        if raw_binding.system:
+            continue
+        if raw_binding.action not in registry_by_action:
+            continue  # Not a project command — skip
+        entry = registry_by_action[raw_binding.action]
+        assert entry.default_key, (
+            f"Textual App.BINDINGS has '{raw_binding.key} → {raw_binding.action}' "
+            f"but COMMAND_REGISTRY entry '{raw_binding.action}' has no default_key. "
+            f"Add default_key='{raw_binding.key}' to prevent missing shortcut hints."
+        )
