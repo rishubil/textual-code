@@ -1603,3 +1603,177 @@ async def test_shift_pageup_multi_cursor(workspace: Path, long_file: Path):
         assert len(ta.extra_anchors) >= 1 or ta.extra_cursors == []
         if ta.extra_cursors:
             assert ta.extra_anchors[0] != ta.extra_cursors[0]
+
+
+# ── Issue #80: multi-cursor movement alignment with DocumentNavigator ────────
+
+
+@pytest.fixture
+def varying_length_file(workspace: Path) -> Path:
+    """A file with 5 lines of varying length for sticky column tests.
+
+    Line 0: 20 chars (A), Line 1: 5 chars (B), Line 2: 20 chars (C),
+    Line 3: 5 chars (D), Line 4: 20 chars (E).
+    Short lines avoid wrapping in the default 80-column test terminal.
+    Extra cursors on separate rows avoid dedup when moving down.
+    """
+    f = workspace / "varying.txt"
+    f.write_text(
+        "A" * 20
+        + "\n"
+        + "B" * 5
+        + "\n"
+        + "C" * 20
+        + "\n"
+        + "D" * 5
+        + "\n"
+        + "E" * 20
+        + "\n"
+    )
+    return f
+
+
+async def test_multi_cursor_sticky_column(workspace: Path, varying_length_file: Path):
+    """Sticky column: moving down through a short line should restore column.
+
+    Issue #80: single-cursor uses DocumentNavigator which tracks last_x_offset,
+    but multi-cursor _move_location() does not. When moving from col 50 on a
+    long line, through a short line, to another long line, the column should
+    be restored to 50 (sticky), not stay at 10 (the short line's length).
+
+    Layout (5 lines): 80-char, 10-char, 80-char, 10-char, 80-char.
+    Primary at (0, 50), extra at (2, 50). Down twice keeps both cursors
+    on separate rows, so multi-cursor path stays active the whole time.
+    """
+    app = make_app(workspace, light=True, open_file=varying_length_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
+        # Place primary at (0, 15) and extra at (2, 15) — different rows
+        ta.move_cursor((0, 15))
+        await pilot.pause()
+        ta.add_cursor((2, 15))
+        await pilot.pause()
+
+        # Down: primary → (1, 5), extra → (3, 5) — no collision
+        await pilot.press("down")
+        await pilot.pause()
+        assert ta.cursor_location == (1, 5)
+        assert (3, 5) in ta.extra_cursors
+
+        # Down again: multi-cursor path still active (extra exists)
+        # With sticky column: primary → (2, 15), extra → (4, 15)
+        # Without sticky: primary → (2, 5), extra → (4, 5)
+        await pilot.press("down")
+        await pilot.pause()
+        assert ta.cursor_location[0] == 2
+        # KEY ASSERTION: sticky column should restore to 15, not stay at 5
+        assert ta.cursor_location[1] == 15
+        assert ta.extra_cursors[0] == (4, 15)
+
+
+async def test_multi_cursor_up_at_first_line(workspace: Path, three_line_file: Path):
+    """Up at first line should move to (0, 0), matching DocumentNavigator.
+
+    Issue #80: _move_location() returns (row, col) unchanged, but
+    DocumentNavigator.get_location_above() returns (0, 0).
+    """
+    app = make_app(workspace, light=True, open_file=three_line_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
+        # Place primary at (0, 3), extra on row 1 so it doesn't collide
+        ta.move_cursor((0, 3))
+        await pilot.pause()
+        ta.add_cursor((1, 3))
+        await pilot.pause()
+
+        await pilot.press("up")
+        await pilot.pause()
+
+        # Primary should be at (0, 0) — matching DocumentNavigator
+        assert ta.cursor_location == (0, 0)
+        # Extra moves from (1, 3) to (0, 3) — different from primary, so kept
+        assert (0, 3) in ta.extra_cursors
+
+
+@pytest.fixture
+def no_trailing_newline_file(workspace: Path) -> Path:
+    """File without trailing newline so last line has content."""
+    f = workspace / "notrail.txt"
+    f.write_text("line1\nline2\nline3")  # no trailing \n
+    return f
+
+
+async def test_multi_cursor_down_at_last_line(
+    workspace: Path, no_trailing_newline_file: Path
+):
+    """Down at last line should move to end of line, matching DocumentNavigator.
+
+    Issue #80: _move_location() returns (row, col) unchanged, but
+    DocumentNavigator.get_location_below() moves to end of last line.
+
+    File: "line1\\nline2\\nline3" (no trailing newline).
+    last_row=2, "line3" (len 5). Primary at (2, 2), extra at (1, 2).
+    """
+    app = make_app(workspace, light=True, open_file=no_trailing_newline_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
+        # lines: ["line1", "line2", "line3"], last_row=2, len("line3")=5
+        ta.move_cursor((2, 2))
+        await pilot.pause()
+        ta.add_cursor((1, 2))
+        await pilot.pause()
+
+        await pilot.press("down")
+        await pilot.pause()
+
+        # Primary should move to end of last line (2, 5) — matching DocumentNavigator
+        assert ta.cursor_location == (2, 5)
+        # Extra moves from (1, 2) to (2, 2) — doesn't collide with (2, 5)
+        assert (2, 2) in ta.extra_cursors
+
+
+async def test_multi_cursor_sticky_column_resets_on_horizontal(
+    workspace: Path, varying_length_file: Path
+):
+    """Sticky column should reset after a horizontal movement.
+
+    Issue #80: col 50 → down (col 10) → right (col 11) → down should
+    go to col 11 (reset by right), not col 50 (stale sticky).
+    Layout: line 0 (80), line 1 (10), line 2 (80), line 3 (10), line 4 (80).
+    """
+    app = make_app(workspace, light=True, open_file=varying_length_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        _ce = app.main_view.get_active_code_editor()
+        assert _ce is not None
+        ta = _ce.editor
+        # Primary at (0, 15), extra at (2, 15) — different rows
+        ta.move_cursor((0, 15))
+        await pilot.pause()
+        ta.add_cursor((2, 15))
+        await pilot.pause()
+
+        # Down: primary → (1, 5), extra → (3, 5) [clamped to short line]
+        await pilot.press("down")
+        await pilot.pause()
+        assert ta.cursor_location == (1, 5)
+
+        # Right at end of short line wraps to next line: (2, 0)
+        # Extra at (3, 5) wraps to (4, 0)
+        await pilot.press("right")
+        await pilot.pause()
+        assert ta.cursor_location == (2, 0)
+
+        # Down: sticky column was reset by right → should use col 0
+        await pilot.press("down")
+        await pilot.pause()
+        assert ta.cursor_location == (3, 0)  # sticky reset to 0 by right

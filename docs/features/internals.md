@@ -141,6 +141,25 @@ After all edits the new column for cursor `(row, col)` is:
 | Backspace | `col - 1 - num_cursors_on_same_row_with_col' < col` |
 | Delete | `col - num_cursors_on_same_row_with_col' < col` |
 
+### Vertical movement: DocumentNavigator delegation for sticky column
+
+Single-cursor up/down uses Textual's `DocumentNavigator` which tracks `last_x_offset`
+(a cell-width value remembering the horizontal visual position). This "sticky column"
+lets the cursor return to its original column after traversing short lines.
+
+Multi-cursor up/down delegates to the same `DocumentNavigator` so both modes produce
+identical results. Each extra cursor stores its own sticky column in
+`_extra_last_x_offsets: list[int]`, a parallel list alongside `_extra_cursors` and
+`_extra_anchors`. During vertical movement, `_move_all_cursors()` temporarily swaps
+`navigator.last_x_offset` per cursor, calls the navigator method, then restores it.
+
+Non-vertical keys (left/right/home/end/ctrl+\*/page) still use the stateless
+`_move_location()` static method, and update each cursor's stored offset afterward
+(matching TextArea's `record_width=True` behavior for horizontal movement).
+
+Edit operations (`_do_insert`, `_do_backspace`, etc.) reset `_extra_last_x_offsets`
+to `[0] * len(...)` because the sticky column is meaningless after content changes.
+
 ### Visual rendering: get_line override
 
 `get_line(line_index)` applies `self._theme.cursor_style` to extra-cursor positions in the

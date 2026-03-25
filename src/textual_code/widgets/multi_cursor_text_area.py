@@ -259,6 +259,7 @@ class MultiCursorTextArea(TextArea):
         super().__init__(*args, **kwargs)
         self._extra_cursors: list[tuple[int, int]] = []
         self._extra_anchors: list[tuple[int, int]] = []
+        self._extra_last_x_offsets: list[int] = []
         self._cached_selection_ranges: dict[int, list[tuple[int, int | None]]] = {}
         self._line_changes: dict[int, LineChangeType] = {}
         self._show_indentation_guides: bool = True
@@ -590,6 +591,11 @@ class MultiCursorTextArea(TextArea):
         """A copy of the extra-anchor list (read-only view)."""
         return list(self._extra_anchors)
 
+    def _cell_width_at(self, location: tuple[int, int]) -> int:
+        """Get the visual (cell) x offset at a document location."""
+        x_offset, _ = self.wrapped_document.location_to_offset(location)
+        return x_offset
+
     def add_cursor(
         self, location: tuple[int, int], anchor: tuple[int, int] | None = None
     ) -> None:
@@ -603,6 +609,9 @@ class MultiCursorTextArea(TextArea):
         if location != self.cursor_location and location not in self._extra_cursors:
             self._extra_cursors = self._extra_cursors + [location]
             self._extra_anchors = self._extra_anchors + [anchor]
+            self._extra_last_x_offsets = self._extra_last_x_offsets + [
+                self._cell_width_at(location)
+            ]
             self._recompute_selection_ranges()
             self._line_cache.clear()
             self.refresh()
@@ -631,6 +640,7 @@ class MultiCursorTextArea(TextArea):
         if self._extra_cursors:
             self._extra_cursors = []
             self._extra_anchors = []
+            self._extra_last_x_offsets = []
             self._cached_selection_ranges = {}
             self._line_cache.clear()
             self.refresh()
@@ -1319,48 +1329,100 @@ class MultiCursorTextArea(TextArea):
         return (row, col)
 
     def _move_all_cursors(self, key: str) -> None:
-        """Move primary and all extra cursors according to *key*."""
+        """Move primary and all extra cursors according to *key*.
+
+        For up/down, delegates to DocumentNavigator (handles sticky column
+        and boundary conditions). For all other keys, uses _move_location().
+        """
         from textual.widgets.text_area import Selection
 
         is_shift = "shift+" in key
         base_key = key.replace("shift+", "") if is_shift else key
+        is_vertical = base_key in ("up", "down")
 
-        lines = self.text.split("\n")
+        nav = self.navigator
+        saved_x_offset = nav.last_x_offset
+
         try:
-            page_height = max(1, self.scrollable_content_region.height)
-        except Exception:
-            page_height = 20
+            if is_vertical:
+                # Vertical: delegate to DocumentNavigator which handles sticky
+                # column (last_x_offset) and boundary cases (up@first→(0,0),
+                # down@last→end-of-line).  We temporarily swap the navigator's
+                # last_x_offset per extra cursor to give each its own sticky
+                # column, then restore the primary cursor's offset.
+                nav_method = (
+                    nav.get_location_above
+                    if base_key == "up"
+                    else nav.get_location_below
+                )
 
-        # Move primary cursor
-        primary = self.cursor_location
-        new_primary = self._move_location(lines, *primary, base_key, page_height)
+                primary = self.cursor_location
+                new_primary = nav_method(primary)
+
+                new_extras: list[tuple[int, int]] = []
+                new_anchors: list[tuple[int, int]] = []
+                new_extra_offsets: list[int] = []
+                for i, ((row, col), anchor) in enumerate(
+                    zip(self._extra_cursors, self._extra_anchors, strict=True)
+                ):
+                    nav.last_x_offset = self._extra_last_x_offsets[i]
+                    new_pos = nav_method((row, col))
+                    new_extras.append(new_pos)
+                    new_anchors.append(anchor if is_shift else new_pos)
+                    # Preserve stored offset — vertical movement keeps sticky column.
+                    new_extra_offsets.append(self._extra_last_x_offsets[i])
+
+                nav.last_x_offset = saved_x_offset
+            else:
+                # Non-vertical: use _move_location, then update sticky offsets.
+                lines = self.document.lines
+                try:
+                    page_height = max(1, self.scrollable_content_region.height)
+                except Exception:
+                    page_height = 20
+
+                primary = self.cursor_location
+                new_primary = self._move_location(
+                    lines, *primary, base_key, page_height
+                )
+                nav.last_x_offset = self._cell_width_at(new_primary)
+
+                new_extras = []
+                new_anchors = []
+                new_extra_offsets: list[int] = []
+                for (row, col), anchor in zip(
+                    self._extra_cursors, self._extra_anchors, strict=True
+                ):
+                    new_pos = self._move_location(
+                        lines, row, col, base_key, page_height
+                    )
+                    new_extras.append(new_pos)
+                    new_anchors.append(anchor if is_shift else new_pos)
+                    new_extra_offsets.append(self._cell_width_at(new_pos))
+        except Exception:
+            nav.last_x_offset = saved_x_offset
+            raise
+
         if is_shift:
             self.selection = Selection(self.selection.start, new_primary)
         else:
             self.selection = Selection(new_primary, new_primary)
 
-        # Move extra cursors
-        new_extras: list[tuple[int, int]] = []
-        new_anchors: list[tuple[int, int]] = []
-        for (row, col), anchor in zip(
-            self._extra_cursors, self._extra_anchors, strict=True
-        ):
-            new_pos = self._move_location(lines, row, col, base_key, page_height)
-            new_extras.append(new_pos)
-            new_anchors.append(anchor if is_shift else new_pos)
-
         # Deduplicate: remove extras that collide with primary or each other
         deduped_extras: list[tuple[int, int]] = []
         deduped_anchors: list[tuple[int, int]] = []
+        deduped_offsets: list[int] = []
         seen = {new_primary}
-        for pos, anc in zip(new_extras, new_anchors, strict=True):
+        for i, (pos, anc) in enumerate(zip(new_extras, new_anchors, strict=True)):
             if pos not in seen:
                 seen.add(pos)
                 deduped_extras.append(pos)
                 deduped_anchors.append(anc)
+                deduped_offsets.append(new_extra_offsets[i])
 
         self._extra_cursors = deduped_extras
         self._extra_anchors = deduped_anchors
+        self._extra_last_x_offsets = deduped_offsets
         self._recompute_selection_ranges()
         self._line_cache.clear()
         self.refresh()
@@ -1555,6 +1617,7 @@ class MultiCursorTextArea(TextArea):
             loc for i, loc in enumerate(new_locs) if i != primary_idx
         ]
         self._extra_anchors = list(self._extra_cursors)
+        self._extra_last_x_offsets = [0] * len(self._extra_cursors)
         self._recompute_selection_ranges()
         self._line_cache.clear()
         self.refresh()
@@ -1589,6 +1652,7 @@ class MultiCursorTextArea(TextArea):
         self.cursor_location = new_positions[primary]
         self._extra_cursors = [new_positions[ec] for ec in extra]
         self._extra_anchors = list(self._extra_cursors)
+        self._extra_last_x_offsets = [0] * len(self._extra_cursors)
         self._recompute_selection_ranges()
         self.refresh()
 
@@ -1616,6 +1680,7 @@ class MultiCursorTextArea(TextArea):
         self.cursor_location = new_positions[primary]
         self._extra_cursors = [new_positions[ec] for ec in extra]
         self._extra_anchors = list(self._extra_cursors)
+        self._extra_last_x_offsets = [0] * len(self._extra_cursors)
         self._recompute_selection_ranges()
         self.refresh()
 
@@ -1646,6 +1711,7 @@ class MultiCursorTextArea(TextArea):
         self.cursor_location = new_positions[primary]
         self._extra_cursors = [new_positions[ec] for ec in extra]
         self._extra_anchors = list(self._extra_cursors)
+        self._extra_last_x_offsets = [0] * len(self._extra_cursors)
         self._recompute_selection_ranges()
         self.refresh()
 
@@ -1677,6 +1743,7 @@ class MultiCursorTextArea(TextArea):
         self.cursor_location = new_pos[primary]
         self._extra_cursors = [new_pos[ec] for ec in extra]
         self._extra_anchors = list(self._extra_cursors)
+        self._extra_last_x_offsets = [0] * len(self._extra_cursors)
         self._recompute_selection_ranges()
         self.refresh()
 
@@ -1704,6 +1771,7 @@ class MultiCursorTextArea(TextArea):
         self.cursor_location = new_pos[primary]
         self._extra_cursors = [new_pos[ec] for ec in extra]
         self._extra_anchors = list(self._extra_cursors)
+        self._extra_last_x_offsets = [0] * len(self._extra_cursors)
         self._recompute_selection_ranges()
         self.refresh()
 
@@ -1731,6 +1799,7 @@ class MultiCursorTextArea(TextArea):
         self.cursor_location = new_pos[primary]
         self._extra_cursors = [new_pos[ec] for ec in extra]
         self._extra_anchors = list(self._extra_cursors)
+        self._extra_last_x_offsets = [0] * len(self._extra_cursors)
         self._recompute_selection_ranges()
         self.refresh()
 

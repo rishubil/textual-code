@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Editor**: fix multi-cursor vertical movement diverging from single-cursor — up/down with extra cursors now delegates to Textual's `DocumentNavigator`, matching single-cursor behavior for sticky column, up-at-first-line → (0,0), and down-at-last-line → end of line (Fix #80)
 - **Editor**: fix Ctrl+D / Ctrl+Shift+L matching — Ctrl+D from collapsed cursor now uses word-boundary case-sensitive matching (matching VSCode); from existing selection uses case-insensitive substring matching (Fix #63)
 - **Editor**: fix regex find/replace `^` and `$` not matching line boundaries — added `re.MULTILINE` flag when regex mode is enabled (Fix #63)
 - **Editor**: fix regex replace with lookaheads — replace now matches against full document text instead of isolated selection, preserving lookahead/lookbehind context (Fix #63)
