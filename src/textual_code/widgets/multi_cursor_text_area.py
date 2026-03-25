@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from collections.abc import Callable
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Literal
 
 from rich.cells import cell_len
 from rich.segment import Segment
@@ -815,6 +815,132 @@ class MultiCursorTextArea(TextArea):
     def action_move_line_down(self) -> None:
         """Move selected line(s) down by one row."""
         self._move_lines(1)
+
+    # ── word deletion ─────────────────────────────────────────────────────────
+
+    def action_delete_word_left(self) -> None:
+        """Delete from cursor to previous word boundary (Ctrl+Backspace)."""
+        if not self._extra_cursors:
+            super().action_delete_word_left()
+            return
+        self._delete_word_multi("left")
+
+    def action_delete_word_right(self) -> None:
+        """Delete from cursor to next word boundary (Ctrl+Delete)."""
+        if not self._extra_cursors:
+            super().action_delete_word_right()
+            return
+        self._delete_word_multi("right")
+
+    def _delete_word_multi(self, direction: Literal["left", "right"]) -> None:
+        """Delete word at all cursor positions."""
+        from textual.widgets.text_area import Selection
+
+        text = self.text
+        lines = text.split("\n")
+        offsets = _build_offsets(lines)
+
+        primary = self.cursor_location
+        primary_anchor = self.selection.start
+        extra = list(self._extra_cursors)
+        extra_anchors = list(self._extra_anchors)
+
+        all_pairs = [(primary_anchor, primary)] + list(
+            zip(extra_anchors, extra, strict=True)
+        )
+
+        def to_off(row: int, col: int) -> int:
+            return offsets[row] + col
+
+        ops: list[list[int]] = []
+        p_start = to_off(*primary)  # default for right direction
+        for anchor, cursor in all_pairs:
+            if anchor != cursor:
+                # Has selection — delete the selection content
+                a_off = to_off(*anchor)
+                c_off = to_off(*cursor)
+                ops.append([min(a_off, c_off), max(a_off, c_off)])
+                if cursor == primary:
+                    p_start = min(a_off, c_off)
+            elif direction == "left":
+                row, col = cursor
+                target = self._move_location(lines, row, col, "ctrl+left")
+                t_off = to_off(*target)
+                c_off = to_off(row, col)
+                if t_off < c_off:
+                    ops.append([t_off, c_off])
+                if cursor == primary:
+                    p_start = t_off
+            else:
+                row, col = cursor
+                c_off = to_off(row, col)
+                line = lines[row] if row < len(lines) else ""
+                remaining = line[col:]
+                matches = list(_WORD_PATTERN.finditer(remaining))
+                if matches:
+                    end_off = to_off(row, col + matches[0].end())
+                elif row < len(lines) - 1 and col == len(line):
+                    end_off = to_off(row + 1, 0)
+                else:
+                    end_off = to_off(row, len(line))
+                if end_off > c_off:
+                    ops.append([c_off, end_off])
+
+        if not ops:
+            return
+
+        # Sort and merge overlapping ranges
+        ops.sort()
+        deduped: list[list[int]] = []
+        for op in ops:
+            if deduped and op[0] <= deduped[-1][1]:
+                deduped[-1][1] = max(deduped[-1][1], op[1])
+            else:
+                deduped.append(list(op))
+
+        # Build new text and track cursor offsets
+        parts: list[str] = []
+        prev = 0
+        new_cursor_offsets: list[int] = []
+        accumulated = 0
+        for s, e in deduped:
+            parts.append(text[prev:s])
+            new_cursor_offsets.append(accumulated + (s - prev))
+            accumulated += s - prev
+            prev = e
+        parts.append(text[prev:])
+        new_text = "".join(parts)
+
+        self.replace(new_text, self.document.start, self.document.end)
+
+        new_lines = new_text.split("\n")
+        new_offsets = _build_offsets(new_lines)
+        new_locs = [
+            _offset_to_loc(off, new_lines, new_offsets) for off in new_cursor_offsets
+        ]
+
+        if not new_locs:
+            return
+
+        # Match primary cursor to its deduped range
+        primary_idx = 0
+        for i, (s, _e) in enumerate(deduped):
+            if s <= p_start <= _e:
+                primary_idx = i
+                break
+
+        new_primary = (
+            new_locs[primary_idx] if primary_idx < len(new_locs) else new_locs[0]
+        )
+        self.selection = Selection(new_primary, new_primary)
+        self._extra_cursors = [
+            loc for i, loc in enumerate(new_locs) if i != primary_idx
+        ]
+        self._extra_anchors = list(self._extra_cursors)
+        self._extra_last_x_offsets = [0] * len(self._extra_cursors)
+        self._recompute_selection_ranges()
+        self._line_cache.clear()
+        self.refresh()
 
     # ── sort lines ────────────────────────────────────────────────────────────
 

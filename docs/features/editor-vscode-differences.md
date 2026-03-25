@@ -107,7 +107,7 @@ The following VS Code editor features are not implemented in textual-code:
 | Auto-indent on Enter | No language-aware indent rules |
 | Auto-closing pairs | No bracket/quote auto-close |
 | Comment toggle (line/block) | No `Ctrl+/` or `Ctrl+Shift+/` |
-| Word delete (Ctrl+Backspace / Ctrl+Delete) | Ctrl+W = close tab, Ctrl+F = find |
+| Word delete (Ctrl+Backspace / Ctrl+Delete) | Implemented. Ctrl+Backspace requires enhanced keyboard protocol support |
 | Duplicate line (Ctrl+Shift+D) | Not implemented |
 | Delete line (Ctrl+Shift+K) | Not implemented |
 | Join lines | Not implemented |

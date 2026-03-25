@@ -784,6 +784,25 @@ COMMAND_REGISTRY: tuple[CommandEntry, ...] = (
         "ctrl+down",
         show=False,
     ),
+    # Binding-only entries (no palette callback — word deletion)
+    CommandEntry(
+        "delete_word_left",
+        "Delete Word Left",
+        "Delete to the start of the word",
+        "text_area",
+        "",
+        "ctrl+backspace",
+        show=False,
+    ),
+    CommandEntry(
+        "delete_word_right",
+        "Delete Word Right",
+        "Delete to the start of the next word",
+        "text_area",
+        "",
+        "ctrl+delete",
+        show=False,
+    ),
     # Binding-only entries (no palette callback — navigation-only)
     CommandEntry(
         "cursor_page_up_select",
