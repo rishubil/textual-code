@@ -984,7 +984,7 @@ class ChangeSyntaxThemeModalScreen(ModalScreen[ChangeSyntaxThemeModalResult]):
     @on(Select.Changed, "#theme")
     def _on_theme_changed(self, event: Select.Changed) -> None:
         """Live-preview the selected syntax theme on all open editors."""
-        if event.value is Select.BLANK:
+        if event.value is Select.BLANK or str(event.value) == self._current_theme:
             return
         from textual_code.widgets.code_editor import CodeEditor
 
@@ -1119,7 +1119,7 @@ class ChangeUIThemeModalScreen(ModalScreen[ChangeUIThemeModalResult]):
     @on(Select.Changed, "#theme")
     def _on_theme_changed(self, event: Select.Changed) -> None:
         """Live-preview the selected UI theme."""
-        if event.value is Select.BLANK:
+        if event.value is Select.BLANK or str(event.value) == self._current_theme:
             return
         self.app.theme = str(event.value)
 
