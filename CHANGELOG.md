@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **CI**: add Python 3.13 and 3.14 to supported versions and CI test matrix; remove `.python-version` file (#97)
+- **Dependencies**: add `exclude-newer = "P15D"` to `[tool.uv]` for reproducible dependency resolution; relax `ty` lower bound from 0.0.23 to 0.0.21 for compatibility (Fix #108)
 
 ## [0.3.0] - 2026-03-25
 
