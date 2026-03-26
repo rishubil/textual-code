@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Editor**: extra-cursor selection highlights on the cursor line are now re-applied at the Strip level after cursor-line styling, restoring their visibility; cursor cells take priority over selection cells when they overlap (Fix #114)
 - **Editor**: indentation guides and whitespace markers now use a higher-contrast foreground color on the cursor line, fixing invisibility caused by the overlay color being too close to the cursor-line highlight background in many themes (Fix #106)
 - **Editor**: extra (multi) cursors on the same line as the primary cursor are now re-applied at the Strip level after cursor-line styling, restoring their visibility (Fix #105)
+- **Editor**: "Close All Editors" now processes dirty editors before clean ones, so cancelling the unsaved-changes modal preserves all open tabs instead of losing clean tabs that were closed before the modal appeared (#100)
 
 ### Changed
 

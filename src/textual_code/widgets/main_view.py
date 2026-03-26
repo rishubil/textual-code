@@ -687,6 +687,10 @@ class MainView(Static):
             pane_editors = pane.query(CodeEditor)
             if pane_editors:
                 editors.append(pane_editors.first(CodeEditor))
+        # Process dirty editors first so their modals appear before any clean
+        # editor is closed.  This makes Cancel atomic: if the user cancels on
+        # a dirty editor, no clean editors have been closed yet.
+        editors.sort(key=lambda e: e.text == e.initial_text)
         self._close_next(editors)
 
     def _close_next(self, editors: list[CodeEditor]) -> None:
