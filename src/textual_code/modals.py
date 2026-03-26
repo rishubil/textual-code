@@ -981,6 +981,16 @@ class ChangeSyntaxThemeModalScreen(ModalScreen[ChangeSyntaxThemeModalResult]):
             id="dialog",
         )
 
+    @on(Select.Changed, "#theme")
+    def _on_theme_changed(self, event: Select.Changed) -> None:
+        """Live-preview the selected syntax theme on all open editors."""
+        if event.value is Select.BLANK:
+            return
+        from textual_code.widgets.code_editor import CodeEditor
+
+        for editor in self.app.query(CodeEditor):
+            editor.syntax_theme = str(event.value)
+
     @on(Button.Pressed, "#apply")
     def on_apply(self) -> None:
         value = self.query_one("#theme", Select).value
@@ -994,6 +1004,10 @@ class ChangeSyntaxThemeModalScreen(ModalScreen[ChangeSyntaxThemeModalResult]):
 
     @on(Button.Pressed, "#cancel")
     def action_cancel(self) -> None:
+        from textual_code.widgets.code_editor import CodeEditor
+
+        for editor in self.app.query(CodeEditor):
+            editor.syntax_theme = self._current_theme
         self.dismiss(ChangeSyntaxThemeModalResult(is_cancelled=True, theme=None))
 
 
@@ -1102,6 +1116,13 @@ class ChangeUIThemeModalScreen(ModalScreen[ChangeUIThemeModalResult]):
             id="dialog",
         )
 
+    @on(Select.Changed, "#theme")
+    def _on_theme_changed(self, event: Select.Changed) -> None:
+        """Live-preview the selected UI theme."""
+        if event.value is Select.BLANK:
+            return
+        self.app.theme = str(event.value)
+
     @on(Button.Pressed, "#apply")
     def on_apply(self) -> None:
         value = self.query_one("#theme", Select).value
@@ -1115,6 +1136,7 @@ class ChangeUIThemeModalScreen(ModalScreen[ChangeUIThemeModalResult]):
 
     @on(Button.Pressed, "#cancel")
     def action_cancel(self) -> None:
+        self.app.theme = self._current_theme
         self.dismiss(ChangeUIThemeModalResult(is_cancelled=True, theme=None))
 
 

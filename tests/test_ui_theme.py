@@ -11,6 +11,7 @@ Covers:
 """
 
 import pytest
+from textual.widgets import Select
 
 from textual_code.app import TextualCode
 from textual_code.config import (
@@ -232,3 +233,113 @@ def test_modal_result_cancelled():
     result = ChangeUIThemeModalResult(is_cancelled=True, theme=None)
     assert result.is_cancelled
     assert result.theme is None
+
+
+# ---------------------------------------------------------------------------
+# Group 7: Live preview
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ui_theme_live_preview_on_select_change(workspace):
+    """Changing the theme Select immediately previews the theme."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.theme == "textual-dark"
+        app.action_change_ui_theme()
+        await pilot.pause()
+        modal = app.screen
+        assert isinstance(modal, ChangeUIThemeModalScreen)
+        # Simulate selecting a different theme
+        select = modal.query_one("#theme", Select)
+        select.value = "nord"
+        await pilot.pause()
+        # Theme should be applied immediately as a preview
+        assert app.theme == "nord"
+
+
+@pytest.mark.asyncio
+async def test_ui_theme_preview_reverts_on_cancel(workspace):
+    """Cancelling after preview reverts to the original theme."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.theme == "textual-dark"
+        app.action_change_ui_theme()
+        await pilot.pause()
+        modal = app.screen
+        assert isinstance(modal, ChangeUIThemeModalScreen)
+        select = modal.query_one("#theme", Select)
+        select.value = "nord"
+        await pilot.pause()
+        assert app.theme == "nord"
+        # Cancel should revert (use action_cancel to trigger revert logic)
+        modal.action_cancel()
+        await pilot.pause()
+        assert app.theme == "textual-dark"
+
+
+@pytest.mark.asyncio
+async def test_ui_theme_preview_reverts_on_escape(workspace):
+    """Pressing Escape after preview reverts to the original theme."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        assert app.theme == "textual-dark"
+        app.action_change_ui_theme()
+        await pilot.pause()
+        modal = app.screen
+        select = modal.query_one("#theme", Select)
+        select.value = "nord"
+        await pilot.pause()
+        assert app.theme == "nord"
+        # Escape should revert
+        await pilot.press("escape")
+        await pilot.pause()
+        assert app.theme == "textual-dark"
+
+
+@pytest.mark.asyncio
+async def test_ui_theme_preview_then_apply_persists(workspace):
+    """Preview followed by Apply keeps the theme and saves config."""
+    cfg = workspace / "settings.toml"
+    app = TextualCode(
+        workspace_path=workspace, with_open_file=None, user_config_path=cfg
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_change_ui_theme()
+        await pilot.pause()
+        modal = app.screen
+        select = modal.query_one("#theme", Select)
+        select.value = "nord"
+        await pilot.pause()
+        # Theme previewed before Apply
+        assert app.theme == "nord"
+        modal.dismiss(
+            ChangeUIThemeModalResult(
+                is_cancelled=False, theme="nord", save_level="user"
+            )
+        )
+        await pilot.pause()
+        assert app.theme == "nord"
+        loaded = load_editor_settings(workspace, user_config_path=cfg)
+        assert loaded["ui_theme"] == "nord"
+
+
+@pytest.mark.asyncio
+async def test_ui_theme_preview_ignores_blank(workspace):
+    """Select.BLANK value should not change the theme."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        original = app.theme
+        app.action_change_ui_theme()
+        await pilot.pause()
+        modal = app.screen
+        select = modal.query_one("#theme", Select)
+        # Post a Changed message with BLANK directly (can't set via .value)
+        select.post_message(Select.Changed(select, Select.BLANK))
+        await pilot.pause()
+        assert app.theme == original

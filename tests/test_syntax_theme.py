@@ -13,6 +13,7 @@ Covers:
 """
 
 import pytest
+from textual.widgets import Select
 
 from textual_code.app import TextualCode
 from textual_code.config import (
@@ -25,6 +26,7 @@ from textual_code.modals import (
     ChangeSyntaxThemeModalResult,
     ChangeSyntaxThemeModalScreen,
 )
+from textual_code.widgets.code_editor import CodeEditor
 
 from .conftest import make_app
 
@@ -285,3 +287,127 @@ async def test_action_change_syntax_theme_cancel(workspace):
         await pilot.pause()
         assert app.default_syntax_theme == original
         assert not cfg.exists()
+
+
+# ---------------------------------------------------------------------------
+# Group 10: Live preview
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_syntax_theme_live_preview_on_select_change(workspace):
+    """Changing the syntax theme Select immediately previews the theme."""
+    (workspace / "hello.py").write_text("print('hello')\n")
+    app = make_app(workspace, open_file=workspace / "hello.py", light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.query_one(CodeEditor)
+        assert editor.syntax_theme == "monokai"
+        app.action_change_syntax_theme()
+        await pilot.pause()
+        modal = app.screen
+        assert isinstance(modal, ChangeSyntaxThemeModalScreen)
+        select = modal.query_one("#theme", Select)
+        select.value = "dracula"
+        await pilot.pause()
+        # All editors should preview the new theme
+        for ed in app.query(CodeEditor):
+            assert ed.syntax_theme == "dracula"
+
+
+@pytest.mark.asyncio
+async def test_syntax_theme_preview_reverts_on_cancel(workspace):
+    """Cancelling after preview reverts editors to the original theme."""
+    (workspace / "hello.py").write_text("print('hello')\n")
+    app = make_app(workspace, open_file=workspace / "hello.py", light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_change_syntax_theme()
+        await pilot.pause()
+        modal = app.screen
+        assert isinstance(modal, ChangeSyntaxThemeModalScreen)
+        select = modal.query_one("#theme", Select)
+        select.value = "dracula"
+        await pilot.pause()
+        # Verify preview was applied
+        for ed in app.query(CodeEditor):
+            assert ed.syntax_theme == "dracula"
+        # Cancel should revert (use action_cancel to trigger revert logic)
+        modal.action_cancel()
+        await pilot.pause()
+        for ed in app.query(CodeEditor):
+            assert ed.syntax_theme == "monokai"
+
+
+@pytest.mark.asyncio
+async def test_syntax_theme_preview_reverts_on_escape(workspace):
+    """Pressing Escape after preview reverts editors to the original theme."""
+    (workspace / "hello.py").write_text("print('hello')\n")
+    app = make_app(workspace, open_file=workspace / "hello.py", light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_change_syntax_theme()
+        await pilot.pause()
+        modal = app.screen
+        select = modal.query_one("#theme", Select)
+        select.value = "dracula"
+        await pilot.pause()
+        # Verify preview was applied
+        for ed in app.query(CodeEditor):
+            assert ed.syntax_theme == "dracula"
+        # Escape should revert
+        await pilot.press("escape")
+        await pilot.pause()
+        for ed in app.query(CodeEditor):
+            assert ed.syntax_theme == "monokai"
+
+
+@pytest.mark.asyncio
+async def test_syntax_theme_preview_then_apply_persists(workspace):
+    """Preview followed by Apply keeps the theme and saves config."""
+    cfg = workspace / "settings.toml"
+    (workspace / "hello.py").write_text("print('hello')\n")
+    app = TextualCode(
+        workspace_path=workspace,
+        with_open_file=workspace / "hello.py",
+        user_config_path=cfg,
+    )
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_change_syntax_theme()
+        await pilot.pause()
+        modal = app.screen
+        select = modal.query_one("#theme", Select)
+        select.value = "dracula"
+        await pilot.pause()
+        # Theme previewed before Apply
+        for ed in app.query(CodeEditor):
+            assert ed.syntax_theme == "dracula"
+        modal.dismiss(
+            ChangeSyntaxThemeModalResult(
+                is_cancelled=False, theme="dracula", save_level="user"
+            )
+        )
+        await pilot.pause()
+        for ed in app.query(CodeEditor):
+            assert ed.syntax_theme == "dracula"
+        loaded = load_editor_settings(workspace, user_config_path=cfg)
+        assert loaded["syntax_theme"] == "dracula"
+
+
+@pytest.mark.asyncio
+async def test_syntax_theme_preview_ignores_blank(workspace):
+    """Select.BLANK value should not change the syntax theme."""
+    (workspace / "hello.py").write_text("print('hello')\n")
+    app = make_app(workspace, open_file=workspace / "hello.py", light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_change_syntax_theme()
+        await pilot.pause()
+        modal = app.screen
+        select = modal.query_one("#theme", Select)
+        # Post a Changed message with BLANK directly (can't set via .value)
+        select.post_message(Select.Changed(select, Select.BLANK))
+        await pilot.pause()
+        for ed in app.query(CodeEditor):
+            assert ed.syntax_theme == "monokai"
