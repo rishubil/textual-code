@@ -56,8 +56,11 @@ dev = [
     "pytest-xdist>=3.8.0",
     "ruff>=0.15.4",
     "textual-dev>=1.8.0",
-    "ty>=0.0.23",
+    "ty>=0.0.21",
 ]
+
+[tool.uv]
+exclude-newer = "P15D"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
