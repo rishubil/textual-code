@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Shortcuts**: assign Ctrl+O as default keyboard shortcut for "Open File..." command — opens the file search modal from any context; displayed in the footer, command palette, and F1 shortcuts viewer (Fix #101)
 - **Modals**: press Escape to dismiss non-destructive modals (Save As, Rename, Go to Line, Find, Replace, Change Language, Change Indentation, Change Line Ending, Change Encoding, Change Syntax Theme, Change Word Wrap, Change UI Theme, Sidebar Resize, Split Resize, Shortcut Settings, Footer Config, Show Shortcuts); destructive confirmation modals (Unsaved Changes, Delete, Overwrite, Discard & Reload, Replace All) are not affected (Fix #107)
 
+### Fixed
+
+- **Editor**: indentation guides and whitespace markers now use a higher-contrast foreground color on the cursor line, fixing invisibility caused by the overlay color being too close to the cursor-line highlight background in many themes (Fix #106)
+- **Editor**: extra (multi) cursors on the same line as the primary cursor are now re-applied at the Strip level after cursor-line styling, restoring their visibility (Fix #105)
+
 ### Changed
 
 - **CI**: add Python 3.13 and 3.14 to supported versions and CI test matrix; remove `.python-version` file (#97)

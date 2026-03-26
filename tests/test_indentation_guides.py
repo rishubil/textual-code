@@ -21,7 +21,7 @@ from textual_code.config import (
     load_editor_settings,
 )
 
-from .conftest import make_app
+from .conftest import get_style_color_at, make_app
 
 # ── Group A: config layer ────────────────────────────────────────────────────
 
@@ -328,4 +328,42 @@ class TestRendering:
             assert guides_at_10 == [], (
                 f"No guides expected after scrolling past indent region, "
                 f"got {guides_at_10}"
+            )
+
+    @pytest.mark.asyncio
+    async def test_e10_cursor_line_guides_have_distinct_fg(self, workspace: Path):
+        """Guide fg on cursor line must differ from non-cursor line.
+
+        Issue #106: the overlay color (#3E3E3E) is too close to cursor line
+        background (#3e3d32 for monokai), making guides invisible.
+        """
+        f = workspace / "guide_contrast.py"
+        f.write_text("        x\n        y\n")
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            editor.show_indentation_guides = True
+            await pilot.pause()
+
+            ta = editor.editor
+            ta.focus()
+            await pilot.pause()
+            assert ta.cursor_location[0] == 0
+
+            gw = ta.gutter_width
+
+            strip_cursor = ta._render_line(0)
+            strip_other = ta._render_line(1)
+
+            assert _find_guide_positions(strip_cursor, gw)
+            assert _find_guide_positions(strip_other, gw)
+
+            fg_cursor = get_style_color_at(strip_cursor, gw, 0)
+            fg_other = get_style_color_at(strip_other, gw, 0)
+            assert fg_cursor is not None
+            assert fg_other is not None
+            assert fg_cursor != fg_other, (
+                f"Guide fg should differ on cursor line (got {fg_cursor} on both lines)"
             )

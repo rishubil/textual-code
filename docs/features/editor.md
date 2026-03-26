@@ -199,7 +199,7 @@ Soft word wrap can be toggled per-file via the command palette ("Toggle word wra
 
 ### Indentation Guides: toggleable via command palette or settings
 
-Vertical guide lines are displayed at each indent level within leading whitespace, making code structure easier to follow. Toggle per-file via the command palette ("Toggle indentation guides"). The default is controlled by the `show_indentation_guides` setting (default: `true`). Guides automatically adapt their color to dark and light themes.
+Vertical guide lines are displayed at each indent level within leading whitespace, making code structure easier to follow. Toggle per-file via the command palette ("Toggle indentation guides"). The default is controlled by the `show_indentation_guides` setting (default: `true`). Guides automatically adapt their color to dark and light themes, using a higher-contrast foreground on the cursor line so they remain visible against the cursor-line highlight background.
 
 ### Render Whitespace: select mode via command palette or settings
 
@@ -212,7 +212,7 @@ Whitespace characters (spaces and tabs) can be displayed as visible markers: spa
 | `boundary` | Render leading and trailing whitespace only |
 | `trailing` | Render trailing whitespace only |
 
-When both render whitespace and indentation guides are enabled, guide characters (`│`) take priority at guide positions, and whitespace markers fill the remaining whitespace. Markers automatically adapt their color to dark and light themes.
+When both render whitespace and indentation guides are enabled, guide characters (`│`) take priority at guide positions, and whitespace markers fill the remaining whitespace. Markers automatically adapt their color to dark and light themes, using a higher-contrast foreground on the cursor line.
 
 ### Known Limitations
 

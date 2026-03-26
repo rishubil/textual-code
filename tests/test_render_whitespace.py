@@ -21,7 +21,7 @@ from textual_code.config import (
     load_editor_settings,
 )
 
-from .conftest import make_app
+from .conftest import get_style_color_at, make_app
 
 _SPACE_CHAR = "·"
 _TAB_CHAR = "→"
@@ -561,3 +561,50 @@ class TestRendering:
                 assert len(positions) == 4, (
                     f"mode={mode}: expected 4 markers, got {positions}"
                 )
+
+    @pytest.mark.asyncio
+    async def test_e13_cursor_line_whitespace_has_distinct_fg(self, workspace: Path):
+        """Whitespace marker fg on cursor line must differ from non-cursor line.
+
+        Issue #106: the overlay color is too close to the cursor line background
+        in many themes (e.g. monokai: overlay=#3E3E3E, cursor_bg=#3e3d32).
+        The cursor line should use a higher-contrast overlay color.
+        """
+        f = workspace / "contrast.py"
+        f.write_text("    x\n    y\n")
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            editor.render_whitespace = "all"
+            editor.show_indentation_guides = False
+            await pilot.pause()
+
+            ta = editor.editor
+            # Focus the textarea so cursor_line_style is applied
+            ta.focus()
+            await pilot.pause()
+            # Cursor is on line 0 by default
+            assert ta.cursor_location[0] == 0
+
+            gw = ta.gutter_width
+
+            # Render cursor line (y=0) and non-cursor line (y=1)
+            strip_cursor = ta._render_line(0)
+            strip_other = ta._render_line(1)
+
+            # Both lines have a whitespace marker at content col 0
+            assert _find_whitespace_positions(strip_cursor, gw)
+            assert _find_whitespace_positions(strip_other, gw)
+
+            # The fg color of whitespace markers on the cursor line
+            # should differ from non-cursor lines for better contrast.
+            fg_cursor = get_style_color_at(strip_cursor, gw, 0)
+            fg_other = get_style_color_at(strip_other, gw, 0)
+            assert fg_cursor is not None
+            assert fg_other is not None
+            assert fg_cursor != fg_other, (
+                f"Whitespace marker fg should differ on cursor line "
+                f"(got {fg_cursor} on both lines)"
+            )
