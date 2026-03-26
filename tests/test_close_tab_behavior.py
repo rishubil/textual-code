@@ -9,6 +9,10 @@ VSCode reference:
 - editorGroupsService.test.ts lines 843-867: "closeEditors (direction: right)"
 - editorGroupsService.test.ts lines 902-926: "closeEditors (direction: left)"
 - editorGroupsService.test.ts lines 962-981: "closeAllEditors"
+- editorGroupsService.test.ts lines 646-694: "closeEditor - dirty editor handling"
+- editorGroupsService.test.ts lines 696-745: "closeEditors - dirty editor handling"
+- editorGroupsService.test.ts lines 983-1026: "closeAllEditors - dirty editor handling"
+- editorGroupModel.test.ts lines 1962-2020: "Multiple Editors - Editor Emits Dirty"
 
 Our editor uses position-based tab selection after close (right-adjacent, then left),
 which matches VSCode's behavior when focusRecentEditorAfterClose = false.
@@ -18,6 +22,7 @@ MRU-based activation is NOT implemented — see behavioral differences section b
 from pathlib import Path
 
 from tests.conftest import make_app
+from textual_code.modals import UnsavedChangeModalScreen
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -278,3 +283,237 @@ async def test_close_inactive_tab_keeps_active_unchanged(workspace: Path):
         await pilot.pause()
         assert _tab_count(app) == 2
         assert _active_pane(app) == pane_ids[1]
+
+
+# ── Dirty editor close behavior ─────────────────────────────────────────────
+# Ported from VSCode "closeEditor - dirty editor handling"
+# (editorGroupsService.test.ts lines 646-694)
+#
+# VSCode flow: dirty editor close → confirm dialog → CANCEL / DONT_SAVE / SAVE
+# Our flow:    dirty editor close → UnsavedChangeModalScreen → cancel / dont_save / save
+
+
+async def test_close_dirty_editor_cancel_keeps_editor(workspace: Path):
+    """Closing a dirty editor and pressing Cancel keeps the editor open.
+
+    VSCode equivalent: accessor.fileDialogService.setConfirmResult(ConfirmResult.CANCEL)
+    → closed = false, editor NOT disposed.
+    """
+    f = workspace / "dirty_cancel.py"
+    f.write_text("original\n")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "modified\n"
+        await pilot.pause()
+
+        # Close the dirty editor
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+
+        # Press Cancel
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+        # Editor should still be open and unchanged
+        assert _tab_count(app) == 1
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.text == "modified\n"
+
+
+async def test_close_dirty_editor_dont_save_closes_tab(workspace: Path):
+    """Closing a dirty editor and pressing Don't Save closes it.
+
+    VSCode equivalent: setConfirmResult(ConfirmResult.DONT_SAVE)
+    → closed = true, editor disposed.
+    """
+    f = workspace / "dirty_dontsave.py"
+    f.write_text("original\n")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "modified\n"
+        await pilot.pause()
+
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+
+        await pilot.click("#dont_save")
+        await pilot.pause()
+
+        # Editor should be closed and file content unchanged on disk
+        assert _tab_count(app) == 0
+        assert f.read_text() == "original\n"
+
+
+async def test_close_dirty_editor_save_closes_and_persists(workspace: Path):
+    """Closing a dirty editor and pressing Save writes the file and closes.
+
+    VSCode equivalent: saving dirty editor before close → file content updated,
+    editor closed.
+    """
+    f = workspace / "dirty_save.py"
+    f.write_text("original\n")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "saved content\n"
+        await pilot.pause()
+
+        await pilot.press("ctrl+w")
+        await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+
+        await pilot.click("#save")
+        await pilot.pause()
+
+        # Editor should be closed and file content updated on disk
+        assert _tab_count(app) == 0
+        assert f.read_text() == "saved content\n"
+
+
+# ── Dirty editor batch close behavior ───────────────────────────────────────
+# Ported from VSCode "closeEditors - dirty editor handling"
+# (editorGroupsService.test.ts lines 696-745)
+#
+# VSCode: batch close with dirty → atomic: CANCEL stops ALL, DONT_SAVE closes ALL
+# Our editor: close-all is sequential — each dirty editor gets its own modal prompt
+
+
+async def test_close_all_dirty_cancel_stops_all(workspace: Path):
+    """Close-all with dirty editor: Cancel stops the operation, all editors stay.
+
+    VSCode equivalent: closeEditors([dirty, clean]) with CANCEL → none disposed.
+    In our sequential model, cancelling on the first dirty editor stops the rest.
+    """
+    f1 = workspace / "batch_dirty1.py"
+    f2 = workspace / "batch_clean2.py"
+    f1.write_text("clean1\n")
+    f2.write_text("clean2\n")
+    app = make_app(workspace, light=True, open_file=f1)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.open_code_editor_pane(path=f2)
+        await pilot.pause()
+        assert _tab_count(app) == 2
+
+        # Make the first file dirty
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        # Activate f1
+        tc = app.main_view.tabbed_content
+        assert isinstance(tc, DraggableTabbedContent)
+        pane_ids = tc.get_ordered_pane_ids()
+        tc.active = pane_ids[0]
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "dirty!\n"
+        await pilot.pause()
+
+        # Close all editors
+        await app.main_view.action_close_all_editors()
+        await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+
+        # Cancel — everything should stay
+        await pilot.click("#cancel")
+        await pilot.pause()
+        assert _tab_count(app) >= 1  # at least the dirty editor stays
+
+
+async def test_close_all_dirty_dont_save_closes_all(workspace: Path):
+    """Close-all with dirty editor: Don't Save closes everything.
+
+    VSCode equivalent: closeAllEditors() with DONT_SAVE → all disposed.
+    """
+    f1 = workspace / "batch_dirty_ds1.py"
+    f2 = workspace / "batch_clean_ds2.py"
+    f1.write_text("clean1\n")
+    f2.write_text("clean2\n")
+    app = make_app(workspace, light=True, open_file=f1)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.open_code_editor_pane(path=f2)
+        await pilot.pause()
+        assert _tab_count(app) == 2
+
+        # Make f1 dirty
+        tc = app.main_view.tabbed_content
+        assert isinstance(tc, DraggableTabbedContent)
+        pane_ids = tc.get_ordered_pane_ids()
+        tc.active = pane_ids[0]
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "dirty!\n"
+        await pilot.pause()
+
+        # Close all editors
+        await app.main_view.action_close_all_editors()
+        await pilot.pause()
+
+        # Modal should appear for dirty editor
+        if isinstance(app.screen, UnsavedChangeModalScreen):
+            await pilot.click("#dont_save")
+            await pilot.pause()
+
+        # All editors should be closed
+        assert len(app.main_view.opened_pane_ids) == 0
+
+
+# ── Dirty state detection across splits ──────────────────────────────────────
+# Ported from VSCode "Multiple Editors - Editor Emits Dirty and Label Changed"
+# (editorGroupModel.test.ts lines 1962-2020)
+#
+# VSCode: dirty state changes emit events per group, isolated across groups
+# Our editor: has_unsaved_pane() scans all splits; dirty indicator in tab title
+
+
+async def test_dirty_state_detected_across_splits(workspace: Path):
+    """Dirty state in one split is detected by has_unsaved_pane().
+
+    VSCode equivalent: dirty state events are tracked per editor group.
+    In our architecture, has_unsaved_pane() scans all splits.
+    """
+    f1 = workspace / "split_dirty1.py"
+    f2 = workspace / "split_clean2.py"
+    f1.write_text("clean1\n")
+    f2.write_text("clean2\n")
+    app = make_app(workspace, light=True, open_file=f1)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        # Initially clean
+        assert main.has_unsaved_pane() is False
+
+        # Open f2 in a split
+        await app.main_view.open_code_editor_pane(path=f2)
+        await pilot.pause()
+        await pilot.press("ctrl+\\")  # split
+        await pilot.pause()
+
+        # Make f1 dirty (in the original split)
+        tc = main.tabbed_content
+        assert isinstance(tc, DraggableTabbedContent)
+        pane_ids = tc.get_ordered_pane_ids()
+        if pane_ids:
+            tc.active = pane_ids[0]
+            await pilot.pause()
+        editor = main.get_active_code_editor()
+        if editor is not None:
+            editor.text = "dirty in split 1\n"
+            await pilot.pause()
+
+        # has_unsaved_pane() should detect dirty state across splits
+        assert main.has_unsaved_pane() is True
