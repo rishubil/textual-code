@@ -791,24 +791,28 @@ async def test_save_screenshot_error_on_invalid_path(workspace: Path):
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        # Create a read-only directory
+        # Create a read-only directory (0o555 = read+execute, no write)
         readonly_dir = workspace / "readonly"
         readonly_dir.mkdir()
-        readonly_dir.chmod(0o444)
+        readonly_dir.chmod(0o555)
 
-        # Invoke the real action
-        app.action_save_screenshot()
-        await pilot.pause()
+        try:
+            # Invoke the real action
+            app.action_save_screenshot()
+            await pilot.pause()
 
-        # Set path to a location inside the read-only directory
-        from textual.widgets import Input
+            # Set path to a location inside the read-only directory
+            from textual.widgets import Input
 
-        input_widget = app.screen.query_one("#path", Input)
-        input_widget.value = "readonly/subdir/fail.svg"
-        await pilot.pause()
+            input_widget = app.screen.query_one("#path", Input)
+            input_widget.value = "readonly/subdir/fail.svg"
+            await pilot.pause()
 
-        await pilot.click("#save")
-        await pilot.pause()
+            await pilot.click("#save")
+            await pilot.pause()
+        finally:
+            # Restore permissions so tmp_path cleanup succeeds
+            readonly_dir.chmod(0o755)
 
     error_msgs = [msg for msg, sev in notifications if sev == "error"]
     assert len(error_msgs) > 0
