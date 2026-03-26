@@ -1,3 +1,4 @@
+import logging
 import time
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -58,6 +59,8 @@ from textual_code.modals import (
     ChangeWordWrapModalScreen,
     DeleteFileModalResult,
     DeleteFileModalScreen,
+    SaveAsModalResult,
+    SaveAsModalScreen,
     ShowShortcutsScreen,
     SidebarResizeModalResult,
     SidebarResizeModalScreen,
@@ -72,6 +75,8 @@ from textual_code.widgets.main_view import MainView
 from textual_code.widgets.ordered_footer import OrderedFooter
 from textual_code.widgets.sidebar import SIDEBAR_MIN_WIDTH, Sidebar
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+_logger = logging.getLogger(__name__)
 
 _KEY_DISPLAY_NAMES: dict[str, str] = {
     "backslash": "\\",
@@ -1184,6 +1189,41 @@ class TextualCode(App):
             self.call_next(code_editor.action_revert_file)
         else:
             self.notify("No file open.", severity="error")
+
+    def action_save_screenshot(self) -> None:
+        """Save a screenshot of the terminal as an SVG file."""
+        from datetime import datetime
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        default_name = f"screenshot_{timestamp}.svg"
+
+        def on_result(result: SaveAsModalResult | None) -> None:
+            # Callback fires after the modal is dismissed, so
+            # export_screenshot() captures the app without the modal.
+            if result is None or result.is_cancelled:
+                return
+            file_path = (result.file_path or "").strip()
+            if not file_path:
+                self.notify("File path cannot be empty.", severity="error")
+                return
+            path = Path(file_path)
+            if not path.is_absolute():
+                path = self.workspace_path / path
+            try:
+                svg = self.export_screenshot()
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(svg, encoding="utf-8")
+                self.notify(f"Screenshot saved to {path}")
+            except Exception as exc:
+                _logger.exception("Failed to save screenshot to %s", path)
+                self.notify(f"Failed to save screenshot: {exc}", severity="error")
+
+        self.call_next(
+            lambda: self.push_screen(
+                SaveAsModalScreen(title="Save Screenshot", default_path=default_name),
+                on_result,
+            )
+        )
 
     def action_resize_sidebar(self) -> None:
         """Open the Resize Sidebar modal via command palette."""

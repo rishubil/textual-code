@@ -47,16 +47,26 @@ class SaveAsModalResult:
 
 
 class SaveAsModalScreen(ModalScreen[SaveAsModalResult]):
-    """
-    Modal dialog for saving a file to a specific path.
+    """Modal dialog for saving a file to a specific path.
+
+    Also used for "Save Screenshot" via *title* / *default_path* overrides.
     """
 
     BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
 
+    def __init__(self, title: str = "Save As", default_path: str = "") -> None:
+        super().__init__()
+        self._modal_title = title
+        self._default_path = default_path
+
     def compose(self) -> ComposeResult:
+        if self._default_path:
+            path_input = Input(value=self._default_path, id="path")
+        else:
+            path_input = Input(placeholder="Enter the file path", id="path")
         yield Grid(
-            Label("Save As", id="title"),
-            Input(placeholder="Enter the file path", id="path"),
+            Label(self._modal_title, id="title"),
+            path_input,
             Button("Save", variant="primary", id="save"),
             Button("Cancel", variant="default", id="cancel"),
             id="dialog",

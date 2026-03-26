@@ -6,7 +6,7 @@ Each modal is tested independently using a wrapping TestApp.
 from pathlib import Path
 
 from textual.app import App, ComposeResult
-from textual.widgets import Label
+from textual.widgets import Input, Label
 
 from textual_code.modals import (
     ChangeEncodingModalScreen,
@@ -1573,3 +1573,78 @@ async def test_show_shortcuts_escape_dismisses():
         await pilot.pause()
 
     assert app.result is None
+
+
+# ── Save Screenshot (SaveAsModalScreen with title override) ──────────────────
+
+
+class _SaveScreenshotApp(App):
+    def __init__(self, default_path: str = "screenshot_test.svg"):
+        super().__init__()
+        self.result: SaveAsModalResult | None = None
+        self._default_path = default_path
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(
+            SaveAsModalScreen(title="Save Screenshot", default_path=self._default_path),
+            self._on_result,
+        )
+
+    def _on_result(self, result: SaveAsModalResult | None) -> None:
+        self.result = result
+
+
+async def test_save_screenshot_modal_save_button():
+    app = _SaveScreenshotApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#save")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.file_path == "screenshot_test.svg"
+
+
+async def test_save_screenshot_modal_cancel_button():
+    app = _SaveScreenshotApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#cancel")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.file_path is None
+
+
+async def test_save_screenshot_modal_enter_submits():
+    app = _SaveScreenshotApp()
+    async with app.run_test() as pilot:
+        input_widget = app.screen.query_one("#path")
+        await pilot.click(input_widget)
+        await pilot.press("enter")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is False
+    assert app.result.file_path == "screenshot_test.svg"
+
+
+async def test_save_screenshot_modal_escape_dismisses():
+    app = _SaveScreenshotApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.pause()
+
+    assert app.result is not None
+    assert app.result.is_cancelled is True
+    assert app.result.file_path is None
+
+
+async def test_save_screenshot_modal_default_value():
+    app = _SaveScreenshotApp(default_path="my_screenshot.svg")
+    async with app.run_test():
+        input_widget = app.screen.query_one("#path", Input)
+        assert input_widget.value == "my_screenshot.svg"
