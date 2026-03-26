@@ -330,6 +330,32 @@ class TestRendering:
                 f"got {guides_at_10}"
             )
 
+    def test_e11_component_classes_defined(self):
+        """MultiCursorTextArea must define guide component classes."""
+        from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+        assert "text-area--indentation-guide" in MultiCursorTextArea.COMPONENT_CLASSES
+        assert (
+            "text-area--indentation-guide-active"
+            in MultiCursorTextArea.COMPONENT_CLASSES
+        )
+
+    @pytest.mark.asyncio
+    async def test_e12_overlay_fg_returns_color_object(self, workspace: Path):
+        """_overlay_fg() must return a rich Color, not a hardcoded hex string."""
+        from rich.color import Color
+
+        f = workspace / "color_type.py"
+        f.write_text("        code\n")
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            ta = editor.editor
+            result = ta._overlay_fg(0, feature="indentation-guide")
+            assert isinstance(result, Color)
+
     @pytest.mark.asyncio
     async def test_e10_cursor_line_guides_have_distinct_fg(self, workspace: Path):
         """Guide fg on cursor line must differ from non-cursor line.

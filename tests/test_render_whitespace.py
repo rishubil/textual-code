@@ -562,6 +562,29 @@ class TestRendering:
                     f"mode={mode}: expected 4 markers, got {positions}"
                 )
 
+    def test_e14_component_classes_defined(self):
+        """MultiCursorTextArea must define whitespace component classes."""
+        from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+        assert "text-area--whitespace" in MultiCursorTextArea.COMPONENT_CLASSES
+        assert "text-area--whitespace-active" in MultiCursorTextArea.COMPONENT_CLASSES
+
+    @pytest.mark.asyncio
+    async def test_e15_overlay_fg_returns_color_object(self, workspace: Path):
+        """_overlay_fg() must return a rich Color for whitespace feature."""
+        from rich.color import Color
+
+        f = workspace / "ws_color.py"
+        f.write_text("    code\n")
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            ta = editor.editor
+            result = ta._overlay_fg(0, feature="whitespace")
+            assert isinstance(result, Color)
+
     @pytest.mark.asyncio
     async def test_e13_cursor_line_whitespace_has_distinct_fg(self, workspace: Path):
         """Whitespace marker fg on cursor line must differ from non-cursor line.
