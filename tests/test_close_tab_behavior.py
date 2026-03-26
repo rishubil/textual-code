@@ -161,10 +161,7 @@ async def test_close_sequential_position_based(workspace: Path):
         assert _tab_count(app) == 3
         assert _active_pane(app) == pane_ids[1]
 
-        # 3. Activate file3, close file3 → file2 activates (was to the left,
-        #    because file3 is now rightmost after file4/5 were closed... wait,
-        #    file4 is still open. Let me reconsider.
-        #    Remaining after step 2: file2, file3, file4
+        # 3. Remaining: [file2, file3, file4]
         #    Activate file3 (middle), close → file4 activates (next right)
         tc.active = pane_ids[2]
         await pilot.pause()
@@ -510,13 +507,13 @@ async def test_dirty_state_detected_across_splits(workspace: Path):
         tc = main.tabbed_content
         assert isinstance(tc, DraggableTabbedContent)
         pane_ids = tc.get_ordered_pane_ids()
-        if pane_ids:
-            tc.active = pane_ids[0]
-            await pilot.pause()
+        assert pane_ids, "Expected at least one pane after split"
+        tc.active = pane_ids[0]
+        await pilot.pause()
         editor = main.get_active_code_editor()
-        if editor is not None:
-            editor.text = "dirty in split 1\n"
-            await pilot.pause()
+        assert editor is not None, "Expected active editor after activating pane"
+        editor.text = "dirty in split 1\n"
+        await pilot.pause()
 
         # has_unsaved_pane() should detect dirty state across splits
         assert main.has_unsaved_pane() is True

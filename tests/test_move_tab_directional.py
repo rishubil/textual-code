@@ -217,7 +217,7 @@ async def test_move_tab_noop_no_editor(workspace: Path):
 
 
 async def test_move_only_tab_auto_closes_source(
-    workspace: Path, py_file: Path, py_file2: Path, py_file3: Path
+    workspace: Path, py_file: Path, py_file3: Path
 ):
     """When the only tab in a leaf is moved, the source leaf auto-closes."""
     app = make_app(workspace, open_file=py_file, light=True)
