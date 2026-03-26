@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from bisect import bisect_right
 from collections import defaultdict
 from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar, Literal
@@ -639,15 +640,20 @@ MultiCursorTextArea {
         raw_ranges = self._cached_selection_ranges.get(line_index) or ()
         if selection_style and raw_ranges:
             line_len = len(self.document[line_index])
-            sel_ranges = [(s, e if e is not None else line_len) for s, e in raw_ranges]
+            sel_ranges = sorted(
+                (s, e if e is not None else line_len) for s, e in raw_ranges
+            )
+            sel_starts = [s for s, _e in sel_ranges]
         else:
             sel_ranges = []
+            sel_starts = []
 
         if not cursor_cols and not sel_ranges:
             return strip
 
         def _in_selection(col: int) -> bool:
-            return any(s <= col < e for s, e in sel_ranges)
+            idx = bisect_right(sel_starts, col) - 1
+            return idx >= 0 and sel_ranges[idx][0] <= col < sel_ranges[idx][1]
 
         gutter_width = self.gutter_width if self.show_line_numbers else 0
         scroll_x = self.scroll_offset.x if not self.soft_wrap else 0
