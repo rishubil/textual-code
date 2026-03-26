@@ -307,6 +307,13 @@ COMMAND_REGISTRY: tuple[CommandEntry, ...] = (
         "action_refresh_explorer",
     ),
     CommandEntry(
+        "save_screenshot",
+        "Save Screenshot...",
+        "Save a screenshot of the terminal as SVG",
+        "app",
+        "action_save_screenshot",
+    ),
+    CommandEntry(
         "save_as",
         "Save As...",
         "Save the current file as new file",

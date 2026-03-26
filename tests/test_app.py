@@ -725,3 +725,122 @@ async def test_command_palette_blocked_while_path_search_modal_is_active(
 
         assert isinstance(app.screen, PathSearchModal)
         assert not CommandPalette.is_open(app)
+
+
+# ── Save Screenshot ──────────────────────────────────────────────────────────
+
+
+async def test_save_screenshot_writes_svg_file(workspace: Path):
+    """action_save_screenshot writes an SVG file to the workspace."""
+    from textual_code.modals import SaveAsModalScreen
+
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        # Push modal directly with a known filename
+        def on_result(result):
+            if result and not result.is_cancelled:
+                file_path = result.file_path.strip()
+                path = app.workspace_path / file_path
+                svg = app.export_screenshot()
+                path.write_text(svg, encoding="utf-8")
+
+        app.push_screen(
+            SaveAsModalScreen(title="Save Screenshot", default_path="test_shot.svg"),
+            on_result,
+        )
+        await pilot.pause()
+
+        # Click save to submit the default path
+        await pilot.click("#save")
+        await pilot.pause()
+
+    output = workspace / "test_shot.svg"
+    assert output.exists()
+    content = output.read_text()
+    assert "<svg" in content
+
+
+async def test_save_screenshot_relative_path_resolves_to_workspace(workspace: Path):
+    """Relative path should resolve against workspace_path."""
+    from textual_code.modals import SaveAsModalScreen
+
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        def on_result(result):
+            if result and not result.is_cancelled:
+                file_path = result.file_path.strip()
+                path = Path(file_path)
+                if not path.is_absolute():
+                    path = app.workspace_path / path
+                svg = app.export_screenshot()
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(svg, encoding="utf-8")
+
+        app.push_screen(
+            SaveAsModalScreen(title="Save Screenshot", default_path="subdir/shot.svg"),
+            on_result,
+        )
+        await pilot.pause()
+
+        # Submit with default value
+        await pilot.click("#save")
+        await pilot.pause()
+
+    output = workspace / "subdir" / "shot.svg"
+    assert output.exists()
+    content = output.read_text()
+    assert "<svg" in content
+
+
+async def test_save_screenshot_error_on_invalid_path(workspace: Path):
+    """Error notification should be shown when writing to an invalid path fails."""
+    app = make_app(workspace)
+    notifications: list[tuple[str, str]] = []
+    original_notify = app.notify
+
+    def capture_notify(msg, *, severity="information", **kwargs):
+        notifications.append((msg, severity))
+        return original_notify(msg, severity=severity, **kwargs)
+
+    app.notify = capture_notify  # type: ignore[method-assign]
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        # Try to save to a path that cannot be written
+        readonly_dir = workspace / "readonly"
+        readonly_dir.mkdir()
+        readonly_dir.chmod(0o444)
+
+        from textual_code.modals import SaveAsModalScreen
+
+        def on_result(result):
+            if result and not result.is_cancelled:
+                file_path = result.file_path.strip()
+                path = app.workspace_path / file_path
+                try:
+                    svg = app.export_screenshot()
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(svg, encoding="utf-8")
+                    app.notify(f"Screenshot saved to {path}")
+                except Exception as exc:
+                    app.notify(f"Failed to save screenshot: {exc}", severity="error")
+
+        app.push_screen(
+            SaveAsModalScreen(
+                title="Save Screenshot",
+                default_path="readonly/subdir/fail.svg",
+            ),
+            on_result,
+        )
+        await pilot.pause()
+        await pilot.click("#save")
+        await pilot.pause()
+
+    error_msgs = [msg for msg, sev in notifications if sev == "error"]
+    assert len(error_msgs) > 0
+    assert any("Failed to save screenshot" in msg for msg in error_msgs)

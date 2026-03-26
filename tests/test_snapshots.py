@@ -1126,6 +1126,26 @@ def test_snapshot_file_search_modal(
     )
 
 
+# ── Save Screenshot modal ─────────────────────────────────────────────────────
+
+
+def test_snapshot_save_screenshot_modal(snap_compare, snapshot_workspace: Path):
+    """Save Screenshot modal open via direct push with fixed path."""
+    from textual_code.modals import SaveAsModalScreen
+
+    app = make_app(snapshot_workspace)
+
+    async def run_before(pilot):
+        await pilot.pause()
+        # Push modal directly with a fixed path to avoid timestamp nondeterminism
+        app.push_screen(
+            SaveAsModalScreen(title="Save Screenshot", default_path="screenshot.svg")
+        )
+        await pilot.pause()
+
+    assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
+
+
 # ── Image preview ─────────────────────────────────────────────────────────────
 
 
