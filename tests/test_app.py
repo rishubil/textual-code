@@ -731,62 +731,42 @@ async def test_command_palette_blocked_while_path_search_modal_is_active(
 
 
 async def test_save_screenshot_writes_svg_file(workspace: Path):
-    """action_save_screenshot writes an SVG file to the workspace."""
-    from textual_code.modals import SaveAsModalScreen
-
+    """action_save_screenshot opens modal and writes an SVG file."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        # Push modal directly with a known filename
-        def on_result(result):
-            if result and not result.is_cancelled:
-                file_path = result.file_path.strip()
-                path = app.workspace_path / file_path
-                svg = app.export_screenshot()
-                path.write_text(svg, encoding="utf-8")
-
-        app.push_screen(
-            SaveAsModalScreen(title="Save Screenshot", default_path="test_shot.svg"),
-            on_result,
-        )
+        # Invoke the real action, which opens the save screenshot modal
+        app.action_save_screenshot()
         await pilot.pause()
 
-        # Click save to submit the default path
+        # Click save to submit the default timestamped filename
         await pilot.click("#save")
         await pilot.pause()
 
-    output = workspace / "test_shot.svg"
-    assert output.exists()
-    content = output.read_text()
+    svg_files = list(workspace.glob("screenshot_*.svg"))
+    assert len(svg_files) == 1
+    content = svg_files[0].read_text()
     assert "<svg" in content
 
 
 async def test_save_screenshot_relative_path_resolves_to_workspace(workspace: Path):
-    """Relative path should resolve against workspace_path."""
-    from textual_code.modals import SaveAsModalScreen
-
+    """Relative path typed in the modal resolves against workspace_path."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        def on_result(result):
-            if result and not result.is_cancelled:
-                file_path = result.file_path.strip()
-                path = Path(file_path)
-                if not path.is_absolute():
-                    path = app.workspace_path / path
-                svg = app.export_screenshot()
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(svg, encoding="utf-8")
-
-        app.push_screen(
-            SaveAsModalScreen(title="Save Screenshot", default_path="subdir/shot.svg"),
-            on_result,
-        )
+        # Invoke the real action
+        app.action_save_screenshot()
         await pilot.pause()
 
-        # Submit with default value
+        # Clear the default filename and type a relative subdirectory path
+        from textual.widgets import Input
+
+        input_widget = app.screen.query_one("#path", Input)
+        input_widget.value = "subdir/shot.svg"
+        await pilot.pause()
+
         await pilot.click("#save")
         await pilot.pause()
 
@@ -797,7 +777,7 @@ async def test_save_screenshot_relative_path_resolves_to_workspace(workspace: Pa
 
 
 async def test_save_screenshot_error_on_invalid_path(workspace: Path):
-    """Error notification should be shown when writing to an invalid path fails."""
+    """Error notification shown when writing to a read-only directory fails."""
     app = make_app(workspace)
     notifications: list[tuple[str, str]] = []
     original_notify = app.notify
@@ -811,33 +791,22 @@ async def test_save_screenshot_error_on_invalid_path(workspace: Path):
     async with app.run_test() as pilot:
         await pilot.pause()
 
-        # Try to save to a path that cannot be written
+        # Create a read-only directory
         readonly_dir = workspace / "readonly"
         readonly_dir.mkdir()
         readonly_dir.chmod(0o444)
 
-        from textual_code.modals import SaveAsModalScreen
-
-        def on_result(result):
-            if result and not result.is_cancelled:
-                file_path = result.file_path.strip()
-                path = app.workspace_path / file_path
-                try:
-                    svg = app.export_screenshot()
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    path.write_text(svg, encoding="utf-8")
-                    app.notify(f"Screenshot saved to {path}")
-                except Exception as exc:
-                    app.notify(f"Failed to save screenshot: {exc}", severity="error")
-
-        app.push_screen(
-            SaveAsModalScreen(
-                title="Save Screenshot",
-                default_path="readonly/subdir/fail.svg",
-            ),
-            on_result,
-        )
+        # Invoke the real action
+        app.action_save_screenshot()
         await pilot.pause()
+
+        # Set path to a location inside the read-only directory
+        from textual.widgets import Input
+
+        input_widget = app.screen.query_one("#path", Input)
+        input_widget.value = "readonly/subdir/fail.svg"
+        await pilot.pause()
+
         await pilot.click("#save")
         await pilot.pause()
 
