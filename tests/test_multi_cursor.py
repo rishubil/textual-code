@@ -1783,7 +1783,7 @@ async def test_multi_cursor_sticky_column_resets_on_horizontal(
 
 
 class TestExtraCursorVisibility:
-    """Extra cursors on the cursor line must be visually distinct (#105)."""
+    """Extra cursors on the cursor line must be visually distinct (#105, #114)."""
 
     @pytest.mark.asyncio
     async def test_extra_cursor_has_distinct_bg_on_cursor_line(self, workspace: Path):
@@ -1819,4 +1819,127 @@ class TestExtraCursorVisibility:
             assert bg_extra != bg_normal, (
                 f"Extra cursor bg at col 4 should differ from normal text bg at col 2 "
                 f"on cursor line (extra={bg_extra}, normal={bg_normal})"
+            )
+
+    @pytest.mark.asyncio
+    async def test_extra_cursor_selection_visible_on_cursor_line(self, workspace: Path):
+        """Extra-cursor selection ranges on the cursor line must have a
+        different background from plain cursor-line text (#114).
+
+        Scenario: 'hello hello hello' on line 0.  Primary cursor selects the
+        first 'hello' (col 0-5), extra cursor selects the second 'hello'
+        (col 6-11).  The extra-cursor selection at col 6-10 must have a
+        visible selection background, not the plain cursor_line_style bg.
+        """
+        f = workspace / "sel_line.py"
+        f.write_text("hello hello hello\nsecond line\n")
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            ta = editor.editor
+            ta.focus()
+            await pilot.pause()
+
+            # Primary cursor at col 5 with anchor at col 0 (selects "hello")
+            ta.selection = Selection((0, 5), (0, 0))
+            await pilot.pause()
+
+            # Extra cursor at col 11 with anchor at col 6 (selects "hello")
+            ta.add_cursor((0, 11), anchor=(0, 6))
+            await pilot.pause()
+
+            gw = ta.gutter_width
+            strip = ta._render_line(0)
+
+            # Col 8 is inside the extra-cursor selection range (6-11).
+            # Col 13 is outside any selection (plain cursor-line text).
+            bg_sel = get_style_color_at(strip, gw, 8, "bgcolor")
+            bg_plain = get_style_color_at(strip, gw, 13, "bgcolor")
+            assert bg_sel != bg_plain, (
+                f"Extra-cursor selection bg at col 8 should differ from plain "
+                f"cursor-line bg at col 13 (sel={bg_sel}, plain={bg_plain})"
+            )
+
+    @pytest.mark.asyncio
+    async def test_extra_cursor_inside_selection_has_cursor_style(
+        self, workspace: Path
+    ):
+        """When an extra cursor sits inside its own selection range, the cursor
+        cell must use cursor_style (not selection_style) (#114).
+
+        Cursor_style has higher priority than selection_style.
+        """
+        f = workspace / "cur_in_sel.py"
+        f.write_text("hello hello hello\nsecond line\n")
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            ta = editor.editor
+            ta.focus()
+            await pilot.pause()
+
+            # Primary cursor at col 0 (no selection)
+            ta.move_cursor((0, 0))
+            await pilot.pause()
+
+            # Extra cursor at col 8, anchor at col 6 → selection covers cols 6-8
+            # Col 8 is both cursor AND inside selection
+            ta.add_cursor((0, 8), anchor=(0, 6))
+            await pilot.pause()
+
+            gw = ta.gutter_width
+            strip = ta._render_line(0)
+
+            # Col 8 (cursor) must have cursor_style bg, not selection_style bg
+            bg_cursor = get_style_color_at(strip, gw, 8, "bgcolor")
+            # Col 7 is inside selection but not a cursor
+            bg_sel = get_style_color_at(strip, gw, 7, "bgcolor")
+            assert bg_cursor != bg_sel, (
+                f"Cursor bg at col 8 should differ from selection bg at col 7 "
+                f"(cursor={bg_cursor}, sel={bg_sel})"
+            )
+
+    @pytest.mark.asyncio
+    async def test_extra_cursor_selection_visible_on_non_cursor_line(
+        self, workspace: Path
+    ):
+        """Extra-cursor selections on a non-cursor line must render with
+        selection_style background (regression guard for #114 fix).
+
+        On non-cursor lines, cursor_line_style is NOT applied, so get_line()
+        selection_style should survive without needing re-injection.
+        """
+        f = workspace / "non_cur_sel.py"
+        f.write_text("first line\nhello hello hello\nthird line\n")
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            ta = editor.editor
+            ta.focus()
+            await pilot.pause()
+
+            # Primary cursor on line 0
+            ta.move_cursor((0, 0))
+            await pilot.pause()
+
+            # Extra cursor on line 1 col 5, anchor at col 0 → selects "hello"
+            ta.add_cursor((1, 5), anchor=(1, 0))
+            await pilot.pause()
+
+            gw = ta.gutter_width
+            strip = ta._render_line(1)
+
+            # Col 2 is inside the extra-cursor selection (0-5) on line 1
+            # Col 8 is outside any selection
+            bg_sel = get_style_color_at(strip, gw, 2, "bgcolor")
+            bg_plain = get_style_color_at(strip, gw, 8, "bgcolor")
+            assert bg_sel != bg_plain, (
+                f"Extra-cursor selection bg at col 2 should differ from plain "
+                f"bg at col 8 on non-cursor line (sel={bg_sel}, plain={bg_plain})"
             )
