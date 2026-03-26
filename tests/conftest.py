@@ -266,3 +266,33 @@ def restore_bindings():
     yield
     for cls, bindings in backup.items():
         cls.BINDINGS = bindings
+
+
+# ── Strip style inspection helpers ────────────────────────────────────────────
+
+
+def get_style_color_at(
+    strip, gutter_width: int, content_col: int, attr: str = "color"
+) -> str | None:
+    """Return the foreground or background color (as string) at a content column.
+
+    Args:
+        strip: Rendered Strip from ``_render_line()``.
+        gutter_width: Number of gutter cells to skip.
+        content_col: Content-relative column to inspect.
+        attr: ``"color"`` for foreground, ``"bgcolor"`` for background.
+    """
+    from rich.segment import Segment
+
+    cell_pos = 0
+    for seg in strip:
+        text = seg.text if isinstance(seg, Segment) else str(seg)
+        style = seg.style if isinstance(seg, Segment) else None
+        for _ch in text:
+            if cell_pos >= gutter_width and cell_pos - gutter_width == content_col:
+                if style:
+                    value = getattr(style, attr, None)
+                    return str(value) if value else None
+                return None
+            cell_pos += 1
+    return None

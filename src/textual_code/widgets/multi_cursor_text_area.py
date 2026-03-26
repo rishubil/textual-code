@@ -247,6 +247,9 @@ class MultiCursorTextArea(TextArea):
     # ── Shared overlay colors (for indentation guides and whitespace markers) ─
     _OVERLAY_COLOR_DARK = "#3E3E3E"
     _OVERLAY_COLOR_LIGHT = "#CCCCCC"
+    # Higher-contrast variants for the cursor line (#106)
+    _OVERLAY_COLOR_DARK_CURSOR_LINE = "#606060"
+    _OVERLAY_COLOR_LIGHT_CURSOR_LINE = "#A0A0A0"
 
     # ── Indentation guide styles ─────────────────────────────────────────────
     _INDENT_GUIDE_CHAR = "│"
@@ -296,7 +299,7 @@ class MultiCursorTextArea(TextArea):
             return None
         return line_info
 
-    # ── theme helper ─────────────────────────────────────────────────────────
+    # ── theme / cursor-line helpers ───────────────────────────────────────────
 
     def _is_light_theme(self) -> bool:
         """Return True if the current theme background is light."""
@@ -308,18 +311,43 @@ class MultiCursorTextArea(TextArea):
                 return 0.299 * r + 0.587 * g + 0.114 * b > 128
         return False
 
+    def _is_cursor_line(self, line_index: int) -> bool:
+        """Return True if *line_index* is the highlighted cursor line."""
+        return (
+            self.highlight_cursor_line
+            and self._has_cursor
+            and self.selection.end[0] == line_index
+        )
+
+    def _overlay_fg(self, line_index: int) -> str:
+        """Pick the overlay foreground color for guides/whitespace markers.
+
+        Uses a higher-contrast variant when *line_index* is the cursor line
+        so that markers remain visible against the cursor-line background.
+        """
+        is_light = self._is_light_theme()
+        if self._is_cursor_line(line_index):
+            return (
+                self._OVERLAY_COLOR_LIGHT_CURSOR_LINE
+                if is_light
+                else self._OVERLAY_COLOR_DARK_CURSOR_LINE
+            )
+        return self._OVERLAY_COLOR_LIGHT if is_light else self._OVERLAY_COLOR_DARK
+
     # ── rendering pipeline ───────────────────────────────────────────────────
 
     def _render_line(self, y: int) -> Strip:
         """Override TextArea._render_line to layer visual enhancements.
 
-        Pipeline: base render → git gutter → whitespace rendering → indentation guides.
+        Pipeline: base render → git gutter → whitespace → guides → extra cursors.
         """
         strip = self._render_line_with_gutter(y)
         if self._render_whitespace != "none":
             strip = self._inject_whitespace_rendering(strip, y)
         if self._show_indentation_guides:
             strip = self._inject_indentation_guides(strip, y)
+        if self._extra_cursors:
+            strip = self._inject_extra_cursors(strip, y)
         return strip
 
     def _render_line_with_gutter(self, y: int) -> Strip:
@@ -472,11 +500,7 @@ class MultiCursorTextArea(TextArea):
 
         gutter_width = self.gutter_width if self.show_line_numbers else 0
         scroll_x = self.scroll_offset.x if not self.soft_wrap else 0
-        ws_fg = (
-            self._OVERLAY_COLOR_LIGHT
-            if self._is_light_theme()
-            else self._OVERLAY_COLOR_DARK
-        )
+        ws_fg = self._overlay_fg(line_index)
 
         new_segments: list[Segment] = []
         cell_pos = 0
@@ -540,11 +564,7 @@ class MultiCursorTextArea(TextArea):
         gutter_width = self.gutter_width if self.show_line_numbers else 0
         scroll_x = self.scroll_offset.x if not self.soft_wrap else 0
 
-        guide_fg = (
-            self._OVERLAY_COLOR_LIGHT
-            if self._is_light_theme()
-            else self._OVERLAY_COLOR_DARK
-        )
+        guide_fg = self._overlay_fg(line_index)
 
         new_segments: list[Segment] = []
         cell_pos = 0
@@ -573,6 +593,64 @@ class MultiCursorTextArea(TextArea):
                 content_col = cell_pos - gutter_width + scroll_x
                 if content_col in guide_positions:
                     new_segments.append(Segment(self._INDENT_GUIDE_CHAR, guide_style))
+                else:
+                    new_segments.append(Segment(ch, seg_style))
+                cell_pos += cell_len(ch)
+
+        return Strip(new_segments, cell_length=strip.cell_length)
+
+    def _inject_extra_cursors(self, strip: Strip, y: int) -> Strip:
+        """Re-apply cursor_style at extra-cursor positions in the rendered Strip.
+
+        The parent TextArea applies cursor_line_style (bgcolor) to the entire
+        cursor line *after* get_line() sets cursor_style on extra cursors,
+        effectively hiding them.  This stage restores visibility by overwriting
+        the style at each extra-cursor cell with the theme's cursor_style.
+        """
+        if not self._extra_cursors or not self._theme:
+            return strip
+
+        cursor_style = self._theme.cursor_style
+        if not cursor_style:
+            return strip
+
+        line_info = self._resolve_line_index(y)
+        if line_info is None:
+            return strip
+
+        line_index, section_offset = line_info
+        if section_offset != 0:
+            return strip
+
+        cursor_cols = {col for row, col in self._extra_cursors if row == line_index}
+        if not cursor_cols:
+            return strip
+
+        gutter_width = self.gutter_width if self.show_line_numbers else 0
+        scroll_x = self.scroll_offset.x if not self.soft_wrap else 0
+
+        new_segments: list[Segment] = []
+        cell_pos = 0
+        for seg in strip:
+            seg_text = seg.text
+            seg_style = seg.style
+            seg_len = cell_len(seg_text)
+
+            seg_end = cell_pos + seg_len
+            content_start = cell_pos - gutter_width + scroll_x
+            content_end = seg_end - gutter_width + scroll_x
+
+            if cell_pos < gutter_width or not any(
+                content_start <= c < content_end for c in cursor_cols
+            ):
+                new_segments.append(seg)
+                cell_pos = seg_end
+                continue
+
+            for ch in seg_text:
+                content_col = cell_pos - gutter_width + scroll_x
+                if content_col in cursor_cols:
+                    new_segments.append(Segment(ch, cursor_style))
                 else:
                     new_segments.append(Segment(ch, seg_style))
                 cell_pos += cell_len(ch)

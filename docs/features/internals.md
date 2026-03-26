@@ -160,11 +160,16 @@ Non-vertical keys (left/right/home/end/ctrl+\*/page) still use the stateless
 Edit operations (`_do_insert`, `_do_backspace`, etc.) reset `_extra_last_x_offsets`
 to `[0] * len(...)` because the sticky column is meaningless after content changes.
 
-### Visual rendering: get_line override
+### Visual rendering: get_line override + Strip-level re-injection
 
 `get_line(line_index)` applies `self._theme.cursor_style` to extra-cursor positions in the
-`rich.Text` object returned by the base `TextArea`. `refresh()` must be called explicitly
-after mutating `_extra_cursors` to trigger a re-render.
+`rich.Text` object returned by the base `TextArea`. However, on the primary cursor's line,
+Textual's `TextArea._render_line()` subsequently applies `cursor_line_style` (bgcolor) to
+the entire line, overwriting the extra cursors' distinctive background. To restore
+visibility, `_inject_extra_cursors(strip, y)` re-applies `cursor_style` at extra-cursor
+positions in the rendered `Strip`, running as the final stage of the rendering pipeline.
+
+`refresh()` must be called explicitly after mutating `_extra_cursors` to trigger a re-render.
 
 ## Encoding: why charset-normalizer was added
 

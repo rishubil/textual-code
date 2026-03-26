@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from textual.widgets.text_area import Selection
 
-from tests.conftest import make_app
+from tests.conftest import get_style_color_at, make_app
 from textual_code.widgets.code_editor import CodeEditorFooter
 from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
 
@@ -1777,3 +1777,46 @@ async def test_multi_cursor_sticky_column_resets_on_horizontal(
         await pilot.press("down")
         await pilot.pause()
         assert ta.cursor_location == (3, 0)  # sticky reset to 0 by right
+
+
+# ── Issue #105: extra cursor visibility on cursor line ────────────────────────
+
+
+class TestExtraCursorVisibility:
+    """Extra cursors on the cursor line must be visually distinct (#105)."""
+
+    @pytest.mark.asyncio
+    async def test_extra_cursor_has_distinct_bg_on_cursor_line(self, workspace: Path):
+        """An extra cursor on the same line as the primary cursor must have
+        a different background color from the rest of the cursor line.
+
+        Currently, cursor_line_style bg (applied to entire line) overwrites
+        the extra cursor's bg, making it invisible.
+        """
+        f = workspace / "same_line.py"
+        f.write_text("foo bar baz qux\nsecond line\n")
+        app = make_app(workspace, light=True, open_file=f)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            editor = app.main_view.get_active_code_editor()
+            assert editor is not None
+            ta = editor.editor
+            ta.focus()
+            await pilot.pause()
+
+            # Primary cursor at col 0, extra cursor at col 4
+            ta.move_cursor((0, 0))
+            await pilot.pause()
+            ta.add_cursor((0, 4))
+            await pilot.pause()
+
+            gw = ta.gutter_width
+            strip = ta._render_line(0)
+
+            # Background at col 4 (extra cursor) must differ from col 2 (normal text)
+            bg_extra = get_style_color_at(strip, gw, 4, "bgcolor")
+            bg_normal = get_style_color_at(strip, gw, 2, "bgcolor")
+            assert bg_extra != bg_normal, (
+                f"Extra cursor bg at col 4 should differ from normal text bg at col 2 "
+                f"on cursor line (extra={bg_extra}, normal={bg_normal})"
+            )
