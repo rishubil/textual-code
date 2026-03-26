@@ -636,13 +636,24 @@ MultiCursorTextArea {
             else set()
         )
 
-        # Resolve selection ranges for this line (end=None → end of line)
+        # Only re-inject selection ranges on the cursor line where
+        # cursor_line_style overwrites get_line() styling.  On other lines
+        # get_line()'s Text.stylize() layering preserves syntax highlighting.
+        is_cursor_line = line_index == self.cursor_location[0]
         raw_ranges = self._cached_selection_ranges.get(line_index) or ()
-        if selection_style and raw_ranges:
+        if selection_style and raw_ranges and is_cursor_line:
             line_len = len(self.document[line_index])
-            sel_ranges = sorted(
+            merged = sorted(
                 (s, e if e is not None else line_len) for s, e in raw_ranges
             )
+            # Merge overlapping ranges so bisect lookups are correct
+            sel_ranges: list[tuple[int, int]] = [merged[0]]
+            for s, e in merged[1:]:
+                prev_s, prev_e = sel_ranges[-1]
+                if s <= prev_e:
+                    sel_ranges[-1] = (prev_s, max(prev_e, e))
+                else:
+                    sel_ranges.append((s, e))
             sel_starts = [s for s, _e in sel_ranges]
         else:
             sel_ranges = []
