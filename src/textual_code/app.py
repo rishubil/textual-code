@@ -1194,7 +1194,7 @@ class TextualCode(App):
         """Save a screenshot of the terminal as an SVG file."""
         from datetime import datetime
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         default_name = f"screenshot_{timestamp}.svg"
 
         def on_result(result: SaveAsModalResult | None) -> None:
