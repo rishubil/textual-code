@@ -243,9 +243,10 @@ def test_snapshot_markdown_preview_open(snap_compare, snapshot_workspace: Path):
     async def open_preview(pilot):
         await pilot.pause()
         await app.main_view.action_open_markdown_preview()
-        # Real-time delay: Markdown blocks need extra time to finish layout
-        # on Python 3.13 where asyncio scheduling differs (see issue #118).
-        await pilot.pause(delay=0.1)
+        # action_open_markdown_preview schedules deferred layout via
+        # call_after_refresh; extra idle-waits needed on Python 3.13 (#118).
+        await pilot.pause()
+        await pilot.pause()
         # Extra pause: let tab underline settle (call_after_refresh chain)
         await pilot.pause()
 
