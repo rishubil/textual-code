@@ -1886,9 +1886,9 @@ class TestExtraCursorVisibility:
             ta.move_cursor((0, 0))
             await pilot.pause()
 
-            # Extra cursor at col 8, anchor at col 6 → selection covers cols 6-8
-            # Col 8 is both cursor AND inside selection
-            ta.add_cursor((0, 8), anchor=(0, 6))
+            # Extra cursor at col 8, anchor at col 12 → selection covers cols 8-12
+            # Col 8 is both cursor AND inside selection range [8, 12)
+            ta.add_cursor((0, 8), anchor=(0, 12))
             await pilot.pause()
 
             gw = ta.gutter_width
@@ -1896,10 +1896,10 @@ class TestExtraCursorVisibility:
 
             # Col 8 (cursor) must have cursor_style bg, not selection_style bg
             bg_cursor = get_style_color_at(strip, gw, 8, "bgcolor")
-            # Col 7 is inside selection but not a cursor
-            bg_sel = get_style_color_at(strip, gw, 7, "bgcolor")
+            # Col 10 is inside selection but not a cursor
+            bg_sel = get_style_color_at(strip, gw, 10, "bgcolor")
             assert bg_cursor != bg_sel, (
-                f"Cursor bg at col 8 should differ from selection bg at col 7 "
+                f"Cursor bg at col 8 should differ from selection bg at col 10 "
                 f"(cursor={bg_cursor}, sel={bg_sel})"
             )
 
