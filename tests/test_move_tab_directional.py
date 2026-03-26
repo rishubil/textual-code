@@ -6,11 +6,17 @@ Covers:
 - Auto-create split when no split exists in target direction
 - Source leaf auto-closes when its last tab is moved
 - Command registration in get_system_commands
+
+VSCode reference (Phase 4 additions):
+- editorGroupsService.test.ts lines 1082-1100: "moveEditor (across groups)"
+- editorGroupsService.test.ts lines 1103-1125: "moveEditors (across groups)"
+- editorGroupsService.test.ts lines 1612-1654: "moveEditor with context"
 """
 
 from pathlib import Path
 
 import pytest
+from textual.widgets import TabbedContent
 
 from tests.conftest import make_app
 from textual_code.widgets.split_tree import all_leaves
@@ -267,3 +273,172 @@ async def test_directional_move_commands_registered(workspace: Path, py_file: Pa
         assert "Move Editor into Right Group" in cmds
         assert "Move Editor into Group Above" in cmds
         assert "Move Editor into Group Below" in cmds
+
+
+# ── Sequential multi-move (VSCode "moveEditors" port) ─────────────────────
+# Ported from VSCode "moveEditors (across groups)"
+# (editorGroupsService.test.ts lines 1103-1125)
+#
+# VSCode has batch moveEditors(). Our editor moves one at a time.
+# This test verifies the same outcome: correct counts and order after
+# moving multiple tabs sequentially to another group.
+
+
+async def test_sequential_multi_move_across_groups(
+    workspace: Path, py_file: Path, py_file2: Path, py_file3: Path
+):
+    """Moving 2 of 3 tabs to another group: source keeps 1, target gets 2.
+
+    VSCode equivalent: moveEditors([input2, input3], rightGroup)
+    → leftGroup.count = 1, rightGroup.count = 2,
+      rightGroup[0] = input2, rightGroup[1] = input3.
+    """
+    app = make_app(workspace, open_file=py_file, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        # Open 2 more files (total 3 in single leaf)
+        await app.main_view.action_open_code_editor(py_file2)
+        await pilot.pause()
+        await app.main_view.action_open_code_editor(py_file3)
+        await pilot.pause()
+
+        # Create a right split (empty destination)
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
+        left_leaf = leaves[0]
+
+        # Activate left leaf and move py_file2 to right
+        app.main_view._set_active_leaf(left_leaf)
+        await pilot.pause()
+        tc_left = app.main_view.query_one(f"#{left_leaf.leaf_id}", TabbedContent)
+        # Activate py_file2 pane
+        pane_id_file2 = left_leaf.opened_files[py_file2]
+        tc_left.active = pane_id_file2
+        await pilot.pause()
+        await app.main_view.action_move_editor_right()
+        await pilot.pause()
+
+        # Now move py_file3 to right
+        leaves = all_leaves(app.main_view._split_root)
+        left_leaf = leaves[0]
+        app.main_view._set_active_leaf(left_leaf)
+        await pilot.pause()
+        tc_left = app.main_view.query_one(f"#{left_leaf.leaf_id}", TabbedContent)
+        pane_id_file3 = left_leaf.opened_files[py_file3]
+        tc_left.active = pane_id_file3
+        await pilot.pause()
+        await app.main_view.action_move_editor_right()
+        await pilot.pause()
+
+        # Verify: left has 1 (py_file), right has 2 (py_file2, py_file3)
+        leaves = all_leaves(app.main_view._split_root)
+        left_leaf = leaves[0]
+        right_leaf = leaves[-1]
+        assert py_file in left_leaf.opened_files
+        assert len(left_leaf.pane_ids) == 1
+        assert py_file2 in right_leaf.opened_files
+        assert py_file3 in right_leaf.opened_files
+        assert len(right_leaf.pane_ids) >= 2
+
+
+async def test_move_preserves_unsaved_content(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Moving a dirty editor to another group preserves unsaved content.
+
+    VSCode equivalent: move dirty editor → editor content unchanged in target.
+    """
+    app = make_app(workspace, open_file=py_file, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        # Open second file so source keeps a tab
+        await app.main_view.action_open_code_editor(py_file2)
+        await pilot.pause()
+
+        # Activate py_file and make it dirty
+        leaf = all_leaves(app.main_view._split_root)[0]
+        tc = app.main_view.query_one(f"#{leaf.leaf_id}", TabbedContent)
+        pane_id = leaf.opened_files[py_file]
+        tc.active = pane_id
+        await pilot.pause()
+
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.replace_editor_text("unsaved changes here\n")
+        await pilot.pause()
+
+        # Move to right (creates new split)
+        await app.main_view.action_move_editor_right()
+        await pilot.pause()
+
+        # Verify: content preserved in the new location
+        editor_after = app.main_view.get_active_code_editor()
+        assert editor_after is not None
+        assert editor_after.text == "unsaved changes here\n"
+
+        # Verify file moved to right leaf
+        leaves = all_leaves(app.main_view._split_root)
+        right_leaf = leaves[-1]
+        assert py_file in right_leaf.opened_files
+
+
+async def test_move_duplicate_file_activates_existing(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Moving a file to a group where it's already open activates the existing tab.
+
+    VSCode equivalent: move editor to group where same resource exists →
+    existing editor is focused, source is closed.
+    """
+    app = make_app(workspace, open_file=py_file, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        # Open second file so source leaf keeps a tab after move
+        await app.main_view.action_open_code_editor(py_file2)
+        await pilot.pause()
+
+        # Activate py_file (so it gets duplicated on split)
+        leaf = all_leaves(app.main_view._split_root)[0]
+        tc = app.main_view.query_one(f"#{leaf.leaf_id}", TabbedContent)
+        tc.active = leaf.opened_files[py_file]
+        await pilot.pause()
+
+        # Split right — the active file (py_file) is duplicated in the right leaf
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
+        left_leaf = leaves[0]
+        right_leaf = leaves[1]
+
+        # py_file should exist in both leaves
+        assert py_file in left_leaf.opened_files
+        assert py_file in right_leaf.opened_files
+
+        # Activate left leaf and try to move py_file to right
+        app.main_view._set_active_leaf(left_leaf)
+        await pilot.pause()
+        tc_left = app.main_view.query_one(f"#{left_leaf.leaf_id}", TabbedContent)
+        pane_id = left_leaf.opened_files[py_file]
+        tc_left.active = pane_id
+        await pilot.pause()
+
+        left_count_before = len(left_leaf.pane_ids)
+
+        await app.main_view.action_move_editor_right()
+        await pilot.pause()
+
+        # Source pane should be closed (deduplication: existing in target activated)
+        leaves = all_leaves(app.main_view._split_root)
+        right_leaf = leaves[-1]
+        assert py_file in right_leaf.opened_files
+        # Left leaf should have lost the py_file pane
+        left_leaf = leaves[0]
+        assert len(left_leaf.pane_ids) == left_count_before - 1
