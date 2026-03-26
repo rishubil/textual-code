@@ -8,6 +8,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar, Literal
 
 from rich.cells import cell_len
+from rich.color import Color
 from rich.segment import Segment
 from rich.style import Style
 from rich.text import Text
@@ -212,6 +213,22 @@ class MultiCursorTextArea(TextArea):
 
     BINDINGS = _bindings_for_context("text_area")
 
+    COMPONENT_CLASSES: ClassVar[set[str]] = TextArea.COMPONENT_CLASSES | {
+        "text-area--indentation-guide",
+        "text-area--indentation-guide-active",
+        "text-area--whitespace",
+        "text-area--whitespace-active",
+    }
+
+    DEFAULT_CSS = """\
+MultiCursorTextArea {
+    & .text-area--indentation-guide { color: $text 15%; }
+    & .text-area--indentation-guide-active { color: $text 30%; }
+    & .text-area--whitespace { color: $text 15%; }
+    & .text-area--whitespace-active { color: $text 30%; }
+}
+"""
+
     # ── inner message ─────────────────────────────────────────────────────────
 
     class CursorsChanged(Message):
@@ -243,13 +260,6 @@ class MultiCursorTextArea(TextArea):
     _GUTTER_ADDED_COLOR = "#4EC14E"  # green
     _GUTTER_MODIFIED_COLOR = "#E5C07B"  # yellow
     _GUTTER_DELETED_COLOR = "#E06C75"  # red
-
-    # ── Shared overlay colors (for indentation guides and whitespace markers) ─
-    _OVERLAY_COLOR_DARK = "#3E3E3E"
-    _OVERLAY_COLOR_LIGHT = "#CCCCCC"
-    # Higher-contrast variants for the cursor line (#106)
-    _OVERLAY_COLOR_DARK_CURSOR_LINE = "#606060"
-    _OVERLAY_COLOR_LIGHT_CURSOR_LINE = "#A0A0A0"
 
     # ── Indentation guide styles ─────────────────────────────────────────────
     _INDENT_GUIDE_CHAR = "│"
@@ -301,16 +311,6 @@ class MultiCursorTextArea(TextArea):
 
     # ── theme / cursor-line helpers ───────────────────────────────────────────
 
-    def _is_light_theme(self) -> bool:
-        """Return True if the current theme background is light."""
-        theme = self._theme
-        if theme and theme.base_style and theme.base_style.bgcolor:
-            triplet = theme.base_style.bgcolor.triplet
-            if triplet is not None:
-                r, g, b = triplet
-                return 0.299 * r + 0.587 * g + 0.114 * b > 128
-        return False
-
     def _is_cursor_line(self, line_index: int) -> bool:
         """Return True if *line_index* is the highlighted cursor line."""
         return (
@@ -319,20 +319,24 @@ class MultiCursorTextArea(TextArea):
             and self.selection.end[0] == line_index
         )
 
-    def _overlay_fg(self, line_index: int) -> str:
+    def _overlay_fg(
+        self,
+        line_index: int,
+        *,
+        feature: Literal["indentation-guide", "whitespace"] = "indentation-guide",
+    ) -> Color | None:
         """Pick the overlay foreground color for guides/whitespace markers.
 
+        Returns the color from the appropriate CSS component class.
         Uses a higher-contrast variant when *line_index* is the cursor line
         so that markers remain visible against the cursor-line background.
         """
-        is_light = self._is_light_theme()
-        if self._is_cursor_line(line_index):
-            return (
-                self._OVERLAY_COLOR_LIGHT_CURSOR_LINE
-                if is_light
-                else self._OVERLAY_COLOR_DARK_CURSOR_LINE
-            )
-        return self._OVERLAY_COLOR_LIGHT if is_light else self._OVERLAY_COLOR_DARK
+        cls = (
+            f"text-area--{feature}-active"
+            if self._is_cursor_line(line_index)
+            else f"text-area--{feature}"
+        )
+        return self.get_component_rich_style(cls).color
 
     # ── rendering pipeline ───────────────────────────────────────────────────
 
@@ -500,7 +504,7 @@ class MultiCursorTextArea(TextArea):
 
         gutter_width = self.gutter_width if self.show_line_numbers else 0
         scroll_x = self.scroll_offset.x if not self.soft_wrap else 0
-        ws_fg = self._overlay_fg(line_index)
+        ws_fg = self._overlay_fg(line_index, feature="whitespace")
 
         new_segments: list[Segment] = []
         cell_pos = 0
@@ -564,7 +568,7 @@ class MultiCursorTextArea(TextArea):
         gutter_width = self.gutter_width if self.show_line_numbers else 0
         scroll_x = self.scroll_offset.x if not self.soft_wrap else 0
 
-        guide_fg = self._overlay_fg(line_index)
+        guide_fg = self._overlay_fg(line_index, feature="indentation-guide")
 
         new_segments: list[Segment] = []
         cell_pos = 0
