@@ -636,12 +636,16 @@ MultiCursorTextArea {
             else set()
         )
 
-        # Only re-inject selection ranges on the cursor line where
-        # cursor_line_style overwrites get_line() styling.  On other lines
-        # get_line()'s Text.stylize() layering preserves syntax highlighting.
-        is_cursor_line = line_index == self.cursor_location[0]
+        # Only re-inject selection ranges when cursor_line_style has actually
+        # overwritten get_line() styling.  This requires highlight_cursor_line
+        # to be enabled and the widget to have a cursor on this line.
+        cursor_line_highlighted = (
+            self.highlight_cursor_line
+            and self._has_cursor
+            and line_index == self.cursor_location[0]
+        )
         raw_ranges = self._cached_selection_ranges.get(line_index) or ()
-        if selection_style and raw_ranges and is_cursor_line:
+        if selection_style and raw_ranges and cursor_line_highlighted:
             line_len = len(self.document[line_index])
             merged = sorted(
                 (s, e if e is not None else line_len) for s, e in raw_ranges
