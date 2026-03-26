@@ -162,12 +162,15 @@ to `[0] * len(...)` because the sticky column is meaningless after content chang
 
 ### Visual rendering: get_line override + Strip-level re-injection
 
-`get_line(line_index)` applies `self._theme.cursor_style` to extra-cursor positions in the
-`rich.Text` object returned by the base `TextArea`. However, on the primary cursor's line,
-Textual's `TextArea._render_line()` subsequently applies `cursor_line_style` (bgcolor) to
-the entire line, overwriting the extra cursors' distinctive background. To restore
+`get_line(line_index)` applies `self._theme.cursor_style` and `selection_style` to
+extra-cursor positions and selection ranges in the `rich.Text` object returned by the base
+`TextArea`. However, on the primary cursor's line, Textual's `TextArea._render_line()`
+subsequently applies `cursor_line_style` (bgcolor) to the entire line, overwriting both
+the extra cursors' distinctive background and their selection highlights. To restore
 visibility, `_inject_extra_cursors(strip, y)` re-applies `cursor_style` at extra-cursor
-positions in the rendered `Strip`, running as the final stage of the rendering pipeline.
+positions and `selection_style` at extra-cursor selection ranges in the rendered `Strip`,
+running as the final stage of the rendering pipeline. Cursor cells take priority over
+selection cells when they overlap.
 
 `refresh()` must be called explicitly after mutating `_extra_cursors` to trigger a re-render.
 

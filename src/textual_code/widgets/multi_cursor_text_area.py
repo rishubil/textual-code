@@ -604,18 +604,21 @@ MultiCursorTextArea {
         return Strip(new_segments, cell_length=strip.cell_length)
 
     def _inject_extra_cursors(self, strip: Strip, y: int) -> Strip:
-        """Re-apply cursor_style at extra-cursor positions in the rendered Strip.
+        """Re-apply cursor_style and selection_style at extra-cursor positions
+        in the rendered Strip.
 
         The parent TextArea applies cursor_line_style (bgcolor) to the entire
-        cursor line *after* get_line() sets cursor_style on extra cursors,
-        effectively hiding them.  This stage restores visibility by overwriting
-        the style at each extra-cursor cell with the theme's cursor_style.
+        cursor line *after* get_line() sets styles on extra cursors and their
+        selections, effectively hiding them.  This stage restores visibility by
+        overwriting the style at each extra-cursor cell with cursor_style and
+        at each extra-cursor selection cell with selection_style.
         """
         if not self._extra_cursors or not self._theme:
             return strip
 
         cursor_style = self._theme.cursor_style
-        if not cursor_style:
+        selection_style = self._theme.selection_style
+        if not cursor_style and not selection_style:
             return strip
 
         line_info = self._resolve_line_index(y)
@@ -626,9 +629,25 @@ MultiCursorTextArea {
         if section_offset != 0:
             return strip
 
-        cursor_cols = {col for row, col in self._extra_cursors if row == line_index}
-        if not cursor_cols:
+        cursor_cols = (
+            {col for row, col in self._extra_cursors if row == line_index}
+            if cursor_style
+            else set()
+        )
+
+        # Resolve selection ranges for this line (end=None → end of line)
+        raw_ranges = self._cached_selection_ranges.get(line_index) or ()
+        if selection_style and raw_ranges:
+            line_len = len(self.document[line_index])
+            sel_ranges = [(s, e if e is not None else line_len) for s, e in raw_ranges]
+        else:
+            sel_ranges = []
+
+        if not cursor_cols and not sel_ranges:
             return strip
+
+        def _in_selection(col: int) -> bool:
+            return any(s <= col < e for s, e in sel_ranges)
 
         gutter_width = self.gutter_width if self.show_line_numbers else 0
         scroll_x = self.scroll_offset.x if not self.soft_wrap else 0
@@ -644,8 +663,12 @@ MultiCursorTextArea {
             content_start = cell_pos - gutter_width + scroll_x
             content_end = seg_end - gutter_width + scroll_x
 
-            if cell_pos < gutter_width or not any(
-                content_start <= c < content_end for c in cursor_cols
+            # Fast path: skip gutter and segments with no cursor/selection overlap
+            if cell_pos < gutter_width or (
+                not any(content_start <= c < content_end for c in cursor_cols)
+                and not any(
+                    s < content_end and content_start < e for s, e in sel_ranges
+                )
             ):
                 new_segments.append(seg)
                 cell_pos = seg_end
@@ -655,6 +678,8 @@ MultiCursorTextArea {
                 content_col = cell_pos - gutter_width + scroll_x
                 if content_col in cursor_cols:
                     new_segments.append(Segment(ch, cursor_style))
+                elif sel_ranges and _in_selection(content_col):
+                    new_segments.append(Segment(ch, selection_style))
                 else:
                     new_segments.append(Segment(ch, seg_style))
                 cell_pos += cell_len(ch)
