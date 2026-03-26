@@ -393,7 +393,6 @@ async def test_close_all_dirty_cancel_stops_all(workspace: Path):
     """Close-all with dirty editor: Cancel stops the operation, all editors stay.
 
     VSCode equivalent: closeEditors([dirty, clean]) with CANCEL → none disposed.
-    In our sequential model, cancelling on the first dirty editor stops the rest.
     """
     f1 = workspace / "batch_dirty1.py"
     f2 = workspace / "batch_clean2.py"
@@ -425,10 +424,10 @@ async def test_close_all_dirty_cancel_stops_all(workspace: Path):
         await pilot.pause()
         assert isinstance(app.screen, UnsavedChangeModalScreen)
 
-        # Cancel — everything should stay
+        # Cancel — all editors stay
         await pilot.click("#cancel")
         await pilot.pause()
-        assert _tab_count(app) >= 1  # at least the dirty editor stays
+        assert _tab_count(app) == 2
 
 
 async def test_close_all_dirty_dont_save_closes_all(workspace: Path):
@@ -463,9 +462,9 @@ async def test_close_all_dirty_dont_save_closes_all(workspace: Path):
         await pilot.pause()
 
         # Modal should appear for dirty editor
-        if isinstance(app.screen, UnsavedChangeModalScreen):
-            await pilot.click("#dont_save")
-            await pilot.pause()
+        assert isinstance(app.screen, UnsavedChangeModalScreen)
+        await pilot.click("#dont_save")
+        await pilot.pause()
 
         # All editors should be closed
         assert len(app.main_view.opened_pane_ids) == 0
@@ -500,7 +499,7 @@ async def test_dirty_state_detected_across_splits(workspace: Path):
         # Open f2 in a split
         await app.main_view.open_code_editor_pane(path=f2)
         await pilot.pause()
-        await pilot.press("ctrl+\\")  # split
+        await main.action_split_right()
         await pilot.pause()
 
         # Make f1 dirty (in the original split)

@@ -342,7 +342,7 @@ async def test_sequential_multi_move_across_groups(
         assert len(left_leaf.pane_ids) == 1
         assert py_file2 in right_leaf.opened_files
         assert py_file3 in right_leaf.opened_files
-        assert len(right_leaf.pane_ids) >= 2
+        assert len(right_leaf.pane_ids) == 2
 
 
 async def test_move_preserves_unsaved_content(
