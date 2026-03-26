@@ -13,6 +13,8 @@ VSCode reference:
 - editorGroupsService.test.ts lines 696-745: "closeEditors - dirty editor handling"
 - editorGroupsService.test.ts lines 983-1026: "closeAllEditors - dirty editor handling"
 - editorGroupModel.test.ts lines 1962-2020: "Multiple Editors - Editor Emits Dirty"
+- editorGroupsService.test.ts lines 1299-1322: "find editors"
+- editorGroupModel.test.ts lines 220-260: "tab opening position"
 
 Our editor uses position-based tab selection after close (right-adjacent, then left),
 which matches VSCode's behavior when focusRecentEditorAfterClose = false.
@@ -24,6 +26,7 @@ from pathlib import Path
 from tests.conftest import make_app
 from textual_code.modals import UnsavedChangeModalScreen
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+from textual_code.widgets.split_tree import all_leaves
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -517,3 +520,162 @@ async def test_dirty_state_detected_across_splits(workspace: Path):
 
         # has_unsaved_pane() should detect dirty state across splits
         assert main.has_unsaved_pane() is True
+
+
+# ── Find editors by file path ─────────────────────────────────────────────
+# Ported from VSCode "find editors" (editorGroupsService.test.ts lines 1299-1322)
+#
+# VSCode: group.findEditors(URI.file('foo/bar')) returns matching editors
+# Our editor: pane_id_from_path() for active leaf; LeafNode.opened_files for any leaf
+
+
+async def test_find_editor_by_path_in_active_leaf(workspace: Path):
+    """Finding an editor by path in the active leaf returns its pane ID.
+
+    VSCode equivalent: group.findEditors(URI.file('foo/bar1'))
+    → returns array with matching editor(s).
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        # Open 3 files
+        f1 = workspace / "find1.py"
+        f2 = workspace / "find2.py"
+        f3 = workspace / "find3.py"
+        f1.write_text("# find1\n")
+        f2.write_text("# find2\n")
+        f3.write_text("# find3\n")
+
+        pane1 = await main.open_code_editor_pane(path=f1)
+        await pilot.pause()
+        pane2 = await main.open_code_editor_pane(path=f2)
+        await pilot.pause()
+        pane3 = await main.open_code_editor_pane(path=f3)
+        await pilot.pause()
+
+        # Find by path — should return correct pane IDs
+        assert main.pane_id_from_path(f1) == pane1
+        assert main.pane_id_from_path(f2) == pane2
+        assert main.pane_id_from_path(f3) == pane3
+
+
+async def test_find_editor_path_not_found_returns_none(workspace: Path):
+    """Finding an editor by a path that isn't open returns None.
+
+    VSCode equivalent: findEditors(unknownURI) → empty array.
+    """
+    f = workspace / "exists.py"
+    f.write_text("# exists\n")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        not_open = workspace / "not_open.py"
+        assert main.pane_id_from_path(not_open) is None
+
+
+async def test_find_editor_by_path_across_splits(workspace: Path):
+    """Finding an editor by path works across different split groups.
+
+    VSCode equivalent: findEditors scoped per group — we must iterate all leaves.
+    Our pane_id_from_path() only searches the active leaf, so cross-split lookup
+    requires iterating all_leaves().
+    """
+    f1 = workspace / "left_file.py"
+    f2 = workspace / "right_file.py"
+    f1.write_text("# left\n")
+    f2.write_text("# right\n")
+    app = make_app(workspace, light=True, open_file=f1)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        # Split right and open f2 in the right leaf
+        await main.action_split_right()
+        await pilot.pause()
+        await main.open_code_editor_pane(path=f2)
+        await pilot.pause()
+
+        leaves = all_leaves(main._split_root)
+        assert len(leaves) == 2
+
+        # pane_id_from_path() only searches active leaf
+        # Active leaf is the right one (after split)
+        assert main.pane_id_from_path(f2) is not None
+        # f1 is in left leaf — not found via pane_id_from_path()
+        # (it may or may not be found depending on which leaf is active)
+
+        # Cross-split lookup via all_leaves iteration
+        found_f1 = None
+        found_f2 = None
+        for leaf in leaves:
+            if f1 in leaf.opened_files:
+                found_f1 = leaf.opened_files[f1]
+            if f2 in leaf.opened_files:
+                found_f2 = leaf.opened_files[f2]
+
+        assert found_f1 is not None, "f1 should be found in some leaf"
+        assert found_f2 is not None, "f2 should be found in some leaf"
+        # Files should be in different leaves
+        leaf_for_f1 = next(lf for lf in leaves if f1 in lf.opened_files)
+        leaf_for_f2 = next(lf for lf in leaves if f2 in lf.opened_files)
+        assert leaf_for_f1.leaf_id != leaf_for_f2.leaf_id
+
+
+# ── Tab opening position ──────────────────────────────────────────────────
+# Ported from VSCode "Multiple Editors - Editor Open Ordering"
+# (editorGroupModel.test.ts lines 220-260)
+#
+# VSCode: new editor opens to the right of the active editor by default.
+# Our editor: new tabs are appended to the end (Textual's add_pane default).
+# Behavioral difference: VSCode inserts next to active; we always append.
+
+
+async def test_new_tab_opens_at_end(workspace: Path):
+    """New tabs are appended at the end of the tab bar.
+
+    Our editor always appends to the end via Textual's add_pane(), unlike VSCode
+    which inserts next to the active editor.
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 4)
+        tc = app.main_view.tabbed_content
+        assert isinstance(tc, DraggableTabbedContent)
+
+        ordered = tc.get_ordered_pane_ids()
+        # Tabs should be in the order they were opened
+        assert ordered == pane_ids
+
+
+async def test_tab_opens_at_end_regardless_of_active(workspace: Path):
+    """Opening a new tab always appends at the end, even when a middle tab is active.
+
+    VSCode would insert next to the active tab. Our editor always appends.
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        tc = app.main_view.tabbed_content
+        assert isinstance(tc, DraggableTabbedContent)
+
+        # Activate the first tab
+        tc.active = pane_ids[0]
+        await pilot.pause()
+        assert _active_pane(app) == pane_ids[0]
+
+        # Open a 4th file — should appear at the END, not after pane_ids[0]
+        f4 = workspace / "file4.py"
+        f4.write_text("# file4\n")
+        pane4 = await app.main_view.open_code_editor_pane(path=f4)
+        await pilot.pause()
+
+        ordered = tc.get_ordered_pane_ids()
+        assert ordered[-1] == pane4
+        # Original order preserved with new tab at end
+        assert ordered == [pane_ids[0], pane_ids[1], pane_ids[2], pane4]
