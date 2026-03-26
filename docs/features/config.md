@@ -63,6 +63,7 @@ Custom grammars from `tree-sitter-language-pack` are loaded into memory at impor
 Available syntax themes: `monokai` (default), `dracula`, `github_light`, `vscode_dark`, `css`.
 
 - **Change theme**: command palette "Change syntax highlighting theme" opens a modal with a theme selector and a User/Project save level selector.
+- **Live preview**: selecting a theme in the dropdown immediately previews it on all open editors, before clicking Apply. Cancelling (button or Escape) reverts to the original theme.
 - The selected theme applies immediately to all open editors.
 - The theme is persisted as the `syntax_theme` key in the `[editor]` section of the chosen config file.
 
@@ -427,6 +428,7 @@ Textual Code exposes all 20 built-in themes from the Textual framework:
 ### Changing UI theme
 
 - **Command palette**: "Change UI theme" opens a modal listing all available themes with a User/Project save level selector.
+- **Live preview**: selecting a theme in the dropdown immediately previews it across the entire UI, before clicking Apply. Cancelling (button or Escape) reverts to the original theme.
 - The selected theme applies immediately without restart.
 - The theme name is persisted as the `ui_theme` key in the `[editor]` section of the chosen config file.
 
