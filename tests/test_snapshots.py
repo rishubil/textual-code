@@ -247,7 +247,9 @@ def test_snapshot_markdown_preview_open(snap_compare, snapshot_workspace: Path):
         # call_after_refresh; extra idle-waits needed on Python 3.13 (#118).
         await pilot.pause()
         await pilot.pause()
-        # Extra pause: let tab underline settle (call_after_refresh chain)
+        # Extra pauses: let markdown blocks mount and tab underline settle
+        await pilot.pause()
+        await pilot.pause()
         await pilot.pause()
 
     assert snap_compare(app, run_before=open_preview, terminal_size=TERMINAL_SIZE)
