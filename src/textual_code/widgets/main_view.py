@@ -370,7 +370,11 @@ class MainView(Static):
         leaf.pane_ids.add(pane_id)
         self._pane_to_leaf[pane_id] = target_leaf_id
         tc = self.query_one(f"#{target_leaf_id}", TabbedContent)
-        await tc.add_pane(pane)
+        active = tc.active
+        if active:
+            await tc.add_pane(pane, after=active)
+        else:
+            await tc.add_pane(pane)
         return True
 
     async def close_pane(self, pane_id: str) -> bool:

@@ -626,15 +626,14 @@ async def test_find_editor_by_path_across_splits(workspace: Path):
 # (editorGroupModel.test.ts lines 220-260)
 #
 # VSCode: new editor opens to the right of the active editor by default.
-# Our editor: new tabs are appended to the end (Textual's add_pane default).
-# Behavioral difference: VSCode inserts next to active; we always append.
+# Our editor: same — new tabs are inserted after the active tab.
 
 
-async def test_new_tab_opens_at_end(workspace: Path):
-    """New tabs are appended at the end of the tab bar.
+async def test_new_tabs_sequential_when_last_is_active(workspace: Path):
+    """Sequential tab opens preserve order when last tab is always active.
 
-    Our editor always appends to the end via Textual's add_pane(), unlike VSCode
-    which inserts next to the active editor.
+    Since the last-opened tab is always active, inserting "after active"
+    produces the same result as appending at the end.
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
@@ -648,10 +647,10 @@ async def test_new_tab_opens_at_end(workspace: Path):
         assert ordered == pane_ids
 
 
-async def test_tab_opens_at_end_regardless_of_active(workspace: Path):
-    """Opening a new tab always appends at the end, even when a middle tab is active.
+async def test_new_tab_opens_after_active_tab(workspace: Path):
+    """New tabs are inserted immediately after the active tab (VSCode default).
 
-    VSCode would insert next to the active tab. Our editor always appends.
+    Open A, B, C (C is active). Activate A. Open D → D appears after A: [A, D, B, C].
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
@@ -660,18 +659,57 @@ async def test_tab_opens_at_end_regardless_of_active(workspace: Path):
         tc = app.main_view.tabbed_content
         assert isinstance(tc, DraggableTabbedContent)
 
-        # Activate the first tab
+        # Activate the first tab (index 0)
         tc.active = pane_ids[0]
         await pilot.pause()
         assert _active_pane(app) == pane_ids[0]
 
-        # Open a 4th file — should appear at the END, not after pane_ids[0]
+        # Open a 4th file — should appear AFTER pane_ids[0], not at end
         f4 = workspace / "file4.py"
         f4.write_text("# file4\n")
         pane4 = await app.main_view.open_code_editor_pane(path=f4)
         await pilot.pause()
 
         ordered = tc.get_ordered_pane_ids()
-        assert ordered[-1] == pane4
-        # Original order preserved with new tab at end
-        assert ordered == [pane_ids[0], pane_ids[1], pane_ids[2], pane4]
+        # New tab inserted after active tab (pane_ids[0])
+        assert ordered == [pane_ids[0], pane4, pane_ids[1], pane_ids[2]]
+
+
+async def test_new_tab_opens_after_active_when_middle_tab_active(workspace: Path):
+    """Multiple insertions respect the active tab at each point.
+
+    Open A, B, C. Activate A. Open D → [A, D, B, C].
+    Activate C. Open E → [A, D, B, C, E].
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        tc = app.main_view.tabbed_content
+        assert isinstance(tc, DraggableTabbedContent)
+
+        # Activate first tab
+        tc.active = pane_ids[0]
+        await pilot.pause()
+
+        # Open D — should go after A: [A, D, B, C]
+        f4 = workspace / "file4.py"
+        f4.write_text("# file4\n")
+        pane4 = await app.main_view.open_code_editor_pane(path=f4)
+        await pilot.pause()
+
+        ordered = tc.get_ordered_pane_ids()
+        assert ordered == [pane_ids[0], pane4, pane_ids[1], pane_ids[2]]
+
+        # Activate last tab (C)
+        tc.active = pane_ids[2]
+        await pilot.pause()
+
+        # Open E — should go after C: [A, D, B, C, E]
+        f5 = workspace / "file5.py"
+        f5.write_text("# file5\n")
+        pane5 = await app.main_view.open_code_editor_pane(path=f5)
+        await pilot.pause()
+
+        ordered = tc.get_ordered_pane_ids()
+        assert ordered == [pane_ids[0], pane4, pane_ids[1], pane_ids[2], pane5]

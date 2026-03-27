@@ -174,6 +174,13 @@ Enables flexible organization of open files across the workspace. Tabs can be re
 
 ### Behavior
 
+**New tab opening position (VSCode default):**
+
+- New tabs are inserted immediately after the currently active tab, matching VSCode's default `openPositioning: 'right'` behavior.
+- When tabs are opened sequentially (each new tab becomes active), the tab order matches the opening order.
+- When a non-last tab is active, the new tab appears right after it, pushing subsequent tabs to the right.
+- If no tab is active (empty pane), the new tab is appended at the end.
+
 **Tab reorder by drag (same pane):**
 
 - Drag a tab header left/right to reorder within the pane. Insertion position is determined by which half of the target tab the cursor lands on.
