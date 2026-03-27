@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tabs**: new tabs open immediately after the active tab instead of at the end, matching VSCode's default `openPositioning: 'right'` behavior (Fix #124)
 - **Themes**: live preview when changing UI or syntax themes — selecting a theme in the dropdown immediately previews it; cancelling reverts to the original theme (Fix #104)
 - **Shortcuts**: assign Ctrl+O as default keyboard shortcut for "Open File..." command — opens the file search modal from any context; displayed in the footer, command palette, and F1 shortcuts viewer (Fix #101)
 - **Modals**: press Escape to dismiss non-destructive modals (Save As, Rename, Go to Line, Find, Replace, Change Language, Change Indentation, Change Line Ending, Change Encoding, Change Syntax Theme, Change Word Wrap, Change UI Theme, Sidebar Resize, Split Resize, Shortcut Settings, Footer Config, Show Shortcuts); destructive confirmation modals (Unsaved Changes, Delete, Overwrite, Discard & Reload, Replace All) are not affected (Fix #107)
