@@ -783,6 +783,7 @@ class Explorer(Static):
             return self.explorer
 
     _MAX_SELECT_RETRIES = 10
+    _SELECT_RETRY_DELAY = 0.05
 
     def __init__(
         self,
@@ -806,10 +807,11 @@ class Explorer(Static):
         self._compact_folders = compact_folders
         self._pending_path: Path | None = None
         self._pending_retries: int = 0
+        self._pending_depth: int = -1
 
     def on_mount(self) -> None:
         if self._pending_path is not None:
-            self.call_after_refresh(self._retry_pending)
+            self.set_timer(self._SELECT_RETRY_DELAY, self._retry_pending)
 
     def _retry_pending(self) -> None:
         if self._pending_path is None:
@@ -822,6 +824,7 @@ class Explorer(Static):
                 self._pending_path,
             )
             self._pending_path = None
+            self._pending_depth = -1
             return
         pending = self._pending_path
         self._pending_path = None
@@ -858,10 +861,14 @@ class Explorer(Static):
         if node is not None and is_visible(node):
             self.directory_tree.move_cursor(node)
             self._pending_path = None
+            self._pending_depth = -1
             return
 
         # File not found in loaded nodes, or is inside a collapsed folder.
-        # Reset retry counter only when starting a fresh (non-retry) attempt.
+        # Reset depth tracker when switching to a different target path, so
+        # that a shallower new path doesn't inherit stale depth from the old.
+        if self._pending_path != path:
+            self._pending_depth = -1
         self._pending_path = path
         if self._pending_retries == 0:
             self._pending_retries = self._MAX_SELECT_RETRIES
@@ -869,6 +876,7 @@ class Explorer(Static):
         # Walk tree using is_relative_to matching — handles compact folder nodes
         # where intermediate directories don't have individual tree nodes.
         max_depth = len(path.relative_to(self.workspace_path).parts)
+        depth_reached = 0
         current = root
         for _ in range(max_depth):
             # Find a directory child that contains the target path
@@ -884,15 +892,15 @@ class Explorer(Static):
             )
             if dir_child is None:
                 # Directory not in tree yet — retry after loading
-                self.call_after_refresh(self._retry_pending)
-                return
+                break
             if not dir_child.is_expanded:
                 assert dir_child.data is not None
                 self.log.debug("select_file: expanding %s", dir_child.data.path)
                 dir_child.expand()
-                self.call_after_refresh(self._retry_pending)
-                return
+                depth_reached += 1
+                break
             current = dir_child
+            depth_reached += 1
             # Check if the file node is now a direct child
             file_match = next(
                 (
@@ -904,10 +912,19 @@ class Explorer(Static):
             )
             if file_match is not None:
                 # File node exists but find_node didn't reach it — still loading
-                self.call_after_refresh(self._retry_pending)
-                return
-        # Exhausted depth — retry after loading
-        self.call_after_refresh(self._retry_pending)
+                break
+
+        # Reset retry counter when deeper progress is made in the tree walk.
+        # This makes the mechanism depth-independent: each new level of
+        # expansion grants a fresh set of retries for async loading to finish.
+        if depth_reached > self._pending_depth:
+            self._pending_depth = depth_reached
+            self._pending_retries = self._MAX_SELECT_RETRIES
+
+        # Use set_timer instead of call_after_refresh to give async directory
+        # loading (NodeExpanded handler → _add_to_load_queue → _loader) enough
+        # time to complete between retries.
+        self.set_timer(self._SELECT_RETRY_DELAY, self._retry_pending)
 
     def compose(self) -> ComposeResult:
         directory_tree = FilteredDirectoryTree(

@@ -112,11 +112,8 @@ async def test_switch_tab_updates_explorer_doubly_nested_file(workspace: Path):
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
         await app.main_view.action_open_code_editor(f_nested)
-        # Two folder levels → each needs multiple expand+reload cycles.
-        # Poll until cursor actually reaches the target file.  Re-trigger
-        # select_file if the built-in retry limit was exhausted before the
-        # tree finished loading.
-        for attempt in range(100):
+        # Poll until cursor reaches the target file.
+        for _ in range(100):
             await pilot.pause()
             node = explorer.directory_tree.cursor_node
             if (
@@ -125,13 +122,50 @@ async def test_switch_tab_updates_explorer_doubly_nested_file(workspace: Path):
                 and node.data.path == f_nested
             ):
                 break
-            # Re-trigger if retries exhausted but tree might still be loading
-            if explorer._pending_path is None and attempt % 10 == 9:
-                explorer.select_file(f_nested)
 
         assert explorer.directory_tree.cursor_node is not None
         assert explorer.directory_tree.cursor_node.data is not None
         assert explorer.directory_tree.cursor_node.data.path == f_nested
+
+
+async def test_select_file_deep_path_no_compact(workspace: Path):
+    """select_file must reveal files at any depth without external re-triggers.
+
+    Regression test for #141: _MAX_SELECT_RETRIES=10 is too low for deeply
+    nested paths.  Each directory has a sibling file so compact_folders cannot
+    collapse the chain.
+    """
+    # Create a path 12 levels deep where each dir has a sibling file
+    deep_dir = workspace
+    for i in range(12):
+        subdir = deep_dir / f"d{i}"
+        subdir.mkdir(parents=True, exist_ok=True)
+        (deep_dir / f"sibling{i}.py").write_text(f"# sibling {i}\n")
+        deep_dir = subdir
+
+    f_top = workspace / "top.py"
+    f_deep = deep_dir / "deep_file.py"
+    f_top.write_text("# top\n")
+    f_deep.write_text("# deep\n")
+
+    app = make_app(workspace, open_file=f_top)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+
+        assert app.sidebar is not None
+        explorer = app.sidebar.query_one(Explorer)
+        await app.main_view.action_open_code_editor(f_deep)
+
+        # Wait for the explorer to expand all ancestors — NO re-trigger workaround.
+        # Each directory level needs several frames for async loading.
+        for _ in range(200):
+            await pilot.pause()
+
+        node = explorer.directory_tree.cursor_node
+        assert node is not None and node.data is not None
+        # Before the fix this fails: cursor stuck mid-way, _pending_path=None
+        assert node.data.path == f_deep
 
 
 async def test_switch_tab_updates_explorer_after_collapse(workspace: Path):
