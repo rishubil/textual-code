@@ -55,7 +55,9 @@ def _read_workspace_files(
             if not show_hidden_files and fname.startswith("."):
                 continue
             try:
-                result.append((dir_path / fname).relative_to(workspace_path))
+                file_path = dir_path / fname
+                if file_path.is_file():
+                    result.append(file_path.relative_to(workspace_path))
             except OSError:
                 logger.debug("OSError accessing %s/%s, skipping", dirpath, fname)
     result.sort()
