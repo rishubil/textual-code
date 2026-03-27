@@ -88,6 +88,20 @@ def test_git_dir_always_excluded(tmp_path: Path) -> None:
     assert not any(".git/" in n or n == ".git" for n in names)
 
 
+def test_git_file_excluded_in_worktree(tmp_path: Path) -> None:
+    """.git file (worktree/submodule) is excluded even with show_hidden_files=True."""
+    # In git worktrees/submodules, .git is a file, not a directory
+    (tmp_path / ".git").write_text("gitdir: /some/path")
+    (tmp_path / ".env").write_text("SECRET=1")
+    (tmp_path / "visible.py").write_text("code")
+
+    result = _read_workspace_files(tmp_path, show_hidden_files=True)
+    names = [str(p) for p in result]
+    assert "visible.py" in names
+    assert ".env" in names
+    assert ".git" not in names
+
+
 def test_read_workspace_paths_hidden_included_when_show_hidden(tmp_path: Path) -> None:
     """_read_workspace_paths includes hidden files/dirs when show_hidden_files=True."""
     (tmp_path / ".env").write_text("SECRET=1")
