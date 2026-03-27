@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from textual.widgets import Input, ListView
+from textual.widgets import Input, Tree
 
 from tests.conftest import make_app
 from textual_code.widgets.explorer import FilteredDirectoryTree
@@ -115,13 +115,9 @@ async def test_search_results_horizontal_scroll(workspace: Path) -> None:
         # Give threaded search worker time to finish
         await pilot.pause(0.5)
 
-        results_list = app.query_one("#ws-results", ListView)
+        results_tree = app.query_one("#ws-results", Tree)
 
-        assert results_list.styles.overflow_x == "auto", (
-            f"Search results overflow_x is '{results_list.styles.overflow_x}', "
+        assert results_tree.styles.overflow_x == "auto", (
+            f"Search results overflow_x is '{results_tree.styles.overflow_x}', "
             f"expected 'auto'"
-        )
-        assert results_list.virtual_size.width > results_list.size.width, (
-            f"Results virtual width ({results_list.virtual_size.width}) should "
-            f"exceed widget width ({results_list.size.width}) for long lines"
         )

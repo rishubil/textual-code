@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from itertools import groupby
 from pathlib import Path
 
 from rich.cells import cell_len
@@ -9,7 +10,7 @@ from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
-from textual.widgets import Button, Checkbox, Input, Label, ListItem, ListView, Static
+from textual.widgets import Button, Checkbox, Input, Label, Static, Tree
 from textual.worker import Worker, WorkerState
 
 from textual_code.modals import (
@@ -67,7 +68,10 @@ class WorkspaceSearchPane(Static):
                 _BTN_LABELS["ws-replace-all"][0], id="ws-replace-all", variant="warning"
             )
         yield Label("", id="ws-replace-status")
-        yield ListView(id="ws-results")
+        tree = Tree("Results", id="ws-results")
+        tree.show_root = False
+        tree.show_guides = False
+        yield tree
 
     # ── Responsive labels ──────────────────────────────────────────────────────
 
@@ -80,10 +84,6 @@ class WorkspaceSearchPane(Static):
             btn.styles.min_width = _BTN_MIN_WIDTHS[btn_id][idx]
 
     # ── Internal helpers ───────────────────────────────────────────────────────
-
-    def _get_result_data(self) -> list[tuple[Path, int]]:
-        """Return the (file_path, line_number) pairs stored on each ListItem."""
-        return getattr(self, "_result_data", [])
 
     def _read_search_inputs(self) -> tuple[str, bool, bool, bool, str, str]:
         """Read and return shared search inputs from the UI widgets."""
@@ -109,10 +109,9 @@ class WorkspaceSearchPane(Static):
             files_to_exclude,
         ) = self._read_search_inputs()
 
-        results_list = self.query_one("#ws-results", ListView)
-        results_list.clear()
-        results_list.loading = False
-        self._result_data: list[tuple[Path, int]] = []
+        results_tree = self.query_one("#ws-results", Tree)
+        results_tree.clear()
+        results_tree.loading = False
 
         if not query:
             return
@@ -121,7 +120,7 @@ class WorkspaceSearchPane(Static):
         if workspace_path is None:
             return
 
-        results_list.loading = True
+        results_tree.loading = True
         self._search_worker(
             workspace_path,
             query,
@@ -165,24 +164,32 @@ class WorkspaceSearchPane(Static):
         workspace_path: Path,
         inaccessible_paths: list[str] | None = None,
     ) -> None:
-        results_list = self.query_one("#ws-results", ListView)
-        results_list.loading = False
-        results_list.clear()
-        self._result_data = []
+        results_tree = self.query_one("#ws-results", Tree)
+        results_tree.loading = False
+        results_tree.clear()
 
         if not results:
-            results_list.append(ListItem(Label("No results")))
+            results_tree.root.add_leaf("No results")
         else:
-            for result in results:
+            for file_path, file_results in groupby(results, key=lambda r: r.file_path):
+                matches = list(file_results)
+                count = len(matches)
                 try:
-                    relative = result.file_path.relative_to(workspace_path)
+                    relative = file_path.relative_to(workspace_path)
                 except ValueError:
-                    relative = result.file_path
-                label_text = (
-                    f"{relative}:{result.line_number}  {result.line_text.strip()}"
+                    relative = file_path
+                suffix = "match" if count == 1 else "matches"
+                first_line = matches[0].line_number
+                file_node = results_tree.root.add(
+                    f"{relative} ({count} {suffix})",
+                    data=(file_path, first_line),
+                    expand=True,
                 )
-                results_list.append(ListItem(Label(label_text)))
-                self._result_data.append((result.file_path, result.line_number))
+                for match in matches:
+                    file_node.add_leaf(
+                        f"{match.line_number}: {match.line_text.strip()}",
+                        data=(file_path, match.line_number),
+                    )
 
         if inaccessible_paths:
             count = len(inaccessible_paths)
@@ -199,9 +206,10 @@ class WorkspaceSearchPane(Static):
             return
         if event.state == WorkerState.ERROR:
             if event.worker.group == "search":
-                results_list = self.query_one("#ws-results", ListView)
-                results_list.loading = False
-                results_list.append(ListItem(Label("Search failed")))
+                results_tree = self.query_one("#ws-results", Tree)
+                results_tree.loading = False
+                results_tree.clear()
+                results_tree.root.add_leaf("Search failed")
             elif event.worker.group == "replace_count":
                 status = self.query_one("#ws-replace-status", Label)
                 status.update("Replace count failed")
@@ -362,12 +370,11 @@ class WorkspaceSearchPane(Static):
     def _on_replace_submitted(self) -> None:
         self._run_replace_all()
 
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
-        index = event.list_view.index
-        result_data = self._get_result_data()
-        if index is None or index >= len(result_data):
+    def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
+        data = event.node.data
+        if data is None:
             return
-        file_path, line_number = result_data[index]
+        file_path, line_number = data
         self.post_message(
             self.OpenFileAtLineRequested(
                 file_path=file_path,
