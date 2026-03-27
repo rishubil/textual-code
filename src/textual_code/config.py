@@ -347,7 +347,7 @@ def _merge_and_write_editor_settings(
         }
     except FileNotFoundError:
         existing = {}
-    except (tomllib.TOMLDecodeError, PermissionError):
+    except (tomllib.TOMLDecodeError, OSError):
         logger.warning("Aborting settings save: cannot read %s", config_path)
         return False
     existing.update(settings)
