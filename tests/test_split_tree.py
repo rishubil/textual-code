@@ -12,6 +12,7 @@ from textual_code.widgets.split_tree import (
     adjacent_leaf,
     all_leaves,
     all_pane_ids,
+    branch_depth,
     find_leaf,
     find_leaf_for_pane,
     make_leaf,
@@ -402,3 +403,33 @@ def test_all_leaves_count_after_remove():
     result = remove_leaf(root, "b")
     assert result is not None
     assert len(all_leaves(result)) == 2
+
+
+# ── branch_depth ─────────────────────────────────────────────────────────────
+
+
+def test_branch_depth_leaf_is_zero():
+    assert branch_depth(_leaf("a")) == 0
+
+
+def test_branch_depth_single_branch():
+    root = BranchNode(
+        direction="horizontal",
+        children=[_leaf("a"), _leaf("b")],
+        ratios=[0.5, 0.5],
+    )
+    assert branch_depth(root) == 1
+
+
+def test_branch_depth_nested():
+    inner = BranchNode(
+        direction="vertical",
+        children=[_leaf("a"), _leaf("b")],
+        ratios=[0.5, 0.5],
+    )
+    root = BranchNode(
+        direction="horizontal",
+        children=[inner, _leaf("c")],
+        ratios=[0.5, 0.5],
+    )
+    assert branch_depth(root) == 2

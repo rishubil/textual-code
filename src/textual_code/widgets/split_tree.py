@@ -60,6 +60,17 @@ def find_leaf_for_pane(root: SplitNode, pane_id: str) -> LeafNode | None:
     return None
 
 
+def branch_depth(node: SplitNode) -> int:
+    """Count BranchNode nesting levels to the first leaf.
+
+    Follows children[0] at each level — must be used with all_leaves()[0]
+    which follows the same first-child path to stay consistent.
+    """
+    if isinstance(node, LeafNode):
+        return 0
+    return 1 + branch_depth(node.children[0])
+
+
 def all_leaves(root: SplitNode) -> list[LeafNode]:
     """Return all leaves in visual order (left→right, top→bottom)."""
     if isinstance(root, LeafNode):

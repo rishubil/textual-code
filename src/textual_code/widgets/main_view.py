@@ -36,6 +36,7 @@ from textual_code.widgets.split_tree import (
     adjacent_leaf,
     all_leaves,
     all_pane_ids,
+    branch_depth,
     directional_leaf,
     find_leaf,
     find_leaf_for_pane,
@@ -820,13 +821,17 @@ class MainView(Static):
                     f"#{sibling_leaves[0].leaf_id}", DraggableTabbedContent
                 )
 
-            container = sibling_widget.parent
+            # Walk up past nested SplitContainers when sibling is a BranchNode.
+            # branch_depth() counts how many SplitContainer levels the sibling
+            # spans; +1 to reach the parent container for parent_node.
+            depth = branch_depth(sibling)
+            container: Widget = sibling_widget
+            for _ in range(depth + 1):
+                container = cast(Widget, container.parent)
+            assert isinstance(container, SplitContainer)
             new_dtc = DraggableTabbedContent(id=new_leaf.leaf_id)
 
-            if (
-                isinstance(container, SplitContainer)
-                and container.direction == parent_node.direction
-            ):
+            if container.direction == parent_node.direction:
                 if idx == 0:
                     # "before" case: new leaf is first child
                     # Find the widget for the sibling (currently first in container)
