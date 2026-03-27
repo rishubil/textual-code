@@ -262,12 +262,18 @@ class MainView(Static):
 
     def _set_active_leaf(self, leaf: LeafNode) -> None:
         """Switch focus to the given leaf."""
+        old_leaf_id = self._active_leaf_id
         self._active_leaf_id = leaf.leaf_id
         editor = self._get_active_code_editor_in_leaf(leaf)
         if editor:
             editor.editor.focus()
         else:
             self.query_one(f"#{leaf.leaf_id}", TabbedContent).focus()
+        # Sync footer & Explorer when the active leaf actually changes.
+        if old_leaf_id != leaf.leaf_id:
+            self._sync_footer_to_active_editor()
+            if editor is not None and editor.path is not None:
+                self.post_message(self.ActiveFileChanged(editor.path))
 
     async def _auto_close_split_if_empty(self) -> None:
         """Remove empty leaves from the tree."""
@@ -1193,7 +1199,16 @@ class MainView(Static):
             if isinstance(ancestor, DraggableTabbedContent) and ancestor.id:
                 leaf = find_leaf(self._split_root, ancestor.id)
                 if leaf is not None:
+                    old_leaf_id = self._active_leaf_id
                     self._active_leaf_id = leaf.leaf_id
+                    # Sync footer & Explorer when the active leaf actually changes.
+                    # When a tab in another split is clicked, TabActivated also
+                    # fires and posts ActiveFileChanged for the same file.
+                    if old_leaf_id != leaf.leaf_id:
+                        self._sync_footer_to_active_editor()
+                        editor = self._get_active_code_editor_in_leaf(leaf)
+                        if editor is not None and editor.path is not None:
+                            self.post_message(self.ActiveFileChanged(editor.path))
                 break
 
     @on(TabbedContent.TabActivated)

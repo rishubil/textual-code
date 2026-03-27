@@ -17,6 +17,7 @@ Covers:
 from pathlib import Path
 
 import pytest
+from textual.message import Message
 
 from tests.conftest import assert_focus_on_leaf, make_app
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
@@ -1104,4 +1105,154 @@ async def test_move_tab_duplicate_file_focuses_existing(
 
         assert main._active_leaf_id == dest_leaf.leaf_id, (
             "active leaf should be dest leaf after duplicate move"
+        )
+
+
+# ── Group L — Cross-split focus updates Explorer & footer (#131) ─────────────
+
+
+async def test_cross_split_focus_posts_active_file_changed(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Clicking editor in another split must post ActiveFileChanged (#131)."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Split right — both splits now have py_file
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
+
+        # Open py_file2 in the right split (active leaf after split_right)
+        await app.main_view.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+        # TabActivated fires → Explorer now shows py_file2
+
+        # Focus left editor (which has py_file)
+        left_editor = app.main_view._get_active_code_editor_in_leaf(leaves[0])
+        assert left_editor is not None
+        left_editor.editor.focus()
+        await pilot.pause()
+
+        # Explorer must update to show the left file (py_file)
+        assert app.sidebar is not None
+        explorer = app.sidebar.explorer
+        cursor_node = explorer.directory_tree.cursor_node
+        assert cursor_node is not None
+        assert cursor_node.data is not None
+        assert cursor_node.data.path == py_file, (
+            f"Explorer should show {py_file.name} but shows "
+            f"{cursor_node.data.path.name}"
+        )
+
+
+async def test_cross_split_focus_syncs_footer(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Focusing editor in another split must sync footer path (#131)."""
+    from textual_code.widgets.code_editor import CodeEditorFooter
+
+    app = make_app(workspace, open_file=py_file, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        # Split right — both splits have py_file
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        leaves = all_leaves(app.main_view._split_root)
+        assert len(leaves) == 2
+
+        # Open py_file2 in the right split (active after split_right)
+        await app.main_view.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
+        # Focus left editor (which has py_file)
+        left_editor = app.main_view._get_active_code_editor_in_leaf(leaves[0])
+        assert left_editor is not None
+        left_editor.editor.focus()
+        await pilot.pause()
+
+        footer = app.main_view.query_one(CodeEditorFooter)
+        assert footer.path == py_file, (
+            f"Footer should show {py_file.name} but shows {footer.path}"
+        )
+
+        # Focus right editor (which has py_file2)
+        right_editor = app.main_view._get_active_code_editor_in_leaf(leaves[1])
+        assert right_editor is not None
+        right_editor.editor.focus()
+        await pilot.pause()
+
+        # Footer must sync to right editor's file
+        assert footer.path == py_file2, (
+            f"Footer should show {py_file2.name} but shows {footer.path}"
+        )
+
+
+async def test_focus_next_group_updates_explorer(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """action_focus_next_group (F6) must update Explorer selection (#131)."""
+    app = make_app(workspace, open_file=py_file)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        # Open py_file2 in the right split
+        await app.main_view.action_open_code_editor(path=py_file2)
+        await pilot.pause()
+
+        # Right split is active, Explorer shows py_file2
+        # Use action_focus_next_group to cycle back to left split
+        app.main_view.action_focus_next_group()
+        await pilot.pause()
+
+        assert app.sidebar is not None
+        explorer = app.sidebar.explorer
+        cursor_node = explorer.directory_tree.cursor_node
+        assert cursor_node is not None
+        assert cursor_node.data is not None
+        assert cursor_node.data.path == py_file, (
+            f"Explorer should show {py_file.name} after F6 but shows "
+            f"{cursor_node.data.path.name}"
+        )
+
+
+async def test_same_leaf_focus_no_extra_active_file_changed(
+    workspace: Path, py_file: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Focusing within the same leaf must not post ActiveFileChanged (#131)."""
+    from textual_code.widgets.main_view import MainView
+
+    app = make_app(workspace, open_file=py_file, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await app.main_view.action_split_right()
+        await pilot.pause()
+
+        messages: list[MainView.ActiveFileChanged] = []
+        original_handler = app.main_view.post_message
+
+        def tracking_post_message(msg: Message) -> bool:
+            if isinstance(msg, MainView.ActiveFileChanged):
+                messages.append(msg)
+            return original_handler(msg)
+
+        monkeypatch.setattr(app.main_view, "post_message", tracking_post_message)
+
+        # Focus the editor in the already-active leaf
+        leaves = all_leaves(app.main_view._split_root)
+        active_leaf = next(
+            lf for lf in leaves if lf.leaf_id == app.main_view._active_leaf_id
+        )
+        editor = app.main_view._get_active_code_editor_in_leaf(active_leaf)
+        assert editor is not None
+        editor.editor.focus()
+        await pilot.pause()
+
+        assert len(messages) == 0, (
+            f"Expected no ActiveFileChanged for same-leaf focus, got {len(messages)}"
         )
