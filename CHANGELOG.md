@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Explorer**: compact folder rendering — single-child directory chains display as a single node with a combined path label (e.g., `src/main/java`), matching VSCode's "Compact Folders" behavior; toggleable via command palette or `compact_folders` setting (Fix #128)
 - **Tabs**: new tabs open immediately after the active tab instead of at the end, matching VSCode's default `openPositioning: 'right'` behavior (Fix #124)
 - **Themes**: live preview when changing UI or syntax themes — selecting a theme in the dropdown immediately previews it; cancelling reverts to the original theme (Fix #104)
 - **Shortcuts**: assign Ctrl+O as default keyboard shortcut for "Open File..." command — opens the file search modal from any context; displayed in the footer, command palette, and F1 shortcuts viewer (Fix #101)

@@ -643,6 +643,13 @@ COMMAND_REGISTRY: tuple[CommandEntry, ...] = (
         "action_toggle_git_status",
     ),
     CommandEntry(
+        "toggle_compact_folders",
+        "Toggle Compact Folders",
+        "Collapse single-child folder chains in the explorer",
+        "app",
+        "action_toggle_compact_folders",
+    ),
+    CommandEntry(
         "toggle_indentation_guides",
         "Toggle Indentation Guides",
         "Show or hide indentation guides in the editor",

@@ -176,6 +176,7 @@ class FilteredDirectoryTree(DirectoryTree):
         dim_gitignored: bool = True,
         dim_hidden_files: bool = False,
         show_git_status: bool = True,
+        compact_folders: bool = True,
         **kwargs,
     ):
         super().__init__(path, **kwargs)
@@ -183,6 +184,7 @@ class FilteredDirectoryTree(DirectoryTree):
         self.dim_gitignored = dim_gitignored
         self.dim_hidden_files = dim_hidden_files
         self.show_git_status = show_git_status
+        self.compact_folders = compact_folders
         self._gitignore_specs: list[tuple[Path, pathspec.PathSpec]] | None = None
         self._gitignore_cache: dict[Path, bool] = {}
         self._git_result: GitStatusResult | None = None
@@ -603,23 +605,60 @@ class FilteredDirectoryTree(DirectoryTree):
         assert node.data is not None
         return self._load_directory_sync(node.data.path.expanduser())
 
+    def _resolve_compact_chain(self, path: Path) -> tuple[str, Path]:
+        """Walk a single-child directory chain and return joined label + deepest path.
+
+        Starting from *path*, repeatedly loads subdirectory contents.  If a
+        directory has exactly one visible child that is also a directory, the
+        chain continues.  Otherwise the chain ends.
+
+        Returns:
+            A tuple of (joined_label, deepest_directory_path).
+        """
+        segments = [path.name]
+        current = path
+        while True:
+            children = self._load_directory_sync(current)
+            if len(children) != 1:
+                break
+            child = children[0]
+            is_dir = self._is_dir_cache.get(child, self._safe_is_dir(child))
+            if not is_dir:
+                break
+            segments.append(child.name)
+            current = child
+        if len(segments) > 1:
+            _log.debug("compact chain: %s → %s", path.name, "/".join(segments))
+        return "/".join(segments), current
+
     def _populate_node(self, node: TreeNode[DirEntry], content: Iterable[Path]) -> None:
         """Populate tree node using cached is_dir results.
 
         Overrides the base DirectoryTree._populate_node to read from
         _is_dir_cache (populated by _load_directory_sync) instead of
         calling _safe_is_dir which would make another stat call per entry.
+
+        When compact_folders is enabled, single-child directory chains are
+        merged into a single node with a joined label (e.g. "src/main/java").
         """
         node.remove_children()
         for path in content:
             is_dir = self._is_dir_cache.pop(path, None)
             if is_dir is None:
                 is_dir = self._safe_is_dir(path)
-            node.add(
-                path.name,
-                data=DirEntry(path),
-                allow_expand=is_dir,
-            )
+            if is_dir and self.compact_folders:
+                label, deepest = self._resolve_compact_chain(path)
+                node.add(
+                    label,
+                    data=DirEntry(deepest),
+                    allow_expand=True,
+                )
+            else:
+                node.add(
+                    path.name,
+                    data=DirEntry(path),
+                    allow_expand=is_dir,
+                )
         node.expand()
 
 
@@ -747,6 +786,7 @@ class Explorer(Static):
         dim_gitignored: bool = True,
         dim_hidden_files: bool = False,
         show_git_status: bool = True,
+        compact_folders: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -757,6 +797,7 @@ class Explorer(Static):
         self._dim_gitignored = dim_gitignored
         self._dim_hidden_files = dim_hidden_files
         self._show_git_status = show_git_status
+        self._compact_folders = compact_folders
         self._pending_path: Path | None = None
         self._pending_retries: int = 0
 
@@ -819,30 +860,47 @@ class Explorer(Static):
         if self._pending_retries == 0:
             self._pending_retries = self._MAX_SELECT_RETRIES
 
-        # Walk path components and expand the first collapsed directory, then retry.
-        parts = path.relative_to(self.workspace_path).parts
+        # Walk tree using is_relative_to matching — handles compact folder nodes
+        # where intermediate directories don't have individual tree nodes.
+        max_depth = len(path.relative_to(self.workspace_path).parts)
         current = root
-        for part in parts[:-1]:  # directory components only (exclude filename)
-            child = next(
+        for _ in range(max_depth):
+            # Find a directory child that contains the target path
+            dir_child = next(
                 (
                     c
                     for c in current.children
-                    if c.data is not None and c.data.path.name == part
+                    if c.data is not None
+                    and c.allow_expand
+                    and path.is_relative_to(c.data.path)
                 ),
                 None,
             )
-            if child is None:
+            if dir_child is None:
                 # Directory not in tree yet — retry after loading
                 self.call_after_refresh(self._retry_pending)
                 return
-            if not child.is_expanded:
-                assert child.data is not None
-                self.log.debug("select_file: expanding %s", child.data.path)
-                child.expand()
+            if not dir_child.is_expanded:
+                assert dir_child.data is not None
+                self.log.debug("select_file: expanding %s", dir_child.data.path)
+                dir_child.expand()
                 self.call_after_refresh(self._retry_pending)
                 return
-            current = child
-        # All folders expanded but file not yet visible (still loading)
+            current = dir_child
+            # Check if the file node is now a direct child
+            file_match = next(
+                (
+                    c
+                    for c in current.children
+                    if c.data is not None and c.data.path == path
+                ),
+                None,
+            )
+            if file_match is not None:
+                # File node exists but find_node didn't reach it — still loading
+                self.call_after_refresh(self._retry_pending)
+                return
+        # Exhausted depth — retry after loading
         self.call_after_refresh(self._retry_pending)
 
     def compose(self) -> ComposeResult:
@@ -852,6 +910,7 @@ class Explorer(Static):
             dim_gitignored=self._dim_gitignored,
             dim_hidden_files=self._dim_hidden_files,
             show_git_status=self._show_git_status,
+            compact_folders=self._compact_folders,
         )
         directory_tree.show_root = False  # don't show the root directory
         yield directory_tree

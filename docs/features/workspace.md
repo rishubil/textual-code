@@ -236,7 +236,7 @@ Enables flexible organization of open files across the workspace. Tabs can be re
 
 **Implementation:** `draggable_tabs_content.py`, `main_view.py`, `app.py`
 
-## Sidebar & File Explorer: directory tree, git status, hidden files, resize, auto-refresh
+## Sidebar & File Explorer: directory tree, compact folders, git status, hidden files, resize, auto-refresh
 
 The sidebar provides file exploration and workspace search in a collapsible panel docked to the left side of the editor.
 
@@ -258,6 +258,15 @@ Provides visual file navigation, file/folder management, and quick access to wor
 - The workspace root is not shown (`show_root = False`); only its children are displayed.
 - Folders are expandable with file/folder icons.
 - Clicking a file opens it in the active editor pane.
+
+**Compact folders:**
+
+- `compact_folders` setting (default: `true`): when enabled, single-child directory chains are collapsed into a single tree node with a joined path label (e.g., `src/main/java/com/example` instead of five nested expandable nodes).
+- A chain ends when a directory contains more than one child, exactly one file (not a directory), or no children.
+- Compacting is based on **visible** children after filtering (hidden files, gitignore). A directory with one visible subdirectory and one hidden file compacts when `show_hidden_files` is `false`.
+- Expanding a compact node reveals the contents of the **deepest** directory in the chain.
+- Matches VS Code's "Compact Folders" (`explorer.compactFolders`) behavior.
+- Toggleable via command palette: "Toggle Compact Folders".
 
 **File creation, deletion, and clipboard operations:**
 
