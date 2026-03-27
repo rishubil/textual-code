@@ -1403,8 +1403,11 @@ class TextualCode(App):
         self.push_screen(
             PathSearchModal(
                 self.workspace_path,
-                scan_func=_read_workspace_files,
-                cache_key="files",
+                scan_func=partial(
+                    _read_workspace_files,
+                    show_hidden_files=self.default_show_hidden_files,
+                ),
+                cache_key=f"files:hidden={self.default_show_hidden_files}",
                 placeholder="Search for files...",
             ),
             callback=_on_result,
@@ -1465,8 +1468,11 @@ class TextualCode(App):
         self.push_screen(
             PathSearchModal(
                 self.workspace_path,
-                scan_func=_read_workspace_paths,
-                cache_key="paths",
+                scan_func=partial(
+                    _read_workspace_paths,
+                    show_hidden_files=self.default_show_hidden_files,
+                ),
+                cache_key=f"paths:hidden={self.default_show_hidden_files}",
                 placeholder=placeholder,
             ),
             callback=_on_result,
