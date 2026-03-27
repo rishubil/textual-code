@@ -51,7 +51,11 @@ async def test_footer_labels_correct_after_tab_switch(
 
 
 async def test_only_active_editor_polled_with_multiple_tabs(
-    workspace: Path, sample_py_file: Path, sample_json_file: Path, tmp_path: Path
+    workspace: Path,
+    sample_py_file: Path,
+    sample_json_file: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """With N tabs open, only the active editor's poll methods are called."""
     app = make_app(workspace, light=True, open_file=sample_py_file)
@@ -85,7 +89,7 @@ async def test_only_active_editor_polled_with_multiple_tabs(
             py_poll_count += 1
             orig_py_poll()
 
-        py_editor._poll_file_change = track_py  # ty: ignore[invalid-assignment]
+        monkeypatch.setattr(py_editor, "_poll_file_change", track_py)
 
         # Call the central poll method - only active (py) editor should be polled
         main._poll_active_editor()

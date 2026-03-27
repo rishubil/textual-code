@@ -56,7 +56,9 @@ async def test_resize_sidebar_to_changes_width(workspace):
         handle = app.query_one(SidebarResizeHandle)
         handle.resize_sidebar_to(30)
         await pilot.pause()
-        assert app.query_one(Sidebar).styles.width.value == 30  # ty: ignore[unresolved-attribute]
+        width = app.query_one(Sidebar).styles.width
+        assert width is not None
+        assert width.value == 30
 
 
 async def test_resize_sidebar_to_clamps_at_min(workspace):
@@ -66,7 +68,9 @@ async def test_resize_sidebar_to_clamps_at_min(workspace):
         handle = app.query_one(SidebarResizeHandle)
         handle.resize_sidebar_to(0)  # below min
         await pilot.pause()
-        assert app.query_one(Sidebar).styles.width.value == SIDEBAR_MIN_WIDTH  # ty: ignore[unresolved-attribute]
+        width = app.query_one(Sidebar).styles.width
+        assert width is not None
+        assert width.value == SIDEBAR_MIN_WIDTH
 
 
 async def test_resize_sidebar_to_clamps_at_max(workspace):
@@ -76,9 +80,10 @@ async def test_resize_sidebar_to_clamps_at_max(workspace):
         handle = app.query_one(SidebarResizeHandle)
         handle.resize_sidebar_to(9999)  # above max
         await pilot.pause()
-        sidebar = app.query_one(Sidebar)
         # Width must be <= screen_width - 5
-        assert sidebar.styles.width.value <= app.size.width - 5  # ty: ignore[unresolved-attribute]
+        width = app.query_one(Sidebar).styles.width
+        assert width is not None
+        assert width.value <= app.size.width - 5
 
 
 # ── Group 4: mouse_down/_up toggle _dragging ──────────────────────────────────
@@ -121,7 +126,9 @@ async def test_resize_sidebar_to_30_sets_width_to_30(workspace):
         handle = app.query_one(SidebarResizeHandle)
         handle.resize_sidebar_to(30)
         await pilot.pause()
-        assert app.query_one(Sidebar).styles.width.value == 30  # ty: ignore[unresolved-attribute]
+        width = app.query_one(Sidebar).styles.width
+        assert width is not None
+        assert width.value == 30
 
 
 # ── Group 5b: full drag flow ──────────────────────────────────────────────────
@@ -147,5 +154,6 @@ async def test_full_drag_changes_sidebar_width(workspace):
         await pilot.mouse_up(offset=(30, 5))
         await pilot.pause()
 
-        sidebar = app.query_one(Sidebar)
-        assert sidebar.styles.width.value == 30  # ty: ignore[unresolved-attribute]
+        width = app.query_one(Sidebar).styles.width
+        assert width is not None
+        assert width.value == 30

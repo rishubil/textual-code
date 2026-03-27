@@ -161,7 +161,9 @@ async def test_app_loads_project_config_on_startup(workspace):
 
 
 @pytest.mark.asyncio
-async def test_app_loads_user_and_project_config_priority(tmp_path):
+async def test_app_loads_user_and_project_config_priority(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     # user config says tabs, project config says spaces → project wins
     user_cfg = tmp_path / "user.toml"
     user_cfg.write_text('[editor]\nindent_type = "tabs"\n')
@@ -170,7 +172,6 @@ async def test_app_loads_user_and_project_config_priority(tmp_path):
     proj = ws / ".textual-code.toml"
     proj.write_text('[editor]\nindent_type = "spaces"\n')
     # Patch load_editor_settings via monkeypatching user_config_path
-    # We do this by using a subclass that passes the user_config_path
     import textual_code.config as config_module
 
     original_load = config_module.load_editor_settings
@@ -178,12 +179,9 @@ async def test_app_loads_user_and_project_config_priority(tmp_path):
     def patched_load(workspace_path, user_config_path=None):
         return original_load(workspace_path, user_config_path=user_cfg)
 
-    config_module.load_editor_settings = patched_load  # ty: ignore[invalid-assignment]
-    try:
-        app = TextualCode(workspace_path=ws, with_open_file=None)
-        assert app.default_indent_type == "spaces"  # project overrides user
-    finally:
-        config_module.load_editor_settings = original_load
+    monkeypatch.setattr(config_module, "load_editor_settings", patched_load)
+    app = TextualCode(workspace_path=ws, with_open_file=None)
+    assert app.default_indent_type == "spaces"  # project overrides user
 
 
 # ---------------------------------------------------------------------------

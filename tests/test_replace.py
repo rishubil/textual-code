@@ -15,6 +15,7 @@ Behaviour spec:
 from pathlib import Path
 
 import pytest
+from textual.widgets import Input
 
 from tests.conftest import make_app
 from textual_code.widgets.find_replace_bar import FindReplaceBar
@@ -491,10 +492,10 @@ async def test_replace_single_only_one_match_no_next(workspace: Path):
         editor.action_replace()
         await pilot.pause()
 
-        find_input = editor.query_one("#find_input")
-        find_input.value = "unique"  # ty: ignore[unresolved-attribute]
-        replace_input = editor.query_one("#replace_input")
-        replace_input.value = "common"  # ty: ignore[unresolved-attribute]
+        find_input = editor.query_one("#find_input", Input)
+        find_input.value = "unique"
+        replace_input = editor.query_one("#replace_input", Input)
+        replace_input.value = "common"
         await pilot.click("#replace_btn")
         await pilot.pause()
 

@@ -132,7 +132,8 @@ async def test_auto_reload_when_no_unsaved_changes(
 
         # Simulate external change
         sample_py_file.write_text("auto reloaded content\n")
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
 
         editor._poll_file_change()
         await pilot.pause()
@@ -157,7 +158,8 @@ async def test_no_auto_reload_when_unsaved_changes_exist(
 
         # Simulate external file change
         sample_py_file.write_text("external disk change\n")
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
 
         editor._poll_file_change()
         await pilot.pause()
@@ -286,7 +288,8 @@ async def test_save_external_change_shows_overwrite_modal(
         await pilot.pause()
 
         # Simulate external file change by bumping the mtime tracker
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
 
         editor.action_save()
         await pilot.pause()
@@ -307,7 +310,8 @@ async def test_save_overwrite_confirmed_writes_file(
         editor.text = "overwrite confirmed\n"
         await pilot.pause()
 
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
 
         editor.action_save()
         await pilot.pause()
@@ -332,7 +336,8 @@ async def test_save_overwrite_cancelled_does_not_write(
         editor.text = "should not be written\n"
         await pilot.pause()
 
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
 
         editor.action_save()
         await pilot.pause()
@@ -429,7 +434,8 @@ async def test_auto_reload_preserves_cursor_position(
 
         # Simulate external file change (same content, just bump mtime)
         multiline_file.write_text(multiline_file.read_text())
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
 
         editor._poll_file_change()
         await pilot.pause()
@@ -452,7 +458,8 @@ async def test_toast_shown_once_on_first_poll(workspace: Path, sample_py_file: P
         editor.text = "unsaved\n"
         await pilot.pause()
         sample_py_file.write_text("external\n")
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
 
         assert editor._external_change_notification is None
         editor._poll_file_change()
@@ -474,7 +481,8 @@ async def test_toast_not_repeated_on_subsequent_polls(
         editor.text = "unsaved\n"
         await pilot.pause()
         sample_py_file.write_text("external\n")
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
 
         editor._poll_file_change()
         await pilot.pause()
@@ -501,7 +509,8 @@ async def test_notification_cleared_after_reload(workspace: Path, sample_py_file
         editor.text = "unsaved\n"
         await pilot.pause()
         sample_py_file.write_text("external\n")
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
 
         editor._poll_file_change()
         await pilot.pause()
@@ -535,7 +544,8 @@ async def test_notification_cleared_after_save(workspace: Path, sample_py_file: 
         editor.text = "unsaved\n"
         await pilot.pause()
         sample_py_file.write_text("external\n")
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
 
         editor._poll_file_change()
         await pilot.pause()
@@ -563,7 +573,8 @@ async def test_new_notification_after_reload_then_change(
         editor.text = "unsaved\n"
         await pilot.pause()
         sample_py_file.write_text("external\n")
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
         editor._poll_file_change()
         await pilot.pause()
         first_notification = editor._external_change_notification
@@ -600,7 +611,8 @@ async def test_new_notification_after_save_then_change(
         editor.text = "unsaved\n"
         await pilot.pause()
         sample_py_file.write_text("external\n")
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
         editor._poll_file_change()
         await pilot.pause()
         first_notification = editor._external_change_notification

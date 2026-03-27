@@ -112,11 +112,9 @@ def _insert_separator_at_case_boundaries(text: str, sep: str) -> str:
     for i, ch in enumerate(text):
         if i > 0:
             prev = text[i - 1]
-            # Rule 1: lowercase → uppercase
-            if prev.islower() and ch.isupper():  # noqa: SIM114
-                result.append(sep)
+            # Rule 1: lowercase → uppercase  OR
             # Rule 2: (upper|digit)(upper)(lower) — insert before the (upper)
-            elif (
+            if (prev.islower() and ch.isupper()) or (
                 (prev.isupper() or prev.isdigit())
                 and ch.isupper()
                 and i + 1 < n

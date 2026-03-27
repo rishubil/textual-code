@@ -12,6 +12,7 @@ TextualCode app integration tests.
 
 from pathlib import Path
 
+import pytest
 from textual.widgets import Footer
 
 from tests.conftest import make_app
@@ -144,7 +145,7 @@ async def test_create_directory_does_not_open_tab(workspace: Path):
 
 
 async def test_create_existing_file_shows_notification(
-    workspace: Path, sample_py_file: Path
+    workspace: Path, sample_py_file: Path, monkeypatch: pytest.MonkeyPatch
 ):
     app = make_app(workspace)
     notifications: list[str] = []
@@ -154,7 +155,7 @@ async def test_create_existing_file_shows_notification(
         notifications.append(msg)
         return original_notify(msg, **kwargs)
 
-    app.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
+    monkeypatch.setattr(app, "notify", capture_notify)
 
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -776,7 +777,9 @@ async def test_save_screenshot_relative_path_resolves_to_workspace(workspace: Pa
     assert "<svg" in content
 
 
-async def test_save_screenshot_error_on_invalid_path(workspace: Path):
+async def test_save_screenshot_error_on_invalid_path(
+    workspace: Path, monkeypatch: pytest.MonkeyPatch
+):
     """Error notification shown when writing to a read-only directory fails."""
     app = make_app(workspace)
     notifications: list[tuple[str, str]] = []
@@ -786,7 +789,7 @@ async def test_save_screenshot_error_on_invalid_path(workspace: Path):
         notifications.append((msg, severity))
         return original_notify(msg, severity=severity, **kwargs)
 
-    app.notify = capture_notify  # type: ignore[method-assign]
+    monkeypatch.setattr(app, "notify", capture_notify)
 
     async with app.run_test() as pilot:
         await pilot.pause()

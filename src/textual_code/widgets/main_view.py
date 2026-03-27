@@ -185,24 +185,24 @@ class MainView(Static):
         return self._active_leaf.opened_files
 
     @property
-    def tabbed_content(self) -> TabbedContent:
+    def tabbed_content(self) -> DraggableTabbedContent:
         """The active leaf's TabbedContent."""
-        return self.query_one(f"#{self._active_leaf_id}", TabbedContent)
+        return self.query_one(f"#{self._active_leaf_id}", DraggableTabbedContent)
 
     @property
-    def left_tabbed_content(self) -> TabbedContent:
+    def left_tabbed_content(self) -> DraggableTabbedContent:
         """First leaf's TabbedContent."""
         leaves = all_leaves(self._split_root)
-        return self.query_one(f"#{leaves[0].leaf_id}", TabbedContent)
+        return self.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
 
     @property
-    def right_tabbed_content(self) -> TabbedContent:
+    def right_tabbed_content(self) -> DraggableTabbedContent:
         """Second leaf's TabbedContent (or raises if not split)."""
         leaves = all_leaves(self._split_root)
         if len(leaves) < 2:
             # Return a DraggableTabbedContent that is not displayed for compat
-            return self.query_one(f"#{leaves[0].leaf_id}", TabbedContent)
-        return self.query_one(f"#{leaves[1].leaf_id}", TabbedContent)
+            return self.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+        return self.query_one(f"#{leaves[1].leaf_id}", DraggableTabbedContent)
 
     # ── Leaf helpers ─────────────────────────────────────────────────────────
 

@@ -20,6 +20,7 @@ Helper spec (_text_offset_to_location):
 from pathlib import Path
 
 import pytest
+from textual.widgets import Checkbox, Input
 
 from tests.conftest import make_app
 from textual_code.widgets.code_editor import (
@@ -387,8 +388,8 @@ async def test_find_multiword_query(workspace: Path, search_file: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = editor.query_one("#find_input")
-        input_widget.value = "hello world"  # ty: ignore[unresolved-attribute]
+        input_widget = editor.query_one("#find_input", Input)
+        input_widget.value = "hello world"
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -413,8 +414,8 @@ async def test_find_match_at_end_of_file(workspace: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = editor.query_one("#find_input")
-        input_widget.value = "find me"  # ty: ignore[unresolved-attribute]
+        input_widget = editor.query_one("#find_input", Input)
+        input_widget.value = "find me"
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -496,8 +497,8 @@ async def test_find_file_without_trailing_newline(workspace: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = editor.query_one("#find_input")
-        input_widget.value = "second"  # ty: ignore[unresolved-attribute]
+        input_widget = editor.query_one("#find_input", Input)
+        input_widget.value = "second"
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -645,8 +646,8 @@ async def test_find_entire_file_content_as_query(workspace: Path):
         editor.action_find()
         await pilot.pause()
 
-        input_widget = editor.query_one("#find_input")
-        input_widget.value = content  # ty: ignore[unresolved-attribute]
+        input_widget = editor.query_one("#find_input", Input)
+        input_widget.value = content
         await pilot.click("#next_match")
         await pilot.pause()
 
@@ -673,8 +674,8 @@ async def test_case_insensitive_find_selects_uppercase_match(workspace: Path):
         bar = editor.query_one(FindReplaceBar)
 
         # Uncheck case_sensitive checkbox
-        case_cb = bar.query_one("#case_sensitive")
-        case_cb.value = False  # ty: ignore[unresolved-attribute]
+        case_cb = bar.query_one("#case_sensitive", Checkbox)
+        case_cb.value = False
         await pilot.pause()
 
         await pilot.click("#find_input")

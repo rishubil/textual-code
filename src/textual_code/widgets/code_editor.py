@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from difflib import SequenceMatcher
 from enum import Enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
 from charset_normalizer import detect as _cn_detect
@@ -55,6 +55,7 @@ _CUSTOM_LANGUAGE_QUERIES: dict[str, str] = {}
 # Map custom language name -> tree-sitter Language object (loaded at import time)
 if TYPE_CHECKING:
     from tree_sitter import Language
+    from tree_sitter_language_pack import SupportedLanguage
 
 _CUSTOM_LANGUAGES: dict[str, Language] = {}
 
@@ -80,7 +81,7 @@ try:
         try:
             _scm_path = _GRAMMARS_DIR / f"{_lang_name}.scm"
             _query = _scm_path.read_text(encoding="utf-8")
-            _lang_obj = _get_ts_language(_lang_name)  # type: ignore[arg-type]  # str from runtime list; SupportedLanguage is a 173-literal union
+            _lang_obj = _get_ts_language(cast("SupportedLanguage", _lang_name))
             _CUSTOM_LANGUAGE_QUERIES[_lang_name] = _query
             _CUSTOM_LANGUAGES[_lang_name] = _lang_obj
         except Exception as _e:
@@ -2011,17 +2012,16 @@ class CodeEditor(Static):
                 find_query if use_regex else re.escape(find_query), flags
             )
             m = pattern.match(text, start_offset)
-            match_found = m is not None and m.end() == end_offset
         except re.error as e:
             self.notify(f"Invalid regex: {e}", severity="error")
             return
 
-        if match_found:
+        if m is not None and m.end() == end_offset:
             try:
                 # Use match.expand() to process backreferences with full
                 # text context — re.sub on isolated selected_text would
                 # break lookaheads/lookbehinds that need surrounding text.
-                rep = m.expand(replacement)  # type: ignore[union-attr]
+                rep = m.expand(replacement)
             except (re.error, IndexError):
                 rep = replacement
             new_text = text[:start_offset] + rep + text[end_offset:]

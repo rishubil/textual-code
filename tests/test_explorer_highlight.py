@@ -51,17 +51,21 @@ async def test_switch_tab_updates_explorer(workspace: Path, two_files):
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
         assert explorer.directory_tree.cursor_node is not None
-        assert explorer.directory_tree.cursor_node.data.path == f2  # ty: ignore[unresolved-attribute]
+        assert explorer.directory_tree.cursor_node.data is not None
+        assert explorer.directory_tree.cursor_node.data.path == f2
 
         # Switch to f1 tab
         pane_id_f1 = app.main_view.pane_id_from_path(f1)
-        app.main_view.tabbed_content.active = pane_id_f1  # ty: ignore[invalid-assignment]
+        assert pane_id_f1 is not None
+        tc = app.main_view.tabbed_content
+        tc.active = pane_id_f1
         await pilot.pause()
         await pilot.pause()
 
         # f1 should now be highlighted
         assert explorer.directory_tree.cursor_node is not None
-        assert explorer.directory_tree.cursor_node.data.path == f1  # ty: ignore[unresolved-attribute]
+        assert explorer.directory_tree.cursor_node.data is not None
+        assert explorer.directory_tree.cursor_node.data.path == f1
 
 
 async def test_switch_tab_updates_explorer_nested_file(workspace: Path):
@@ -87,7 +91,8 @@ async def test_switch_tab_updates_explorer_nested_file(workspace: Path):
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
         assert explorer.directory_tree.cursor_node is not None
-        assert explorer.directory_tree.cursor_node.data.path == f_nested  # ty: ignore[unresolved-attribute]
+        assert explorer.directory_tree.cursor_node.data is not None
+        assert explorer.directory_tree.cursor_node.data.path == f_nested
 
 
 async def test_switch_tab_updates_explorer_doubly_nested_file(workspace: Path):
@@ -125,7 +130,8 @@ async def test_switch_tab_updates_explorer_doubly_nested_file(workspace: Path):
                 explorer.select_file(f_nested)
 
         assert explorer.directory_tree.cursor_node is not None
-        assert explorer.directory_tree.cursor_node.data.path == f_nested  # ty: ignore[unresolved-attribute]
+        assert explorer.directory_tree.cursor_node.data is not None
+        assert explorer.directory_tree.cursor_node.data.path == f_nested
 
 
 async def test_switch_tab_updates_explorer_after_collapse(workspace: Path):
@@ -163,16 +169,21 @@ async def test_switch_tab_updates_explorer_after_collapse(workspace: Path):
 
         # Switch to f_top, then back to f_nested (subdir is collapsed)
         pane_id_top = app.main_view.pane_id_from_path(f_top)
-        app.main_view.tabbed_content.active = pane_id_top  # ty: ignore[invalid-assignment]
+        assert pane_id_top is not None
+        tc = app.main_view.tabbed_content
+        tc.active = pane_id_top
         await pilot.pause()
 
         pane_id_nested = app.main_view.pane_id_from_path(f_nested)
-        app.main_view.tabbed_content.active = pane_id_nested  # ty: ignore[invalid-assignment]
+        assert pane_id_nested is not None
+        tc = app.main_view.tabbed_content
+        tc.active = pane_id_nested
         for _ in range(5):
             await pilot.pause()
 
         assert explorer.directory_tree.cursor_node is not None
-        assert explorer.directory_tree.cursor_node.data.path == f_nested  # ty: ignore[unresolved-attribute]
+        assert explorer.directory_tree.cursor_node.data is not None
+        assert explorer.directory_tree.cursor_node.data.path == f_nested
 
 
 async def test_select_file_nonexistent_nested_path_is_noop(workspace: Path):

@@ -11,6 +11,10 @@ These tests verify:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
+
+from textual.widgets._directory_tree import DirEntry
+from textual.widgets._tree import TreeNode
 
 from tests.conftest import make_app
 from textual_code.widgets.explorer import Explorer, FilteredDirectoryTree
@@ -35,7 +39,7 @@ class TestCompactFolderDetection:
 
         # Populate the root node
         root_node = _FakeNode()
-        tree._populate_node(root_node, content)  # ty: ignore[invalid-argument-type]
+        tree._populate_node(cast("TreeNode[DirEntry]", root_node), content)
 
         # Should have exactly one child with joined label "src/main/java"
         assert len(root_node.children) == 1
@@ -57,7 +61,7 @@ class TestCompactFolderDetection:
         tree = FilteredDirectoryTree(ws, compact_folders=True)
         content = tree._load_directory_sync(ws)
         root_node = _FakeNode()
-        tree._populate_node(root_node, content)  # ty: ignore[invalid-argument-type]
+        tree._populate_node(cast("TreeNode[DirEntry]", root_node), content)
 
         # Should have one child "src" (not compacted, has 2 children)
         assert len(root_node.children) == 1
@@ -75,7 +79,7 @@ class TestCompactFolderDetection:
         tree = FilteredDirectoryTree(ws, compact_folders=True)
         content = tree._load_directory_sync(ws)
         root_node = _FakeNode()
-        tree._populate_node(root_node, content)  # ty: ignore[invalid-argument-type]
+        tree._populate_node(cast("TreeNode[DirEntry]", root_node), content)
 
         # "src" should not be compacted (single child is a file, not a dir)
         assert len(root_node.children) == 1
@@ -93,7 +97,7 @@ class TestCompactFolderDetection:
         tree = FilteredDirectoryTree(ws, compact_folders=True)
         content = tree._load_directory_sync(ws)
         root_node = _FakeNode()
-        tree._populate_node(root_node, content)  # ty: ignore[invalid-argument-type]
+        tree._populate_node(cast("TreeNode[DirEntry]", root_node), content)
 
         assert len(root_node.children) == 1
         child = root_node.children[0]
@@ -111,7 +115,7 @@ class TestCompactFolderDetection:
         tree = FilteredDirectoryTree(ws, compact_folders=False)
         content = tree._load_directory_sync(ws)
         root_node = _FakeNode()
-        tree._populate_node(root_node, content)  # ty: ignore[invalid-argument-type]
+        tree._populate_node(cast("TreeNode[DirEntry]", root_node), content)
 
         # Should have one child "src" (not compacted)
         assert len(root_node.children) == 1
@@ -133,7 +137,7 @@ class TestCompactFolderDetection:
         tree = FilteredDirectoryTree(ws, compact_folders=True, show_hidden_files=False)
         content = tree._load_directory_sync(ws)
         root_node = _FakeNode()
-        tree._populate_node(root_node, content)  # ty: ignore[invalid-argument-type]
+        tree._populate_node(cast("TreeNode[DirEntry]", root_node), content)
 
         # src has only "main" visible (hidden file filtered out), so should compact
         assert len(root_node.children) == 1
@@ -154,7 +158,7 @@ class TestCompactFolderDetection:
         tree = FilteredDirectoryTree(ws, compact_folders=True)
         content = tree._load_directory_sync(ws)
         root_node = _FakeNode()
-        tree._populate_node(root_node, content)  # ty: ignore[invalid-argument-type]
+        tree._populate_node(cast("TreeNode[DirEntry]", root_node), content)
 
         # "src" has 2 children (main/ and README.md), so not compacted
         assert len(root_node.children) == 1
@@ -177,7 +181,7 @@ class TestCompactFolderDetection:
         tree = FilteredDirectoryTree(ws, compact_folders=True)
         content = tree._load_directory_sync(ws)
         root_node = _FakeNode()
-        tree._populate_node(root_node, content)  # ty: ignore[invalid-argument-type]
+        tree._populate_node(cast("TreeNode[DirEntry]", root_node), content)
 
         assert len(root_node.children) == 2
         labels = sorted(child.label for child in root_node.children)
@@ -214,7 +218,7 @@ class TestCompactFolderIntegration:
                     compact_node = child
                     break
             assert compact_node is not None, "Should have a compacted node"
-            assert "src/main/java" in compact_node.label.plain  # ty: ignore[unresolved-attribute]
+            assert "src/main/java" in str(compact_node.label)
 
     async def test_c02_select_file_inside_compacted_chain(self, workspace: Path):
         """select_file should navigate to a file inside a compacted directory."""
@@ -248,7 +252,8 @@ class TestCompactFolderIntegration:
                     explorer.select_file(f_nested)
 
             assert explorer.directory_tree.cursor_node is not None
-            assert explorer.directory_tree.cursor_node.data.path == f_nested  # ty: ignore[unresolved-attribute]
+            assert explorer.directory_tree.cursor_node.data is not None
+            assert explorer.directory_tree.cursor_node.data.path == f_nested
 
 
 class TestCompactFolderSetting:
