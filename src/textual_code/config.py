@@ -25,6 +25,7 @@ EDITOR_KEYS = {
     "show_indentation_guides",
     "render_whitespace",
     "sidebar_width",
+    "compact_folders",
 }
 
 DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
@@ -44,6 +45,7 @@ DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "show_indentation_guides": True,
     "render_whitespace": "none",
     "sidebar_width": 28,
+    "compact_folders": True,
 }
 
 

@@ -382,6 +382,7 @@ class TextualCode(App):
             settings.get("dim_hidden_files", False)
         )
         self.default_show_git_status: bool = bool(settings.get("show_git_status", True))
+        self.default_compact_folders: bool = bool(settings.get("compact_folders", True))
         self.default_show_indentation_guides: bool = bool(
             settings.get("show_indentation_guides", True)
         )
@@ -456,6 +457,7 @@ class TextualCode(App):
                 dim_gitignored=self.default_dim_gitignored,
                 dim_hidden_files=self.default_dim_hidden_files,
                 show_git_status=self.default_show_git_status,
+                compact_folders=self.default_compact_folders,
                 sidebar_width=self.default_sidebar_width,
             )
         yield MainView()
@@ -676,6 +678,7 @@ class TextualCode(App):
             "dim_gitignored": self.default_dim_gitignored,
             "dim_hidden_files": self.default_dim_hidden_files,
             "show_git_status": self.default_show_git_status,
+            "compact_folders": self.default_compact_folders,
             "show_indentation_guides": self.default_show_indentation_guides,
             "render_whitespace": self.default_render_whitespace,
             "sidebar_width": self.default_sidebar_width,
@@ -971,6 +974,17 @@ class TextualCode(App):
             "show_git_status",
             self.default_show_git_status,
             "Git status highlighting",
+            "enabled",
+            "disabled",
+        )
+
+    def action_toggle_compact_folders(self) -> None:
+        """Toggle compact folder rendering in the explorer and save to config."""
+        self.default_compact_folders = not self.default_compact_folders
+        self._toggle_explorer_tree_setting(
+            "compact_folders",
+            self.default_compact_folders,
+            "Compact folders",
             "enabled",
             "disabled",
         )

@@ -1038,6 +1038,30 @@ def test_snapshot_sidebar_custom_width(snap_compare, snapshot_workspace: Path):
     assert snap_compare(app, terminal_size=TERMINAL_SIZE)
 
 
+# ── Compact folders (#128) ────────────────────────────────────────────────────
+
+
+def test_snapshot_explorer_compact_folders(snap_compare, snapshot_workspace: Path):
+    """Explorer collapses single-child directory chains into compact nodes."""
+    # Chain 1: src/main/java/com/example → App.java
+    chain = snapshot_workspace / "src" / "main" / "java" / "com" / "example"
+    chain.mkdir(parents=True)
+    (chain / "App.java").write_text("public class App {}\n")
+    # Chain 2: tests/unit → test_app.py
+    tests_dir = snapshot_workspace / "tests" / "unit"
+    tests_dir.mkdir(parents=True)
+    (tests_dir / "test_app.py").write_text("def test_app(): pass\n")
+    # Non-chain: docs with multiple children
+    docs = snapshot_workspace / "docs"
+    docs.mkdir()
+    (docs / "readme.md").write_text("# README\n")
+    (docs / "guide.md").write_text("# Guide\n")
+    config = snapshot_workspace / "settings.toml"
+    app = make_app(snapshot_workspace, user_config_path=config)
+
+    assert snap_compare(app, terminal_size=TERMINAL_SIZE)
+
+
 # ── Sidebar horizontal scroll (#70) ──────────────────────────────────────────
 
 
