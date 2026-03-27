@@ -327,6 +327,64 @@ def test_invalid_toml_collects_warning(tmp_path):
     assert "parse error" in warnings[0].lower()
 
 
+# ---------------------------------------------------------------------------
+# Group 10: Partial save — only changed keys persisted (#132)
+# ---------------------------------------------------------------------------
+
+
+def test_save_user_settings_preserves_existing_and_adds_only_new(tmp_path):
+    """Saving a new key preserves pre-existing overrides without adding defaults."""
+    cfg = tmp_path / "settings.toml"
+    # Pre-existing config with only one explicit override
+    cfg.write_text('[editor]\nsyntax_theme = "dracula"\n')
+
+    # Save only word_wrap change
+    save_user_editor_settings({"word_wrap": False}, cfg)
+
+    content = cfg.read_text()
+    # The new key should be present
+    assert "word_wrap = false" in content
+    # The pre-existing override should be preserved
+    assert 'syntax_theme = "dracula"' in content
+    # Default-valued keys should NOT be written
+    assert "indent_size" not in content
+    assert "indent_type" not in content
+    assert "ui_theme" not in content
+    assert "show_hidden_files" not in content
+
+
+def test_save_project_settings_preserves_existing_and_adds_only_new(tmp_path):
+    """Project config save should also use read-modify-write pattern."""
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    proj_cfg = ws / ".textual-code.toml"
+    proj_cfg.write_text("[editor]\nindent_size = 2\n")
+
+    # Save only word_wrap change
+    save_project_editor_settings({"word_wrap": False}, ws)
+
+    content = proj_cfg.read_text()
+    assert "word_wrap = false" in content
+    assert "indent_size = 2" in content
+    # Should NOT contain other default keys
+    assert "ui_theme" not in content
+    assert "syntax_theme" not in content
+
+
+def test_save_user_settings_overwrites_existing_key(tmp_path):
+    """Saving a key that already exists should update its value."""
+    cfg = tmp_path / "settings.toml"
+    cfg.write_text('[editor]\nsyntax_theme = "dracula"\nindent_size = 2\n')
+
+    save_user_editor_settings({"syntax_theme": "monokai"}, cfg)
+
+    content = cfg.read_text()
+    assert 'syntax_theme = "monokai"' in content
+    assert "indent_size = 2" in content
+    # Should NOT have dracula anymore
+    assert "dracula" not in content
+
+
 def test_invalid_project_config_collects_warning(tmp_path):
     """Invalid project .textual-code.toml appends a parse-error warning."""
     ws = tmp_path / "ws"

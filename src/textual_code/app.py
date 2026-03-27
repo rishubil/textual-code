@@ -646,43 +646,24 @@ class TextualCode(App):
         if not save_fn(*args):
             self.notify("Failed to save settings", severity="error")
 
-    def _save_editor_settings(self, save_level: str) -> None:
-        """Build and persist editor settings at the given level."""
-        settings = self._build_editor_settings()
+    def _save_editor_settings(
+        self,
+        save_level: str,
+        changed_keys: dict[str, str | int | bool],
+    ) -> None:
+        """Persist only *changed_keys* to the config file at *save_level*."""
         if save_level == "project":
             self._save_config(
                 save_project_editor_settings,
-                settings,
+                changed_keys,
                 self.workspace_path,
             )
         else:
             self._save_config(
                 save_user_editor_settings,
-                settings,
+                changed_keys,
                 self._user_config_path,
             )
-
-    def _build_editor_settings(self) -> dict[str, str | int | bool]:
-        """Build the current editor settings dict for saving to config."""
-        return {
-            "indent_type": self.default_indent_type,
-            "indent_size": self.default_indent_size,
-            "line_ending": self.default_line_ending,
-            "encoding": self.default_encoding,
-            "syntax_theme": self.default_syntax_theme,
-            "word_wrap": self.default_word_wrap,
-            "ui_theme": self.default_ui_theme,
-            "warn_line_ending": self.default_warn_line_ending,
-            "show_hidden_files": self.default_show_hidden_files,
-            "path_display_mode": self.default_path_display_mode,
-            "dim_gitignored": self.default_dim_gitignored,
-            "dim_hidden_files": self.default_dim_hidden_files,
-            "show_git_status": self.default_show_git_status,
-            "compact_folders": self.default_compact_folders,
-            "show_indentation_guides": self.default_show_indentation_guides,
-            "render_whitespace": self.default_render_whitespace,
-            "sidebar_width": self.default_sidebar_width,
-        }
 
     def action_set_default_indentation(self) -> None:
         """Set the default indentation for new files and save to config."""
@@ -695,7 +676,13 @@ class TextualCode(App):
                 self.default_indent_size = (
                     result.indent_size or self.default_indent_size
                 )
-                self._save_editor_settings(result.save_level)
+                self._save_editor_settings(
+                    result.save_level,
+                    {
+                        "indent_type": self.default_indent_type,
+                        "indent_size": self.default_indent_size,
+                    },
+                )
 
         self.call_next(
             lambda: self.push_screen(
@@ -714,7 +701,10 @@ class TextualCode(App):
                 self.default_line_ending = (
                     result.line_ending or self.default_line_ending
                 )
-                self._save_editor_settings(result.save_level)
+                self._save_editor_settings(
+                    result.save_level,
+                    {"line_ending": self.default_line_ending},
+                )
 
         self.call_next(
             lambda: self.push_screen(
@@ -731,7 +721,10 @@ class TextualCode(App):
         def do_change(result: ChangeEncodingModalResult | None) -> None:
             if result and not result.is_cancelled:
                 self.default_encoding = result.encoding or self.default_encoding
-                self._save_editor_settings(result.save_level)
+                self._save_editor_settings(
+                    result.save_level,
+                    {"encoding": self.default_encoding},
+                )
 
         self.call_next(
             lambda: self.push_screen(
@@ -748,7 +741,10 @@ class TextualCode(App):
                 self.default_syntax_theme = result.theme
                 for editor in self.query(CodeEditor):
                     editor.syntax_theme = result.theme
-                self._save_editor_settings(result.save_level)
+                self._save_editor_settings(
+                    result.save_level,
+                    {"syntax_theme": self.default_syntax_theme},
+                )
 
         self.call_next(
             lambda: self.push_screen(
@@ -900,7 +896,10 @@ class TextualCode(App):
         def do_change(result: ChangeWordWrapModalResult | None) -> None:
             if result and not result.is_cancelled and result.word_wrap is not None:
                 self.default_word_wrap = result.word_wrap
-                self._save_editor_settings(result.save_level)
+                self._save_editor_settings(
+                    result.save_level,
+                    {"word_wrap": self.default_word_wrap},
+                )
 
         self.call_next(
             lambda: self.push_screen(
@@ -918,7 +917,7 @@ class TextualCode(App):
             tree = sb.explorer.directory_tree
             setattr(tree, tree_attr, new_value)
             tree.reload()
-        self._save_editor_settings("user")
+        self._save_editor_settings("user", {tree_attr: new_value})
         state = on_text if new_value else off_text
         self.notify(f"{label}: {state}")
 
@@ -942,7 +941,9 @@ class TextualCode(App):
         )
         footer = self.main_view.query_one(CodeEditorFooter)
         footer.path_display_mode = self.default_path_display_mode
-        self._save_editor_settings("user")
+        self._save_editor_settings(
+            "user", {"path_display_mode": self.default_path_display_mode}
+        )
         self.notify(f"Path display: {self.default_path_display_mode}")
 
     def action_toggle_dim_gitignored(self) -> None:
@@ -1081,7 +1082,10 @@ class TextualCode(App):
             if result and not result.is_cancelled and result.theme:
                 self.default_ui_theme = result.theme
                 self.theme = result.theme
-                self._save_editor_settings(result.save_level)
+                self._save_editor_settings(
+                    result.save_level,
+                    {"ui_theme": self.default_ui_theme},
+                )
 
         self.call_next(
             lambda: self.push_screen(

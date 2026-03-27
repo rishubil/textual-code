@@ -213,18 +213,6 @@ class TestAppIntegration:
             assert app.default_dim_gitignored is False
 
     @pytest.mark.asyncio
-    async def test_c03_build_editor_settings_includes_key(self, tmp_path: Path):
-        """_build_editor_settings includes dim_gitignored."""
-        config = tmp_path / "settings.toml"
-        ws = tmp_path / "ws"
-        ws.mkdir()
-        app = make_app(ws, user_config_path=config)
-        async with app.run_test():
-            settings = app._build_editor_settings()
-            assert "dim_gitignored" in settings
-            assert settings["dim_gitignored"] is True
-
-    @pytest.mark.asyncio
     async def test_c04_tree_receives_dim_gitignored(self, tmp_path: Path):
         """FilteredDirectoryTree receives dim_gitignored from app."""
         config = tmp_path / "settings.toml"

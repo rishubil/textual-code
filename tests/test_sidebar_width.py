@@ -157,17 +157,6 @@ class TestAppIntegration:
         async with app.run_test():
             assert app.default_sidebar_width == 28
 
-    @pytest.mark.asyncio
-    async def test_c05_build_settings_includes_key(self, tmp_path: Path):
-        config = tmp_path / "settings.toml"
-        ws = tmp_path / "ws"
-        ws.mkdir()
-        app = make_app(ws, user_config_path=config)
-        async with app.run_test():
-            settings = app._build_editor_settings()
-            assert "sidebar_width" in settings
-            assert settings["sidebar_width"] == 28
-
 
 class TestSidebarWidthApplied:
     """Sidebar actually renders at the configured width."""

@@ -329,6 +329,31 @@ def _safe_write_config(path: Path, content: str) -> bool:
     return True
 
 
+def _merge_and_write_editor_settings(
+    settings: dict[str, str | int | bool],
+    config_path: Path,
+) -> bool:
+    """Read-modify-write: merge *settings* into the existing [editor] section.
+
+    Only keys present in *settings* are added or updated; pre-existing keys
+    are preserved.  Aborts (returns False) when the existing file has a TOML
+    parse error to avoid silently discarding the user's other settings.
+    """
+    try:
+        with open(config_path, "rb") as f:
+            data = tomllib.load(f)
+        existing: dict[str, str | int | bool] = {
+            k: v for k, v in data.get("editor", {}).items() if k in EDITOR_KEYS
+        }
+    except FileNotFoundError:
+        existing = {}
+    except (tomllib.TOMLDecodeError, PermissionError):
+        logger.warning("Aborting settings save: cannot read %s", config_path)
+        return False
+    existing.update(settings)
+    return _safe_write_config(config_path, _serialize_editor_settings(existing))
+
+
 def save_user_editor_settings(
     settings: dict[str, str | int | bool],
     config_path: Path | None = None,
@@ -336,7 +361,7 @@ def save_user_editor_settings(
     """Persist [editor] settings to the user config file. Returns False on I/O error."""
     if config_path is None:
         config_path = get_user_config_path()
-    return _safe_write_config(config_path, _serialize_editor_settings(settings))
+    return _merge_and_write_editor_settings(settings, config_path)
 
 
 def save_project_editor_settings(
@@ -347,5 +372,6 @@ def save_project_editor_settings(
 
     Returns False on I/O error.
     """
-    config_path = get_project_config_path(workspace_path)
-    return _safe_write_config(config_path, _serialize_editor_settings(settings))
+    return _merge_and_write_editor_settings(
+        settings, get_project_config_path(workspace_path)
+    )

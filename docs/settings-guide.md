@@ -40,6 +40,10 @@ errors, the app falls back to defaults and shows a warning toast at startup iden
 which file failed and why (e.g. "User settings: parse error" or "Keybindings: permission
 denied"). A missing config file is normal and produces no warning.
 
+When saving settings, if the config file has a TOML parse error, the save is aborted
+to prevent data loss (pre-existing settings would otherwise be discarded). The app
+shows a "Failed to save settings" notification.
+
 ## Settings Priority: defaults < user/project config < auto-detection < .editorconfig
 
 App settings are merged in this order — later sources override earlier ones:

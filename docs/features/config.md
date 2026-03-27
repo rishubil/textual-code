@@ -275,12 +275,19 @@ The following "Set default..." commands are available via the command palette:
 - Most settings take effect immediately without restart (themes, word wrap, explorer toggles).
 - Custom keybindings require a restart to take effect.
 
+### Save behavior: read-modify-write, only changed keys persisted
+
+Settings are saved using a read-modify-write pattern: the existing config file is read, the changed key(s) are merged in, and the result is written back. This means only explicitly changed settings appear in the file — defaults are never written, preserving the cascading override mechanism.
+
+If the existing config file has a TOML parse error, the save is aborted (returns `False`) to avoid silently discarding the user's other settings.
+
 ### Known Limitations
 
 - No settings UI or visual editor; settings must be edited as raw TOML.
-- Invalid TOML files are silently ignored (defaults are used).
+- Invalid TOML files are silently ignored on load (defaults are used). On save, the operation is aborted to prevent data loss.
+- Saving writes only the `[editor]` section; any other TOML sections in the file are not preserved.
 
-**Implementation:** `config.py` (`load_editor_settings`, `save_user_editor_settings`, `save_project_editor_settings`, `get_user_config_path`, `get_project_config_path`, `EDITOR_KEYS`, `DEFAULT_EDITOR_SETTINGS`), `app.py` (settings loading in `__init__`, `action_open_user_settings`, `action_open_project_settings`)
+**Implementation:** `config.py` (`load_editor_settings`, `save_user_editor_settings`, `save_project_editor_settings`, `_merge_and_write_editor_settings`, `get_user_config_path`, `get_project_config_path`, `EDITOR_KEYS`, `DEFAULT_EDITOR_SETTINGS`), `app.py` (settings loading in `__init__`, `_save_editor_settings`, `action_open_user_settings`, `action_open_project_settings`)
 
 ---
 

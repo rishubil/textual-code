@@ -106,18 +106,6 @@ class TestAppIntegration:
         async with app.run_test():
             assert app.default_show_hidden_files is True
 
-    @pytest.mark.asyncio
-    async def test_c03_build_editor_settings_includes_key(self, tmp_path: Path):
-        """_build_editor_settings includes show_hidden_files."""
-        config = tmp_path / "settings.toml"
-        ws = tmp_path / "ws"
-        ws.mkdir()
-        app = make_app(ws, user_config_path=config)
-        async with app.run_test():
-            settings = app._build_editor_settings()
-            assert "show_hidden_files" in settings
-            assert settings["show_hidden_files"] is True
-
 
 class TestToggleCommand:
     @pytest.mark.asyncio
