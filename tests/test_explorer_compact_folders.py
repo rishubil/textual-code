@@ -239,7 +239,8 @@ class TestCompactFolderIntegration:
 
             # Open nested file inside compacted chain
             await app.main_view.action_open_code_editor(f_nested)
-            for attempt in range(50):
+            # Poll until cursor reaches the target file.
+            for _ in range(50):
                 await pilot.pause()
                 node = explorer.directory_tree.cursor_node
                 if (
@@ -248,8 +249,6 @@ class TestCompactFolderIntegration:
                     and node.data.path == f_nested
                 ):
                     break
-                if explorer._pending_path is None and attempt % 10 == 9:
-                    explorer.select_file(f_nested)
 
             assert explorer.directory_tree.cursor_node is not None
             assert explorer.directory_tree.cursor_node.data is not None
