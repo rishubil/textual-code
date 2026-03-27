@@ -9,6 +9,7 @@ import pytest
 
 from tests.conftest import make_app
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+from textual_code.widgets.split_container import SplitContainer
 from textual_code.widgets.split_tree import BranchNode, all_leaves
 
 
@@ -461,3 +462,145 @@ async def test_close_empty_first_leaf_picks_nearest_active(workspace, py_file):
         remaining = all_leaves(app.main_view._split_root)
         assert len(remaining) == 1
         assert app.main_view._active_leaf_id == remaining[0].leaf_id
+
+
+# ── Bug: split left/right mounts in wrong container (issue #135) ─────────────
+
+
+async def test_split_left_in_complex_grid_mounts_in_correct_container(
+    workspace: Path, py_file: Path, py_file2: Path
+):
+    """Split left from D in a complex grid should create a new column,
+    not mount into a nested sibling container.
+
+    Layout before split:
+    |-----------+---|
+    | A | B |   |   |
+    |-------+   | D |
+    |   C   |   |   |
+    |-----------+---|
+
+    Expected after split left from D:
+    |-----------+---+---|
+    | A | B |   |   |   |
+    |-------+   | E | D |
+    |   C   |   |   |   |
+    |-----------+---+---|
+
+    Bug: E was mounted inside B's SplitContainer instead of D's parent container.
+    """
+    app = make_app(workspace, open_file=py_file, light=True)
+    async with app.run_test(size=(180, 40)) as pilot:
+        await pilot.pause()
+        mv = app.main_view
+
+        # Build layout: split right → [left, D]
+        await mv.action_split_right()
+        await pilot.pause()
+        d_leaf = all_leaves(mv._split_root)[1]  # D is on the right
+
+        # Focus left, split down → left becomes [top, C]
+        mv._set_active_leaf(all_leaves(mv._split_root)[0])
+        await mv.action_split_down()
+        await pilot.pause()
+
+        # Focus top-left, split right → top becomes [A, B]
+        top_left = all_leaves(mv._split_root)[0]
+        mv._set_active_leaf(top_left)
+        await mv.action_split_right()
+        await pilot.pause()
+
+        # Now layout: root(H) → [vert([horiz([A,B]), C]), D]
+        leaves_before = all_leaves(mv._split_root)
+        assert len(leaves_before) == 4  # A, B, C, D
+
+        # Focus D and split left
+        mv._set_active_leaf(d_leaf)
+        await mv.action_split_left()
+        await pilot.pause()
+
+        leaves_after = all_leaves(mv._split_root)
+        assert len(leaves_after) == 5
+
+        # The new leaf (E) should be mounted in the ROOT SplitContainer,
+        # not inside the nested A|B container.
+        new_leaf = leaves_after[3]  # E should be between left_vert and D
+        new_dtc = mv.query_one(f"#{new_leaf.leaf_id}", DraggableTabbedContent)
+        d_dtc = mv.query_one(f"#{d_leaf.leaf_id}", DraggableTabbedContent)
+
+        # Both E and D should share the same parent SplitContainer (the root one)
+        assert isinstance(new_dtc.parent, SplitContainer)
+        assert new_dtc.parent is d_dtc.parent
+
+        # All leaves must have non-zero dimensions
+        for leaf in leaves_after:
+            dtc = mv.query_one(f"#{leaf.leaf_id}", DraggableTabbedContent)
+            assert dtc.size.width > 0, f"{leaf.leaf_id} has zero width"
+            assert dtc.size.height > 0, f"{leaf.leaf_id} has zero height"
+
+
+async def test_split_up_with_branch_sibling_vertical(workspace: Path, py_file: Path):
+    """Split up from C where sibling is a horizontal BranchNode (depth=1).
+
+    Tests the same bug with a vertical parent and depth=1 BranchNode sibling.
+
+    Layout before split:
+    |-------|
+    | A | B |
+    |-------|
+    |   C   |
+    |-------|
+
+    Expected after split up from C:
+    |-------|
+    | A | B |
+    |-------|
+    |   E   |
+    |-------|
+    |   C   |
+    |-------|
+
+    E should be in the ROOT SplitContainer (vertical), not inside A|B's container.
+    """
+    app = make_app(workspace, open_file=py_file, light=True)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        mv = app.main_view
+
+        # Build layout: split down → [top, C]
+        await mv.action_split_down()
+        await pilot.pause()
+
+        # Focus top, split right → top becomes [A, B]
+        top = all_leaves(mv._split_root)[0]
+        mv._set_active_leaf(top)
+        await mv.action_split_right()
+        await pilot.pause()
+
+        # Now layout: root(V) → [horiz([A, B]), C]
+        leaves_before = all_leaves(mv._split_root)
+        assert len(leaves_before) == 3  # A, B, C
+        c_leaf = leaves_before[2]
+
+        # Focus C and split up → new leaf E between horiz([A,B]) and C
+        # sibling = children[0] = horiz([A,B]) → BranchNode depth 1
+        mv._set_active_leaf(c_leaf)
+        await mv.action_split_up()
+        await pilot.pause()
+
+        leaves_after = all_leaves(mv._split_root)
+        assert len(leaves_after) == 4  # A, B, E, C
+
+        new_leaf = leaves_after[2]  # E between A|B group and C
+        new_dtc = mv.query_one(f"#{new_leaf.leaf_id}", DraggableTabbedContent)
+        c_dtc = mv.query_one(f"#{c_leaf.leaf_id}", DraggableTabbedContent)
+
+        # Both E and C should share the same parent SplitContainer (root vertical)
+        assert isinstance(new_dtc.parent, SplitContainer)
+        assert new_dtc.parent is c_dtc.parent
+
+        # All leaves must have non-zero dimensions
+        for leaf in leaves_after:
+            dtc = mv.query_one(f"#{leaf.leaf_id}", DraggableTabbedContent)
+            assert dtc.size.width > 0, f"{leaf.leaf_id} has zero width"
+            assert dtc.size.height > 0, f"{leaf.leaf_id} has zero height"
