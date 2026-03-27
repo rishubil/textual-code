@@ -23,16 +23,39 @@ def _safe_rglob(path: Path, pattern: str) -> Generator[Path, None, None]:
         logger.debug("OSError during rglob of %s, skipping remaining entries", path)
 
 
-def _read_workspace_files(workspace_path: Path) -> list[Path]:
-    """Return relative paths for all non-hidden files under workspace_path."""
+def _prune_dirs(dirnames: list[str], show_hidden_files: bool) -> None:
+    """Remove directories from *dirnames* in-place to prevent os.walk descent."""
+    if show_hidden_files:
+        dirnames[:] = [d for d in dirnames if d != ".git"]
+    else:
+        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+
+
+def _read_workspace_files(
+    workspace_path: Path, *, show_hidden_files: bool = True
+) -> list[Path]:
+    """Return relative paths for files under workspace_path.
+
+    When *show_hidden_files* is True (default) dot-prefixed entries are
+    included but ``.git`` subtrees are always excluded.  When False every
+    dot-prefixed path component causes the entry to be skipped.
+
+    Uses ``os.walk`` with in-place directory pruning so that excluded
+    subtrees (e.g. ``.git``, ``.venv`` when hidden) are never traversed.
+    """
     result: list[Path] = []
-    for p in _safe_rglob(workspace_path, "*"):
-        try:
-            rel = p.relative_to(workspace_path)
-            if not any(part.startswith(".") for part in rel.parts) and p.is_file():
-                result.append(rel)
-        except OSError:
-            logger.debug("OSError accessing %s, skipping", p)
+    for dirpath, dirnames, filenames in os.walk(
+        workspace_path, onerror=lambda e: logger.debug("os.walk error: %s", e)
+    ):
+        _prune_dirs(dirnames, show_hidden_files)
+        dir_path = Path(dirpath)
+        for fname in filenames:
+            if not show_hidden_files and fname.startswith("."):
+                continue
+            try:
+                result.append((dir_path / fname).relative_to(workspace_path))
+            except OSError:
+                logger.debug("OSError accessing %s/%s, skipping", dirpath, fname)
     result.sort()
     return result
 
@@ -77,17 +100,30 @@ def create_open_file_command_provider(
     return OpenFileCommandProvider
 
 
-def _read_workspace_paths(workspace_path: Path) -> list[Path]:
-    """Return all non-hidden files and directories under workspace_path."""
+def _read_workspace_paths(
+    workspace_path: Path, *, show_hidden_files: bool = True
+) -> list[Path]:
+    """Return all files and directories under workspace_path.
+
+    When *show_hidden_files* is True (default) dot-prefixed entries are
+    included but ``.git`` subtrees are always excluded.  When False every
+    dot-prefixed path component causes the entry to be skipped.
+
+    Uses ``os.walk`` with in-place directory pruning so that excluded
+    subtrees are never traversed.
+    """
     result: list[Path] = []
-    for p in _safe_rglob(workspace_path, "*"):
-        try:
-            if not any(
-                part.startswith(".") for part in p.relative_to(workspace_path).parts
-            ):
-                result.append(p)
-        except OSError:
-            logger.debug("OSError accessing %s, skipping", p)
+    for dirpath, dirnames, filenames in os.walk(
+        workspace_path, onerror=lambda e: logger.debug("os.walk error: %s", e)
+    ):
+        _prune_dirs(dirnames, show_hidden_files)
+        dir_path = Path(dirpath)
+        for dname in dirnames:
+            result.append(dir_path / dname)
+        for fname in filenames:
+            if not show_hidden_files and fname.startswith("."):
+                continue
+            result.append(dir_path / fname)
     result.sort()
     return result
 
