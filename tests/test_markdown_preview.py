@@ -172,7 +172,8 @@ async def test_preview_no_update_when_tab_closed(workspace: Path, md_file: Path)
 
         # Text change should not raise
         editor = app.main_view._get_active_code_editor_in_split("left")
-        editor.text = "# Changed\n"  # ty: ignore[invalid-assignment]
+        assert editor is not None
+        editor.text = "# Changed\n"
         await pilot.pause()
         # No exception means pass
 

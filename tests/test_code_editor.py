@@ -13,6 +13,7 @@ CodeEditor widget tests.
 from pathlib import Path
 
 import pytest
+from textual.widgets import Input
 
 from tests.conftest import make_app
 from textual_code.modals import (
@@ -222,8 +223,8 @@ async def test_save_as_creates_new_file(workspace: Path, sample_py_file: Path):
         editor.action_save_as()
         await pilot.pause()
 
-        input_widget = app.screen.query_one("#path")
-        input_widget.value = str(new_path)  # ty: ignore[unresolved-attribute]
+        input_widget = app.screen.query_one("#path", Input)
+        input_widget.value = str(new_path)
         await pilot.pause()
         await pilot.click("#save")
         await pilot.pause()

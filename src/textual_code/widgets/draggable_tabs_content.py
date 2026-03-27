@@ -103,12 +103,12 @@ class DropHighlight:
         self.hint.styles.offset = (cx, cy)
         self.hint.styles.width = box_w
         self.hint.styles.height = box_h
-        self.hint.styles.display = "block"
+        self.hint.display = True
 
     def hide(self) -> None:
         """Hide the hint box."""
         self._mode = None
-        self.hint.styles.display = "none"  # type: ignore[assignment]  # ty cannot resolve StringEnumProperty generic descriptor
+        self.hint.display = False
 
     def is_mode(self, mode: str) -> bool:
         """Check if this highlight is currently in the given mode."""

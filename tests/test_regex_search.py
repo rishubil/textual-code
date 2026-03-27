@@ -12,6 +12,7 @@ Behaviour spec:
 from pathlib import Path
 
 import pytest
+from textual.widgets import Input
 
 from tests.conftest import make_app
 from textual_code.widgets.code_editor import _find_next
@@ -221,8 +222,8 @@ async def test_regex_find_case_insensitive_inline(workspace: Path, regex_file: P
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
 
-        input_widget = editor.query_one("#find_input")
-        input_widget.value = "(?i)hello"  # ty: ignore[unresolved-attribute]
+        input_widget = editor.query_one("#find_input", Input)
+        input_widget.value = "(?i)hello"
         await pilot.click("#next_match")
         await pilot.pause()
 

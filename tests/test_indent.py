@@ -415,7 +415,9 @@ async def test_change_indent_modal_prepopulates_current_values():
     assert indent_size_val == "3"
 
 
-async def test_change_indent_cmd_no_editor_notifies(workspace: Path):
+async def test_change_indent_cmd_no_editor_notifies(
+    workspace: Path, monkeypatch: pytest.MonkeyPatch
+):
     """No open file when command palette action triggered → error notification."""
     from tests.conftest import make_app
 
@@ -429,7 +431,7 @@ async def test_change_indent_cmd_no_editor_notifies(workspace: Path):
             notified.append(f"{severity}:{message}")
             return original_notify(message, severity=severity, **kwargs)
 
-        tc_app.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
+        monkeypatch.setattr(tc_app, "notify", capture_notify)
         tc_app.action_change_indentation()
         await pilot.pause()
 

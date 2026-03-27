@@ -16,6 +16,7 @@
   Read the output of the first call and substitute the value directly into the second call.
 - Use WebFetch proactively. Always check the latest development docs and search for anything unclear.
 - All code comments, docstrings, and documentation (including files in `docs/`) must be written in **English**.
+- **Never use `ty: ignore`, `type: ignore`, or `# noqa`**: these comments suppress checker errors and hide real bugs. Fix the underlying issue instead — use `assert isinstance()`, `cast()` with the precise target type (never `cast(Any, ...)`), proper type annotations, or `monkeypatch.setattr()` for test monkey-patches.
 
 ## Test Strategy: Red-Green TDD
 

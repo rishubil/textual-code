@@ -7,6 +7,7 @@ Integration tests: encoding detection on load, modal interaction, save, footer d
 
 from pathlib import Path
 
+import pytest
 from textual.app import App, ComposeResult
 
 from textual_code.widgets.code_editor import (
@@ -390,7 +391,7 @@ async def test_footer_shows_latin1_label(tmp_path: Path):
 # ── Integration tests: command palette ───────────────────────────────────────
 
 
-async def test_encoding_cmd_no_editor(tmp_path: Path):
+async def test_encoding_cmd_no_editor(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """No open file → error notification."""
     from tests.conftest import make_app
 
@@ -404,7 +405,7 @@ async def test_encoding_cmd_no_editor(tmp_path: Path):
             notified.append(f"{severity}:{message}")
             return original_notify(message, severity=severity, **kwargs)
 
-        tc_app.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
+        monkeypatch.setattr(tc_app, "notify", capture_notify)
         tc_app.action_change_encoding()
         await pilot.pause()
 

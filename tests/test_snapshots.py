@@ -310,7 +310,8 @@ def test_snapshot_overwrite_confirm_modal(
         editor.text = "editor changes\n"
         await pilot.pause()
         # Simulate external change by shifting mtime tracker
-        editor._file_mtime -= 1.0  # ty: ignore[unsupported-operator]
+        assert editor._file_mtime is not None
+        editor._file_mtime -= 1.0
         editor.action_save()
         await pilot.pause()
 
@@ -465,7 +466,7 @@ def test_snapshot_tab_reorder_right_indicator(
         await pilot.pause()
 
         tc = app.main_view.tabbed_content
-        order = tc.get_ordered_pane_ids()  # ty: ignore[unresolved-attribute]
+        order = tc.get_ordered_pane_ids()
         # Activate first tab (hello.py)
         tc.active = order[0]
         await pilot.pause()

@@ -129,8 +129,8 @@ async def test_drag_cross_split_preserves_unsaved_content(
         # Modify the editor without saving
         leaves = all_leaves(main._split_root)
         source_pane_id = list(leaves[0].pane_ids)[0]
-        tc = main.query_one(f"#{leaves[0].leaf_id}")
-        pane = tc.get_pane(source_pane_id)  # ty: ignore[unresolved-attribute]
+        tc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
+        pane = tc.get_pane(source_pane_id)
         editor = pane.query_one(CodeEditor)
         editor.replace_editor_text("unsaved content")
         await pilot.pause()
@@ -142,8 +142,8 @@ async def test_drag_cross_split_preserves_unsaved_content(
         assert new_pane_id is not None
         dest_leaves = all_leaves(main._split_root)
         dest_leaf = dest_leaves[-1]
-        dest_tc = main.query_one(f"#{dest_leaf.leaf_id}")
-        new_editor = dest_tc.get_pane(new_pane_id).query_one(CodeEditor)  # ty: ignore[unresolved-attribute]
+        dest_tc = main.query_one(f"#{dest_leaf.leaf_id}", DraggableTabbedContent)
+        new_editor = dest_tc.get_pane(new_pane_id).query_one(CodeEditor)
         assert new_editor.text == "unsaved content"
         assert new_editor.text != new_editor.initial_text
 
@@ -216,8 +216,8 @@ async def test_drag_cross_split_duplicate_file_focuses_existing(
         assert len(main._pane_ids["right"]) == right_tab_count_before
         # Should focus existing pane
         leaves = all_leaves(main._split_root)
-        right_tc = main.query_one(f"#{leaves[-1].leaf_id}")
-        assert right_tc.active == new_pane_id  # ty: ignore[unresolved-attribute]
+        right_tc = main.query_one(f"#{leaves[-1].leaf_id}", DraggableTabbedContent)
+        assert right_tc.active == new_pane_id
 
 
 # ── Drop target highlight tests ───────────────────────────────────────────────
@@ -513,8 +513,8 @@ async def test_drag_markdown_preview_to_other_split(
         leaves = all_leaves(main._split_root)
         source_leaf = leaves[0]
         md_pane_id = source_leaf.opened_files[md_file]
-        tc = main.query_one(f"#{source_leaf.leaf_id}")
-        tc.active = md_pane_id  # ty: ignore[unresolved-attribute]
+        tc = main.query_one(f"#{source_leaf.leaf_id}", DraggableTabbedContent)
+        tc.active = md_pane_id
         await pilot.pause()
 
         await main.action_open_markdown_preview()
@@ -546,8 +546,8 @@ async def test_drag_markdown_preview_to_other_split(
         assert main._preview_pane_ids[md_file] == new_pane_id
 
         # Preview content should reflect the source file
-        dest_tc = main.query_one(f"#{dest_leaf.leaf_id}")
-        new_pane = dest_tc.get_pane(new_pane_id)  # ty: ignore[unresolved-attribute]
+        dest_tc = main.query_one(f"#{dest_leaf.leaf_id}", DraggableTabbedContent)
+        new_pane = dest_tc.get_pane(new_pane_id)
         new_preview = new_pane.query_one(MarkdownPreviewPane)
         assert new_preview.source_path == md_file
 
@@ -660,7 +660,7 @@ async def test_drop_outside_any_split_is_noop(
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
-        main = pilot.app.main_view  # ty: ignore[unresolved-attribute]
+        main = app.main_view
         await main.action_open_code_editor(path=py_file2)
         await pilot.pause()
 

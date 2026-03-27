@@ -7,6 +7,7 @@ Integration tests: action_change_line_ending via ChangeLineEndingModalScreen
 
 from pathlib import Path
 
+import pytest
 from textual.app import App, ComposeResult
 
 from textual_code.widgets.code_editor import (
@@ -313,7 +314,9 @@ async def test_footer_shows_line_ending(tmp_path: Path):
     assert label == "LF"
 
 
-async def test_change_line_ending_cmd_no_editor(tmp_path: Path):
+async def test_change_line_ending_cmd_no_editor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     """No open file → error notification."""
     from tests.conftest import make_app
 
@@ -327,14 +330,16 @@ async def test_change_line_ending_cmd_no_editor(tmp_path: Path):
             notified.append(f"{severity}:{message}")
             return original_notify(message, severity=severity, **kwargs)
 
-        tc_app.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
+        monkeypatch.setattr(tc_app, "notify", capture_notify)
         tc_app.action_change_line_ending()
         await pilot.pause()
 
     assert any("error" in n for n in notified)
 
 
-async def test_select_crlf_shows_warning_toast(tmp_path: Path):
+async def test_select_crlf_shows_warning_toast(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     """Apply CRLF → warning notification shown."""
     from textual.widgets import Select
 
@@ -353,7 +358,7 @@ async def test_select_crlf_shows_warning_toast(tmp_path: Path):
             notified.append(f"{severity}:{message}")
             return original_notify(message, severity=severity, **kwargs)
 
-        editor.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
+        monkeypatch.setattr(editor, "notify", capture_notify)
 
         editor.action_change_line_ending()
         await pilot.pause()
@@ -364,7 +369,9 @@ async def test_select_crlf_shows_warning_toast(tmp_path: Path):
     assert any("warning" in n for n in notified)
 
 
-async def test_select_lf_no_warning_toast(tmp_path: Path):
+async def test_select_lf_no_warning_toast(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     """Apply LF → no warning notification."""
     from textual.widgets import Select
 
@@ -383,7 +390,7 @@ async def test_select_lf_no_warning_toast(tmp_path: Path):
             notified.append(f"{severity}:{message}")
             return original_notify(message, severity=severity, **kwargs)
 
-        editor.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
+        monkeypatch.setattr(editor, "notify", capture_notify)
 
         editor.action_change_line_ending()
         await pilot.pause()
@@ -605,7 +612,9 @@ async def test_open_crlf_file_no_warning_when_disabled(tmp_path: Path):
     assert not any("warning" in n for n in app.notified)
 
 
-async def test_select_crlf_no_warning_when_disabled(tmp_path: Path):
+async def test_select_crlf_no_warning_when_disabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
     """Apply CRLF with warn_line_ending=False → no warning."""
     from textual.widgets import Select
 
@@ -624,7 +633,7 @@ async def test_select_crlf_no_warning_when_disabled(tmp_path: Path):
             notified.append(f"{severity}:{message}")
             return original_notify(message, severity=severity, **kwargs)
 
-        editor.notify = capture_notify  # type: ignore[method-assign]  # monkey-patch to capture notifications in test
+        monkeypatch.setattr(editor, "notify", capture_notify)
 
         editor.action_change_line_ending()
         await pilot.pause()

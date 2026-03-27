@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from rich.console import RenderableType
 from textual import events, work
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
@@ -124,11 +125,11 @@ class ImagePreviewPane(VerticalScroll):
         static.display = not show
         loader.display = show
 
-    def _update_content(self, content: str | object) -> None:
+    def _update_content(self, content: RenderableType) -> None:
         """Update the static widget with rendered pixels or error message."""
         try:
             static = self.query_one("#image-content", Static)
         except NoMatches:
             return
-        static.update(content)  # ty: ignore[invalid-argument-type]
+        static.update(content)
         self._show_loading(False)
