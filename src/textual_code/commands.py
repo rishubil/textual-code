@@ -50,6 +50,8 @@ def _read_workspace_files(
         _prune_dirs(dirnames, show_hidden_files)
         dir_path = Path(dirpath)
         for fname in filenames:
+            if fname == ".git":
+                continue
             if not show_hidden_files and fname.startswith("."):
                 continue
             try:
@@ -121,6 +123,8 @@ def _read_workspace_paths(
         for dname in dirnames:
             result.append(dir_path / dname)
         for fname in filenames:
+            if fname == ".git":
+                continue
             if not show_hidden_files and fname.startswith("."):
                 continue
             result.append(dir_path / fname)
