@@ -280,18 +280,6 @@ class TestAppIntegration:
             assert app.default_show_git_status is False
 
     @pytest.mark.asyncio
-    async def test_d03_build_editor_settings_includes_key(self, tmp_path: Path):
-        """_build_editor_settings includes show_git_status."""
-        config = tmp_path / "settings.toml"
-        ws = tmp_path / "ws"
-        ws.mkdir()
-        app = make_app(ws, user_config_path=config)
-        async with app.run_test():
-            settings = app._build_editor_settings()
-            assert "show_git_status" in settings
-            assert settings["show_git_status"] is True
-
-    @pytest.mark.asyncio
     async def test_d04_tree_receives_show_git_status(self, tmp_path: Path):
         """FilteredDirectoryTree receives show_git_status from app."""
         config = tmp_path / "settings.toml"

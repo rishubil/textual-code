@@ -2,7 +2,7 @@
 
 Groups:
   A — config layer (EDITOR_KEYS, DEFAULT_EDITOR_SETTINGS, load round-trip)
-  B — app layer (default attribute, _build_editor_settings)
+  B — app layer (default attribute)
   C — CodeEditor reactive + EditorState
   D — cycle action
   E — rendering logic (_inject_whitespace_rendering)
@@ -76,12 +76,6 @@ class TestApp:
     def test_b01_app_has_default_render_whitespace(self, tmp_path: Path):
         app = TextualCode(workspace_path=tmp_path, with_open_file=None)
         assert app.default_render_whitespace == "none"
-
-    def test_b02_build_editor_settings_includes_key(self, tmp_path: Path):
-        app = TextualCode(workspace_path=tmp_path, with_open_file=None)
-        settings = app._build_editor_settings()
-        assert "render_whitespace" in settings
-        assert settings["render_whitespace"] == "none"
 
 
 # ── Group C: CodeEditor reactive + EditorState ───────────────────────────────
@@ -207,7 +201,7 @@ class TestCycle:
 
     @pytest.mark.asyncio
     async def test_d03_set_updates_app_default_and_settings(self, workspace: Path):
-        """Setting render whitespace updates app default and _build_editor_settings."""
+        """Setting render whitespace updates app default."""
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
             await pilot.pause()
@@ -217,8 +211,6 @@ class TestCycle:
             app._apply_render_whitespace("boundary")
             await pilot.pause()
             assert app.default_render_whitespace == "boundary"
-            settings = app._build_editor_settings()
-            assert settings["render_whitespace"] == "boundary"
 
     @pytest.mark.asyncio
     async def test_d04_set_no_editor_notifies_error(self, workspace: Path):

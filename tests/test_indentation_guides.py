@@ -2,7 +2,7 @@
 
 Groups:
   A — config layer (EDITOR_KEYS, DEFAULT_EDITOR_SETTINGS, load round-trip)
-  B — app layer (default attribute, _build_editor_settings)
+  B — app layer (default attribute)
   C — CodeEditor reactive + EditorState
   D — toggle action + app→editor delegation
   E — rendering logic (_inject_indentation_guides)
@@ -47,12 +47,6 @@ class TestApp:
     def test_b01_app_has_default_show_indentation_guides(self, tmp_path: Path):
         app = TextualCode(workspace_path=tmp_path, with_open_file=None)
         assert app.default_show_indentation_guides is True
-
-    def test_b02_build_editor_settings_includes_key(self, tmp_path: Path):
-        app = TextualCode(workspace_path=tmp_path, with_open_file=None)
-        settings = app._build_editor_settings()
-        assert "show_indentation_guides" in settings
-        assert settings["show_indentation_guides"] is True
 
 
 # ── Group C: CodeEditor reactive + EditorState ───────────────────────────────

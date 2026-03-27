@@ -70,18 +70,6 @@ class TestAppIntegration:
         async with app.run_test():
             assert app.default_dim_hidden_files is True
 
-    @pytest.mark.asyncio
-    async def test_c03_build_editor_settings_includes_key(self, tmp_path: Path):
-        """_build_editor_settings includes dim_hidden_files."""
-        config = tmp_path / "settings.toml"
-        ws = tmp_path / "ws"
-        ws.mkdir()
-        app = make_app(ws, user_config_path=config)
-        async with app.run_test():
-            settings = app._build_editor_settings()
-            assert "dim_hidden_files" in settings
-            assert settings["dim_hidden_files"] is False
-
 
 # ── Toggle command tests ─────────────────────────────────────────────────────
 
