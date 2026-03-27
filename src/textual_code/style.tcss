@@ -953,11 +953,6 @@ WorkspaceSearchPane #ws-results {
     overflow-x: auto;
 }
 
-WorkspaceSearchPane #ws-results > ListItem {
-    width: auto;
-    min-width: 100%;
-}
-
 /* Draggable tab visual feedback */
 Tab.-dragging {
     background: $accent;

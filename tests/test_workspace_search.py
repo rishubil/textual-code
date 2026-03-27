@@ -147,8 +147,8 @@ async def test_ctrl_shift_f_activates_search_tab(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_search_shows_results(tmp_path: Path) -> None:
-    """Running a search populates the results list."""
-    from textual.widgets import Input, ListView
+    """Running a search populates the results tree."""
+    from textual.widgets import Input, Tree
 
     from tests.conftest import make_app
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
@@ -170,14 +170,14 @@ async def test_search_shows_results(tmp_path: Path) -> None:
         ws_pane._run_search()
         await pilot.pause()
 
-        results_list = ws_pane.query_one("#ws-results", ListView)
-        assert results_list.children  # at least one result
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        assert results_tree.root.children  # at least one file node
 
 
 @pytest.mark.asyncio
 async def test_search_no_results_message(tmp_path: Path) -> None:
-    """Search with no matches shows a 'No results' item."""
-    from textual.widgets import Input, Label, ListView
+    """Search with no matches shows a 'No results' node in the tree."""
+    from textual.widgets import Input, Tree
 
     from tests.conftest import make_app
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
@@ -197,9 +197,9 @@ async def test_search_no_results_message(tmp_path: Path) -> None:
         ws_pane._run_search()
         await pilot.pause()
 
-        results_list = ws_pane.query_one("#ws-results", ListView)
-        labels = [str(lbl.content) for lbl in results_list.query(Label)]
-        assert any("No results" in lbl for lbl in labels)
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        node_labels = [str(n.label) for n in results_tree.root.children]
+        assert any("No results" in lbl for lbl in node_labels)
 
 
 @pytest.mark.asyncio
@@ -481,7 +481,7 @@ def test_case_insensitive_regex(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_exclude_field_in_ui_applies_to_search(tmp_path: Path) -> None:
     """The #ws-exclude Input field is read and applied during search."""
-    from textual.widgets import Input, Label, ListView
+    from textual.widgets import Input, Tree
 
     from tests.conftest import make_app
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
@@ -501,16 +501,16 @@ async def test_exclude_field_in_ui_applies_to_search(tmp_path: Path) -> None:
         ws_pane._run_search()
         await pilot.pause()
 
-        results_list = ws_pane.query_one("#ws-results", ListView)
-        labels = [str(lbl.content) for lbl in results_list.query(Label)]
-        assert not any("pkg.js" in lbl for lbl in labels)
-        assert any("keep.py" in lbl for lbl in labels)
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_labels = [str(n.label) for n in results_tree.root.children]
+        assert not any("pkg.js" in lbl for lbl in file_labels)
+        assert any("keep.py" in lbl for lbl in file_labels)
 
 
 @pytest.mark.asyncio
 async def test_case_sensitive_checkbox_in_ui(tmp_path: Path) -> None:
     """The #ws-case-sensitive checkbox controls case sensitivity."""
-    from textual.widgets import Checkbox, Input, Label, ListView
+    from textual.widgets import Checkbox, Input, Tree
 
     from tests.conftest import make_app
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
@@ -529,9 +529,9 @@ async def test_case_sensitive_checkbox_in_ui(tmp_path: Path) -> None:
         ws_pane._run_search()
         await pilot.pause()
 
-        results_list = ws_pane.query_one("#ws-results", ListView)
-        labels = [str(lbl.content) for lbl in results_list.query(Label)]
-        assert any("sample.txt" in lbl for lbl in labels)
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_labels = [str(n.label) for n in results_tree.root.children]
+        assert any("sample.txt" in lbl for lbl in file_labels)
 
 
 @pytest.mark.asyncio
@@ -584,8 +584,8 @@ def _patch_gated_search(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_search_loading_indicator(tmp_path: Path, monkeypatch) -> None:
-    """Results ListView shows loading=True while search is running."""
-    from textual.widgets import Input, ListView
+    """Results Tree shows loading=True while search is running."""
+    from textual.widgets import Input, Tree
 
     from tests.conftest import make_app
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
@@ -606,19 +606,19 @@ async def test_search_loading_indicator(tmp_path: Path, monkeypatch) -> None:
         ws_pane._run_search()
         await pilot.pause()
 
-        results_list = ws_pane.query_one("#ws-results", ListView)
-        assert results_list.loading is True
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        assert results_tree.loading is True
 
         gate.set()
         await pilot.pause()
 
-        assert results_list.loading is False
+        assert results_tree.loading is False
 
 
 @pytest.mark.asyncio
 async def test_search_error_clears_loading(tmp_path: Path, monkeypatch) -> None:
     """Search error sets loading=False and shows 'Search failed'."""
-    from textual.widgets import Input, Label, ListView
+    from textual.widgets import Input, Tree
 
     import textual_code.widgets.workspace_search as ws_module
     from tests.conftest import make_app
@@ -644,16 +644,16 @@ async def test_search_error_clears_loading(tmp_path: Path, monkeypatch) -> None:
         ws_pane._run_search()
         await pilot.pause()
 
-        results_list = ws_pane.query_one("#ws-results", ListView)
-        assert results_list.loading is False
-        labels = [str(lbl.content) for lbl in results_list.query(Label)]
-        assert any("Search failed" in lbl for lbl in labels)
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        assert results_tree.loading is False
+        node_labels = [str(n.label) for n in results_tree.root.children]
+        assert any("Search failed" in lbl for lbl in node_labels)
 
 
 @pytest.mark.asyncio
 async def test_empty_query_clears_loading(tmp_path: Path, monkeypatch) -> None:
     """Re-searching with empty query clears loading state."""
-    from textual.widgets import Input, ListView
+    from textual.widgets import Input, Tree
 
     from tests.conftest import make_app
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
@@ -674,15 +674,15 @@ async def test_empty_query_clears_loading(tmp_path: Path, monkeypatch) -> None:
         ws_pane._run_search()
         await pilot.pause()
 
-        results_list = ws_pane.query_one("#ws-results", ListView)
-        assert results_list.loading is True
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        assert results_tree.loading is True
 
         # Clear query and re-run search
         ws_pane.query_one("#ws-query", Input).value = ""
         ws_pane._run_search()
         await pilot.pause()
 
-        assert results_list.loading is False
+        assert results_tree.loading is False
 
         gate.set()  # Release the blocked worker
 
@@ -729,7 +729,7 @@ def test_search_response_empty_inaccessible_paths(tmp_path: Path) -> None:
 @pytest.mark.asyncio
 async def test_enter_in_include_field_triggers_search(tmp_path: Path) -> None:
     """Pressing Enter in #ws-include triggers search with the include filter."""
-    from textual.widgets import Input, Label, ListView
+    from textual.widgets import Input, Tree
 
     from tests.conftest import make_app
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
@@ -754,16 +754,16 @@ async def test_enter_in_include_field_triggers_search(tmp_path: Path) -> None:
         await pilot.press("enter")
         await pilot.pause()
 
-        results_list = ws_pane.query_one("#ws-results", ListView)
-        labels = [str(lbl.content) for lbl in results_list.query(Label)]
-        assert any("main.py" in lbl for lbl in labels)
-        assert not any("other.txt" in lbl for lbl in labels)
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_labels = [str(n.label) for n in results_tree.root.children]
+        assert any("main.py" in lbl for lbl in file_labels)
+        assert not any("other.txt" in lbl for lbl in file_labels)
 
 
 @pytest.mark.asyncio
 async def test_enter_in_exclude_field_triggers_search(tmp_path: Path) -> None:
     """Pressing Enter in #ws-exclude triggers search with the exclude filter."""
-    from textual.widgets import Input, Label, ListView
+    from textual.widgets import Input, Tree
 
     from tests.conftest import make_app
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
@@ -787,10 +787,10 @@ async def test_enter_in_exclude_field_triggers_search(tmp_path: Path) -> None:
         await pilot.press("enter")
         await pilot.pause()
 
-        results_list = ws_pane.query_one("#ws-results", ListView)
-        labels = [str(lbl.content) for lbl in results_list.query(Label)]
-        assert any("keep.py" in lbl for lbl in labels)
-        assert not any("pkg.js" in lbl for lbl in labels)
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_labels = [str(n.label) for n in results_tree.root.children]
+        assert any("keep.py" in lbl for lbl in file_labels)
+        assert not any("pkg.js" in lbl for lbl in file_labels)
 
 
 @pytest.mark.asyncio
@@ -800,7 +800,7 @@ async def test_search_with_permission_error_shows_toast(
     """Search with inaccessible paths shows a Toast warning notification."""
     from unittest.mock import patch
 
-    from textual.widgets import Input, Label, ListView
+    from textual.widgets import Input, Tree
 
     import textual_code.widgets.workspace_search as ws_module
     from tests.conftest import make_app
@@ -839,12 +839,201 @@ async def test_search_with_permission_error_shows_toast(
             await pilot.pause()
 
             # Results should be populated
-            results_list = ws_pane.query_one("#ws-results", ListView)
-            labels = [str(lbl.content) for lbl in results_list.query(Label)]
-            assert any("sample.txt" in lbl for lbl in labels)
+            results_tree = ws_pane.query_one("#ws-results", Tree)
+            file_labels = [str(n.label) for n in results_tree.root.children]
+            assert any("sample.txt" in lbl for lbl in file_labels)
 
             # Toast warning should have been shown
             mock_notify.assert_called_once()
             call_args = mock_notify.call_args
             assert "2 path(s)" in call_args[0][0]
             assert call_args[1]["severity"] == "warning"
+
+
+# ---------------------------------------------------------------------------
+# Tree grouping tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_search_results_grouped_by_file(tmp_path: Path) -> None:
+    """Search results are grouped by file in a Tree widget."""
+    from textual.widgets import Input, Tree
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "alpha.py").write_text("needle line1\nneedle line2\n")
+    (tmp_path / "beta.py").write_text("other\nneedle line3\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle"
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_nodes = list(results_tree.root.children)
+
+        # Should have 2 file-level nodes
+        assert len(file_nodes) == 2
+
+        # Check file node labels contain path and match count
+        alpha_node = file_nodes[0]
+        assert "alpha.py" in str(alpha_node.label)
+        assert "2 matches" in str(alpha_node.label)
+
+        beta_node = file_nodes[1]
+        assert "beta.py" in str(beta_node.label)
+        assert "1 match" in str(beta_node.label)
+        # Singular "match" not "matches"
+        assert "1 matches" not in str(beta_node.label)
+
+        # Check match-level leaf children
+        alpha_children = list(alpha_node.children)
+        assert len(alpha_children) == 2
+        assert "1:" in str(alpha_children[0].label)
+        assert "needle line1" in str(alpha_children[0].label)
+        assert "2:" in str(alpha_children[1].label)
+        assert "needle line2" in str(alpha_children[1].label)
+
+        beta_children = list(beta_node.children)
+        assert len(beta_children) == 1
+        assert "2:" in str(beta_children[0].label)
+        assert "needle line3" in str(beta_children[0].label)
+
+
+@pytest.mark.asyncio
+async def test_tree_file_nodes_expanded_by_default(tmp_path: Path) -> None:
+    """All file-level tree nodes are expanded after search."""
+    from textual.widgets import Input, Tree
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "a.py").write_text("needle\n")
+    (tmp_path / "b.py").write_text("needle\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle"
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        for file_node in results_tree.root.children:
+            assert file_node.is_expanded, (
+                f"File node '{file_node.label}' should be expanded"
+            )
+
+
+@pytest.mark.asyncio
+async def test_tree_match_node_click_opens_file(tmp_path: Path) -> None:
+    """Clicking a match leaf node opens the file at that line."""
+    from textual.widgets import Input, Tree
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    target = tmp_path / "target.py"
+    target.write_text("line1\nneedle_here\nline3\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle_here"
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_node = list(results_tree.root.children)[0]
+        match_node = list(file_node.children)[0]
+
+        # Verify data is stored on the node
+        assert match_node.data is not None
+        file_path, line_number = match_node.data
+        assert file_path == target
+        assert line_number == 2
+
+
+@pytest.mark.asyncio
+async def test_tree_file_node_click_opens_file(tmp_path: Path) -> None:
+    """Clicking a file-level node opens the file at the first match line."""
+    from textual.widgets import Input, Tree
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    target = tmp_path / "target.py"
+    target.write_text("line1\nline2\nneedle_here\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle_here"
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_node = list(results_tree.root.children)[0]
+
+        # File node data should carry the first match's line number
+        assert file_node.data is not None
+        file_path, line_number = file_node.data
+        assert file_path == target
+        assert line_number == 3  # first (and only) match line
+
+
+@pytest.mark.asyncio
+async def test_tree_match_count_accuracy_at_cap(tmp_path: Path) -> None:
+    """File node match counts reflect actual returned results when capped."""
+    from textual.widgets import Input, Tree
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    # Create files with many matches (exceeds 500 default cap)
+    (tmp_path / "many.py").write_text("needle\n" * 400)
+    (tmp_path / "more.py").write_text("needle\n" * 200)
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle"
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_nodes = list(results_tree.root.children)
+
+        # Total results capped at 500, counts should reflect actual returned
+        total_matches = sum(len(list(n.children)) for n in file_nodes)
+        assert total_matches <= 500
+
+        # Each file node label should show correct count for its children
+        for file_node in file_nodes:
+            child_count = len(list(file_node.children))
+            label = str(file_node.label)
+            assert f"{child_count} match" in label
