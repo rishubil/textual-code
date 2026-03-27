@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Explorer**: clicking on an editor in a different split group now updates the Explorer sidebar selection and footer status bar; also works with keyboard navigation (F6/Shift+F6) (Fix #131)
 - **Settings**: changing a single setting via UI now persists only the changed key (plus any previously explicit overrides) instead of writing all 17 default settings; preserves the cascading override mechanism (defaults → user → project) (Fix #132)
 - **Editor**: extra-cursor selection highlights on the cursor line are now re-applied at the Strip level after cursor-line styling, restoring their visibility; cursor cells take priority over selection cells when they overlap (Fix #114)
 - **Editor**: indentation guides and whitespace markers now use a higher-contrast foreground color on the cursor line, fixing invisibility caused by the overlay color being too close to the cursor-line highlight background in many themes (Fix #106)
