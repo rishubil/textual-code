@@ -617,6 +617,7 @@ class FilteredDirectoryTree(DirectoryTree):
         """
         segments = [path.name]
         current = path
+        seen: set[Path] = set()
         while True:
             children = self._load_directory_sync(current)
             if len(children) != 1:
@@ -625,6 +626,11 @@ class FilteredDirectoryTree(DirectoryTree):
             is_dir = self._is_dir_cache.get(child, self._safe_is_dir(child))
             if not is_dir:
                 break
+            # Guard against symlink cycles
+            resolved = child.resolve()
+            if resolved in seen:
+                break
+            seen.add(resolved)
             segments.append(child.name)
             current = child
         if len(segments) > 1:
