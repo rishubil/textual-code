@@ -1910,10 +1910,12 @@ class PathSearchModal(ModalScreen[Path | None]):
     def _load_or_scan(self) -> None:
         """Load paths from cache or start a fresh scan."""
         self._scan_generation += 1
+        self._search_generation += 1
         self._all_paths = []
         self._display_strings = []
         self._result_paths = []
         self._update_results_visibility()
+        self._set_spinner_visible(False)
         ck = (
             (self._workspace_path, self._cache_key_str) if self._cache_key_str else None
         )
