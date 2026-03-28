@@ -25,6 +25,7 @@ dependencies = [
     "charset-normalizer>=3.4.5",
     "pathspec>=1.0.4",
     "rich-pixels>=3.0.1",
+    "ripgrep-rs>=0.4.2",
     "textual[syntax]>=8.0.2",
     "tree-sitter-language-pack>=0.13.0",
     "typer>=0.24.1",

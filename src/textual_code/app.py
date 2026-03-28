@@ -1400,15 +1400,24 @@ class TextualCode(App):
                     self.OpenFileRequested(path=self.workspace_path / path)
                 )
 
+        hidden = self.default_show_hidden_files
         self.push_screen(
             PathSearchModal(
                 self.workspace_path,
                 scan_func=partial(
                     _read_workspace_files,
-                    show_hidden_files=self.default_show_hidden_files,
+                    show_hidden_files=hidden,
+                    respect_gitignore=True,
                 ),
-                cache_key=f"files:hidden={self.default_show_hidden_files}",
+                cache_key=f"files:hidden={hidden}:gitignore=True",
                 placeholder="Search for files...",
+                show_gitignore_toggle=True,
+                unfiltered_scan_func=partial(
+                    _read_workspace_files,
+                    show_hidden_files=hidden,
+                    respect_gitignore=False,
+                ),
+                unfiltered_cache_key=f"files:hidden={hidden}:gitignore=False",
             ),
             callback=_on_result,
         )

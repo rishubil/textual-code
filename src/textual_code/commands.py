@@ -2,11 +2,14 @@ import asyncio
 import heapq
 import logging
 import os
-from collections.abc import Callable, Generator
+import time
+from collections.abc import Callable
 from functools import partial
 from pathlib import Path
 from typing import Any
 
+from ripgrep_rs import PySortMode, PySortModeKind
+from ripgrep_rs import files as rg_files
 from textual.command import DiscoveryHit, Hit, Hits, Provider
 
 logger = logging.getLogger(__name__)
@@ -14,54 +17,63 @@ logger = logging.getLogger(__name__)
 _MAX_SEARCH_HITS = 20
 """Maximum number of hits returned by a single command provider search."""
 
-
-def _safe_rglob(path: Path, pattern: str) -> Generator[Path, None, None]:
-    """Yield entries from path.rglob(), skipping OSError."""
-    try:
-        yield from path.rglob(pattern)
-    except OSError:
-        logger.debug("OSError during rglob of %s, skipping remaining entries", path)
+_SORT_BY_PATH = PySortMode(kind=PySortModeKind.Path, reverse=False)
 
 
-def _prune_dirs(dirnames: list[str], show_hidden_files: bool) -> None:
-    """Remove directories from *dirnames* in-place to prevent os.walk descent."""
-    if show_hidden_files:
-        dirnames[:] = [d for d in dirnames if d != ".git"]
-    else:
-        dirnames[:] = [d for d in dirnames if not d.startswith(".")]
+def _rg_scan(
+    workspace_path: Path,
+    *,
+    show_hidden_files: bool = True,
+    respect_gitignore: bool = False,
+    absolute: bool = False,
+    include_dirs: bool = False,
+    relative_to: str | None = None,
+) -> list[Path]:
+    """Shared ripgrep-rs file enumeration with timing and logging."""
+    ws = str(workspace_path)
+    # When showing hidden files, explicitly exclude .git (dir and worktree file).
+    globs = ["!.git/", "!.git"] if show_hidden_files else None
+    t0 = time.monotonic()
+    raw = rg_files(
+        paths=[ws],
+        hidden=show_hidden_files,
+        no_ignore=not respect_gitignore,
+        globs=globs,
+        sort=_SORT_BY_PATH,
+        absolute=absolute or None,
+        include_dirs=include_dirs or None,
+        relative_to=relative_to,
+    )
+    elapsed = time.monotonic() - t0
+    logger.debug(
+        "rg_scan: %d entries in %.3fs (gitignore=%s, hidden=%s)",
+        len(raw),
+        elapsed,
+        respect_gitignore,
+        show_hidden_files,
+    )
+    return [Path(p) for p in raw]
 
 
 def _read_workspace_files(
-    workspace_path: Path, *, show_hidden_files: bool = True
+    workspace_path: Path,
+    *,
+    show_hidden_files: bool = True,
+    respect_gitignore: bool = False,
 ) -> list[Path]:
     """Return relative paths for files under workspace_path.
 
-    When *show_hidden_files* is True (default) dot-prefixed entries are
-    included but ``.git`` subtrees are always excluded.  When False every
-    dot-prefixed path component causes the entry to be skipped.
-
-    Uses ``os.walk`` with in-place directory pruning so that excluded
-    subtrees (e.g. ``.git``, ``.venv`` when hidden) are never traversed.
+    Uses ``ripgrep-rs`` for fast file enumeration with native ``.gitignore``
+    support.  When *respect_gitignore* is True, files matching ``.gitignore``
+    patterns are excluded.  When *show_hidden_files* is True, dot-prefixed
+    entries are included.  ``.git`` subtrees are always excluded.
     """
-    result: list[Path] = []
-    for dirpath, dirnames, filenames in os.walk(
-        workspace_path, onerror=lambda e: logger.debug("os.walk error: %s", e)
-    ):
-        _prune_dirs(dirnames, show_hidden_files)
-        dir_path = Path(dirpath)
-        for fname in filenames:
-            if fname == ".git":
-                continue
-            if not show_hidden_files and fname.startswith("."):
-                continue
-            try:
-                file_path = dir_path / fname
-                if file_path.is_file():
-                    result.append(file_path.relative_to(workspace_path))
-            except OSError:
-                logger.debug("OSError accessing %s/%s, skipping", dirpath, fname)
-    result.sort()
-    return result
+    return _rg_scan(
+        workspace_path,
+        show_hidden_files=show_hidden_files,
+        respect_gitignore=respect_gitignore,
+        relative_to=str(workspace_path),
+    )
 
 
 def create_open_file_command_provider(
@@ -105,33 +117,25 @@ def create_open_file_command_provider(
 
 
 def _read_workspace_paths(
-    workspace_path: Path, *, show_hidden_files: bool = True
+    workspace_path: Path,
+    *,
+    show_hidden_files: bool = True,
+    respect_gitignore: bool = False,
 ) -> list[Path]:
-    """Return all files and directories under workspace_path.
+    """Return all files and directories under workspace_path as absolute paths.
 
-    When *show_hidden_files* is True (default) dot-prefixed entries are
-    included but ``.git`` subtrees are always excluded.  When False every
-    dot-prefixed path component causes the entry to be skipped.
-
-    Uses ``os.walk`` with in-place directory pruning so that excluded
-    subtrees are never traversed.
+    Uses ``ripgrep-rs`` for fast file enumeration with native ``.gitignore``
+    support.  When *respect_gitignore* is True, entries matching ``.gitignore``
+    patterns are excluded.  When *show_hidden_files* is True, dot-prefixed
+    entries are included.  ``.git`` subtrees are always excluded.
     """
-    result: list[Path] = []
-    for dirpath, dirnames, filenames in os.walk(
-        workspace_path, onerror=lambda e: logger.debug("os.walk error: %s", e)
-    ):
-        _prune_dirs(dirnames, show_hidden_files)
-        dir_path = Path(dirpath)
-        for dname in dirnames:
-            result.append(dir_path / dname)
-        for fname in filenames:
-            if fname == ".git":
-                continue
-            if not show_hidden_files and fname.startswith("."):
-                continue
-            result.append(dir_path / fname)
-    result.sort()
-    return result
+    return _rg_scan(
+        workspace_path,
+        show_hidden_files=show_hidden_files,
+        respect_gitignore=respect_gitignore,
+        absolute=True,
+        include_dirs=True,
+    )
 
 
 def _create_path_action_command_provider(

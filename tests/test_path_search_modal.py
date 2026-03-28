@@ -542,3 +542,132 @@ async def test_large_cache_discovery_and_navigation(workspace: Path):
         # Input should keep focus during navigation
         inp = modal.query_one("#path-search-input", Input)
         assert inp.has_focus
+
+
+# ── Cycle 7: Gitignore toggle ─────────────────────────────────────────────────
+
+
+async def test_gitignore_toggle_visible(workspace: Path, sample_files: list[Path]):
+    """Checkbox visible when show_gitignore_toggle=True."""
+    from textual.widgets import Checkbox
+
+    from textual_code.commands import _read_workspace_files
+    from textual_code.modals import PathSearchModal
+
+    _populate_cache(workspace, "files:gitignore=True", sample_files)
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.push_screen(
+            PathSearchModal(
+                workspace,
+                scan_func=_read_workspace_files,
+                cache_key="files:gitignore=True",
+                show_gitignore_toggle=True,
+                unfiltered_scan_func=_read_workspace_files,
+                unfiltered_cache_key="files:gitignore=False",
+            )
+        )
+        await pilot.pause()
+        modal = app.screen
+        assert isinstance(modal, PathSearchModal)
+        cb = modal.query_one("#path-search-gitignore", Checkbox)
+        assert cb.value is True  # default ON
+
+
+async def test_gitignore_toggle_hidden_by_default(
+    workspace: Path, sample_files: list[Path]
+):
+    """No checkbox when show_gitignore_toggle is not set."""
+    from textual.css.query import NoMatches
+    from textual.widgets import Checkbox
+
+    from textual_code.commands import _read_workspace_files
+    from textual_code.modals import PathSearchModal
+
+    _populate_cache(workspace, "files", sample_files)
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.push_screen(
+            PathSearchModal(
+                workspace,
+                scan_func=_read_workspace_files,
+                cache_key="files",
+            )
+        )
+        await pilot.pause()
+        modal = app.screen
+        assert isinstance(modal, PathSearchModal)
+        with pytest.raises(NoMatches):
+            modal.query_one("#path-search-gitignore", Checkbox)
+
+
+async def test_gitignore_toggle_triggers_rescan(workspace: Path):
+    """Unchecking gitignore toggle should switch to unfiltered scan func."""
+    from textual.widgets import Checkbox, OptionList
+
+    from textual_code.commands import _read_workspace_files
+    from textual_code.modals import PathSearchModal
+
+    # Filtered (gitignore ON): only 2 files
+    filtered_files = sorted([Path("alpha.py"), Path("beta.py")])
+    _populate_cache(workspace, "filtered", filtered_files)
+
+    # Unfiltered (gitignore OFF): 4 files (includes gitignored ones)
+    unfiltered_files = sorted(
+        [
+            Path("alpha.py"),
+            Path("beta.py"),
+            Path("build/out.js"),
+            Path("node_modules/pkg.js"),
+        ]
+    )
+    _populate_cache(workspace, "unfiltered", unfiltered_files)
+
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.push_screen(
+            PathSearchModal(
+                workspace,
+                scan_func=_read_workspace_files,
+                cache_key="filtered",
+                show_gitignore_toggle=True,
+                unfiltered_scan_func=_read_workspace_files,
+                unfiltered_cache_key="unfiltered",
+            )
+        )
+        await pilot.pause()
+        modal = app.screen
+        assert isinstance(modal, PathSearchModal)
+        ol = modal.query_one("#path-search-results", OptionList)
+        # Initially showing filtered results
+        assert ol.option_count == 2
+
+        # Uncheck gitignore toggle
+        cb = modal.query_one("#path-search-gitignore", Checkbox)
+        cb.value = False
+        await pilot.pause()
+        # Should now show unfiltered results
+        ol = modal.query_one("#path-search-results", OptionList)
+        assert ol.option_count == 4
+
+
+async def test_action_open_file_has_gitignore_toggle(
+    workspace: Path, sample_files: list[Path]
+):
+    """action_open_file opens PathSearchModal with gitignore toggle."""
+    from textual.widgets import Checkbox
+
+    from textual_code.modals import PathSearchModal
+
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.action_open_file()
+        await pilot.pause()
+        modal = app.screen
+        assert isinstance(modal, PathSearchModal)
+        cb = modal.query_one("#path-search-gitignore", Checkbox)
+        assert cb.value is True
