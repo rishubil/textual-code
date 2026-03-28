@@ -44,29 +44,56 @@ _TOKEN_TO_CAPTURES: list[tuple[object, list[str]]] = [
     (String.Escape, ["string.special", "punctuation.special"]),
     # Numbers
     (Number, ["number", "float"]),
-    # Keywords
+    # Keywords — order matters: more-specific tokens must come AFTER their
+    # parent so they can override the inherited colour when the Pygments
+    # style defines a distinct colour (e.g. Keyword.Namespace in monokai).
     (Keyword, ["keyword", "keyword.return", "keyword.operator"]),
     (Keyword.Declaration, ["keyword.function"]),
+    (Keyword.Namespace, ["keyword.import", "include"]),
     (Keyword.Type, ["type.builtin"]),
     (Keyword.Constant, ["constant.builtin", "boolean"]),
     # Names
     (Name.Function, ["function", "function.call", "method", "method.call"]),
     (Name.Class, ["type", "type.class", "constructor"]),
     (Name.Builtin, ["function.builtin"]),
+    (Name.Exception, ["type.exception"]),
     (Name.Variable, ["variable", "variable.builtin", "parameter"]),
     (Name.Attribute, ["attribute", "property"]),
+    (Name.Constant, ["constant.language"]),
     (Name.Tag, ["tag"]),
     (Name.Decorator, ["function.macro"]),
     (Name.Namespace, ["module", "namespace"]),
     (Name.Label, ["label", "json.label", "yaml.field", "toml.type"]),
     # Operators / Punctuation
     (Operator, ["operator"]),
+    (Operator.Word, ["keyword.operator"]),
     (Punctuation, ["punctuation.bracket", "punctuation.delimiter"]),
     # Literal
     (Literal, ["constant"]),
     # Errors
     (Error, ["html.end_tag_error"]),
 ]
+
+# ── Legacy nvim-treesitter capture name → modern equivalent ─────────────────
+
+# Older highlight queries use single-word capture names that predate the
+# hierarchical `keyword.conditional` convention.  Map each to the modern
+# name already populated by _TOKEN_TO_CAPTURES so the alias can be applied
+# after the main mapping loop.
+
+_LEGACY_ALIASES: dict[str, str] = {
+    "conditional": "keyword",
+    "repeat": "keyword",
+    "exception": "keyword",
+    "include": "keyword",
+    "storageclass": "keyword",
+    "preproc": "keyword.directive",
+    "field": "property",
+    "delimiter": "punctuation.delimiter",
+    "escape": "string.special",
+    "character": "string",
+    "character.special": "string.special",
+}
 
 
 def _hex_color(color_str: str | None) -> str | None:
@@ -84,6 +111,56 @@ def _derive_color(base: str, factor: float) -> str:
     g = min(255, max(0, int(g * factor)))
     b = min(255, max(0, int(b * factor)))
     return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def _collect_all_captures() -> frozenset[str]:
+    """Return every capture name used across all loaded tree-sitter queries.
+
+    Uses a deferred import to avoid a circular dependency: code_editor imports
+    this module lazily (inside ``_ensure_theme_registered``), so importing
+    code_editor here at function-call time is safe.
+    """
+    import re
+
+    try:
+        from textual_code.widgets.code_editor import _CUSTOM_LANGUAGE_QUERIES
+    except ImportError:
+        return frozenset()
+    result: set[str] = set()
+    for query in _CUSTOM_LANGUAGE_QUERIES.values():
+        result.update(re.findall(r"@([\w.]+)", query))
+    return frozenset(result)
+
+
+def _expand_syntax_styles(
+    syntax_styles: dict[str, Style], all_captures: frozenset[str]
+) -> None:
+    """Expand *syntax_styles* in-place with legacy aliases and prefix fallbacks.
+
+    Two-pass expansion:
+
+    1. **Legacy aliases** – single-word names like ``conditional`` are mapped to
+       their modern equivalent already present in *syntax_styles*.
+    2. **Hierarchical prefix fallback** – for every capture name in
+       *all_captures* that is not yet in *syntax_styles*, walk up the dot
+       hierarchy (``keyword.conditional.ternary`` → ``keyword.conditional`` →
+       ``keyword``) until a match is found.
+    """
+    # Pass 1: legacy aliases
+    for alias, target in _LEGACY_ALIASES.items():
+        if alias not in syntax_styles and target in syntax_styles:
+            syntax_styles[alias] = syntax_styles[target]
+
+    # Pass 2: hierarchical prefix fallback for all query captures
+    for capture in all_captures:
+        if capture in syntax_styles:
+            continue
+        parts = capture.split(".")
+        for i in range(len(parts) - 1, 0, -1):
+            prefix = ".".join(parts[:i])
+            if prefix in syntax_styles:
+                syntax_styles[capture] = syntax_styles[prefix]
+                break
 
 
 def get_all_pygments_theme_names() -> list[str]:
@@ -181,6 +258,9 @@ def pygments_to_textarea_theme(style_name: str) -> TextAreaTheme:
     syntax_styles["text.note"] = Style(color=code_color)
     syntax_styles["text.warning"] = Style(color=heading_color)
     syntax_styles["text.danger"] = Style(color=heading_color, bold=True)
+
+    # Expand with legacy aliases and hierarchical prefix fallbacks
+    _expand_syntax_styles(syntax_styles, _collect_all_captures())
 
     return TextAreaTheme(
         name=style_name,

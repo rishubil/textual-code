@@ -500,6 +500,78 @@ def test_snapshot_dockerfile_highlighting(snap_compare, snapshot_workspace: Path
     assert snap_compare(app, run_before=_focus_editor(app), terminal_size=TERMINAL_SIZE)
 
 
+_SYNTAX_THEME_PY_SAMPLE = (
+    "import os\n"
+    "from pathlib import Path\n\n"
+    "class MyClass:\n"
+    '    """A documented class."""\n\n'
+    "    def method(self, name: str, count: int = 0) -> bool:\n"
+    "        for i in range(count):\n"
+    "            if name == 'test':\n"
+    "                raise ValueError(f'bad: {name!r}')\n"
+    "        return True\n\n"
+    "result = MyClass().method('hello', count=3)\n"
+    "PI = 3.14\n"
+)
+
+
+def test_snapshot_monokai_python_highlighting(snap_compare, snapshot_workspace: Path):
+    """Python code with monokai theme shows correct highlighting."""
+    f = snapshot_workspace / "sample.py"
+    f.write_text(_SYNTAX_THEME_PY_SAMPLE)
+    app = make_app(snapshot_workspace, open_file=f)
+    assert snap_compare(app, run_before=_focus_editor(app), terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_solarized_dark_python_highlighting(
+    snap_compare, snapshot_workspace: Path
+):
+    """Python code with solarized-dark theme shows correct highlighting."""
+    f = snapshot_workspace / "sample.py"
+    f.write_text(_SYNTAX_THEME_PY_SAMPLE)
+    config = snapshot_workspace / "settings.toml"
+    config.write_text('[editor]\nsyntax_theme = "solarized-dark"\n')
+    app = make_app(snapshot_workspace, open_file=f, user_config_path=config)
+    assert snap_compare(app, run_before=_focus_editor(app), terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_github_dark_python_highlighting(
+    snap_compare, snapshot_workspace: Path
+):
+    """Python code with github-dark theme shows correct syntax highlighting colors."""
+    f = snapshot_workspace / "sample.py"
+    f.write_text(_SYNTAX_THEME_PY_SAMPLE)
+    config = snapshot_workspace / "settings.toml"
+    config.write_text('[editor]\nsyntax_theme = "github-dark"\n')
+    app = make_app(snapshot_workspace, open_file=f, user_config_path=config)
+    assert snap_compare(app, run_before=_focus_editor(app), terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_tsx_highlighting(snap_compare, snapshot_workspace: Path):
+    """TSX file shows syntax highlighting for JSX, TypeScript, and React patterns."""
+    f = snapshot_workspace / "App.tsx"
+    f.write_text(
+        "import React, { useState } from 'react';\n\n"
+        "interface Props {\n"
+        "  title: string;\n"
+        "  count?: number;\n"
+        "}\n\n"
+        "export function App({ title, count = 0 }: Props): JSX.Element {\n"
+        "  const [value, setValue] = useState<number>(count);\n"
+        "  return (\n"
+        '    <div className="app">\n'
+        "      <h1>{title}</h1>\n"
+        "      <button onClick={() => setValue(v => v + 1)}>\n"
+        "        Count: {value}\n"
+        "      </button>\n"
+        "    </div>\n"
+        "  );\n"
+        "}\n"
+    )
+    app = make_app(snapshot_workspace, open_file=f)
+    assert snap_compare(app, run_before=_focus_editor(app), terminal_size=TERMINAL_SIZE)
+
+
 # ── Footer modal no-save-level ─────────────────────────────────────────────────
 
 
