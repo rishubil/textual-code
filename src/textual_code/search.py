@@ -57,12 +57,12 @@ class WorkspaceSearchResponse:
 def _parse_include_exclude(
     files_to_include: str,
     files_to_exclude: str,
-) -> tuple[pathspec.PathSpec | None, pathspec.PathSpec | None]:
+) -> tuple[pathspec.PathSpec | None, pathspec.PathSpec | None] | None:
     """Parse comma-separated include/exclude filter strings into PathSpec objects.
 
-    Returns ``(include_spec, exclude_spec)``.  Either may be ``None`` when the
-    corresponding filter string is empty.  Returns ``(None, None)`` on any
-    parse error (invalid patterns should not crash the caller).
+    Returns ``(include_spec, exclude_spec)``.  Either element may be ``None``
+    when the corresponding filter string is empty.  Returns ``None`` on any
+    parse error so callers can yield/return nothing.
     """
     include_patterns = [p.strip() for p in files_to_include.split(",") if p.strip()]
     exclude_patterns = [p.strip() for p in files_to_exclude.split(",") if p.strip()]
@@ -79,7 +79,7 @@ def _parse_include_exclude(
             else None
         )
     except Exception:
-        return None, None
+        return None
 
     return include_spec, exclude_spec
 
@@ -116,9 +116,10 @@ def _iter_workspace_files(
     comma-separated glob include/exclude patterns via ``pathspec``
     post-filtering.
     """
-    include_spec, exclude_spec = _parse_include_exclude(
-        files_to_include, files_to_exclude
-    )
+    parsed = _parse_include_exclude(files_to_include, files_to_exclude)
+    if parsed is None:
+        return  # Invalid pattern -> yield nothing
+    include_spec, exclude_spec = parsed
 
     # Exclude .git when showing hidden files (matches _rg_scan in commands.py)
     globs = ["!.git/", "!.git"] if show_hidden_files else None
@@ -200,10 +201,10 @@ def search_workspace(
         return WorkspaceSearchResponse()
 
     # Parse include/exclude for post-filtering
-    include_spec, exclude_spec = _parse_include_exclude(
-        files_to_include,
-        files_to_exclude,
-    )
+    parsed = _parse_include_exclude(files_to_include, files_to_exclude)
+    if parsed is None:
+        return WorkspaceSearchResponse()
+    include_spec, exclude_spec = parsed
     has_filters = include_spec is not None or exclude_spec is not None
 
     # Generous limit: filters may discard many results, so fetch more upfront
