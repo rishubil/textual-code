@@ -1575,8 +1575,10 @@ class CodeEditor(Static):
     def on_mount(self, event: Mount) -> None:
         # update the title of the editor
         self.update_title()
-        # apply syntax highlighting theme
-        self._ensure_theme_registered(self._syntax_theme)
+        # apply syntax highlighting theme (fallback to monokai for legacy names)
+        if not self._ensure_theme_registered(self._syntax_theme):
+            self._syntax_theme = "monokai"
+            self._ensure_theme_registered(self._syntax_theme)
         self.editor.theme = self._syntax_theme
         # apply word wrap (reactive init=False, so set manually)
         self.editor.soft_wrap = self.word_wrap
@@ -2648,14 +2650,19 @@ class CodeEditor(Static):
     @syntax_theme.setter
     def syntax_theme(self, theme: str) -> None:
         """Set the syntax highlighting theme and update the editor."""
+        if not self._ensure_theme_registered(theme):
+            theme = "monokai"
+            self._ensure_theme_registered(theme)
         self._syntax_theme = theme
-        self._ensure_theme_registered(theme)
         self.editor.theme = theme
 
-    def _ensure_theme_registered(self, theme: str) -> None:
-        """Lazily convert and register a Pygments theme if not already known."""
+    def _ensure_theme_registered(self, theme: str) -> bool:
+        """Lazily convert and register a Pygments theme if not already known.
+
+        Returns True if the theme is available after this call, False otherwise.
+        """
         if theme in self.editor.available_themes:
-            return
+            return True
         try:
             from textual_code.pygments_theme_converter import (
                 pygments_to_textarea_theme,
@@ -2663,8 +2670,10 @@ class CodeEditor(Static):
 
             ta_theme = pygments_to_textarea_theme(theme)
             self.editor.register_theme(ta_theme)
+            return True
         except Exception:
-            log.warning("Failed to register theme %s", theme)
+            log.warning("Failed to register theme %s, falling back to monokai", theme)
+            return False
 
     def capture_state(self) -> EditorState:
         """Serialize current editor state for lazy unmounting."""
