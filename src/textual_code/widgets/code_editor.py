@@ -124,8 +124,6 @@ _ALL_LANG_NAMES = [
     "luadoc",
     "luau",
     "make",
-    "markdown",
-    "markdown_inline",
     "mermaid",
     "meson",
     "nginx",
@@ -180,6 +178,7 @@ _ALL_LANG_NAMES = [
 # Languages with local .scm fallback queries (tslp has parser but no bundled query).
 # Some use "; inherits:" directives resolved via _FALLBACK_INHERITS.
 _FALLBACK_SCM_NAMES = [
+    "markdown",
     "typescript",
     "tsx",
     "php",
