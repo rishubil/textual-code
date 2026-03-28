@@ -1914,6 +1914,7 @@ class PathSearchModal(ModalScreen[Path | None]):
         self._all_paths = []
         self._display_strings = []
         self._result_paths = []
+        self.query_one("#path-search-results", OptionList).clear_options()
         self._update_results_visibility()
         self._set_spinner_visible(False)
         ck = (
@@ -2134,7 +2135,10 @@ class PathSearchModal(ModalScreen[Path | None]):
                 (matcher.highlight(display), path) for _score, display, path in top
             ]
         finally:
-            self.app.call_from_thread(self._set_spinner_visible, False)
+            # Only hide spinner if this search is still current; a newer
+            # scan may have started and re-shown the spinner.
+            if generation == self._search_generation:
+                self.app.call_from_thread(self._set_spinner_visible, False)
         self.app.call_from_thread(self._apply_results, query, generation, highlighted)
 
     def _apply_results(
