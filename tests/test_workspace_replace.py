@@ -87,10 +87,20 @@ def test_replace_binary_file_skipped(tmp_path: Path) -> None:
     assert result.files_modified == 0
 
 
-def test_replace_hidden_file_skipped(tmp_path: Path) -> None:
+def test_replace_hidden_file_included_by_default(tmp_path: Path) -> None:
+    """Hidden files are replaced when show_hidden_files=True (default)."""
     f = tmp_path / ".hidden"
     f.write_text("needle\n")
     result = replace_workspace(tmp_path, "needle", "pin")
+    assert result.files_modified == 1
+    assert f.read_text() == "pin\n"
+
+
+def test_replace_hidden_file_skipped_when_disabled(tmp_path: Path) -> None:
+    """Hidden files are skipped when show_hidden_files=False."""
+    f = tmp_path / ".hidden"
+    f.write_text("needle\n")
+    result = replace_workspace(tmp_path, "needle", "pin", show_hidden_files=False)
     assert result.files_modified == 0
     assert f.read_text() == "needle\n"
 

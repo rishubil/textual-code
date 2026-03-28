@@ -23,7 +23,7 @@ Provides project-wide text search and batch replace without leaving the editor. 
 - Results are capped at 500 matches (`max_results=500`).
 - Each result shows `relative/path:line_number  line content`.
 - If no matches are found, "No results" is displayed. If the worker errors unexpectedly, "Search failed" is shown.
-- If some directories are inaccessible (e.g., permission denied), partial results are still displayed and a Toast warning lists the inaccessible paths.
+- If some directories are inaccessible (e.g., permission denied), they are silently skipped and partial results are still displayed.
 
 **Result navigation:**
 
@@ -57,8 +57,8 @@ Provides project-wide text search and batch replace without leaving the editor. 
 
 **Files skipped during search:**
 
-- Hidden files and directories (any path component starting with `.`).
-- Binary files (detected by null byte in the first 8 KiB).
+- Hidden files and directories (any path component starting with `.`) when `show_hidden_files` is disabled. The `.git` directory is always excluded.
+- Binary files (detected by null byte in matched content).
 - Files that cannot be decoded as UTF-8.
 
 **Responsive button labels:**

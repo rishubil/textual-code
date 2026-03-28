@@ -120,6 +120,7 @@ class WorkspaceSearchPane(Static):
         if workspace_path is None:
             return
 
+        show_hidden = getattr(self.app, "default_show_hidden_files", True)
         results_tree.loading = True
         self._search_worker(
             workspace_path,
@@ -127,6 +128,7 @@ class WorkspaceSearchPane(Static):
             use_regex,
             respect_gitignore,
             case_sensitive,
+            show_hidden,
             files_to_include,
             files_to_exclude,
         )
@@ -139,6 +141,7 @@ class WorkspaceSearchPane(Static):
         use_regex: bool,
         respect_gitignore: bool,
         case_sensitive: bool,
+        show_hidden_files: bool,
         files_to_include: str,
         files_to_exclude: str,
     ) -> None:
@@ -147,6 +150,7 @@ class WorkspaceSearchPane(Static):
             query,
             use_regex,
             respect_gitignore=respect_gitignore,
+            show_hidden_files=show_hidden_files,
             case_sensitive=case_sensitive,
             files_to_include=files_to_include,
             files_to_exclude=files_to_exclude,
@@ -237,6 +241,7 @@ class WorkspaceSearchPane(Static):
         if workspace_path is None:
             return
 
+        show_hidden = getattr(self.app, "default_show_hidden_files", True)
         self._count_for_replace_worker(
             workspace_path,
             query,
@@ -244,6 +249,7 @@ class WorkspaceSearchPane(Static):
             use_regex,
             respect_gitignore,
             case_sensitive,
+            show_hidden,
             files_to_include,
             files_to_exclude,
         )
@@ -257,6 +263,7 @@ class WorkspaceSearchPane(Static):
         use_regex: bool,
         respect_gitignore: bool,
         case_sensitive: bool,
+        show_hidden_files: bool,
         files_to_include: str,
         files_to_exclude: str,
     ) -> None:
@@ -265,6 +272,7 @@ class WorkspaceSearchPane(Static):
             query,
             use_regex,
             respect_gitignore=respect_gitignore,
+            show_hidden_files=show_hidden_files,
             case_sensitive=case_sensitive,
             files_to_include=files_to_include,
             files_to_exclude=files_to_exclude,
@@ -278,6 +286,7 @@ class WorkspaceSearchPane(Static):
             use_regex,
             respect_gitignore,
             case_sensitive,
+            show_hidden_files,
             files_to_include,
             files_to_exclude,
             response,
@@ -291,6 +300,7 @@ class WorkspaceSearchPane(Static):
         use_regex: bool,
         respect_gitignore: bool,
         case_sensitive: bool,
+        show_hidden_files: bool,
         files_to_include: str,
         files_to_exclude: str,
         response: WorkspaceSearchResponse,
@@ -343,6 +353,7 @@ class WorkspaceSearchPane(Static):
                 replacement,
                 use_regex,
                 respect_gitignore=respect_gitignore,
+                show_hidden_files=show_hidden_files,
                 case_sensitive=case_sensitive,
                 files_to_include=files_to_include,
                 files_to_exclude=files_to_exclude,
