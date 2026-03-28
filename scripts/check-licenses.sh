@@ -36,6 +36,13 @@ ALLOWED = {"MIT", "BSD", "ISC", "APACHE", "APACHE-2.0", "APACHE 2.0", "PSF", "PY
 BLOCKED = {"GPL", "GPL-2.0", "GPL-3.0", "AGPL", "AGPL-3.0", "GNU GENERAL PUBLIC LICENSE", "GNU AFFERO GENERAL PUBLIC LICENSE"}
 WARN = {"LGPL-2.0", "LGPL-2.1", "LGPL-3.0"}
 
+# Packages whose metadata lacks standard license fields.
+# Each entry has been manually verified against the upstream LICENSE file.
+# Keys are PEP 503-normalized (lowercased, hyphens replaced with underscores).
+MANUAL_OVERRIDES = {
+    "rich_pixels": "MIT",  # rich-pixels: License-File: LICENSE (MIT, Darren Burns / Textualize)
+}
+
 def get_license(meta):
     """Extract license from package metadata."""
     license_val = meta.get("License") or meta.get("License-Expression") or ""
@@ -76,7 +83,8 @@ for dist in dists:
         meta = dist.metadata
         name = meta["Name"] or "unknown"
         version = meta["Version"] or "unknown"
-        license_str = get_license(meta)
+        normalized = name.lower().replace("-", "_")
+        license_str = MANUAL_OVERRIDES.get(normalized) or get_license(meta)
         status = classify(license_str)
         results.append((name, version, license_str, status))
     except Exception:
