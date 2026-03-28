@@ -1768,6 +1768,14 @@ class PathSearchModal(ModalScreen[Path | None]):
     #path-search-spinner.--visible {
         visibility: visible;
     }
+    #path-search-gitignore {
+        width: auto;
+        border: none;
+        padding: 0;
+        height: 1;
+        margin-top: 1;
+        margin-right: 1;
+    }
     #path-search-input, #path-search-input:focus {
         border: blank;
         width: 1fr;
@@ -1818,6 +1826,9 @@ class PathSearchModal(ModalScreen[Path | None]):
         cache_key: str = "",
         placeholder: str = "Search...",
         path_filter: Callable[[Path], bool] | None = None,
+        show_gitignore_toggle: bool = False,
+        unfiltered_scan_func: Callable[[Path], list[Path]] | None = None,
+        unfiltered_cache_key: str = "",
     ) -> None:
         super().__init__()
         self._workspace_path = workspace_path
@@ -1832,6 +1843,12 @@ class PathSearchModal(ModalScreen[Path | None]):
         self._result_paths: list[Path] = []
         # Generation counter to discard stale search results (main-thread only).
         self._search_generation: int = 0
+        # Gitignore toggle support
+        self._show_gitignore_toggle = show_gitignore_toggle
+        self._filtered_scan_func = scan_func
+        self._filtered_cache_key = cache_key
+        self._unfiltered_scan_func = unfiltered_scan_func
+        self._unfiltered_cache_key = unfiltered_cache_key
 
     @classmethod
     def invalidate_cache(cls, workspace_path: Path | None = None) -> None:
@@ -1851,32 +1868,34 @@ class PathSearchModal(ModalScreen[Path | None]):
             with Horizontal(id="path-search-input-bar"):
                 yield Static("\U0001f50e", id="path-search-icon")
                 yield Input(placeholder=self._placeholder, id="path-search-input")
+                if self._show_gitignore_toggle:
+                    yield Checkbox("Gitignore", id="path-search-gitignore", value=True)
                 yield Static("\u23f3", id="path-search-spinner")
             with Vertical(id="path-search-results-area"):
                 yield OptionList(id="path-search-results")
 
     def on_mount(self) -> None:
         self.query_one("#path-search-input", Input).focus()
+        self._load_or_scan()
+
+    def _load_or_scan(self) -> None:
+        """Load paths from cache or start a fresh scan."""
+        self._all_paths = []
+        self._display_strings = []
         ck = (
             (self._workspace_path, self._cache_key_str) if self._cache_key_str else None
         )
         if ck and ck in PathSearchModal._cache:
-            # Class-level cache hit
-            self._load_paths(list(PathSearchModal._cache[ck]))
             is_dirty = ck in PathSearchModal._cache_dirty
             _logger.debug(
-                "PathSearchModal: cache hit (%s), dirty=%s, %d paths",
+                "PathSearchModal: cache hit (%s), dirty=%s",
                 ck[1],
                 is_dirty,
-                len(self._all_paths),
             )
             if is_dirty:
-                # Clear accumulated paths before re-scanning to avoid
-                # merging stale cache data with fresh scan results.
-                self._all_paths = []
-                self._display_strings = []
                 self._start_scan()
-            return
+            else:
+                self._load_paths(list(PathSearchModal._cache[ck]))
         else:
             _logger.debug("PathSearchModal: cache miss, starting scan")
             self._start_scan()
@@ -1885,7 +1904,7 @@ class PathSearchModal(ModalScreen[Path | None]):
         """Load paths into display state, applying filter if set."""
         if self._path_filter:
             paths = [p for p in paths if self._path_filter(p)]
-        self._all_paths = sorted(paths)
+        self._all_paths = paths
         self._display_strings = [self._display_path(p) for p in self._all_paths]
         self._show_discovery()
 
@@ -1900,7 +1919,7 @@ class PathSearchModal(ModalScreen[Path | None]):
 
     @work(thread=True, exclusive=True)
     def _start_scan(self) -> None:
-        """Scan workspace in background, delivering results in sorted chunks."""
+        """Scan workspace in a background thread."""
         self.app.call_from_thread(self._set_spinner_visible, True)
         t0 = time.monotonic()
         _logger.debug("PathSearchModal: scan started")
@@ -1908,36 +1927,18 @@ class PathSearchModal(ModalScreen[Path | None]):
             results = self._scan_func(self._workspace_path)
             if self._path_filter:
                 results = [p for p in results if self._path_filter(p)]
-            # Deliver in chunks for progressive display
-            chunk_size = 100
-            for i in range(0, len(results), chunk_size):
-                chunk = results[i : i + chunk_size]
-                self.app.call_from_thread(self._on_chunk, chunk)
+            self.app.call_from_thread(self._on_scan_results, results)
         finally:
             elapsed = time.monotonic() - t0
             _logger.debug(
-                "PathSearchModal: scan finished in %.2fs, %d paths",
+                "PathSearchModal: scan finished in %.2fs",
                 elapsed,
-                len(self._all_paths),
             )
             self.app.call_from_thread(self._on_scan_complete)
 
-    def _on_chunk(self, chunk: list[Path]) -> None:
-        """Merge a sorted chunk into the accumulated path list."""
-        chunk.sort()
-        chunk_displays = [self._display_path(p) for p in chunk]
-        # Merge paths and display strings in parallel, maintaining sort order.
-        merged_paths: list[Path] = []
-        merged_displays: list[str] = []
-        for p in heapq.merge(
-            zip(self._all_paths, self._display_strings, strict=False),
-            zip(chunk, chunk_displays, strict=False),
-            key=lambda x: x[1],
-        ):
-            merged_paths.append(p[0])
-            merged_displays.append(p[1])
-        self._all_paths = merged_paths
-        self._display_strings = merged_displays
+    def _on_scan_results(self, results: list[Path]) -> None:
+        """Load scan results into display state (main thread)."""
+        self._load_paths(results)
 
     def _on_scan_complete(self) -> None:
         """Handle scan completion: update cache and refresh display."""
@@ -1952,6 +1953,19 @@ class PathSearchModal(ModalScreen[Path | None]):
                 len(self._all_paths),
             )
         self._refresh_display()
+
+    @on(Checkbox.Changed, "#path-search-gitignore")
+    def _on_gitignore_toggled(self, event: Checkbox.Changed) -> None:
+        """Switch between filtered/unfiltered scan func on gitignore toggle."""
+        if event.value:
+            self._scan_func = self._filtered_scan_func
+            self._cache_key_str = self._filtered_cache_key
+        elif self._unfiltered_scan_func is not None:
+            self._scan_func = self._unfiltered_scan_func
+            self._cache_key_str = self._unfiltered_cache_key
+        else:
+            return
+        self._load_or_scan()
 
     def _refresh_display(self) -> None:
         """Update the option list based on the current query."""
