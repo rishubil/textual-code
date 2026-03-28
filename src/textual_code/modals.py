@@ -1896,6 +1896,7 @@ class PathSearchModal(ModalScreen[Path | None]):
                 self._start_scan()
             else:
                 self._load_paths(list(PathSearchModal._cache[ck]))
+                self._refresh_display()
         else:
             _logger.debug("PathSearchModal: cache miss, starting scan")
             self._start_scan()
