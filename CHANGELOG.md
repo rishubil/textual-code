@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Scripts**: `check-licenses.sh` now correctly classifies `rich-pixels` as MIT (allowed) via a manual override map for packages whose metadata lacks standard license fields (Fix #147)
 - **Explorer**: `select_file` now reveals files at any directory depth — replaced frame-synchronous retry polling (`call_after_refresh`) with timer-based retries and depth-progress tracking so that deeply nested paths (12+ levels) are fully expanded instead of stopping mid-way after 10 retries (Fix #141)
 - **Open File**: "Open File" (Ctrl+O) and Delete/Rename path actions now respect the `show_hidden_files` setting — hidden files (e.g., `.env`, `.gitignore`, `.github/`) appear in search results when the setting is enabled; `.git/` contents are always excluded (Fix #140)
 - **Split**: split left/right/up/down in complex grid layouts (3+ panes with mixed directions) now correctly places the new pane adjacent to the focused editor group, instead of mounting it inside a nested sibling container (Fix #135)
