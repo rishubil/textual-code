@@ -31,6 +31,40 @@ pytestmark = pytest.mark.serial
 TERMINAL_SIZE = (120, 40)
 
 
+async def _wait_for_stable_screen(
+    pilot, *, stability_count: int = 2, max_pauses: int = 30
+) -> None:
+    """Pause until the app's rendered SVG output stabilises.
+
+    Instead of a fixed number of ``pilot.pause()`` calls, this repeatedly
+    pauses and compares consecutive ``export_screenshot()`` results.  The
+    screen is considered stable when *stability_count* consecutive pauses
+    produce identical SVGs.
+
+    Cursor blinking must already be disabled before calling this helper;
+    the ``snap_compare`` wrapper in conftest.py handles this automatically.
+    """
+    prev_svg: str | None = None
+    stable = 0
+    for _ in range(max_pauses):
+        await pilot.pause()
+        current_svg = pilot.app.export_screenshot()
+        if current_svg == prev_svg:
+            stable += 1
+            if stable >= stability_count:
+                return
+        else:
+            stable = 0
+            prev_svg = current_svg
+    import warnings
+
+    warnings.warn(
+        f"_wait_for_stable_screen: screen did not stabilise within "
+        f"{max_pauses} pauses (stability_count={stability_count})",
+        stacklevel=2,
+    )
+
+
 def _focus_editor(app):
     """Return a run_before function that waits for the editor to settle and focus."""
 
@@ -243,14 +277,8 @@ def test_snapshot_markdown_preview_open(snap_compare, snapshot_workspace: Path):
     async def open_preview(pilot):
         await pilot.pause()
         await app.main_view.action_open_markdown_preview()
-        # action_open_markdown_preview schedules deferred layout via
-        # call_after_refresh; extra idle-waits needed on Python 3.13 (#118).
-        await pilot.pause()
-        await pilot.pause()
-        # Extra pauses: let markdown blocks mount and tab underline settle
-        await pilot.pause()
-        await pilot.pause()
-        await pilot.pause()
+        # Wait for markdown rendering and tab activation to settle
+        await _wait_for_stable_screen(pilot)
 
     assert snap_compare(app, run_before=open_preview, terminal_size=TERMINAL_SIZE)
 
@@ -282,16 +310,16 @@ def test_snapshot_readme_preview(snap_compare, snapshot_workspace: Path):
         await pilot.pause()
         # Open markdown preview (tab in left/only leaf)
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await _wait_for_stable_screen(pilot)
         # Move preview to a new right split
         preview_pane_id = app.main_view._preview_pane_ids[readme]
         new_leaf = await app.main_view._create_empty_split("horizontal", "after")
         await app.main_view._move_pane_to_leaf(preview_pane_id, new_leaf)
-        await pilot.pause()
+        await _wait_for_stable_screen(pilot)
         # Focus back to left editor
         left_leaf = all_leaves(app.main_view._split_root)[0]
         app.main_view._set_active_leaf(left_leaf)
-        await pilot.pause()
+        await _wait_for_stable_screen(pilot)
 
     assert snap_compare(
         app, run_before=setup_preview_split, terminal_size=TERMINAL_SIZE

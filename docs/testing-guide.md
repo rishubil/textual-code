@@ -235,6 +235,40 @@ for _ in range(5):      # let the underline indicator settle
     await pilot.pause()
 ```
 
+### Screen stability wait for complex async operations
+
+When a snapshot test triggers **cascading deferred work** — markdown preview rendering,
+split creation with pane moves, or any code path using `call_after_refresh` — a fixed
+number of `pilot.pause()` calls may not be enough. The settling depth varies by system
+speed, making fixed counts unreliable on CI.
+
+Use `_wait_for_stable_screen(pilot)` (defined in `test_snapshots.py`) instead. It polls
+`export_screenshot()` in a loop and returns when consecutive frames produce identical SVGs:
+
+```python
+await app.main_view.action_open_markdown_preview()
+await _wait_for_stable_screen(pilot)  # adapts to system speed
+```
+
+For multi-phase operations, call it after each phase:
+
+```python
+await app.main_view.action_open_markdown_preview()
+await _wait_for_stable_screen(pilot)
+
+new_leaf = await app.main_view._create_empty_split("horizontal", "after")
+await app.main_view._move_pane_to_leaf(pane_id, new_leaf)
+await _wait_for_stable_screen(pilot)
+
+app.main_view._set_active_leaf(left_leaf)
+await _wait_for_stable_screen(pilot)
+```
+
+**When to use:** markdown preview, split + move combos, or any operation that triggers
+multiple rounds of `call_after_refresh` / reactive watchers.
+
+**When NOT to use:** simple single-action tests where one `pilot.pause()` suffices.
+
 ### Snapshot workspace path stability
 
 Snapshot tests use `/tmp/tc_snapshot_ws/<test_name>/` instead of `tmp_path` so the file
