@@ -86,6 +86,16 @@ def init_git_repo(workspace: Path) -> None:
 SVGImageExtension.file_extension = "svg"
 
 
+def _disable_cursor_blink(app) -> None:
+    """Turn off cursor blinking on all TextArea and Input widgets."""
+    from textual.widgets import Input, TextArea
+
+    for widget in app.query(TextArea):
+        widget.cursor_blink = False
+    for widget in app.query(Input):
+        widget.cursor_blink = False
+
+
 @pytest.fixture
 def snap_compare(snap_compare):
     """Wrap snap_compare to disable cursor blinking for deterministic snapshots.
@@ -94,19 +104,21 @@ def snap_compare(snap_compare):
     This timer is independent of ``animation_level`` and can cause snapshot
     differences depending on whether the cursor is visible at capture time.
 
+    Cursor blink is disabled both *before* and *after* ``run_before`` so that
+    any stability-polling helpers (e.g. ``_wait_for_stable_screen``) inside
+    ``run_before`` see deterministic output, and widgets mounted during
+    ``run_before`` are also covered.
+
     Depends on pytest-textual-snapshot's snap_compare signature:
         compare(app, *, press, terminal_size, run_before)
     """
-    from textual.widgets import Input, TextArea
 
     def wrapper(app, *, run_before=None, **kwargs):
         async def run_before_no_blink(pilot):
+            _disable_cursor_blink(pilot.app)
             if run_before is not None:
                 await run_before(pilot)
-            for widget in pilot.app.query(TextArea):
-                widget.cursor_blink = False
-            for widget in pilot.app.query(Input):
-                widget.cursor_blink = False
+            _disable_cursor_blink(pilot.app)
             await pilot.pause()
 
         return snap_compare(app, run_before=run_before_no_blink, **kwargs)
