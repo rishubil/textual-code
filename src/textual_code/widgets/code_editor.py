@@ -124,6 +124,8 @@ _ALL_LANG_NAMES = [
     "luadoc",
     "luau",
     "make",
+    "markdown",
+    "markdown_inline",
     "mermaid",
     "meson",
     "nginx",
@@ -178,7 +180,6 @@ _ALL_LANG_NAMES = [
 # Languages with local .scm fallback queries (tslp has parser but no bundled query).
 # Some use "; inherits:" directives resolved via _FALLBACK_INHERITS.
 _FALLBACK_SCM_NAMES = [
-    "markdown",
     "typescript",
     "tsx",
     "php",
@@ -2655,12 +2656,21 @@ class CodeEditor(Static):
         self._syntax_theme = theme
         self.editor.theme = theme
 
+    # Tracks which Pygments themes have been registered on this editor instance.
+    _registered_themes: set[str]
+
     def _ensure_theme_registered(self, theme: str) -> bool:
         """Lazily convert and register a Pygments theme if not already known.
 
+        Always registers our Pygments-converted theme to ensure tslp capture
+        names (e.g. @text.title) are supported, even for themes whose names
+        collide with Textual built-ins (e.g. monokai).
+
         Returns True if the theme is available after this call, False otherwise.
         """
-        if theme in self.editor.available_themes:
+        if not hasattr(self, "_registered_themes"):
+            self._registered_themes = set()
+        if theme in self._registered_themes:
             return True
         try:
             from textual_code.pygments_theme_converter import (
@@ -2669,6 +2679,7 @@ class CodeEditor(Static):
 
             ta_theme = pygments_to_textarea_theme(theme)
             self.editor.register_theme(ta_theme)
+            self._registered_themes.add(theme)
             return True
         except Exception:
             log.warning("Failed to register theme %s, falling back to monokai", theme)

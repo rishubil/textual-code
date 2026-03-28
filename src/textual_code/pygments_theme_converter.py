@@ -161,6 +161,7 @@ def pygments_to_textarea_theme(style_name: str) -> TextAreaTheme:
     link_color = _hex_color(str_style["color"]) or fg_color
     code_color = _hex_color(cmt_style["color"]) or fg_color
 
+    # Textual-style captures (used by Textual's built-in themes)
     syntax_styles["heading"] = Style(color=heading_color, bold=True)
     syntax_styles["heading.marker"] = Style(color=heading_color, bold=True)
     syntax_styles["bold"] = Style(bold=True)
@@ -170,6 +171,16 @@ def pygments_to_textarea_theme(style_name: str) -> TextAreaTheme:
     syntax_styles["link.uri"] = Style(color=link_color, underline=True)
     syntax_styles["list.marker"] = Style(color=heading_color)
     syntax_styles["inline_code"] = Style(color=code_color)
+    # nvim-treesitter-style captures (used by tslp bundled queries)
+    syntax_styles["text.title"] = Style(color=heading_color, bold=True)
+    syntax_styles["text.literal"] = Style(color=code_color)
+    syntax_styles["text.emphasis"] = Style(italic=True)
+    syntax_styles["text.strong"] = Style(bold=True)
+    syntax_styles["text.uri"] = Style(color=link_color, underline=True)
+    syntax_styles["text.reference"] = Style(color=link_color)
+    syntax_styles["text.note"] = Style(color=code_color)
+    syntax_styles["text.warning"] = Style(color=heading_color)
+    syntax_styles["text.danger"] = Style(color=heading_color, bold=True)
 
     return TextAreaTheme(
         name=style_name,
