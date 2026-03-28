@@ -671,3 +671,105 @@ async def test_action_open_file_has_gitignore_toggle(
         assert isinstance(modal, PathSearchModal)
         cb = modal.query_one("#path-search-gitignore", Checkbox)
         assert cb.value is True
+
+
+# ── Cycle 8: rapidfuzz large-list acceleration ──────────────────────────────
+
+
+def test_adjust_score_for_path_filename_bonus():
+    """Filename match gets a higher score than directory-only match."""
+    from textual_code.modals import _adjust_score_for_path
+
+    # Query "app" appears in filename "app.py"
+    score_filename = _adjust_score_for_path(80.0, "src/app.py", "app")
+    # Query "app" does NOT appear in filename "config.py"
+    score_no_filename = _adjust_score_for_path(80.0, "src/application/config.py", "app")
+    assert score_filename > score_no_filename
+
+
+def test_adjust_score_for_path_short_path_bonus():
+    """Shorter paths get higher scores than deeper paths."""
+    from textual_code.modals import _adjust_score_for_path
+
+    score_short = _adjust_score_for_path(80.0, "app.py", "x")
+    score_deep = _adjust_score_for_path(80.0, "a/b/c/d/e/app.py", "x")
+    assert score_short > score_deep
+
+
+def test_adjust_score_for_path_depth_bonus():
+    """Root-level files get a depth bonus over deeply nested files."""
+    from textual_code.modals import _adjust_score_for_path
+
+    score_root = _adjust_score_for_path(80.0, "file.py", "x")
+    score_depth1 = _adjust_score_for_path(80.0, "src/file.py", "x")
+    score_depth3 = _adjust_score_for_path(80.0, "a/b/c/file.py", "x")
+    assert score_root > score_depth1
+    assert score_depth1 > score_depth3
+
+
+async def test_rapidfuzz_used_for_large_file_list(workspace: Path):
+    """With >5000 cached files, search should still return results quickly."""
+    from textual.widgets import OptionList
+
+    from textual_code.commands import _read_workspace_files
+    from textual_code.modals import PathSearchModal
+
+    # Create 6000 synthetic paths (above _RAPIDFUZZ_THRESHOLD)
+    large_files = sorted(Path(f"dir{i // 100}/file_{i:05d}.py") for i in range(6000))
+    _populate_cache(workspace, "files", large_files)
+
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.push_screen(
+            PathSearchModal(
+                workspace,
+                scan_func=_read_workspace_files,
+                cache_key="files",
+            )
+        )
+        await pilot.pause()
+        # Type to search
+        await pilot.press("f", "i", "l", "e", "_", "0", "0", "5")
+        await pilot.pause(0.5)
+        ol = app.screen.query_one("#path-search-results", OptionList)
+        assert ol.option_count >= 1, "rapidfuzz path should return results"
+        # Top result should contain the query
+        option = ol.get_option_at_index(0)
+        assert "file_005" in str(option.prompt).lower()
+
+
+async def test_rapidfuzz_prefers_filename_match(workspace: Path):
+    """Filename matches should rank higher than directory-only matches."""
+    from textual.widgets import OptionList
+
+    from textual_code.commands import _read_workspace_files
+    from textual_code.modals import PathSearchModal
+
+    # Build a large file list where one file has "target" in filename
+    # and many others have it only in directory names
+    paths: list[Path] = [Path("target.py")]
+    for i in range(6000):
+        paths.append(Path(f"target_dir/subdir{i // 100}/file_{i:05d}.py"))
+    _populate_cache(workspace, "files", sorted(paths))
+
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.push_screen(
+            PathSearchModal(
+                workspace,
+                scan_func=_read_workspace_files,
+                cache_key="files",
+            )
+        )
+        await pilot.pause()
+        await pilot.press("t", "a", "r", "g", "e", "t")
+        await pilot.pause(0.5)
+        ol = app.screen.query_one("#path-search-results", OptionList)
+        assert ol.option_count >= 1
+        # "target.py" should be the top result (filename match)
+        top_text = str(ol.get_option_at_index(0).prompt).lower()
+        assert "target.py" in top_text, (
+            f"Expected 'target.py' as top result, got: {top_text}"
+        )
