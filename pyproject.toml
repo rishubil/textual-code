@@ -24,6 +24,7 @@ requires-python = ">=3.12"
 dependencies = [
     "charset-normalizer>=3.4.5",
     "pathspec>=1.0.4",
+    "rapidfuzz>=3.14.3",
     "rich-pixels>=3.0.1",
     "ripgrep-rs>=0.4.2",
     "textual[syntax]>=8.0.2",

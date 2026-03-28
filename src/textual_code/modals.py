@@ -1722,6 +1722,31 @@ _MAX_DISCOVERY = 50
 _MAX_SEARCH_HITS = 20
 """Maximum number of search results returned."""
 
+_RAPIDFUZZ_THRESHOLD = 5000
+"""Switch to rapidfuzz scorer when candidate count exceeds this."""
+
+
+def _adjust_score_for_path(score: float, display: str, query: str) -> float:
+    """Apply path-aware adjustments to a rapidfuzz score.
+
+    Bonuses:
+    - Filename match: +15 if query is a substring of the filename
+    - Short path: up to +10 for shorter relative paths
+    - Shallow depth: +5 for root, +3 for depth 1
+    """
+    query_lower = query.lower()
+    slash_idx = display.rfind("/")
+    filename = display[slash_idx + 1 :] if slash_idx >= 0 else display
+    if query_lower in filename.lower():
+        score += 15
+    score += 10 * max(0.0, 1.0 - len(display) / 200)
+    depth = display.count("/")
+    if depth == 0:
+        score += 5
+    elif depth == 1:
+        score += 3
+    return score
+
 
 class PathSearchModal(ModalScreen[Path | None]):
     """fzf-like modal for searching and selecting paths.
@@ -2022,10 +2047,24 @@ class PathSearchModal(ModalScreen[Path | None]):
     @work(thread=True, exclusive=True, group="path_search_match")
     def _do_search(self, query: str, generation: int) -> None:
         """Run fuzzy matching in a background thread."""
-        matcher = Matcher(query)
         # Snapshot references for thread safety.
         paths = self._all_paths
         displays = self._display_strings
+
+        if len(paths) > _RAPIDFUZZ_THRESHOLD:
+            self._do_search_rapidfuzz(query, generation, paths, displays)
+        else:
+            self._do_search_textual(query, generation, paths, displays)
+
+    def _do_search_textual(
+        self,
+        query: str,
+        generation: int,
+        paths: list[Path],
+        displays: list[str],
+    ) -> None:
+        """Fuzzy search using Textual Matcher (for small candidate lists)."""
+        matcher = Matcher(query)
         scored: list[tuple[float, str, Path]] = []
         for i, path in enumerate(paths):
             display = displays[i] if i < len(displays) else str(path)
@@ -2033,10 +2072,43 @@ class PathSearchModal(ModalScreen[Path | None]):
             if score > 0:
                 scored.append((score, display, path))
         top = heapq.nlargest(_MAX_SEARCH_HITS, scored)
-        # Pre-compute highlights while still on the worker thread.
         highlighted = [
             (matcher.highlight(display), path) for _score, display, path in top
         ]
+        self.app.call_from_thread(self._apply_results, query, generation, highlighted)
+
+    def _do_search_rapidfuzz(
+        self,
+        query: str,
+        generation: int,
+        paths: list[Path],
+        displays: list[str],
+    ) -> None:
+        """Fuzzy search using rapidfuzz (for large candidate lists >5000)."""
+        from rapidfuzz import fuzz, process
+
+        self.app.call_from_thread(self._set_spinner_visible, True)
+        try:
+            results = process.extract(
+                query,
+                displays,
+                scorer=fuzz.partial_ratio,
+                limit=_MAX_SEARCH_HITS * 5,
+                score_cutoff=50,
+            )
+            adjusted: list[tuple[float, str, Path]] = [
+                (_adjust_score_for_path(score, choice, query), choice, paths[idx])
+                for choice, score, idx in results
+            ]
+            adjusted.sort(key=lambda t: t[0], reverse=True)
+            top = adjusted[:_MAX_SEARCH_HITS]
+            # Highlight only the final results using Textual Matcher.
+            matcher = Matcher(query)
+            highlighted = [
+                (matcher.highlight(display), path) for _score, display, path in top
+            ]
+        finally:
+            self.app.call_from_thread(self._set_spinner_visible, False)
         self.app.call_from_thread(self._apply_results, query, generation, highlighted)
 
     def _apply_results(

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Performance**: Open File search (`Ctrl+O`) now respects `.gitignore` patterns by default using `ripgrep-rs`, reducing file scan from 78K files / 7s to ~234 files / 0.009s; a **Gitignore toggle checkbox** in the search bar lets users include gitignored files when needed (Fix #144)
+- **Performance**: Open File search (`Ctrl+O`) now respects `.gitignore` patterns by default using `ripgrep-rs`, reducing file scan from 78K files / 7s to ~234 files / 0.009s; a **Gitignore toggle checkbox** in the search bar lets users include gitignored files when needed; when gitignored files are included, fuzzy matching uses `rapidfuzz` for 14-140x faster search with a spinner indicator during matching (Fix #144)
 - **Search**: display workspace search results as a collapsible tree grouped by file — each file node shows relative path and match count, with individual match lines as expandable children; replaces the previous flat list layout, matching VSCode's "Find in Files" tree view (Fix #127)
 - **Explorer**: compact folder rendering — single-child directory chains display as a single node with a combined path label (e.g., `src/main/java`), matching VSCode's "Compact Folders" behavior; toggleable via command palette or `compact_folders` setting (Fix #128)
 - **Tabs**: new tabs open immediately after the active tab instead of at the end, matching VSCode's default `openPositioning: 'right'` behavior (Fix #124)
