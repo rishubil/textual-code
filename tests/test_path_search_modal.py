@@ -707,6 +707,19 @@ def test_adjust_score_for_path_depth_bonus():
     assert score_depth1 > score_depth3
 
 
+def test_adjust_score_for_path_backslash_separators():
+    """Backslash separators produce the same scores as forward slashes."""
+    from textual_code.modals import _adjust_score_for_path
+
+    score_fwd = _adjust_score_for_path(80.0, "src/app.py", "app")
+    score_bck = _adjust_score_for_path(80.0, "src\\app.py", "app")
+    assert score_fwd == score_bck
+
+    score_deep_fwd = _adjust_score_for_path(80.0, "a/b/c/file.py", "x")
+    score_deep_bck = _adjust_score_for_path(80.0, "a\\b\\c\\file.py", "x")
+    assert score_deep_fwd == score_deep_bck
+
+
 async def test_rapidfuzz_used_for_large_file_list(workspace: Path):
     """With >5000 cached files, search should still return results quickly."""
     from textual.widgets import OptionList

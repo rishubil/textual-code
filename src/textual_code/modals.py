@@ -1734,13 +1734,15 @@ def _adjust_score_for_path(score: float, display: str, query: str) -> float:
     - Short path: up to +10 for shorter relative paths
     - Shallow depth: +5 for root, +3 for depth 1
     """
+    # Normalize to forward slashes for consistent scoring on all platforms.
+    normalized = display.replace("\\", "/")
     query_lower = query.lower()
-    slash_idx = display.rfind("/")
-    filename = display[slash_idx + 1 :] if slash_idx >= 0 else display
+    slash_idx = normalized.rfind("/")
+    filename = normalized[slash_idx + 1 :] if slash_idx >= 0 else normalized
     if query_lower in filename.lower():
         score += 15
-    score += 10 * max(0.0, 1.0 - len(display) / 200)
-    depth = display.count("/")
+    score += 10 * max(0.0, 1.0 - len(normalized) / 200)
+    depth = normalized.count("/")
     if depth == 0:
         score += 5
     elif depth == 1:
@@ -1868,6 +1870,8 @@ class PathSearchModal(ModalScreen[Path | None]):
         self._result_paths: list[Path] = []
         # Generation counter to discard stale search results (main-thread only).
         self._search_generation: int = 0
+        # Generation counter to discard stale scan results (main-thread only).
+        self._scan_generation: int = 0
         # Gitignore toggle support
         self._show_gitignore_toggle = show_gitignore_toggle
         self._filtered_scan_func = scan_func
@@ -1905,8 +1909,11 @@ class PathSearchModal(ModalScreen[Path | None]):
 
     def _load_or_scan(self) -> None:
         """Load paths from cache or start a fresh scan."""
+        self._scan_generation += 1
         self._all_paths = []
         self._display_strings = []
+        self._result_paths = []
+        self._update_results_visibility()
         ck = (
             (self._workspace_path, self._cache_key_str) if self._cache_key_str else None
         )
@@ -1946,38 +1953,55 @@ class PathSearchModal(ModalScreen[Path | None]):
     @work(thread=True, exclusive=True)
     def _start_scan(self) -> None:
         """Scan workspace in a background thread."""
+        generation = self._scan_generation
+        cache_key = self._cache_key_str
         self.app.call_from_thread(self._set_spinner_visible, True)
         t0 = time.monotonic()
-        _logger.debug("PathSearchModal: scan started")
+        _logger.debug("PathSearchModal: scan started (gen %d)", generation)
         try:
             results = self._scan_func(self._workspace_path)
             if self._path_filter:
                 results = [p for p in results if self._path_filter(p)]
-            self.app.call_from_thread(self._on_scan_results, results)
+            self.app.call_from_thread(
+                self._on_scan_results, results, generation, cache_key
+            )
         finally:
             elapsed = time.monotonic() - t0
             _logger.debug(
-                "PathSearchModal: scan finished in %.2fs",
+                "PathSearchModal: scan finished in %.2fs (gen %d)",
                 elapsed,
+                generation,
             )
-            self.app.call_from_thread(self._on_scan_complete)
+            self.app.call_from_thread(self._on_scan_complete, generation)
 
-    def _on_scan_results(self, results: list[Path]) -> None:
+    def _on_scan_results(
+        self, results: list[Path], generation: int, cache_key: str
+    ) -> None:
         """Load scan results into display state (main thread)."""
+        if generation != self._scan_generation:
+            _logger.debug(
+                "PathSearchModal: discarding stale scan (gen %d != %d)",
+                generation,
+                self._scan_generation,
+            )
+            return
         self._load_paths(results)
-
-    def _on_scan_complete(self) -> None:
-        """Handle scan completion: update cache and refresh display."""
-        self._set_spinner_visible(False)
-        if self._cache_key_str:
-            ck = (self._workspace_path, self._cache_key_str)
+        # Update cache using the key captured at scan start.
+        if cache_key:
+            ck = (self._workspace_path, cache_key)
             PathSearchModal._cache[ck] = tuple(self._all_paths)
             PathSearchModal._cache_dirty.discard(ck)
             _logger.debug(
                 "PathSearchModal: cache updated (%s), %d paths",
-                self._cache_key_str,
+                cache_key,
                 len(self._all_paths),
             )
+
+    def _on_scan_complete(self, generation: int) -> None:
+        """Handle scan completion: hide spinner and refresh display."""
+        if generation != self._scan_generation:
+            return
+        self._set_spinner_visible(False)
         self._refresh_display()
 
     @on(Checkbox.Changed, "#path-search-gitignore")
