@@ -29,6 +29,8 @@ from textual.widgets import (
     Select,
 )
 
+from textual_code.pygments_theme_converter import get_all_pygments_theme_names
+
 if TYPE_CHECKING:
     from textual_code.app import TextualCode
     from textual_code.config import FooterOrders, ShortcutDisplayEntry
@@ -935,7 +937,7 @@ class ChangeEncodingModalScreen(ModalScreen[ChangeEncodingModalResult]):
         self.dismiss(ChangeEncodingModalResult(is_cancelled=True, encoding=None))
 
 
-AVAILABLE_SYNTAX_THEMES = ["monokai", "dracula", "github_light", "vscode_dark", "css"]
+AVAILABLE_SYNTAX_THEMES = get_all_pygments_theme_names()
 
 
 @dataclass
@@ -961,6 +963,10 @@ class ChangeSyntaxThemeModalScreen(ModalScreen[ChangeSyntaxThemeModalResult]):
 
     def __init__(self, current_theme: str = "monokai") -> None:
         super().__init__()
+        # Fallback to monokai if saved theme no longer exists (e.g. old
+        # Textual-only themes like github_light or vscode_dark).
+        if current_theme not in AVAILABLE_SYNTAX_THEMES:
+            current_theme = "monokai"
         self._current_theme = current_theme
 
     def compose(self) -> ComposeResult:

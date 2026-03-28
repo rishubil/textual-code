@@ -1,7 +1,3 @@
-; Source: https://github.com/tree-sitter/tree-sitter-typescript
-; License: MIT
-; Copyright (c) 2017 Max Brunsfeld
-
 ; Types
 
 (type_identifier) @type

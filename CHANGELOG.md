@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Syntax Highlighting**: expand language support from 26 to 110+ languages using `tree-sitter-language-pack` v1.3.3 `get_highlights_query()` API — new languages include Scala, Swift, Rust, Haskell, Elixir, Erlang, Zig, Dart, Julia, Nix, Gleam, and many more (Fix #137)
+- **Themes**: expand syntax themes from 5 hardcoded themes to 49 themes via Pygments runtime conversion — includes popular themes like `solarized-dark`, `github-dark`, `one-dark`, `nord`, and more (Fix #137)
 - **Search**: display workspace search results as a collapsible tree grouped by file — each file node shows relative path and match count, with individual match lines as expandable children; replaces the previous flat list layout, matching VSCode's "Find in Files" tree view (Fix #127)
 - **Explorer**: compact folder rendering — single-child directory chains display as a single node with a combined path label (e.g., `src/main/java`), matching VSCode's "Compact Folders" behavior; toggleable via command palette or `compact_folders` setting (Fix #128)
 - **Tabs**: new tabs open immediately after the active tab instead of at the end, matching VSCode's default `openPositioning: 'right'` behavior (Fix #124)
@@ -31,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Dependencies**: upgrade `tree-sitter-language-pack` from 0.13.0 to 1.3.3; replace `textual[syntax]` with `textual` (tslp now provides all parsers) (#137)
 - **CI**: add Python 3.13 and 3.14 to supported versions and CI test matrix; remove `.python-version` file (#97)
 - **Dependencies**: add `exclude-newer = "P15D"` to `[tool.uv]` for reproducible dependency resolution; relax `ty` lower bound from 0.0.23 to 0.0.21 for compatibility (Fix #108)
 

@@ -59,33 +59,238 @@ if TYPE_CHECKING:
 
 _CUSTOM_LANGUAGES: dict[str, Language] = {}
 
-_CUSTOM_GRAMMAR_NAMES = [
+# All language names to attempt loading from tslp's bundled highlight queries.
+# Languages that have both a parser and a highlight query will be registered.
+_ALL_LANG_NAMES = [
+    "ada",
+    "agda",
+    "arduino",
+    "astro",
+    "awk",
+    "bash",
+    "bibtex",
+    "bicep",
+    "bitbake",
+    "blade",
+    "c",
+    "cairo",
+    "capnp",
+    "clojure",
+    "cmake",
+    "cpp",
+    "css",
+    "csv",
+    "cuda",
+    "d",
+    "dart",
+    "diff",
     "dockerfile",
+    "dot",
+    "eex",
+    "elixir",
+    "elm",
+    "erlang",
+    "fish",
+    "forth",
+    "fortran",
+    "git_config",
+    "git_rebase",
+    "gitattributes",
+    "gitcommit",
+    "gleam",
+    "glsl",
+    "go",
+    "gomod",
+    "gosum",
+    "hack",
+    "hare",
+    "haskell",
+    "heex",
+    "html",
+    "http",
+    "hurl",
+    "ini",
+    "java",
+    "javascript",
+    "jsdoc",
+    "json",
+    "jsonnet",
+    "julia",
+    "kconfig",
+    "kdl",
+    "kotlin",
+    "llvm",
+    "lua",
+    "luadoc",
+    "luau",
+    "make",
+    "markdown",
+    "markdown_inline",
+    "mermaid",
+    "meson",
+    "nginx",
+    "nickel",
+    "nix",
+    "nqc",
+    "objc",
+    "odin",
+    "pascal",
+    "pem",
+    "perl",
+    "po",
+    "pony",
+    "prisma",
+    "proto",
+    "pug",
+    "puppet",
+    "purescript",
+    "python",
+    "qmljs",
+    "r",
+    "racket",
+    "readline",
+    "regex",
+    "requirements",
+    "robot",
+    "ron",
+    "ruby",
+    "rust",
+    "scala",
+    "scheme",
+    "scss",
+    "smithy",
+    "solidity",
+    "sql",
+    "ssh_config",
+    "starlark",
+    "svelte",
+    "swift",
+    "textproto",
+    "thrift",
+    "tlaplus",
+    "toml",
+    "twig",
+    "v",
+    "vhdl",
+    "wgsl",
+    "yaml",
+    "zig",
+]
+
+# Languages with local .scm fallback queries (tslp has parser but no bundled query).
+# Some use "; inherits:" directives resolved via _FALLBACK_INHERITS.
+_FALLBACK_SCM_NAMES = [
     "typescript",
     "tsx",
-    "c",
-    "cpp",
-    "ruby",
-    "kotlin",
-    "lua",
     "php",
-    "make",
+    "xml",
+    "dtd",
+    "ocaml",
+    "ocaml_interface",
+    "fsharp",
+    "hcl",
+    "terraform",
+    "wat",
+    "wast",
+]
+
+# Base language for "; inherits:" resolution — applies to both fallback .scm
+# files and bundled queries that contain "; inherits:" directives.
+_INHERITS: dict[str, str] = {
+    "typescript": "javascript",
+    "tsx": "javascript",
+    "terraform": "hcl",
+    "wast": "wat",
+    # Bundled queries with unresolved "; inherits:"
+    "blade": "html",
+    "cuda": "cpp",
+    "glsl": "c",
+    "nqc": "c",
+    "objc": "c",
+}
+
+# Languages that have a tslp parser but no query at all — register with empty
+# query so Textual doesn't crash trying to import a missing tree-sitter-* package.
+_PARSER_ONLY_NAMES = [
+    "vim",
+    "graphql",
+    "latex",
+    "vue",
+    "typst",
+    "verilog",
+    "vimdoc",
 ]
 
 _GRAMMARS_DIR = Path(__file__).parent.parent / "grammars"
 
 try:
+    import importlib as _importlib
+
     from tree_sitter_language_pack import get_language as _get_ts_language
 
-    for _lang_name in _CUSTOM_GRAMMAR_NAMES:
+    # _native is a Rust extension without type stubs; use importlib to avoid
+    # unresolved-import diagnostics from ty.
+    _native = _importlib.import_module("tree_sitter_language_pack._native")
+    _get_highlights_query = _native.get_highlights_query
+
+    # Load all languages with bundled highlight queries
+    for _lang_name in _ALL_LANG_NAMES:
         try:
-            _scm_path = _GRAMMARS_DIR / f"{_lang_name}.scm"
-            _query = _scm_path.read_text(encoding="utf-8")
             _lang_obj = _get_ts_language(cast("SupportedLanguage", _lang_name))
-            _CUSTOM_LANGUAGE_QUERIES[_lang_name] = _query
-            _CUSTOM_LANGUAGES[_lang_name] = _lang_obj
-        except Exception as _e:
-            log.warning("Failed to load custom language %s: %s", _lang_name, _e)
+            _query = _get_highlights_query(_lang_name)
+            if _query:
+                _CUSTOM_LANGUAGE_QUERIES[_lang_name] = _query
+                _CUSTOM_LANGUAGES[_lang_name] = _lang_obj
+        except Exception:
+            pass
+
+    def _resolve_inherits(query: str, base_query: str) -> str:
+        """Strip '; inherits:' directives and prepend base language query."""
+        lines = [
+            line
+            for line in query.splitlines()
+            if not line.strip().startswith("; inherits:")
+        ]
+        return base_query + "\n\n" + "\n".join(lines)
+
+    # Resolve "; inherits:" in bundled queries — prepend base language query
+    for _lang_name, _base in _INHERITS.items():
+        if _lang_name in _CUSTOM_LANGUAGE_QUERIES and _base in _CUSTOM_LANGUAGE_QUERIES:
+            _query = _CUSTOM_LANGUAGE_QUERIES[_lang_name]
+            if "; inherits:" in _query:
+                _CUSTOM_LANGUAGE_QUERIES[_lang_name] = _resolve_inherits(
+                    _query, _CUSTOM_LANGUAGE_QUERIES[_base]
+                )
+
+    # Fallback: load .scm files for languages without bundled queries.
+    # Process in order so base languages (hcl, wat) are loaded before
+    # derived ones (terraform, wast).
+    for _lang_name in _FALLBACK_SCM_NAMES:
+        if _lang_name not in _CUSTOM_LANGUAGE_QUERIES:
+            try:
+                _scm_path = _GRAMMARS_DIR / f"{_lang_name}.scm"
+                _query = _scm_path.read_text(encoding="utf-8")
+                _lang_obj = _get_ts_language(cast("SupportedLanguage", _lang_name))
+                _base = _INHERITS.get(_lang_name)
+                if _base:
+                    _base_query = _CUSTOM_LANGUAGE_QUERIES.get(_base, "")
+                    if _base_query:
+                        _query = _resolve_inherits(_query, _base_query)
+                _CUSTOM_LANGUAGE_QUERIES[_lang_name] = _query
+                _CUSTOM_LANGUAGES[_lang_name] = _lang_obj
+            except Exception as _e:
+                log.warning("Failed to load fallback language %s: %s", _lang_name, _e)
+
+    # Register parser-only languages (no highlight query) so Textual doesn't
+    # crash trying to import a missing tree-sitter-* package.
+    for _lang_name in _PARSER_ONLY_NAMES:
+        if _lang_name not in _CUSTOM_LANGUAGES:
+            try:
+                _lang_obj = _get_ts_language(cast("SupportedLanguage", _lang_name))
+                _CUSTOM_LANGUAGE_QUERIES[_lang_name] = ""
+                _CUSTOM_LANGUAGES[_lang_name] = _lang_obj
+            except Exception:
+                pass
 except ImportError:
     log.warning("tree-sitter-language-pack not available; custom languages disabled")
 
@@ -969,6 +1174,7 @@ class CodeEditor(Static):
     # mapping of file extensions to language names
     LANGUAGE_EXTENSIONS = {
         "py": "python",
+        "pyi": "python",
         "json": "json",
         "md": "markdown",
         "markdown": "markdown",
@@ -991,7 +1197,7 @@ class CodeEditor(Static):
         "go": "go",
         "svg": "xml",
         "xhtml": "xml",
-        # custom languages via tree-sitter-language-pack
+        # tree-sitter-language-pack languages
         "dockerfile": "dockerfile",
         "ts": "typescript",
         "tsx": "tsx",
@@ -1007,6 +1213,51 @@ class CodeEditor(Static):
         "lua": "lua",
         "php": "php",
         "mk": "make",
+        # expanded languages
+        "scala": "scala",
+        "sc": "scala",
+        "swift": "swift",
+        "r": "r",
+        "R": "r",
+        "pl": "perl",
+        "pm": "perl",
+        "hs": "haskell",
+        "ex": "elixir",
+        "exs": "elixir",
+        "erl": "erlang",
+        "zig": "zig",
+        "dart": "dart",
+        "jl": "julia",
+        "nix": "nix",
+        "clj": "clojure",
+        "cljs": "clojure",
+        "elm": "elm",
+        "f90": "fortran",
+        "f95": "fortran",
+        "f03": "fortran",
+        "ml": "ocaml",
+        "mli": "ocaml_interface",
+        "scss": "scss",
+        "d": "d",
+        "v": "v",
+        "ada": "ada",
+        "adb": "ada",
+        "ads": "ada",
+        "fish": "fish",
+        "gleam": "gleam",
+        "ini": "ini",
+        "cfg": "ini",
+        "proto": "proto",
+        "svelte": "svelte",
+        "tf": "terraform",
+        "tfvars": "terraform",
+        "hcl": "hcl",
+        "fs": "fsharp",
+        "fsi": "fsharp",
+        "fsx": "fsharp",
+        "dtd": "dtd",
+        "wat": "wat",
+        "wast": "wast",
     }
 
     # mapping of exact file names to language names (checked before extension)
@@ -1325,6 +1576,7 @@ class CodeEditor(Static):
         # update the title of the editor
         self.update_title()
         # apply syntax highlighting theme
+        self._ensure_theme_registered(self._syntax_theme)
         self.editor.theme = self._syntax_theme
         # apply word wrap (reactive init=False, so set manually)
         self.editor.soft_wrap = self.word_wrap
@@ -1470,12 +1722,8 @@ class CodeEditor(Static):
         self._notify_footer()
 
     def watch_language(self, language: str | None):
-        # lazily register custom tree-sitter language if needed
-        if (
-            language
-            and language in _CUSTOM_LANGUAGES
-            and language not in self.editor.available_languages
-        ):
+        # Always register custom tree-sitter language to override Textual built-ins
+        if language and language in _CUSTOM_LANGUAGES:
             query = _CUSTOM_LANGUAGE_QUERIES.get(language, "")
             try:
                 self.editor.register_language(
@@ -2401,7 +2649,22 @@ class CodeEditor(Static):
     def syntax_theme(self, theme: str) -> None:
         """Set the syntax highlighting theme and update the editor."""
         self._syntax_theme = theme
+        self._ensure_theme_registered(theme)
         self.editor.theme = theme
+
+    def _ensure_theme_registered(self, theme: str) -> None:
+        """Lazily convert and register a Pygments theme if not already known."""
+        if theme in self.editor.available_themes:
+            return
+        try:
+            from textual_code.pygments_theme_converter import (
+                pygments_to_textarea_theme,
+            )
+
+            ta_theme = pygments_to_textarea_theme(theme)
+            self.editor.register_theme(ta_theme)
+        except Exception:
+            log.warning("Failed to register theme %s", theme)
 
     def capture_state(self) -> EditorState:
         """Serialize current editor state for lazy unmounting."""

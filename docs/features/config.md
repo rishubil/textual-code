@@ -2,7 +2,7 @@
 
 ## Syntax Highlighting: language detection, tree-sitter grammars, theme selection
 
-Textual Code provides syntax highlighting for 30+ languages. Language detection is automatic on file open, and the syntax theme can be changed at any time.
+Textual Code provides syntax highlighting for 110+ languages via `tree-sitter-language-pack`. Language detection is automatic on file open, and the syntax theme can be changed at any time.
 
 ### Language detection priority
 
@@ -56,11 +56,11 @@ Dockerfile, C, C++, TypeScript (custom `.ts`), TSX, Ruby, Kotlin, Lua, PHP, Make
 
 ### Lazy registration
 
-Custom grammars from `tree-sitter-language-pack` are loaded into memory at import time (query files + language objects), but are **registered with the TextArea widget on demand** -- only when a file of that language type is first opened. This avoids registering all 10 custom languages for every editor instance.
+Language parsers and highlight queries from `tree-sitter-language-pack` (v1.3.3+) are loaded at import time via `get_highlights_query()`. A handful of languages without bundled queries (typescript, tsx, php) fall back to local `.scm` files. Languages are **registered with the TextArea widget on demand** — only when a file of that language type is first opened.
 
 ### Syntax theme selection
 
-Available syntax themes: `monokai` (default), `dracula`, `github_light`, `vscode_dark`, `css`.
+49 syntax themes are available via Pygments (converted to `TextAreaTheme` at runtime). Default: `monokai`. Popular options: `dracula`, `solarized-dark`, `github-dark`, `one-dark`, `nord`.
 
 - **Change theme**: command palette "Change syntax highlighting theme" opens a modal with a theme selector and a User/Project save level selector.
 - **Live preview**: selecting a theme in the dropdown immediately previews it on all open editors, before clicking Apply. Cancelling (button or Escape) reverts to the original theme.
@@ -71,9 +71,9 @@ Available syntax themes: `monokai` (default), `dracula`, `github_light`, `vscode
 
 - No custom grammar loading from user config files; only bundled grammars are supported.
 - No semantic highlighting; highlighting is purely syntactic via tree-sitter.
-- The set of syntax themes is hardcoded in `AVAILABLE_SYNTAX_THEMES`; users cannot add custom themes.
+- Themes are sourced from Pygments; custom themes require adding a Pygments style.
 
-**Implementation:** `widgets/code_editor.py` (language maps, detection, lazy registration), `modals.py` (`ChangeLanguageModalScreen`, `ChangeSyntaxThemeModalScreen`), `grammars/*.scm` (custom highlight queries), `app.py` (`action_set_syntax_theme`)
+**Implementation:** `widgets/code_editor.py` (language maps, detection, lazy registration via `get_highlights_query()`), `pygments_theme_converter.py` (Pygments→TextAreaTheme conversion), `modals.py` (`ChangeLanguageModalScreen`, `ChangeSyntaxThemeModalScreen`), `grammars/*.scm` (fallback queries for typescript/tsx/php), `app.py` (`action_set_syntax_theme`)
 
 ---
 

@@ -44,9 +44,9 @@ def test_modal_can_be_imported():
 def test_available_themes_list():
     assert "monokai" in AVAILABLE_SYNTAX_THEMES
     assert "dracula" in AVAILABLE_SYNTAX_THEMES
-    assert "github_light" in AVAILABLE_SYNTAX_THEMES
-    assert "vscode_dark" in AVAILABLE_SYNTAX_THEMES
-    assert len(AVAILABLE_SYNTAX_THEMES) >= 4
+    assert "solarized-dark" in AVAILABLE_SYNTAX_THEMES
+    assert "github-dark" in AVAILABLE_SYNTAX_THEMES
+    assert len(AVAILABLE_SYNTAX_THEMES) >= 49
 
 
 # ---------------------------------------------------------------------------
@@ -78,9 +78,9 @@ def test_syntax_theme_saved_and_reloaded(tmp_path):
 def test_syntax_theme_unknown_key_ignored(tmp_path):
     """syntax_theme not in EDITOR_KEYS → should be loaded (it IS a valid key)."""
     cfg = tmp_path / "user.toml"
-    cfg.write_text('[editor]\nsyntax_theme = "vscode_dark"\n')
+    cfg.write_text('[editor]\nsyntax_theme = "solarized-dark"\n')
     settings = load_editor_settings(tmp_path, user_config_path=cfg)
-    assert settings["syntax_theme"] == "vscode_dark"
+    assert settings["syntax_theme"] == "solarized-dark"
 
 
 # ---------------------------------------------------------------------------
@@ -149,13 +149,13 @@ async def test_all_editors_update_when_theme_changes(workspace):
         # Simulate what action_change_syntax_theme does
         from textual_code.widgets.code_editor import CodeEditor
 
-        app.default_syntax_theme = "github_light"
+        app.default_syntax_theme = "github-dark"
         for editor in app.query(CodeEditor):
-            editor.syntax_theme = "github_light"
+            editor.syntax_theme = "github-dark"
 
         await pilot.pause()
         for editor in app.query(CodeEditor):
-            assert editor.syntax_theme == "github_light"
+            assert editor.syntax_theme == "github-dark"
 
 
 # ---------------------------------------------------------------------------
@@ -188,11 +188,11 @@ async def test_code_editor_syntax_theme_property(workspace):
 @pytest.mark.asyncio
 async def test_app_loads_syntax_theme_from_project_config(workspace):
     proj = workspace / ".textual-code.toml"
-    proj.write_text('[editor]\nsyntax_theme = "vscode_dark"\n')
+    proj.write_text('[editor]\nsyntax_theme = "solarized-dark"\n')
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
-        assert app.default_syntax_theme == "vscode_dark"
+        assert app.default_syntax_theme == "solarized-dark"
 
 
 # ---------------------------------------------------------------------------
