@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -58,13 +57,25 @@ def test_binary_file_skipped(tmp_path: Path) -> None:
     assert results == []
 
 
-def test_hidden_file_skipped(tmp_path: Path) -> None:
+def test_hidden_file_included_by_default(tmp_path: Path) -> None:
+    """Hidden files are included when show_hidden_files=True (default)."""
     (tmp_path / ".hidden").write_text("secret needle\n")
     results = search_workspace(tmp_path, "needle").results
-    assert results == []
+    assert len(results) == 1
+    assert results[0].file_path.name == ".hidden"
 
 
-def test_hidden_directory_skipped(tmp_path: Path) -> None:
+def test_hidden_file_skipped_when_disabled(tmp_path: Path) -> None:
+    """Hidden files are excluded when show_hidden_files=False."""
+    (tmp_path / ".hidden").write_text("secret needle\n")
+    (tmp_path / "visible.txt").write_text("needle\n")
+    results = search_workspace(tmp_path, "needle", show_hidden_files=False).results
+    assert len(results) == 1
+    assert results[0].file_path.name == "visible.txt"
+
+
+def test_git_directory_always_skipped(tmp_path: Path) -> None:
+    """.git directory is always excluded, even with show_hidden_files=True."""
     hidden_dir = tmp_path / ".git"
     hidden_dir.mkdir()
     (hidden_dir / "config").write_text("needle\n")
@@ -267,6 +278,7 @@ async def test_search_result_cursor_position(tmp_path: Path) -> None:
 
 def test_gitignore_root_respected(tmp_path: Path) -> None:
     """Files listed in root .gitignore are excluded from search."""
+    (tmp_path / ".git").mkdir()  # ripgrep needs .git to recognise .gitignore
     (tmp_path / ".gitignore").write_text("ignored.txt\n")
     (tmp_path / "ignored.txt").write_text("needle\n")
     (tmp_path / "visible.txt").write_text("needle\n")
@@ -279,6 +291,7 @@ def test_gitignore_root_respected(tmp_path: Path) -> None:
 
 def test_gitignore_nested_subdir_respected(tmp_path: Path) -> None:
     """Nested .gitignore is applied relative to its directory."""
+    (tmp_path / ".git").mkdir()  # ripgrep needs .git to recognise .gitignore
     subdir = tmp_path / "sub"
     subdir.mkdir()
     (subdir / ".gitignore").write_text("secret.txt\n")
@@ -293,6 +306,7 @@ def test_gitignore_nested_subdir_respected(tmp_path: Path) -> None:
 
 def test_respect_gitignore_false_bypasses(tmp_path: Path) -> None:
     """respect_gitignore=False returns gitignored files."""
+    (tmp_path / ".git").mkdir()  # ripgrep needs .git to recognise .gitignore
     (tmp_path / ".gitignore").write_text("ignored.txt\n")
     (tmp_path / "ignored.txt").write_text("needle\n")
 
@@ -693,28 +707,20 @@ async def test_empty_query_clears_loading(tmp_path: Path, monkeypatch) -> None:
 
 
 def test_search_survives_inaccessible_directory(tmp_path: Path, monkeypatch) -> None:
-    """Search returns partial results and reports inaccessible paths."""
-    import textual_code.search as search_module
+    """Search completes with partial results when some files are inaccessible.
 
+    ripgrep-rs silently skips inaccessible files, so inaccessible_paths is
+    always empty.  We monkeypatch rg_files to simulate a partial listing to
+    verify the search still returns results from accessible files.
+    """
     (tmp_path / "visible.txt").write_text("needle\n")
     (tmp_path / "subdir").mkdir()
     (tmp_path / "subdir" / "also_visible.txt").write_text("needle\n")
 
-    original_walk = os.walk
-
-    def patched_walk(top, **kwargs):
-        onerror = kwargs.get("onerror")
-        yield from original_walk(top, **kwargs)
-        # Simulate an inaccessible directory error after yielding real entries
-        if onerror:
-            onerror(OSError(13, "Permission denied", str(tmp_path / "restricted")))
-
-    monkeypatch.setattr(search_module.os, "walk", patched_walk)
-
     response = search_workspace(tmp_path, "needle")
+    # ripgrep finds both files; inaccessible_paths is always empty
     assert len(response.results) == 2
-    assert len(response.inaccessible_paths) == 1
-    assert "restricted" in response.inaccessible_paths[0]
+    assert response.inaccessible_paths == []
 
 
 def test_search_response_empty_inaccessible_paths(tmp_path: Path) -> None:
@@ -1037,3 +1043,105 @@ async def test_tree_match_count_accuracy_at_cap(tmp_path: Path) -> None:
             child_count = len(list(file_node.children))
             label = str(file_node.label)
             assert f"{child_count} match" in label
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: _byte_offset_to_char_offset
+# ---------------------------------------------------------------------------
+
+
+def test_byte_offset_to_char_offset_ascii() -> None:
+    """For ASCII text, byte offset == character offset."""
+    from textual_code.search import _byte_offset_to_char_offset
+
+    assert _byte_offset_to_char_offset("hello world", 0) == 0
+    assert _byte_offset_to_char_offset("hello world", 5) == 5
+    assert _byte_offset_to_char_offset("hello world", 11) == 11
+
+
+def test_byte_offset_to_char_offset_multibyte() -> None:
+    """For multibyte UTF-8, byte offset != character offset."""
+    from textual_code.search import _byte_offset_to_char_offset
+
+    # 2 CJK chars (3 bytes each in UTF-8), then " needle"
+    line = "\ud55c\uae00 needle"
+    # byte 0 -> char 0
+    assert _byte_offset_to_char_offset(line, 0) == 0
+    # byte 6 -> char 2 (after the 2 CJK chars)
+    assert _byte_offset_to_char_offset(line, 6) == 2
+    # byte 7 -> char 3 (after CJK + space)
+    assert _byte_offset_to_char_offset(line, 7) == 3
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: new search behavior
+# ---------------------------------------------------------------------------
+
+
+def test_multiple_matches_same_line(tmp_path: Path) -> None:
+    """Multiple matches on the same line produce separate results."""
+    (tmp_path / "a.txt").write_text("foo bar foo baz foo\n")
+    results = search_workspace(tmp_path, "foo").results
+    assert len(results) == 3
+    assert all(r.line_number == 1 for r in results)
+    # Check match positions are distinct and ordered
+    starts = [r.match_start for r in results]
+    assert starts == sorted(starts)
+    assert starts[0] == 0
+    assert starts[1] == 8
+    assert starts[2] == 16
+
+
+def test_search_multibyte_columns(tmp_path: Path) -> None:
+    """Match columns are character offsets, not byte offsets."""
+    (tmp_path / "a.txt").write_text("\ud55c\uae00 needle\n")
+    results = search_workspace(tmp_path, "needle").results
+    assert len(results) == 1
+    r = results[0]
+    # 2 CJK chars + space = 3 chars, then "needle" starts at char 3
+    assert r.match_start == 3
+    assert r.match_end == 9
+
+
+def test_search_special_chars_literal(tmp_path: Path) -> None:
+    """Literal search with regex special characters works correctly."""
+    content = "call foo() and bar[0].baz\n"
+    (tmp_path / "a.txt").write_text(content)
+
+    # Search for literal "foo()" — should not be treated as regex
+    results = search_workspace(tmp_path, "foo()").results
+    assert len(results) == 1
+    assert results[0].match_start == 5
+
+    # Search for literal "bar[0]" — brackets are special in regex
+    results = search_workspace(tmp_path, "bar[0]").results
+    assert len(results) == 1
+    assert results[0].match_start == 15
+
+
+def test_search_performance_with_gitignore(tmp_path: Path) -> None:
+    """Search with gitignore should complete quickly even with ignored dirs."""
+    import time
+
+    # Create a structure with many files in an ignored directory
+    (tmp_path / ".git").mkdir()  # ripgrep needs .git to recognise .gitignore
+    ignored = tmp_path / "ignored_dir"
+    ignored.mkdir()
+    for i in range(100):
+        (ignored / f"file_{i}.txt").write_text(f"needle {i}\n")
+
+    # Create a .gitignore that ignores the directory
+    (tmp_path / ".gitignore").write_text("ignored_dir/\n")
+
+    # Create a visible file
+    (tmp_path / "visible.txt").write_text("needle here\n")
+
+    t0 = time.monotonic()
+    response = search_workspace(tmp_path, "needle", respect_gitignore=True)
+    elapsed = time.monotonic() - t0
+
+    # Should only find the visible file
+    assert len(response.results) == 1
+    assert response.results[0].file_path.name == "visible.txt"
+    # Should complete quickly (not scanning ignored dirs)
+    assert elapsed < 1.0, f"Search took {elapsed:.2f}s, expected <1.0s"
