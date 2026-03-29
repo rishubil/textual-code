@@ -4,6 +4,7 @@ Sources:
 - searchModel.test.ts: result aggregation, search clearing, cancellation, regex replace
 - searchResult.test.ts: match properties, file matching, replace, hierarchy
 - searchViewlet.test.ts: result sorting, path ordering
+- searchActions.test.ts: tree navigation after node removal, last-node-of-type
 
 Key coverage gaps filled:
 - Multi-file result aggregation with multiple matches per file
@@ -15,6 +16,8 @@ Key coverage gaps filled:
 - Replace removes patterns from disk files
 - Result ordering by file path
 - Nested directory Tree grouping
+- Tree navigation after node removal (focus management)
+- Finding last file/match node in tree
 
 Behavioral differences from VSCode:
 - Capture group syntax: VSCode uses $1, our replace uses \\1 (Python re.sub)
@@ -22,6 +25,8 @@ Behavioral differences from VSCode:
 - Results structure: VSCode uses FileMatch/Match hierarchy, we use flat
   WorkspaceSearchResult list grouped by file in the Tree widget
 - Sorting: VSCode uses custom comparers, we rely on ripgrep-rs native path sort
+- Focus after removal: VSCode uses getElementToFocusAfterRemoved utility, we use
+  Textual Tree's next_sibling/previous_sibling/parent navigation
 """
 
 from __future__ import annotations
@@ -790,3 +795,560 @@ async def test_nested_directory_tree_grouping(tmp_path: Path) -> None:
         # Nested files should show directory prefix in their label
         deep_label = next(lbl for lbl in labels if "util.py" in lbl)
         assert "src/deep/util.py" in deep_label or "src\\deep\\util.py" in deep_label
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Phase 5: searchActions.test.ts — tree navigation after node removal
+# ══════════════════════════════════════════════════════════════════════════
+
+# VSCode's searchActions.test.ts tests two utility functions:
+# - getElementToFocusAfterRemoved: determine where to move focus after removing
+#   a node (next element of the same type in tree traversal order)
+# - getLastNodeFromSameType: find the last node of the same kind
+#
+# Our Textual Tree uses next_sibling/previous_sibling/parent for navigation.
+# These tests verify the Tree's navigation properties on search result trees,
+# which is the foundation for correct focus management after removal.
+
+
+# ── Integration: focus after removing a match with next sibling file ─────
+# Adapted from searchActions.test.ts "get next element to focus after
+# removing a match when it has next sibling file" (line 50)
+
+
+@pytest.mark.asyncio
+async def test_next_focus_after_removing_match_with_sibling_file(
+    tmp_path: Path,
+) -> None:
+    """After removing a match, the next file's first match is reachable.
+
+    VSCode: [file1, match1, match2, file2, match3, match4]
+    Remove match2 → getElementToFocusAfterRemoved returns match3.
+    Our equivalent: match's parent file_node has next_sibling (file2_node),
+    whose first child is the next match to focus.
+    """
+    from textual.widgets import Input, Tree
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "aaa.txt").write_text("needle one\nneedle two\n")
+    (tmp_path / "bbb.txt").write_text("needle three\nneedle four\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle"
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_nodes = list(results_tree.root.children)
+        assert len(file_nodes) == 2
+
+        file1_node = file_nodes[0]
+        file2_node = file_nodes[1]
+        file1_matches = list(file1_node.children)
+        file2_matches = list(file2_node.children)
+
+        # Verify structure: 2 files × 2 matches each
+        assert len(file1_matches) == 2
+        assert len(file2_matches) == 2
+
+        # Target: last match in file1 (equivalent to data[2] in VSCode)
+        target = file1_matches[1]
+
+        # Navigate to next file's first match — equivalent to
+        # getElementToFocusAfterRemoved returning data[4]
+        next_file = target.parent.next_sibling
+        assert next_file is file2_node
+        next_match = list(next_file.children)[0]
+
+        # Remove target and verify the navigation path is still valid
+        target.remove()
+        assert len(list(file1_node.children)) == 1
+        assert next_match in list(file2_node.children)
+
+
+# ── Integration: focus after removing the only match ─────────────────────
+# Adapted from searchActions.test.ts "get next element to focus after
+# removing a match when it is the only match" (line 61)
+
+
+@pytest.mark.asyncio
+async def test_next_focus_after_removing_only_match(tmp_path: Path) -> None:
+    """After removing the only match, no next match to focus.
+
+    VSCode: [file1, match1] → remove match1 → returns undefined.
+    Our equivalent: the only match leaf has no next_sibling, and its parent
+    file_node has no next_sibling either.
+    """
+    from textual.widgets import Input, Tree
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "only.txt").write_text("needle\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle"
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_nodes = list(results_tree.root.children)
+        assert len(file_nodes) == 1
+
+        match_node = list(file_nodes[0].children)[0]
+
+        # No sibling match and no sibling file → nothing to focus
+        assert match_node.next_sibling is None
+        assert file_nodes[0].next_sibling is None
+
+        # After removal, file node has no children
+        match_node.remove()
+        assert len(list(file_nodes[0].children)) == 0
+
+
+# ── Integration: focus after removing a file with next sibling ───────────
+# Adapted from searchActions.test.ts "get next element to focus after
+# removing a file match when it has next sibling" (line 71)
+
+
+@pytest.mark.asyncio
+async def test_next_focus_after_removing_file_with_sibling(
+    tmp_path: Path,
+) -> None:
+    """After removing a file node, the next sibling file is navigable.
+
+    VSCode: [file1, match1, file2, match2, file3, match3]
+    Remove file2 → getElementToFocusAfterRemoved returns file3.
+    Our equivalent: file2_node.next_sibling is file3_node.
+    """
+    from textual.widgets import Input, Tree
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "aaa.txt").write_text("needle\n")
+    (tmp_path / "bbb.txt").write_text("needle\n")
+    (tmp_path / "ccc.txt").write_text("needle\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle"
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_nodes = list(results_tree.root.children)
+        assert len(file_nodes) == 3
+
+        file2_node = file_nodes[1]
+        file3_node = file_nodes[2]
+
+        # file2 → next_sibling is file3
+        assert file2_node.next_sibling is file3_node
+
+        # Remove file2 and verify file3 is still accessible from file1
+        file2_node.remove()
+        remaining = list(results_tree.root.children)
+        assert len(remaining) == 2
+        assert remaining[1] is file3_node
+
+
+# ── Integration: last file node in tree ──────────────────────────────────
+# Adapted from searchActions.test.ts "Find last FileMatch in Tree" (line 83)
+
+
+@pytest.mark.asyncio
+async def test_last_file_node_in_tree(tmp_path: Path) -> None:
+    """Can find the last file node by traversing root children.
+
+    VSCode: getLastNodeFromSameType(tree, fileMatch1) returns fileMatch3.
+    Our equivalent: root.children[-1] is the last file node.
+    """
+    from textual.widgets import Input, Tree
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "aaa.txt").write_text("needle\n")
+    (tmp_path / "bbb.txt").write_text("needle\n")
+    (tmp_path / "ccc.txt").write_text("needle\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle"
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_nodes = list(results_tree.root.children)
+        assert len(file_nodes) == 3
+
+        # Last file node — equivalent to getLastNodeFromSameType for FileMatch
+        last_file = file_nodes[-1]
+        assert "ccc.txt" in str(last_file.label)
+
+        # Verify it's also reachable via next_sibling chain
+        current = file_nodes[0]
+        while current.next_sibling is not None:
+            current = current.next_sibling
+        assert current is last_file
+
+
+# ── Integration: last match node in tree ─────────────────────────────────
+# Adapted from searchActions.test.ts "Find last Match in Tree" (line 94)
+
+
+@pytest.mark.asyncio
+async def test_last_match_node_in_tree(tmp_path: Path) -> None:
+    """Can find the last match leaf by traversing the last file's children.
+
+    VSCode: getLastNodeFromSameType(tree, aMatch(fileMatch1)) returns
+    the last match in the last file (data[5]).
+    Our equivalent: last file node's last child is the last match.
+    """
+    from textual.widgets import Input, Tree
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "aaa.txt").write_text("needle one\n")
+    (tmp_path / "bbb.txt").write_text("needle two\n")
+    (tmp_path / "ccc.txt").write_text("needle three\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle"
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_nodes = list(results_tree.root.children)
+        assert len(file_nodes) == 3
+
+        # Last match in tree = last child of last file node
+        last_file = file_nodes[-1]
+        last_file_matches = list(last_file.children)
+        last_match = last_file_matches[-1]
+
+        # Verify it's a leaf node with correct data
+        assert not last_match.allow_expand
+        assert "needle three" in str(last_match.label)
+
+
+# ── Integration: focus after removing the only file ──────────────────────
+# Adapted from searchActions.test.ts "get next element to focus after
+# removing a file match when it is only match" (line 105)
+
+
+@pytest.mark.asyncio
+async def test_next_focus_after_removing_only_file(tmp_path: Path) -> None:
+    """After removing the only file node, no next file to focus.
+
+    VSCode: [file1, match1] → remove file1 → returns undefined.
+    Our equivalent: the only file_node has no next_sibling and no
+    previous_sibling.
+    """
+    from textual.widgets import Input, Tree
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "only.txt").write_text("needle\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "needle"
+        ws_pane._run_search()
+        await pilot.pause()
+
+        results_tree = ws_pane.query_one("#ws-results", Tree)
+        file_nodes = list(results_tree.root.children)
+        assert len(file_nodes) == 1
+
+        only_file = file_nodes[0]
+
+        # No sibling files → nothing to focus
+        assert only_file.next_sibling is None
+        assert only_file.previous_sibling is None
+
+        # After removal, tree root has no children
+        only_file.remove()
+        assert len(list(results_tree.root.children)) == 0
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Phase 6: Replace All integration tests
+# ══════════════════════════════════════════════════════════════════════════
+
+# These tests verify the full Replace All workflow through the UI:
+# confirmation modal → disk write → status update.
+# The unit-level replace tests (Phase 2) verify search.replace_workspace()
+# directly; these integration tests exercise the complete UI pipeline.
+
+
+# ── Integration: Replace All confirms and modifies files ─────────────────
+
+
+@pytest.mark.asyncio
+async def test_replace_all_via_ui_modifies_files(tmp_path: Path) -> None:
+    """Replace All through UI pipeline writes replacements to disk.
+
+    Full flow: enter query → enter replacement → click Replace All button →
+    confirm in modal → verify disk writes and status label.
+    """
+    from textual.widgets import Button, Input, Label
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "file1.txt").write_text("hello world\n")
+    (tmp_path / "file2.txt").write_text("hello again\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "hello"
+        ws_pane.query_one("#ws-replace", Input).value = "goodbye"
+        await pilot.pause()
+
+        # Trigger Replace All — worker thread → call_from_thread → push_screen
+        ws_pane._run_replace_all()
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
+
+        # Confirm in modal — query within the modal screen
+        replace_btn = app.screen.query_one("#replace-all", Button)
+        replace_btn.press()
+        await pilot.pause()
+        await pilot.pause()
+
+        # Verify files were modified on disk
+        assert "goodbye world" in (tmp_path / "file1.txt").read_text()
+        assert "goodbye again" in (tmp_path / "file2.txt").read_text()
+        assert "hello" not in (tmp_path / "file1.txt").read_text()
+        assert "hello" not in (tmp_path / "file2.txt").read_text()
+
+        # Verify status label updated
+        status = ws_pane.query_one("#ws-replace-status", Label)
+        status_text = str(status.render())
+        assert "Replaced" in status_text
+        assert "2" in status_text  # 2 occurrences
+
+
+# ── Integration: Replace All cancel preserves files ──────────────────────
+
+
+@pytest.mark.asyncio
+async def test_replace_all_cancel_preserves_files(tmp_path: Path) -> None:
+    """Cancelling the Replace All modal leaves files unchanged.
+
+    VSCode: Clicking cancel in the replace confirmation dialog does nothing.
+    """
+    from textual.widgets import Button, Input
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "file1.txt").write_text("hello world\n")
+    original_content = "hello world\n"
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "hello"
+        ws_pane.query_one("#ws-replace", Input).value = "goodbye"
+        await pilot.pause()
+
+        # Trigger Replace All
+        ws_pane._run_replace_all()
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
+
+        # Cancel in modal
+        cancel_btn = app.screen.query_one("#cancel", Button)
+        cancel_btn.press()
+        await pilot.pause()
+
+        # File should be unchanged
+        assert (tmp_path / "file1.txt").read_text() == original_content
+
+
+# ── Integration: Replace All with regex capture groups ───────────────────
+
+
+@pytest.mark.asyncio
+async def test_replace_all_regex_capture_groups_via_ui(
+    tmp_path: Path,
+) -> None:
+    r"""Replace All with regex and capture groups through the UI.
+
+    Verifies the full pipeline: regex checkbox → capture group replacement
+    using Python's \1 syntax → disk write verification.
+    """
+    from textual.widgets import Button, Checkbox, Input
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "dates.txt").write_text("2025-03-28\n2025-12-25\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = r"(\d{4})-(\d{2})-(\d{2})"
+        ws_pane.query_one("#ws-replace", Input).value = r"\2/\3/\1"
+
+        # Enable regex mode
+        regex_checkbox = ws_pane.query_one("#ws-regex", Checkbox)
+        regex_checkbox.value = True
+        await pilot.pause()
+
+        # Trigger Replace All
+        ws_pane._run_replace_all()
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
+
+        # Confirm in modal
+        app.screen.query_one("#replace-all", Button).press()
+        await pilot.pause()
+        await pilot.pause()
+
+        # Verify capture group replacement on disk
+        content = (tmp_path / "dates.txt").read_text()
+        assert "03/28/2025" in content
+        assert "12/25/2025" in content
+
+
+# ── Integration: Replace All modal shows correct preview ─────────────────
+
+
+@pytest.mark.asyncio
+async def test_replace_all_modal_shows_preview(tmp_path: Path) -> None:
+    """Confirmation modal shows before/after preview of first match.
+
+    Verifies that the modal displays the file path, occurrence count,
+    and a diff preview of the replacement.
+    """
+    from textual.widgets import Button, Input, Label
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "example.txt").write_text("old value here\nanother old value\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "old"
+        ws_pane.query_one("#ws-replace", Input).value = "new"
+        await pilot.pause()
+
+        # Trigger Replace All — this opens the confirmation modal
+        ws_pane._run_replace_all()
+        await pilot.pause()
+        await pilot.pause()
+        await pilot.pause()
+
+        # Verify modal content
+        summary = app.screen.query_one("#message", Label)
+        summary_text = str(summary.render())
+        assert "2 occurrence(s)" in summary_text
+        assert "1 file(s)" in summary_text
+
+        preview = app.screen.query_one("#preview", Label)
+        preview_text = str(preview.render())
+        assert "example.txt" in preview_text
+
+        # Cancel to clean up
+        app.screen.query_one("#cancel", Button).press()
+        await pilot.pause()
+
+
+# ── Integration: Replace All with no matches shows status ────────────────
+
+
+@pytest.mark.asyncio
+async def test_replace_all_no_matches_shows_status(tmp_path: Path) -> None:
+    """Replace All with no matches updates status to 'No matches found'.
+
+    When the search query has no results, no modal is shown and the
+    status label reports the absence of matches.
+    """
+    from textual.widgets import Input, Label
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    (tmp_path / "file.txt").write_text("nothing to find here\n")
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("ctrl+shift+f")
+        await pilot.pause()
+
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        ws_pane.query_one("#ws-query", Input).value = "nonexistent_xyz_pattern"
+        ws_pane.query_one("#ws-replace", Input).value = "replacement"
+        await pilot.pause()
+
+        # Trigger Replace All — should show "No matches found"
+        ws_pane._run_replace_all()
+        await pilot.pause()
+        await pilot.pause()
+
+        status = ws_pane.query_one("#ws-replace-status", Label)
+        assert "No matches" in str(status.render())
