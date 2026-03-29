@@ -178,6 +178,116 @@ async def test_rename_with_path_separator_shows_error(
     assert sample_py_file.exists()
 
 
+async def test_rename_empty_name_noop(workspace: Path, sample_py_file: Path):
+    """Empty name after strip → no rename, file unchanged.
+
+    VSCode origin: validateFileName (For Create) — empty string returns error.
+    Our behavior: silent no-op (modal callback returns early).
+    """
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        assert app.sidebar is not None
+        explorer = app.sidebar.explorer
+        explorer.post_message(
+            Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
+        )
+        await pilot.pause()
+        await pilot.pause()
+        assert isinstance(app.screen, RenameModalScreen)
+
+        inp = app.screen.query_one(Input)
+        inp.value = ""
+        await pilot.click("#rename")
+        await pilot.pause()
+
+    assert sample_py_file.exists()
+
+
+async def test_rename_whitespace_only_noop(workspace: Path, sample_py_file: Path):
+    """Whitespace-only name → no rename, file unchanged.
+
+    VSCode origin: validateFileName (For Create) — whitespace returns error.
+    Our behavior: strip() produces empty string → silent no-op.
+    """
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        assert app.sidebar is not None
+        explorer = app.sidebar.explorer
+        explorer.post_message(
+            Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
+        )
+        await pilot.pause()
+        await pilot.pause()
+        assert isinstance(app.screen, RenameModalScreen)
+
+        inp = app.screen.query_one(Input)
+        inp.value = "   "
+        await pilot.click("#rename")
+        await pilot.pause()
+
+    assert sample_py_file.exists()
+
+
+async def test_rename_to_hidden_file(workspace: Path, sample_py_file: Path):
+    """Rename to hidden file name (.hidden) → succeeds.
+
+    VSCode origin: validateFileName (For Create) — '.foo' returns null (valid).
+    """
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        assert app.sidebar is not None
+        explorer = app.sidebar.explorer
+        explorer.post_message(
+            Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
+        )
+        await pilot.pause()
+        await pilot.pause()
+        assert isinstance(app.screen, RenameModalScreen)
+
+        inp = app.screen.query_one(Input)
+        inp.value = ".hidden"
+        await pilot.pause()
+        await pilot.click("#rename")
+        await pilot.pause()
+
+    assert not sample_py_file.exists()
+    assert (workspace / ".hidden").exists()
+
+
+async def test_rename_with_spaces_in_name(workspace: Path, sample_py_file: Path):
+    """Name with spaces → succeeds.
+
+    VSCode origin: validateFileName (For Create) — 'Read Me' returns null (valid).
+    """
+    app = make_app(workspace)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        assert app.sidebar is not None
+        explorer = app.sidebar.explorer
+        explorer.post_message(
+            Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
+        )
+        await pilot.pause()
+        await pilot.pause()
+        assert isinstance(app.screen, RenameModalScreen)
+
+        inp = app.screen.query_one(Input)
+        inp.value = "Read Me.py"
+        await pilot.pause()
+        await pilot.click("#rename")
+        await pilot.pause()
+
+    assert not sample_py_file.exists()
+    assert (workspace / "Read Me.py").exists()
+
+
 # ── Directory rename ─────────────────────────────────────────────────────────
 
 
