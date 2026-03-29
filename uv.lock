@@ -3,7 +3,7 @@ revision = 3
 requires-python = ">=3.12"
 
 [options]
-exclude-newer = "2026-03-13T11:12:41.690823649Z"
+exclude-newer = "2026-03-14T15:52:05.953675224Z"
 exclude-newer-span = "P15D"
 
 [[package]]
@@ -1187,7 +1187,7 @@ syntax = [
 
 [[package]]
 name = "textual-code"
-version = "0.3.0"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "charset-normalizer" },
