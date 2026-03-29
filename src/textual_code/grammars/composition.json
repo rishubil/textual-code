@@ -1,0 +1,13 @@
+{
+    "javascript": ["javascript.scm"],
+    "c": ["c.scm"],
+    "dockerfile": ["dockerfile.scm"],
+    "typescript": ["typescript.scm", "@javascript"],
+    "tsx": ["tsx.scm", "jsx.scm", "@javascript"],
+    "cpp": ["@c", "cpp.scm"],
+    "ruby": ["ruby.scm"],
+    "kotlin": ["kotlin.scm"],
+    "lua": ["lua.scm"],
+    "php": ["php.scm"],
+    "make": ["make.scm"]
+}

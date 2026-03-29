@@ -528,6 +528,46 @@ def test_snapshot_dockerfile_highlighting(snap_compare, snapshot_workspace: Path
     assert snap_compare(app, run_before=_focus_editor(app), terminal_size=TERMINAL_SIZE)
 
 
+def test_snapshot_typescript_highlighting(snap_compare, snapshot_workspace: Path):
+    """TypeScript file shows composed syntax highlighting (TS + JS base)."""
+    ts_file = snapshot_workspace / "example.ts"
+    ts_file.write_text(
+        'const greeting: string = "hello";\n'
+        "function add(a: number, b: number): number {\n"
+        "  return a + b;\n"
+        "}\n"
+        "// A comment\n"
+        "export interface User {\n"
+        "  name: string;\n"
+        "}\n"
+    )
+    app = make_app(snapshot_workspace, open_file=ts_file)
+    assert snap_compare(app, run_before=_focus_editor(app), terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_cpp_highlighting(snap_compare, snapshot_workspace: Path):
+    """C++ file shows composed syntax highlighting (C base + C++ specific)."""
+    cpp_file = snapshot_workspace / "example.cpp"
+    cpp_file.write_text(
+        "#include <iostream>\n"
+        "\n"
+        "namespace app {\n"
+        "class Greeter {\n"
+        "public:\n"
+        '  void greet() { std::cout << "hello" << std::endl; }\n'
+        "};\n"
+        "}\n"
+        "\n"
+        "int main() {\n"
+        "  auto g = app::Greeter();\n"
+        "  g.greet();\n"
+        "  return 0;\n"
+        "}\n"
+    )
+    app = make_app(snapshot_workspace, open_file=cpp_file)
+    assert snap_compare(app, run_before=_focus_editor(app), terminal_size=TERMINAL_SIZE)
+
+
 # ── Footer modal no-save-level ─────────────────────────────────────────────────
 
 
