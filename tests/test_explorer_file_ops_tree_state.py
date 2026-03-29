@@ -20,33 +20,10 @@ from pathlib import Path
 import pytest
 from textual.widgets import Input
 
-from tests.conftest import make_app
+from tests.conftest import find_tree_node_by_path, get_tree_child_labels, make_app
 from textual_code.app import TextualCode
 from textual_code.modals import RenameModalScreen
-from textual_code.widgets.explorer import Explorer, FilteredDirectoryTree
-
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
-
-def _get_child_names(tree: FilteredDirectoryTree) -> list[str]:
-    """Return names of root's direct children in display order."""
-    return [str(child.label) for child in tree.root.children]
-
-
-def _find_node_by_path(tree: FilteredDirectoryTree, path: Path):
-    """Recursively find a tree node matching the given path."""
-
-    def walk(node):
-        if node.data is not None and node.data.path == path:
-            return node
-        for child in node.children:
-            result = walk(child)
-            if result is not None:
-                return result
-        return None
-
-    return walk(tree.root)
-
+from textual_code.widgets.explorer import Explorer
 
 # ── Rename → Tree Node Verification ─────────────────────────────────────────
 
@@ -69,7 +46,7 @@ async def test_rename_file_reflected_in_tree(workspace: Path):
         tree = app.sidebar.explorer.directory_tree
 
         # Verify original file is in tree
-        names_before = _get_child_names(tree)
+        names_before = get_tree_child_labels(tree)
         assert "original.py" in names_before
 
         # Rename via explorer message flow
@@ -89,7 +66,7 @@ async def test_rename_file_reflected_in_tree(workspace: Path):
             await pilot.pause()
 
         # Tree should show new name, not old name
-        names_after = _get_child_names(tree)
+        names_after = get_tree_child_labels(tree)
         assert "renamed.py" in names_after
         assert "original.py" not in names_after
 
@@ -130,20 +107,20 @@ async def test_rename_directory_children_accessible_by_new_path(workspace: Path)
             await pilot.pause()
 
         # Tree should show new_dir, not old_dir
-        names = _get_child_names(tree)
+        names = get_tree_child_labels(tree)
         assert "new_dir" in names
         assert "old_dir" not in names
 
         # Expand new_dir — child should be accessible under new path
         new_dir = workspace / "new_dir"
-        new_dir_node = _find_node_by_path(tree, new_dir)
+        new_dir_node = find_tree_node_by_path(tree, new_dir)
         assert new_dir_node is not None
         new_dir_node.expand()
         await pilot.pause()
         await pilot.pause()
 
         new_child = new_dir / "child.py"
-        child_node = _find_node_by_path(tree, new_child)
+        child_node = find_tree_node_by_path(tree, new_child)
         assert child_node is not None
 
 
@@ -170,7 +147,7 @@ async def test_move_file_reflected_in_tree(workspace: Path):
         tree = app.sidebar.explorer.directory_tree
 
         # moveme.py should be at root level
-        root_names = _get_child_names(tree)
+        root_names = get_tree_child_labels(tree)
         assert "moveme.py" in root_names
 
         # Move via direct MoveDestinationSelected message
@@ -182,18 +159,18 @@ async def test_move_file_reflected_in_tree(workspace: Path):
             await pilot.pause()
 
         # moveme.py should no longer be at root level
-        root_names_after = _get_child_names(tree)
+        root_names_after = get_tree_child_labels(tree)
         assert "moveme.py" not in root_names_after
 
         # Expand dest dir — moveme.py should be there
-        dest_node = _find_node_by_path(tree, dest_dir)
+        dest_node = find_tree_node_by_path(tree, dest_dir)
         assert dest_node is not None
         dest_node.expand()
         await pilot.pause()
         await pilot.pause()
 
         moved_file = dest_dir / "moveme.py"
-        moved_node = _find_node_by_path(tree, moved_file)
+        moved_node = find_tree_node_by_path(tree, moved_file)
         assert moved_node is not None
 
 
@@ -229,25 +206,25 @@ async def test_move_directory_subtree_reflected_in_tree(workspace: Path):
             await pilot.pause()
 
         # src_dir should be gone from root
-        root_names = _get_child_names(tree)
+        root_names = get_tree_child_labels(tree)
         assert "src_dir" not in root_names
 
         # Expand dest_dir → src_dir → verify index.py
-        dest_node = _find_node_by_path(tree, dest)
+        dest_node = find_tree_node_by_path(tree, dest)
         assert dest_node is not None
         dest_node.expand()
         await pilot.pause()
         await pilot.pause()
 
         moved_src = dest / "src_dir"
-        moved_src_node = _find_node_by_path(tree, moved_src)
+        moved_src_node = find_tree_node_by_path(tree, moved_src)
         assert moved_src_node is not None
         moved_src_node.expand()
         await pilot.pause()
         await pilot.pause()
 
         moved_index = moved_src / "index.py"
-        index_node = _find_node_by_path(tree, moved_index)
+        index_node = find_tree_node_by_path(tree, moved_index)
         assert index_node is not None
 
 
@@ -317,7 +294,7 @@ async def test_external_file_deletion_reflected_after_refresh(workspace: Path):
         tree = app.sidebar.explorer.directory_tree
 
         # File should be in tree
-        names_before = _get_child_names(tree)
+        names_before = get_tree_child_labels(tree)
         assert "external.py" in names_before
 
         # Initialize polling state
@@ -333,7 +310,7 @@ async def test_external_file_deletion_reflected_after_refresh(workspace: Path):
             await pilot.pause()
 
         # File should be gone from tree
-        names_after = _get_child_names(tree)
+        names_after = get_tree_child_labels(tree)
         assert "external.py" not in names_after
 
 
@@ -355,7 +332,7 @@ async def test_external_directory_deletion_reflected_after_refresh(workspace: Pa
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
 
-        names_before = _get_child_names(tree)
+        names_before = get_tree_child_labels(tree)
         assert "external_dir" in names_before
 
         # Initialize polling state
@@ -370,7 +347,7 @@ async def test_external_directory_deletion_reflected_after_refresh(workspace: Pa
         for _ in range(5):
             await pilot.pause()
 
-        names_after = _get_child_names(tree)
+        names_after = get_tree_child_labels(tree)
         assert "external_dir" not in names_after
 
 
@@ -394,7 +371,7 @@ async def test_create_file_appears_in_correct_sort_position(workspace: Path):
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
 
-        names_before = _get_child_names(tree)
+        names_before = get_tree_child_labels(tree)
         assert names_before == ["alpha.py", "gamma.py"]
 
         # Create beta.py via app message
@@ -405,7 +382,7 @@ async def test_create_file_appears_in_correct_sort_position(workspace: Path):
             await pilot.pause()
 
         # beta.py should appear between alpha.py and gamma.py
-        names_after = _get_child_names(tree)
+        names_after = get_tree_child_labels(tree)
         assert names_after == ["alpha.py", "beta.py", "gamma.py"]
 
 
@@ -424,7 +401,7 @@ async def test_create_directory_appears_before_files(workspace: Path):
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
 
-        names_before = _get_child_names(tree)
+        names_before = get_tree_child_labels(tree)
         assert names_before == ["aaa.py"]
 
         # Create zzz_dir (name comes after aaa.py alphabetically,
@@ -437,5 +414,5 @@ async def test_create_directory_appears_before_files(workspace: Path):
         for _ in range(10):
             await pilot.pause()
 
-        names_after = _get_child_names(tree)
+        names_after = get_tree_child_labels(tree)
         assert names_after == ["zzz_dir", "aaa.py"]
