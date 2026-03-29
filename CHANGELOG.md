@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Explorer**: renaming a file to an empty or whitespace-only name now shows an error notification ("Invalid name: name cannot be empty.") instead of silently closing the modal (Fix #160)
 - **Scripts**: `check-licenses.sh` now correctly classifies `rich-pixels` as MIT (allowed) via a manual override map for packages whose metadata lacks standard license fields (Fix #147)
 - **Explorer**: `select_file` now reveals files at any directory depth — replaced frame-synchronous retry polling (`call_after_refresh`) with timer-based retries and depth-progress tracking so that deeply nested paths (12+ levels) are fully expanded instead of stopping mid-way after 10 retries (Fix #141)
 - **Open File**: "Open File" (Ctrl+O) and Delete/Rename path actions now respect the `show_hidden_files` setting — hidden files (e.g., `.env`, `.gitignore`, `.github/`) appear in search results when the setting is enabled; `.git/` contents are always excluded (Fix #140)

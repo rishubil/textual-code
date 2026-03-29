@@ -7,6 +7,7 @@ in the sidebar DirectoryTree, the editor, and command palette.
 
 from pathlib import Path
 
+import pytest
 from textual.widgets import Input
 
 from tests.conftest import make_app
@@ -178,11 +179,12 @@ async def test_rename_with_path_separator_shows_error(
     assert sample_py_file.exists()
 
 
-async def test_rename_empty_name_noop(workspace: Path, sample_py_file: Path):
-    """Empty name after strip → no rename, file unchanged.
+async def test_rename_empty_name_noop(
+    workspace: Path, sample_py_file: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Empty name → error notification, file unchanged.
 
     VSCode origin: validateFileName (For Create) — empty string returns error.
-    Our behavior: silent no-op (modal callback returns early).
     """
     app = make_app(workspace)
     async with app.run_test() as pilot:
@@ -196,6 +198,11 @@ async def test_rename_empty_name_noop(workspace: Path, sample_py_file: Path):
         await pilot.pause()
         await pilot.pause()
         assert isinstance(app.screen, RenameModalScreen)
+
+        notify_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+        monkeypatch.setattr(
+            app, "notify", lambda *a, **kw: notify_calls.append((a, kw))
+        )
 
         inp = app.screen.query_one(Input)
         inp.value = ""
@@ -203,13 +210,18 @@ async def test_rename_empty_name_noop(workspace: Path, sample_py_file: Path):
         await pilot.pause()
 
     assert sample_py_file.exists()
+    assert any(
+        kw.get("severity") == "error" and any("empty" in str(x) for x in a)
+        for a, kw in notify_calls
+    )
 
 
-async def test_rename_whitespace_only_noop(workspace: Path, sample_py_file: Path):
-    """Whitespace-only name → no rename, file unchanged.
+async def test_rename_whitespace_only_noop(
+    workspace: Path, sample_py_file: Path, monkeypatch: pytest.MonkeyPatch
+):
+    """Whitespace-only name → error notification, file unchanged.
 
     VSCode origin: validateFileName (For Create) — whitespace returns error.
-    Our behavior: strip() produces empty string → silent no-op.
     """
     app = make_app(workspace)
     async with app.run_test() as pilot:
@@ -224,12 +236,21 @@ async def test_rename_whitespace_only_noop(workspace: Path, sample_py_file: Path
         await pilot.pause()
         assert isinstance(app.screen, RenameModalScreen)
 
+        notify_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+        monkeypatch.setattr(
+            app, "notify", lambda *a, **kw: notify_calls.append((a, kw))
+        )
+
         inp = app.screen.query_one(Input)
         inp.value = "   "
         await pilot.click("#rename")
         await pilot.pause()
 
     assert sample_py_file.exists()
+    assert any(
+        kw.get("severity") == "error" and any("empty" in str(x) for x in a)
+        for a, kw in notify_calls
+    )
 
 
 async def test_rename_to_hidden_file(workspace: Path, sample_py_file: Path):

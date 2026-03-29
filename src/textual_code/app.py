@@ -1535,10 +1535,16 @@ class TextualCode(App):
         is_directory = path.is_dir()
 
         def do_rename(result: RenameModalResult | None) -> None:
-            if not result or result.is_cancelled or not result.new_name:
+            if not result or result.is_cancelled:
                 return
-            new_name = result.new_name.strip()
-            if not new_name or new_name == current_name:
+            new_name = (result.new_name or "").strip()
+            if not new_name:
+                self.notify(
+                    "Invalid name: name cannot be empty.",
+                    severity="error",
+                )
+                return
+            if new_name == current_name:
                 return
             # Reject path separators and traversal
             new_path = path.parent / new_name
