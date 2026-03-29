@@ -41,6 +41,21 @@ reducing per-test overhead by ~11%.
 - Snapshot tests (the SVG captures the full UI including sidebar)
 - Tests that use absolute mouse coordinates affected by sidebar width
 
+## Explorer Tree Helpers in `conftest.py`
+
+Shared helpers for explorer tree tests (used by `test_explorer_tree_state.py` and
+`test_explorer_file_ops_tree_state.py`):
+
+```python
+from tests.conftest import find_tree_node_by_path, get_tree_child_labels
+
+# Get root children labels in display order
+labels = get_tree_child_labels(tree)      # → ["dir_a", "file.py"]
+
+# Walk tree to find a node by filesystem path
+node = find_tree_node_by_path(tree, path) # → TreeNode | None
+```
+
 ## User Config Isolation: `_isolate_user_config` autouse fixture
 
 An `autouse` fixture in `conftest.py` monkeypatches `get_user_config_path()` so that

@@ -35,11 +35,14 @@ from itertools import groupby
 from pathlib import Path
 
 import pytest
+from textual.widgets import Button, Checkbox, Input, Label, Tree
 
+from tests.conftest import make_app
 from textual_code.search import (
     replace_workspace,
     search_workspace,
 )
+from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
 # ── Unit: search_workspace result aggregation ────────────────────────────
 # Adapted from searchModel.test.ts "Search Model: Search adds to results"
@@ -254,11 +257,6 @@ async def test_search_tree_cleared_on_new_search(tmp_path: Path) -> None:
     VSCode verifies searchResult.isEmpty() is true when a new search begins,
     even before the new search completes. We verify the Tree widget is cleared.
     """
-    from textual.widgets import Input, Tree
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "a.txt").write_text("hello world\n")
     (tmp_path / "b.txt").write_text("hello again\n")
 
@@ -311,12 +309,9 @@ async def test_previous_search_cancelled_by_new_search(
     """
     import threading
 
-    from textual.widgets import Input
     from textual.worker import WorkerState
 
     import textual_code.widgets.workspace_search as ws_module
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
     # Create files so search has something to find
     for i in range(10):
@@ -387,11 +382,6 @@ async def test_search_tree_groups_results_by_file(tmp_path: Path) -> None:
     Extends the unit test to verify the full integration: search → Tree widget.
     File nodes show path and match count; leaf nodes show line number and text.
     """
-    from textual.widgets import Input, Tree
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     # Create files with known content — multiple matches in file1
     (tmp_path / "file1.txt").write_text("alpha target\nbeta target\n")
     (tmp_path / "file2.txt").write_text("gamma target\n")
@@ -665,11 +655,6 @@ async def test_tree_hierarchy_file_and_match_nodes(tmp_path: Path) -> None:
     VSCode: lineMatch.parent() === fileMatch, fileMatch.parent() === folderMatch.
     Our Tree: root.children are file nodes, file_node.children are match leaves.
     """
-    from textual.widgets import Input, Tree
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "test.txt").write_text("alpha needle\nbeta needle\n")
 
     app = make_app(tmp_path)
@@ -709,11 +694,6 @@ async def test_tree_node_data_stores_file_and_line(tmp_path: Path) -> None:
     Match leaf nodes store (file_path, match_line_number).
     This data is used by on_tree_node_selected to open files.
     """
-    from textual.widgets import Input, Tree
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     target = tmp_path / "data.txt"
     target.write_text("line one\nneedle here\nline three\nneedle again\n")
 
@@ -757,11 +737,6 @@ async def test_nested_directory_tree_grouping(tmp_path: Path) -> None:
     Our Tree: File nodes show relative paths from workspace root, naturally
     grouping by directory through the path prefix.
     """
-    from textual.widgets import Input, Tree
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     # Create nested directory structure
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "deep").mkdir()
@@ -827,11 +802,6 @@ async def test_next_focus_after_removing_match_with_sibling_file(
     Our equivalent: match's parent file_node has next_sibling (file2_node),
     whose first child is the next match to focus.
     """
-    from textual.widgets import Input, Tree
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "aaa.txt").write_text("needle one\nneedle two\n")
     (tmp_path / "bbb.txt").write_text("needle three\nneedle four\n")
 
@@ -887,11 +857,6 @@ async def test_next_focus_after_removing_only_match(tmp_path: Path) -> None:
     Our equivalent: the only match leaf has no next_sibling, and its parent
     file_node has no next_sibling either.
     """
-    from textual.widgets import Input, Tree
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "only.txt").write_text("needle\n")
 
     app = make_app(tmp_path)
@@ -935,11 +900,6 @@ async def test_next_focus_after_removing_file_with_sibling(
     Remove file2 → getElementToFocusAfterRemoved returns file3.
     Our equivalent: file2_node.next_sibling is file3_node.
     """
-    from textual.widgets import Input, Tree
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "aaa.txt").write_text("needle\n")
     (tmp_path / "bbb.txt").write_text("needle\n")
     (tmp_path / "ccc.txt").write_text("needle\n")
@@ -983,11 +943,6 @@ async def test_last_file_node_in_tree(tmp_path: Path) -> None:
     VSCode: getLastNodeFromSameType(tree, fileMatch1) returns fileMatch3.
     Our equivalent: root.children[-1] is the last file node.
     """
-    from textual.widgets import Input, Tree
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "aaa.txt").write_text("needle\n")
     (tmp_path / "bbb.txt").write_text("needle\n")
     (tmp_path / "ccc.txt").write_text("needle\n")
@@ -1030,11 +985,6 @@ async def test_last_match_node_in_tree(tmp_path: Path) -> None:
     the last match in the last file (data[5]).
     Our equivalent: last file node's last child is the last match.
     """
-    from textual.widgets import Input, Tree
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "aaa.txt").write_text("needle one\n")
     (tmp_path / "bbb.txt").write_text("needle two\n")
     (tmp_path / "ccc.txt").write_text("needle three\n")
@@ -1077,11 +1027,6 @@ async def test_next_focus_after_removing_only_file(tmp_path: Path) -> None:
     Our equivalent: the only file_node has no next_sibling and no
     previous_sibling.
     """
-    from textual.widgets import Input, Tree
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "only.txt").write_text("needle\n")
 
     app = make_app(tmp_path)
@@ -1130,11 +1075,6 @@ async def test_replace_all_via_ui_modifies_files(tmp_path: Path) -> None:
     Full flow: enter query → enter replacement → click Replace All button →
     confirm in modal → verify disk writes and status label.
     """
-    from textual.widgets import Button, Input, Label
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "file1.txt").write_text("hello world\n")
     (tmp_path / "file2.txt").write_text("hello again\n")
 
@@ -1183,11 +1123,6 @@ async def test_replace_all_cancel_preserves_files(tmp_path: Path) -> None:
 
     VSCode: Clicking cancel in the replace confirmation dialog does nothing.
     """
-    from textual.widgets import Button, Input
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "file1.txt").write_text("hello world\n")
     original_content = "hello world\n"
 
@@ -1229,11 +1164,6 @@ async def test_replace_all_regex_capture_groups_via_ui(
     Verifies the full pipeline: regex checkbox → capture group replacement
     using Python's \1 syntax → disk write verification.
     """
-    from textual.widgets import Button, Checkbox, Input
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "dates.txt").write_text("2025-03-28\n2025-12-25\n")
 
     app = make_app(tmp_path)
@@ -1278,11 +1208,6 @@ async def test_replace_all_modal_shows_preview(tmp_path: Path) -> None:
     Verifies that the modal displays the file path, occurrence count,
     and a diff preview of the replacement.
     """
-    from textual.widgets import Button, Input, Label
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "example.txt").write_text("old value here\nanother old value\n")
 
     app = make_app(tmp_path)
@@ -1327,11 +1252,6 @@ async def test_replace_all_no_matches_shows_status(tmp_path: Path) -> None:
     When the search query has no results, no modal is shown and the
     status label reports the absence of matches.
     """
-    from textual.widgets import Input, Label
-
-    from tests.conftest import make_app
-    from textual_code.widgets.workspace_search import WorkspaceSearchPane
-
     (tmp_path / "file.txt").write_text("nothing to find here\n")
 
     app = make_app(tmp_path)

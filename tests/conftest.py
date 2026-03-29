@@ -96,6 +96,35 @@ def _disable_cursor_blink(app) -> None:
         widget.cursor_blink = False
 
 
+def find_tree_node_by_path(tree, path: Path):
+    """Recursively find a tree node matching the given path.
+
+    Walks the tree starting from root, returning the first node whose
+    ``data.path`` matches *path*, or ``None`` if no match is found.
+
+    Shared by explorer tree state and file-ops tree state tests.
+    """
+
+    def walk(node):
+        if node.data is not None and node.data.path == path:
+            return node
+        for child in node.children:
+            result = walk(child)
+            if result is not None:
+                return result
+        return None
+
+    return walk(tree.root)
+
+
+def get_tree_child_labels(tree) -> list[str]:
+    """Return labels of the root's direct children in display order.
+
+    Shared by explorer tree state tests.
+    """
+    return [str(child.label) for child in tree.root.children]
+
+
 @pytest.fixture
 def snap_compare(snap_compare):
     """Wrap snap_compare to disable cursor blinking for deterministic snapshots.

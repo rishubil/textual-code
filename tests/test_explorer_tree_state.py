@@ -17,30 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import make_app
+from tests.conftest import find_tree_node_by_path, get_tree_child_labels, make_app
 from textual_code.widgets.explorer import Explorer, FilteredDirectoryTree
-
-# ── Helpers ──────────────────────────────────────────────────────────────────
-
-
-def _get_visible_labels(tree: FilteredDirectoryTree) -> list[str]:
-    """Return labels of the root's direct children in display order."""
-    return [str(child.label) for child in tree.root.children]
-
-
-def _find_node_by_path(tree: FilteredDirectoryTree, path: Path):
-    """Recursively find a tree node matching the given path."""
-
-    def walk(node):
-        if node.data is not None and node.data.path == path:
-            return node
-        for child in node.children:
-            result = walk(child)
-            if result is not None:
-                return result
-        return None
-
-    return walk(tree.root)
 
 
 def _get_expanded_paths(tree: FilteredDirectoryTree) -> set[Path]:
@@ -115,7 +93,7 @@ async def test_sort_order_dirs_first_then_files_alphabetical(
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
-        labels = _get_visible_labels(tree)
+        labels = get_tree_child_labels(tree)
 
         # Directories first (alphabetical), then files (alphabetical)
         assert labels == ["dir_alpha", "dir_beta", "aaa.py", "mmm.py", "zzz.py"]
@@ -138,7 +116,7 @@ async def test_sort_order_case_insensitive(workspace: Path):
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
-        labels = _get_visible_labels(tree)
+        labels = get_tree_child_labels(tree)
 
         # All are files, sorted case-insensitively
         assert labels == ["alpha.py", "Beta.py", "GAMMA.py", "Zebra.py"]
@@ -160,7 +138,7 @@ async def test_sort_order_children_within_directory(
         tree = app.sidebar.explorer.directory_tree
 
         # Find and expand dir_beta
-        dir_beta_node = _find_node_by_path(tree, state_tree["dir_beta"])
+        dir_beta_node = find_tree_node_by_path(tree, state_tree["dir_beta"])
         assert dir_beta_node is not None
         dir_beta_node.expand()
         await pilot.pause()
@@ -191,7 +169,7 @@ async def test_expand_state_preserved_after_reload(
         tree = app.sidebar.explorer.directory_tree
 
         # Expand dir_alpha
-        alpha_node = _find_node_by_path(tree, state_tree["dir_alpha"])
+        alpha_node = find_tree_node_by_path(tree, state_tree["dir_alpha"])
         assert alpha_node is not None
         alpha_node.expand()
         await pilot.pause()
@@ -207,7 +185,7 @@ async def test_expand_state_preserved_after_reload(
             await pilot.pause()
 
         # dir_alpha should still be expanded
-        alpha_node_after = _find_node_by_path(tree, state_tree["dir_alpha"])
+        alpha_node_after = find_tree_node_by_path(tree, state_tree["dir_alpha"])
         assert alpha_node_after is not None
         assert alpha_node_after.is_expanded
 
@@ -230,14 +208,14 @@ async def test_nested_expand_preserved_after_reload(
         tree = app.sidebar.explorer.directory_tree
 
         # Expand dir_beta
-        beta_node = _find_node_by_path(tree, state_tree["dir_beta"])
+        beta_node = find_tree_node_by_path(tree, state_tree["dir_beta"])
         assert beta_node is not None
         beta_node.expand()
         await pilot.pause()
         await pilot.pause()
 
         # Expand sub_beta
-        sub_beta_node = _find_node_by_path(tree, state_tree["sub_beta"])
+        sub_beta_node = find_tree_node_by_path(tree, state_tree["sub_beta"])
         assert sub_beta_node is not None
         sub_beta_node.expand()
         await pilot.pause()
@@ -254,11 +232,11 @@ async def test_nested_expand_preserved_after_reload(
             await pilot.pause()
 
         # Both should still be expanded
-        beta_after = _find_node_by_path(tree, state_tree["dir_beta"])
+        beta_after = find_tree_node_by_path(tree, state_tree["dir_beta"])
         assert beta_after is not None
         assert beta_after.is_expanded
 
-        sub_beta_after = _find_node_by_path(tree, state_tree["sub_beta"])
+        sub_beta_after = find_tree_node_by_path(tree, state_tree["sub_beta"])
         assert sub_beta_after is not None
         assert sub_beta_after.is_expanded
 
@@ -280,7 +258,7 @@ async def test_collapse_state_not_changed_after_reload(
         tree = app.sidebar.explorer.directory_tree
 
         # Verify dirs are initially collapsed (default state)
-        alpha_node = _find_node_by_path(tree, state_tree["dir_alpha"])
+        alpha_node = find_tree_node_by_path(tree, state_tree["dir_alpha"])
         assert alpha_node is not None
         assert not alpha_node.is_expanded
 
@@ -290,7 +268,7 @@ async def test_collapse_state_not_changed_after_reload(
             await pilot.pause()
 
         # Should still be collapsed
-        alpha_after = _find_node_by_path(tree, state_tree["dir_alpha"])
+        alpha_after = find_tree_node_by_path(tree, state_tree["dir_alpha"])
         assert alpha_after is not None
         assert not alpha_after.is_expanded
 
@@ -312,7 +290,7 @@ async def test_expand_state_preserved_after_file_create(
         tree = app.sidebar.explorer.directory_tree
 
         # Expand dir_alpha
-        alpha_node = _find_node_by_path(tree, state_tree["dir_alpha"])
+        alpha_node = find_tree_node_by_path(tree, state_tree["dir_alpha"])
         assert alpha_node is not None
         alpha_node.expand()
         await pilot.pause()
@@ -328,12 +306,12 @@ async def test_expand_state_preserved_after_file_create(
             await pilot.pause()
 
         # dir_alpha should still be expanded
-        alpha_after = _find_node_by_path(tree, state_tree["dir_alpha"])
+        alpha_after = find_tree_node_by_path(tree, state_tree["dir_alpha"])
         assert alpha_after is not None
         assert alpha_after.is_expanded
 
         # And the new file should appear in the tree
-        labels = _get_visible_labels(tree)
+        labels = get_tree_child_labels(tree)
         assert "new_file.py" in labels
 
 
@@ -381,7 +359,7 @@ async def test_select_file_expands_collapsed_parent(
         tree = explorer.directory_tree
 
         # dir_alpha is collapsed initially
-        alpha_node = _find_node_by_path(tree, state_tree["dir_alpha"])
+        alpha_node = find_tree_node_by_path(tree, state_tree["dir_alpha"])
         assert alpha_node is not None
         assert not alpha_node.is_expanded
 
@@ -391,7 +369,7 @@ async def test_select_file_expands_collapsed_parent(
             await pilot.pause()
 
         # dir_alpha should now be expanded
-        alpha_node = _find_node_by_path(tree, state_tree["dir_alpha"])
+        alpha_node = find_tree_node_by_path(tree, state_tree["dir_alpha"])
         assert alpha_node is not None
         assert alpha_node.is_expanded
 
@@ -424,11 +402,11 @@ async def test_select_file_expands_deeply_nested_path(
             await pilot.pause()
 
         # Both dir_beta and sub_beta should be expanded
-        beta_node = _find_node_by_path(tree, state_tree["dir_beta"])
+        beta_node = find_tree_node_by_path(tree, state_tree["dir_beta"])
         assert beta_node is not None
         assert beta_node.is_expanded
 
-        sub_beta_node = _find_node_by_path(tree, state_tree["sub_beta"])
+        sub_beta_node = find_tree_node_by_path(tree, state_tree["sub_beta"])
         assert sub_beta_node is not None
         assert sub_beta_node.is_expanded
 
