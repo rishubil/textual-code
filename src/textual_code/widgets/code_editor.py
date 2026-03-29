@@ -75,51 +75,59 @@ _CUSTOM_GRAMMAR_NAMES = [
 
 _GRAMMARS_DIR = Path(__file__).parent.parent / "grammars"
 
-# Grammar composition map: defines how highlight queries are composed.
-# Each entry is an ordered list where:
-#   - "file.scm"  → read the .scm file directly from grammars/
-#   - "@language"  → recursively resolve another language's composition
 # Earlier entries have higher priority in tree-sitter pattern matching.
-_GRAMMAR_COMPOSITION: dict[str, list[str]] = json.loads(
-    (_GRAMMARS_DIR / "composition.json").read_text(encoding="utf-8")
-)
+_GRAMMAR_COMPOSITION: dict[str, list[str]] = {}
 
 
-def _resolve_highlight_query(name: str, visited: set[str] | None = None) -> str:
+def _resolve_highlight_query(
+    name: str,
+    visited: set[str] | None = None,
+    *,
+    composition: dict[str, list[str]] | None = None,
+    grammars_dir: Path | None = None,
+) -> str:
     """Resolve a highlight query, recursively composing from composition.json.
-
-    Args:
-        name: Language name to resolve (must exist in _GRAMMAR_COMPOSITION).
-        visited: Set of already-visited language names for circular reference detection.
-
-    Returns:
-        The concatenated highlight query string.
 
     Raises:
         ValueError: If a circular reference is detected.
-        KeyError: If the language is not defined in composition.json.
+        KeyError: If the language is not defined in the composition map.
     """
+    if composition is None:
+        composition = _GRAMMAR_COMPOSITION
+    if grammars_dir is None:
+        grammars_dir = _GRAMMARS_DIR
     if visited is None:
         visited = set()
     if name in visited:
         raise ValueError(f"Circular reference in grammar composition: {name}")
     visited.add(name)
 
-    if name not in _GRAMMAR_COMPOSITION:
-        raise KeyError(f"Language '{name}' not found in composition.json")
+    if name not in composition:
+        raise KeyError(f"Language '{name}' not found in composition map")
 
     parts = []
-    for entry in _GRAMMAR_COMPOSITION[name]:
+    for entry in composition[name]:
         if entry.startswith("@"):
-            parts.append(_resolve_highlight_query(entry[1:], visited.copy()))
+            # .copy() allows diamond-shaped deps (e.g. TS and TSX both @javascript)
+            parts.append(
+                _resolve_highlight_query(
+                    entry[1:],
+                    visited.copy(),
+                    composition=composition,
+                    grammars_dir=grammars_dir,
+                )
+            )
         else:
-            parts.append((_GRAMMARS_DIR / entry).read_text(encoding="utf-8"))
+            parts.append((grammars_dir / entry).read_text(encoding="utf-8"))
     return "\n".join(parts)
 
 
 try:
     from tree_sitter_language_pack import get_language as _get_ts_language
 
+    _GRAMMAR_COMPOSITION = json.loads(
+        (_GRAMMARS_DIR / "composition.json").read_text(encoding="utf-8")
+    )
     for _lang_name in _CUSTOM_GRAMMAR_NAMES:
         try:
             _query = _resolve_highlight_query(_lang_name)
