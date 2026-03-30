@@ -713,6 +713,106 @@ class MainView(Static):
             on_complete=lambda closed: self._close_next(remaining) if closed else None
         )
 
+    async def _close_pane_ids(self, target_ids: set[str]) -> None:
+        """Close the given pane IDs, respecting dirty editor handling.
+
+        Unmounted clean editors are closed directly.
+        Unmounted dirty editors are skipped (they cannot show a save modal).
+        Mounted editors go through ``_close_next`` (dirty-first for atomic Cancel).
+        """
+        mounted_ids: list[str] = []
+        for pane_id in target_ids:
+            if pane_id in self._editor_states:
+                state = self._editor_states[pane_id]
+                if state.text == state.initial_text:
+                    await self.action_close_code_editor(pane_id, auto_close_split=False)
+            else:
+                mounted_ids.append(pane_id)
+        editors: list[CodeEditor] = []
+        for pane_id in mounted_ids:
+            tc_for = self._tc_for_pane(pane_id)
+            if tc_for is None:
+                continue
+            pane = tc_for.get_pane(pane_id)
+            pane_editors = pane.query(CodeEditor)
+            if pane_editors:
+                editors.append(pane_editors.first(CodeEditor))
+            else:
+                await self.action_close_code_editor(pane_id, auto_close_split=False)
+        await self._auto_close_split_if_empty()
+        editors.sort(key=lambda e: e.text == e.initial_text)
+        self._close_next(editors)
+
+    async def action_close_other_editors(self) -> None:
+        """Close all editors in the active group except the active one."""
+        tc = self.tabbed_content
+        active_id = tc.active
+        if not active_id:
+            return
+        target_ids = set(tc.get_ordered_pane_ids()) - {active_id}
+        if not target_ids:
+            return
+        await self._close_pane_ids(target_ids)
+
+    async def action_close_editors_to_the_right(self) -> None:
+        """Close all editors to the right of the active tab."""
+        tc = self.tabbed_content
+        active_id = tc.active
+        if not active_id:
+            return
+        ordered = tc.get_ordered_pane_ids()
+        try:
+            idx = ordered.index(active_id)
+        except ValueError:
+            return
+        right_ids = set(ordered[idx + 1 :])
+        if not right_ids:
+            return
+        await self._close_pane_ids(right_ids)
+
+    async def action_close_editors_to_the_left(self) -> None:
+        """Close all editors to the left of the active tab."""
+        tc = self.tabbed_content
+        active_id = tc.active
+        if not active_id:
+            return
+        ordered = tc.get_ordered_pane_ids()
+        try:
+            idx = ordered.index(active_id)
+        except ValueError:
+            return
+        left_ids = set(ordered[:idx])
+        if not left_ids:
+            return
+        await self._close_pane_ids(left_ids)
+
+    async def action_close_saved_editors(self) -> None:
+        """Close all saved (non-dirty) editors in the active group."""
+        tc = self.tabbed_content
+        all_ids = list(tc.get_ordered_pane_ids())
+        if not all_ids:
+            return
+        for pane_id in all_ids:
+            if pane_id in self._editor_states:
+                state = self._editor_states[pane_id]
+                if state.text == state.initial_text:
+                    await self.action_close_code_editor(pane_id, auto_close_split=False)
+                continue
+            tc_for = self._tc_for_pane(pane_id)
+            if tc_for is None:
+                continue
+            pane = tc_for.get_pane(pane_id)
+            pane_editors = pane.query(CodeEditor)
+            if pane_editors:
+                editor = pane_editors.first(CodeEditor)
+                if editor.text == editor.initial_text:
+                    await self.action_close_code_editor(
+                        editor.pane_id, auto_close_split=False
+                    )
+            else:
+                await self.action_close_code_editor(pane_id, auto_close_split=False)
+        await self._auto_close_split_if_empty()
+
     # ── Split actions ────────────────────────────────────────────────────────
 
     async def action_split_right(self) -> None:

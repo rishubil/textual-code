@@ -43,6 +43,17 @@ Saves all modified tabs across all split panes. Tabs without unsaved changes are
 
 **Keybinding:** `Ctrl+W` (close), `Ctrl+Shift+W` (close all, hidden from footer).
 
+### Close Others / Close Right / Close Left / Close Saved: command palette only
+
+Four selective close commands available through the command palette:
+
+- **Close Other Editors**: closes all tabs in the active split except the active one.
+- **Close Editors to the Right**: closes all tabs to the right of the active tab (visual position).
+- **Close Editors to the Left**: closes all tabs to the left of the active tab (visual position).
+- **Close Saved Editors**: closes only saved (non-dirty) tabs; dirty tabs are preserved without any modal prompt.
+
+These commands operate on the **active split only** and do not affect tabs in other splits. With lazy tab mounting, non-active dirty editors that cannot display a save modal are preserved to prevent silent data loss.
+
 ### Delete File/Folder: sidebar and command palette
 
 - **From sidebar**: press the `Delete` key on a selected node in the explorer tree. A confirmation modal shows the path and warns "This action cannot be undone." Directories prompt with "Permanently delete this directory and ALL its contents?"

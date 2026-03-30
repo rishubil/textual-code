@@ -713,3 +713,387 @@ async def test_new_tab_opens_after_active_when_middle_tab_active(workspace: Path
 
         ordered = tc.get_ordered_pane_ids()
         assert ordered == [pane_ids[0], pane4, pane_ids[1], pane_ids[2], pane5]
+
+
+# ── Close Other Editors ──────────────────────────────────────────────────────
+# Ported from VSCode "closeEditors (except one)"
+# (editorGroupsService.test.ts lines 728-751)
+
+
+async def test_close_others_keeps_active_only(workspace: Path):
+    """Close Others closes all tabs except the active one.
+
+    VSCode equivalent: group.closeEditors({ except: input3 }) → only input3 remains.
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 5)
+        tc = app.main_view.tabbed_content
+        # Activate file3 (middle tab)
+        tc.active = pane_ids[2]
+        await pilot.pause()
+        assert _active_pane(app) == pane_ids[2]
+
+        await app.main_view.action_close_other_editors()
+        await pilot.pause()
+
+        assert _tab_count(app) == 1
+        assert _active_pane(app) == pane_ids[2]
+
+
+async def test_close_others_with_single_tab_is_noop(workspace: Path):
+    """Close Others with only one tab open is a no-op."""
+    f = workspace / "solo.py"
+    f.write_text("# solo\n")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_id = _active_pane(app)
+        assert _tab_count(app) == 1
+
+        await app.main_view.action_close_other_editors()
+        await pilot.pause()
+
+        assert _tab_count(app) == 1
+        assert _active_pane(app) == pane_id
+
+
+async def test_close_others_preserves_dirty_unmounted_editors(workspace: Path):
+    """Close Others skips dirty unmounted editors (they can't show a modal).
+
+    With lazy mounting, non-active editors are unmounted.  Dirty unmounted
+    editors are preserved to prevent silent data loss.  Only clean editors
+    are closed.
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        tc = app.main_view.tabbed_content
+
+        # Activate file1 and make it dirty
+        tc.active = pane_ids[0]
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "dirty!\n"
+        await pilot.pause()
+
+        # Activate file2 (the one to keep)
+        tc.active = pane_ids[1]
+        await pilot.pause()
+
+        await app.main_view.action_close_other_editors()
+        await pilot.pause()
+
+        # file1 (dirty, unmounted) is preserved; file3 (clean) is closed
+        assert _tab_count(app) == 2
+        assert _active_pane(app) == pane_ids[1]
+        # No modal shown
+        assert not isinstance(app.screen, UnsavedChangeModalScreen)
+
+
+# ── Close Editors to the Right ──────────────────────────────────────────────
+# Ported from VSCode "closeEditors (direction: right)"
+# (editorGroupsService.test.ts lines 843-867)
+
+
+async def test_close_right_removes_tabs_to_right(workspace: Path):
+    """Close to the Right closes all tabs after the active tab.
+
+    VSCode equivalent: group.closeEditors({ direction: RIGHT, except: input2 })
+    → input1 and input2 remain.
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 5)
+        tc = app.main_view.tabbed_content
+        assert isinstance(tc, DraggableTabbedContent)
+        # Activate file2
+        tc.active = pane_ids[1]
+        await pilot.pause()
+
+        await app.main_view.action_close_editors_to_the_right()
+        await pilot.pause()
+
+        assert _tab_count(app) == 2
+        assert _active_pane(app) == pane_ids[1]
+        assert tc.get_ordered_pane_ids() == [pane_ids[0], pane_ids[1]]
+
+
+async def test_close_right_from_last_tab_is_noop(workspace: Path):
+    """Close to the Right from the last tab is a no-op."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        # file3 is already active (last opened)
+        assert _active_pane(app) == pane_ids[2]
+
+        await app.main_view.action_close_editors_to_the_right()
+        await pilot.pause()
+
+        assert _tab_count(app) == 3
+
+
+async def test_close_right_preserves_dirty_unmounted_editors(workspace: Path):
+    """Close Right skips dirty unmounted editors to the right.
+
+    Clean editors to the right are closed; dirty ones are preserved.
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        tc = app.main_view.tabbed_content
+        assert isinstance(tc, DraggableTabbedContent)
+
+        # Make file3 (rightmost) dirty
+        tc.active = pane_ids[2]
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "dirty!\n"
+        await pilot.pause()
+
+        # Activate file1
+        tc.active = pane_ids[0]
+        await pilot.pause()
+
+        await app.main_view.action_close_editors_to_the_right()
+        await pilot.pause()
+
+        # file2 (clean) closed; file3 (dirty, unmounted) preserved
+        assert _tab_count(app) == 2
+        assert _active_pane(app) == pane_ids[0]
+        assert not isinstance(app.screen, UnsavedChangeModalScreen)
+
+
+# ── Close Editors to the Left ───────────────────────────────────────────────
+# Ported from VSCode "closeEditors (direction: left)"
+# (editorGroupsService.test.ts lines 902-926)
+
+
+async def test_close_left_removes_tabs_to_left(workspace: Path):
+    """Close to the Left closes all tabs before the active tab.
+
+    VSCode equivalent: group.closeEditors({ direction: LEFT, except: input4 })
+    → input4 and input5 remain.
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 5)
+        tc = app.main_view.tabbed_content
+        assert isinstance(tc, DraggableTabbedContent)
+        # Activate file4
+        tc.active = pane_ids[3]
+        await pilot.pause()
+
+        await app.main_view.action_close_editors_to_the_left()
+        await pilot.pause()
+
+        assert _tab_count(app) == 2
+        assert _active_pane(app) == pane_ids[3]
+        assert tc.get_ordered_pane_ids() == [pane_ids[3], pane_ids[4]]
+
+
+async def test_close_left_from_first_tab_is_noop(workspace: Path):
+    """Close to the Left from the first tab is a no-op."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        tc = app.main_view.tabbed_content
+        # Activate file1 (first tab)
+        tc.active = pane_ids[0]
+        await pilot.pause()
+
+        await app.main_view.action_close_editors_to_the_left()
+        await pilot.pause()
+
+        assert _tab_count(app) == 3
+
+
+async def test_close_left_preserves_dirty_unmounted_editors(workspace: Path):
+    """Close Left skips dirty unmounted editors to the left.
+
+    Clean editors to the left are closed; dirty ones are preserved.
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        tc = app.main_view.tabbed_content
+        assert isinstance(tc, DraggableTabbedContent)
+
+        # Make file1 (leftmost) dirty
+        tc.active = pane_ids[0]
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "dirty!\n"
+        await pilot.pause()
+
+        # Activate file3
+        tc.active = pane_ids[2]
+        await pilot.pause()
+
+        await app.main_view.action_close_editors_to_the_left()
+        await pilot.pause()
+
+        # file2 (clean) closed; file1 (dirty, unmounted) preserved
+        assert _tab_count(app) == 2
+        assert _active_pane(app) == pane_ids[2]
+        assert not isinstance(app.screen, UnsavedChangeModalScreen)
+
+
+# ── Close Saved Editors ─────────────────────────────────────────────────────
+# Ported from VSCode "closeEditors (saved only)"
+# (editorGroupsService.test.ts lines 788-810)
+
+
+async def test_close_saved_skips_dirty_tabs(workspace: Path):
+    """Close Saved closes clean tabs and skips dirty ones.
+
+    VSCode equivalent: group.closeEditors({ savedOnly: true })
+    → only dirty editors remain.
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        tc = app.main_view.tabbed_content
+
+        # Make file2 dirty
+        tc.active = pane_ids[1]
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "dirty!\n"
+        await pilot.pause()
+
+        await app.main_view.action_close_saved_editors()
+        await pilot.pause()
+
+        assert _tab_count(app) == 1
+        assert _active_pane(app) == pane_ids[1]
+
+
+async def test_close_saved_all_clean_closes_all(workspace: Path):
+    """Close Saved with all clean tabs closes everything."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await _open_n_files(app, pilot, workspace, 3)
+        assert _tab_count(app) == 3
+
+        await app.main_view.action_close_saved_editors()
+        await pilot.pause()
+
+        assert _tab_count(app) == 0
+
+
+async def test_close_saved_all_dirty_is_noop(workspace: Path):
+    """Close Saved with all dirty tabs is a no-op."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 2)
+        tc = app.main_view.tabbed_content
+
+        # Make both dirty
+        tc.active = pane_ids[0]
+        await pilot.pause()
+        editor1 = app.main_view.get_active_code_editor()
+        assert editor1 is not None
+        editor1.text = "dirty1!\n"
+        await pilot.pause()
+
+        tc.active = pane_ids[1]
+        await pilot.pause()
+        editor2 = app.main_view.get_active_code_editor()
+        assert editor2 is not None
+        editor2.text = "dirty2!\n"
+        await pilot.pause()
+
+        await app.main_view.action_close_saved_editors()
+        await pilot.pause()
+
+        assert _tab_count(app) == 2
+
+
+async def test_close_saved_no_modal_shown(workspace: Path):
+    """Close Saved never shows an unsaved changes modal."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        pane_ids = await _open_n_files(app, pilot, workspace, 2)
+        tc = app.main_view.tabbed_content
+
+        # Make file1 dirty
+        tc.active = pane_ids[0]
+        await pilot.pause()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        editor.text = "dirty!\n"
+        await pilot.pause()
+
+        await app.main_view.action_close_saved_editors()
+        await pilot.pause()
+
+        # file2 (clean) closed, file1 (dirty) remains, no modal
+        assert _tab_count(app) == 1
+        assert _active_pane(app) == pane_ids[0]
+        assert not isinstance(app.screen, UnsavedChangeModalScreen)
+
+
+# ── Close operations: split isolation ───────────────────────────────────────
+
+
+async def test_close_others_does_not_affect_other_splits(workspace: Path):
+    """Close Others only affects the active split, not other splits.
+
+    Open files in two splits. Close Others in the right split.
+    The left split should be unaffected.
+    """
+    f1 = workspace / "split_left.py"
+    f2 = workspace / "split_right1.py"
+    f3 = workspace / "split_right2.py"
+    f1.write_text("# left\n")
+    f2.write_text("# right1\n")
+    f3.write_text("# right2\n")
+    app = make_app(workspace, light=True, open_file=f1)
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        main = app.main_view
+
+        # Split right and open files in the new split
+        await main.action_split_right()
+        await pilot.pause()
+        p2 = await main.open_code_editor_pane(path=f2)
+        await pilot.pause()
+        await main.open_code_editor_pane(path=f3)
+        await pilot.pause()
+
+        leaves = all_leaves(main._split_root)
+        assert len(leaves) == 2
+
+        # Activate p2 in right split
+        tc = main.tabbed_content
+        tc.active = p2
+        await pilot.pause()
+
+        # Close Others in right split — should only close p3
+        await main.action_close_other_editors()
+        await pilot.pause()
+
+        # Right split: only p2 remains
+        right_count = len(tc.get_ordered_pane_ids())
+        assert right_count == 1
+
+        # Left split: still has its file
+        left_leaf = [lf for lf in all_leaves(main._split_root) if f1 in lf.opened_files]
+        assert len(left_leaf) == 1
