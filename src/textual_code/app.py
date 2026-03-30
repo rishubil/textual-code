@@ -1313,6 +1313,22 @@ class TextualCode(App):
         """Close all open files."""
         self.call_next(self.main_view.action_close_all_editors)
 
+    def action_close_other_editors_cmd(self) -> None:
+        """Close all editors except the active one."""
+        self.call_next(self.main_view.action_close_other_editors)
+
+    def action_close_editors_to_the_right_cmd(self) -> None:
+        """Close all editors to the right of the active tab."""
+        self.call_next(self.main_view.action_close_editors_to_the_right)
+
+    def action_close_editors_to_the_left_cmd(self) -> None:
+        """Close all editors to the left of the active tab."""
+        self.call_next(self.main_view.action_close_editors_to_the_left)
+
+    def action_close_saved_editors_cmd(self) -> None:
+        """Close all saved (non-dirty) editors."""
+        self.call_next(self.main_view.action_close_saved_editors)
+
     def action_toggle_sidebar(self) -> None:
         """
         Toggle the sidebar visibility.
