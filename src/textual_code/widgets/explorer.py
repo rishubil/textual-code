@@ -149,10 +149,10 @@ class FilteredDirectoryTree(DirectoryTree):
             text-style: dim;
         }
         & > .directory-tree--git-modified {
-            color: $warning;
+            color: $text-warning;
         }
         & > .directory-tree--git-untracked {
-            color: $success;
+            color: $text-success;
         }
         &:ansi > .directory-tree--gitignored,
         &:ansi > .directory-tree--hidden {
@@ -529,7 +529,7 @@ class FilteredDirectoryTree(DirectoryTree):
 
         Gitignored files are dimmed using the same component-class mechanism
         as hidden files for consistent appearance across terminal modes.
-        Git-modified files are colored with $warning, untracked with $success.
+        Git-modified files are colored with $text-warning, untracked with $text-success.
         """
         text = super().render_label(node, base_style, style)
         if node.data is not None:

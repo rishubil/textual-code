@@ -306,8 +306,8 @@ Provides visual file navigation, file/folder management, and quick access to wor
 **Git status highlighting:**
 
 - `show_git_status` setting (default: `true`): requires a `.git` directory at the workspace root.
-- Modified files: highlighted in yellow (`$warning` / `ansi_yellow`) via `directory-tree--git-modified`.
-- Untracked files: highlighted in green (`$success` / `ansi_green`) via `directory-tree--git-untracked`.
+- Modified files: highlighted in yellow (`$text-warning` / `ansi_yellow`) via `directory-tree--git-modified`.
+- Untracked files: highlighted in green (`$text-success` / `ansi_green`) via `directory-tree--git-untracked`.
 - Parent directories inherit the highest-priority status from their children. Priority: `modified` > `untracked`.
 - Status is obtained by running `git status --porcelain -z -unormal` with a 5-second timeout. On startup, git status loads in a background thread so the tree renders immediately without blocking.
 - Untracked directories from `-unormal` output are detected (trailing `/`) and their children inherit the untracked status via pre-computed string prefix matching.
