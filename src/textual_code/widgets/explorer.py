@@ -404,6 +404,8 @@ class FilteredDirectoryTree(DirectoryTree):
         Also checks if the path is inside an untracked directory
         (from -unormal output where entire directories are listed).
         """
+        if not self.show_git_status:
+            return None
         result = self._ensure_git_status_loaded()
 
         status = result.status_map.get(file_path)
