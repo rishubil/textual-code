@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -251,6 +252,32 @@ class TestGitStatusIntegration:
         (newdir / "file.py").write_text("# inside untracked dir\n")
         tree = self._make_tree(ws)
         assert tree._get_git_status(newdir / "file.py") == "untracked"
+
+    def test_c09_subprocess_uses_utf8_encoding(self, tmp_path: Path):
+        """_load_git_status subprocess.run calls must pass encoding='utf-8'."""
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        init_git_repo(ws)
+        calls: list[dict] = []
+        original_run = subprocess.run
+
+        def spy_run(*args, **kwargs):
+            calls.append(kwargs)
+            return original_run(*args, **kwargs)
+
+        tree = self._make_tree(ws)
+        with patch("textual_code.widgets.explorer.subprocess.run", side_effect=spy_run):
+            tree._git_result = None
+            tree._load_git_status()
+
+        assert len(calls) >= 1, "Expected at least 1 subprocess.run call"
+        for i, call_kwargs in enumerate(calls):
+            assert call_kwargs.get("encoding") == "utf-8", (
+                f"subprocess.run call {i} missing encoding='utf-8': {call_kwargs}"
+            )
+            assert call_kwargs.get("errors") == "replace", (
+                f"subprocess.run call {i} missing errors='replace': {call_kwargs}"
+            )
 
 
 # ── App integration tests ────────────────────────────────────────────────────

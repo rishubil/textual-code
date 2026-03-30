@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Explorer**: git-modified and untracked filenames are now readable across all built-in themes — replaced background-calibrated `$warning`/`$success` with foreground-appropriate `$text-warning`/`$text-success` semantic color tokens (Fix #170)
 - **Explorer**: git status colours (modified/untracked) no longer flicker off and back on when a file is saved — stale decorations are now kept visible until the background worker atomically replaces them, matching VS Code's behaviour (Fix #171)
+- **Editor / Explorer**: all git subprocess calls now specify `encoding="utf-8"` and `errors="replace"` — fixes silent git diff gutter and git status failures on Windows for files with non-ASCII UTF-8 content (Fix #174)
 
 ## [0.4.0] - 2026-03-29
 

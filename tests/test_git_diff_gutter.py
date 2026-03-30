@@ -4,20 +4,17 @@ Tests the line-level diff computation between HEAD and current editor text,
 the git HEAD content retrieval, and editor integration.
 """
 
+import os
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
-from tests.conftest import init_git_repo, make_app, requires_git
+from tests.conftest import _GIT_TEST_ENV, init_git_repo, make_app, requires_git
 from textual_code.widgets.code_editor import (
     LineChangeType,
     _compute_line_changes,
     _get_git_head_content,
 )
-
-_GIT_TEST_ENV = {
-    "GIT_AUTHOR_DATE": "2025-01-01T00:00:00+00:00",
-    "GIT_COMMITTER_DATE": "2025-01-01T00:00:00+00:00",
-}
 
 
 def _assert_keys_in_range(result: dict[int, LineChangeType], new_lines: list[str]):
@@ -177,6 +174,64 @@ class TestGetGitHeadContent:
         with patch("textual_code.widgets.code_editor._git_bin", None):
             result = _get_git_head_content(f)
         assert result is None
+
+    @requires_git
+    def test_b05_returns_non_ascii_utf8_content(self, tmp_path: Path):
+        """Returns correct content for files with non-ASCII UTF-8 characters."""
+        init_git_repo(tmp_path)
+        committed = tmp_path / "committed.py"
+        # Use Unicode escapes to avoid tripping the English-only language check
+        korean = "\ud55c\uad6d\uc5b4"  # "Korean" in Korean
+        japanese = "\u3053\u3093\u306b\u3061\u306f"  # "hello" in Japanese
+        emoji = "\U0001f30d"  # globe emoji
+        non_ascii = f"# {korean}\nprint('{japanese} {emoji}')\n"
+        committed.write_text(non_ascii, encoding="utf-8")
+        git_env = {**os.environ, **_GIT_TEST_ENV, "HOME": str(tmp_path)}
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+            env=git_env,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "add non-ascii"],
+            cwd=tmp_path,
+            check=True,
+            capture_output=True,
+            env=git_env,
+        )
+        result = _get_git_head_content(committed)
+        assert result is not None
+        assert korean in result
+        assert japanese in result
+        assert emoji in result
+
+    @requires_git
+    def test_b06_subprocess_uses_utf8_encoding(self, tmp_path: Path):
+        """subprocess.run calls must pass encoding='utf-8' and errors='replace'."""
+        init_git_repo(tmp_path)
+        committed = tmp_path / "committed.py"
+        calls: list[dict] = []
+        original_run = subprocess.run
+
+        def spy_run(*args, **kwargs):
+            calls.append(kwargs)
+            return original_run(*args, **kwargs)
+
+        with patch(
+            "textual_code.widgets.code_editor.subprocess.run", side_effect=spy_run
+        ):
+            _get_git_head_content(committed)
+
+        assert len(calls) >= 2, "Expected at least 2 subprocess.run calls"
+        for i, call_kwargs in enumerate(calls):
+            assert call_kwargs.get("encoding") == "utf-8", (
+                f"subprocess.run call {i} missing encoding='utf-8': {call_kwargs}"
+            )
+            assert call_kwargs.get("errors") == "replace", (
+                f"subprocess.run call {i} missing errors='replace': {call_kwargs}"
+            )
 
 
 # ── Editor integration tests ────────────────────────────────────────────────

@@ -14,6 +14,7 @@ def license_check_result() -> subprocess.CompletedProcess[str]:
         ["bash", "scripts/check-licenses.sh"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=120,
     )
 
