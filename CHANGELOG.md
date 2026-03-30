@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Tabs**: directional/selective close tab commands via command palette — Close Other Editors, Close Editors to the Right, Close Editors to the Left, and Close Saved Editors; dirty unmounted editors are preserved to prevent silent data loss (#122)
 
+### Fixed
+
+- **Explorer**: git status colours (modified/untracked) no longer flicker off and back on when a file is saved — stale decorations are now kept visible until the background worker atomically replaces them, matching VS Code's behaviour (Fix #171)
+
 ## [0.4.0] - 2026-03-29
 
 ### Added

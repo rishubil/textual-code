@@ -226,8 +226,8 @@ class TestGitStatusIntegration:
         tree = self._make_tree(ws, show_git_status=False)
         assert tree._get_git_status(ws / "committed.py") is None
 
-    def test_c07_cache_invalidated_on_reload(self, tmp_path: Path):
-        """reload() invalidates git status cache."""
+    def test_c07_cache_requery_when_cleared(self, tmp_path: Path):
+        """Manually clearing _git_result triggers synchronous reload on next access."""
         ws = tmp_path / "ws"
         ws.mkdir()
         init_git_repo(ws)
@@ -236,9 +236,9 @@ class TestGitStatusIntegration:
         # Prime the cache
         tree._get_git_status(ws / "committed.py")
         assert tree._git_result is not None
-        # Simulate reload cache clearing
+        # Directly clear the cache (not via reload — see test_d05 for reload behavior)
         tree._git_result = None
-        # Re-query (will reload)
+        # Re-query: falls back to synchronous load (_bg_loading_started is False)
         assert tree._get_git_status(ws / "committed.py") == "modified"
 
     def test_c08_untracked_dir_children_detected(self, tmp_path: Path):
