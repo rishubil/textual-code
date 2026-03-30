@@ -428,7 +428,10 @@ class FilteredDirectoryTree(DirectoryTree):
         self._gitignore_specs = None
         self._gitignore_checked_dirs.clear()
         self._gitignore_cache.clear()
-        self._git_result = None
+        # Do NOT clear _git_result here — keep stale data visible during the
+        # tree rebuild so labels render with git colours instead of going blank.
+        # The background worker launched in _reload_then_resume() will replace
+        # it atomically once the fresh git status is available.
         self._is_dir_cache.clear()
         parent_awaitable = super().reload()
 
@@ -501,10 +504,13 @@ class FilteredDirectoryTree(DirectoryTree):
             self.reload()
             self.post_message(self.WorkspaceChanged())
         elif git_changed:
-            _log.debug("git ref change detected, refreshing explorer labels")
+            _log.debug(
+                "git ref change detected, scheduling background git status reload"
+            )
             self._git_ref_mtimes = new_git_mtimes
-            self._git_result = None
-            self.refresh()
+            # Do NOT clear _git_result here — keep stale data visible until the
+            # background worker atomically replaces it (VS Code pattern: old
+            # decorations stay until new data arrives, avoiding a blank flash).
             if self._bg_loading_started:
                 self._start_bg_loading()
 

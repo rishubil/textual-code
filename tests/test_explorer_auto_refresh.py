@@ -245,7 +245,7 @@ class TestPollWorkspaceChangeDir:
 class TestPollWorkspaceChangeGit:
     @requires_git
     async def test_d01_git_index_change_refreshes(self, tmp_path: Path):
-        """T-11: Git index mtime change → invalidates git cache + refresh."""
+        """T-11: Git index mtime change → schedules bg reload, stale data preserved."""
         ws = tmp_path / "ws"
         ws.mkdir()
         init_git_repo(ws)
@@ -278,11 +278,12 @@ class TestPollWorkspaceChangeGit:
                 patch.object(tree, "refresh") as mock_refresh,
             ):
                 tree._poll_workspace_change()
-                # Should refresh (git-only), NOT full reload
+                # Git-only change: no full reload, no immediate refresh
+                # (bg worker handles refresh once new data is ready)
                 mock_reload.assert_not_called()
-                mock_refresh.assert_called_once()
-                # Git cache should be invalidated
-                assert tree._git_result is None
+                mock_refresh.assert_not_called()
+                # Stale git data preserved — no blank flash
+                assert tree._git_result is not None
 
     @requires_git
     async def test_d02_both_dir_and_git_change_reloads(self, tmp_path: Path):
@@ -361,6 +362,79 @@ class TestPollWorkspaceChangeGit:
                         "subdir should remain expanded after git-only refresh"
                     )
                     break
+
+    @requires_git
+    async def test_d04_git_status_preserved_during_bg_reload(self, tmp_path: Path):
+        """T-D04: Git-only poll change preserves stale _git_result.
+
+        VS Code pattern: keep old decorations visible until new data arrives.
+        Clearing _git_result before the worker completes causes a blank flash.
+        """
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        init_git_repo(ws)
+        (ws / "file.py").write_text("x\n")
+        app = make_app(ws)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            assert app.sidebar is not None
+            tree = app.sidebar.explorer.directory_tree
+            tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
+            tree._git_ref_mtimes = tree._get_git_ref_mtimes()
+            # Pre-load git status cache
+            tree._ensure_git_status_loaded()
+            assert tree._git_result is not None
+
+            # Simulate git index change (e.g., git add)
+            git_env = {**os.environ, "HOME": str(ws)}
+            subprocess.run(
+                ["git", "add", "file.py"],
+                cwd=ws,
+                check=True,
+                capture_output=True,
+                env=git_env,
+            )
+
+            with patch.object(tree, "_start_bg_loading") as mock_bg_loading:
+                tree._poll_workspace_change()
+                # Stale data should be preserved (not cleared)
+                assert tree._git_result is not None, (
+                    "_git_result must not be cleared before bg worker completes"
+                )
+                # Background worker should be triggered to load fresh data
+                mock_bg_loading.assert_called_once()
+
+    @requires_git
+    async def test_d05_reload_preserves_git_status(self, tmp_path: Path):
+        """T-D05: reload() does not clear _git_result prematurely.
+
+        During tree rebuild, stale git status should remain visible so labels
+        render with colours instead of going blank for the entire reload duration.
+        """
+        ws = tmp_path / "ws"
+        ws.mkdir()
+        init_git_repo(ws)
+        # Create an untracked file so git status is non-empty
+        (ws / "new.py").write_text("y\n")
+        app = make_app(ws)
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            assert app.sidebar is not None
+            tree = app.sidebar.explorer.directory_tree
+            # Pre-load git status synchronously (bypass bg_loading for test)
+            tree._git_result = tree._load_git_status()
+            assert tree._git_result is not None
+            expected_status = tree._get_git_status(ws / "new.py")
+            assert expected_status is not None
+
+            # reload() must not clear _git_result before the worker completes
+            tree.reload()
+            assert tree._git_result is not None, (
+                "_git_result must not be cleared immediately in reload()"
+            )
+            assert tree._get_git_status(ws / "new.py") == expected_status, (
+                "stale git status must remain accessible during tree rebuild"
+            )
 
 
 # ── Group E: Integration (full app) ─────────────────────────────────────────
