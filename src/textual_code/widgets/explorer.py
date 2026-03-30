@@ -428,10 +428,13 @@ class FilteredDirectoryTree(DirectoryTree):
         self._gitignore_specs = None
         self._gitignore_checked_dirs.clear()
         self._gitignore_cache.clear()
-        # Do NOT clear _git_result here — keep stale data visible during the
-        # tree rebuild so labels render with git colours instead of going blank.
-        # The background worker launched in _reload_then_resume() will replace
-        # it atomically once the fresh git status is available.
+        # Keep stale git data visible during the tree rebuild only when the
+        # background worker is active (mounted tree) — it will atomically replace
+        # _git_result once the fresh status is ready, avoiding a blank flash.
+        # For unmounted trees (_bg_loading_started is False) clear immediately so
+        # the next _ensure_git_status_loaded() call triggers a synchronous reload.
+        if not self._bg_loading_started:
+            self._git_result = None
         self._is_dir_cache.clear()
         parent_awaitable = super().reload()
 
