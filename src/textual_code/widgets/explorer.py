@@ -365,6 +365,8 @@ class FilteredDirectoryTree(DirectoryTree):
                 [self._git_bin, "status", "--porcelain", "-z", "-unormal"],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 cwd=str(workspace),
                 timeout=5,
             )

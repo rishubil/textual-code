@@ -221,6 +221,8 @@ def _get_git_head_content(path: Path) -> str | None:
             [_git_bin, "rev-parse", "--show-toplevel"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             cwd=parent,
             timeout=5,
         )
@@ -236,6 +238,8 @@ def _get_git_head_content(path: Path) -> str | None:
             [_git_bin, "show", f"HEAD:{rel_path}"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             cwd=str(git_root),
             timeout=5,
         )
