@@ -1099,6 +1099,22 @@ def test_snapshot_explorer_git_status(snap_compare, snapshot_workspace: Path):
     assert snap_compare(app, terminal_size=TERMINAL_SIZE)
 
 
+@requires_git
+def test_snapshot_explorer_git_status_light(snap_compare, snapshot_workspace: Path):
+    """Explorer git status colors are readable in light themes."""
+    init_git_repo(snapshot_workspace)
+    (snapshot_workspace / "committed.py").write_text("# modified\n")
+    (snapshot_workspace / "untracked.py").write_text("# untracked\n")
+    config = snapshot_workspace / "settings.toml"
+    app = make_app(snapshot_workspace, user_config_path=config)
+
+    async def set_light_theme(pilot):
+        pilot.app.theme = "textual-light"
+        await _wait_for_stable_screen(pilot)
+
+    assert snap_compare(app, run_before=set_light_theme, terminal_size=TERMINAL_SIZE)
+
+
 def test_snapshot_sidebar_custom_width(snap_compare, snapshot_workspace: Path):
     """Sidebar rendered at configured width of 50 cells."""
     (snapshot_workspace / "hello.py").write_text("print('hello')\n")
