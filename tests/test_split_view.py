@@ -1079,8 +1079,7 @@ async def test_move_tab_duplicate_file_focuses_existing(
         await wait_for_condition(
             pilot,
             lambda: (
-                "right" in main._opened_files
-                and py_file in main._opened_files["right"]
+                "right" in main._opened_files and py_file in main._opened_files["right"]
             ),
             msg="py_file not registered in right split after split_right",
         )
