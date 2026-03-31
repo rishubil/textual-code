@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 from textual.message import Message
 
-from tests.conftest import assert_focus_on_leaf, make_app
+from tests.conftest import assert_focus_on_leaf, make_app, wait_for_condition
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 from textual_code.widgets.split_tree import BranchNode, all_leaves
 
@@ -1075,8 +1075,12 @@ async def test_move_tab_duplicate_file_focuses_existing(
 
         # Split right copies the active file (py_file) to right
         await main.action_split_right()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for split creation + file open
+        # Windows: wait for split creation + file open to register
+        await wait_for_condition(
+            pilot,
+            lambda: "right" in main._opened_files and py_file in main._opened_files["right"],
+            msg="py_file not registered in right split after split_right",
+        )
 
         # py_file now in both splits
         assert py_file in main._opened_files["right"]

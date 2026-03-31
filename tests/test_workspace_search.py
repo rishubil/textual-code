@@ -982,7 +982,7 @@ async def test_tree_file_node_click_opens_file(tmp_path: Path) -> None:
     """Clicking a file-level node opens the file at the first match line."""
     from textual.widgets import Input, Tree
 
-    from tests.conftest import make_app
+    from tests.conftest import make_app, wait_for_condition
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
     target = tmp_path / "target.py"
@@ -997,9 +997,14 @@ async def test_tree_file_node_click_opens_file(tmp_path: Path) -> None:
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "needle_here"
         ws_pane._run_search()
-        await pilot.pause()
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
+        # Windows: search worker may not finish in a single pause
+        await wait_for_condition(
+            pilot,
+            lambda: len(list(results_tree.root.children)) > 0,
+            msg="Search results tree has no children after retries",
+        )
         file_node = list(results_tree.root.children)[0]
 
         # File node data should carry the first match's line number

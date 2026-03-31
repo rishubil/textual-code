@@ -309,6 +309,49 @@ def restore_bindings():
         cls.BINDINGS = bindings
 
 
+# ── Condition-based wait helper ──────────────────────────────────────────────
+
+
+async def wait_for_condition(
+    pilot,
+    condition,
+    *,
+    max_retries: int = 20,
+    msg: str = "Condition not met after retries",
+):
+    """Wait until *condition()* returns truthy, calling pilot.pause() between retries.
+
+    This replaces fragile multi-pause patterns that fail on Windows where the
+    event loop processes messages more slowly than on Linux.
+
+    Args:
+        pilot: The Textual Pilot instance.
+        condition: A callable (sync or async) returning a truthy value on success.
+        max_retries: Maximum number of pause-retry cycles.
+        msg: Assertion message if the condition is never met.
+
+    Returns:
+        The truthy value returned by *condition*.
+
+    Raises:
+        AssertionError: If the condition is not met within *max_retries*.
+    """
+    import asyncio
+    import inspect
+
+    for _ in range(max_retries):
+        await pilot.pause()
+        try:
+            result = condition()
+            if inspect.isawaitable(result):
+                result = await result
+            if result:
+                return result
+        except Exception:
+            pass
+    raise AssertionError(msg)
+
+
 # ── Strip style inspection helpers ────────────────────────────────────────────
 
 

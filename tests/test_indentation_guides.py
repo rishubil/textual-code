@@ -317,6 +317,7 @@ class TestRendering:
             # Scroll right by 10 — all guide positions (0, 4) are off-screen
             ta.scroll_x = 10
             await pilot.pause()
+            await pilot.pause()  # Windows: extra pause for scroll rendering
             strip_at_10 = ta._render_line(0)
             guides_at_10 = _find_guide_positions(strip_at_10, gw)
             assert guides_at_10 == [], (

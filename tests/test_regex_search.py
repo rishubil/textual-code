@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 from textual.widgets import Input
 
-from tests.conftest import make_app
+from tests.conftest import make_app, wait_for_condition
 from textual_code.widgets.code_editor import _find_next
 
 # ── fixtures ──────────────────────────────────────────────────────────────────
@@ -229,10 +229,14 @@ async def test_regex_find_case_insensitive_inline(workspace: Path, regex_file: P
 
         input_widget = editor.query_one("#find_input", Input)
         input_widget.value = "(?i)hello"
-        await pilot.pause()  # Windows: extra pause for input value change
-        await pilot.click("#next_match")
         await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for regex find + selection update
+        await pilot.click("#next_match")
+        # Windows: wait for regex find + selection update to complete
+        await wait_for_condition(
+            pilot,
+            lambda: editor.editor.selection.end == (1, 5),
+            msg="Regex case-insensitive find did not select HELLO at (1,0)–(1,5)",
+        )
 
         sel = editor.editor.selection
         # cursor at (1,0) → searches from (1,0) → HELLO at (1,0)–(1,5)
@@ -289,11 +293,12 @@ async def test_regex_replace_all_basic(workspace: Path, regex_file: Path):
         await pilot.press("[", "N", "U", "M", "]")
         await pilot.pause()  # Windows: extra pause for key presses to propagate
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for regex replace all completion
-
-        # "foo123 bar456" → "foo[NUM] bar[NUM]"
-        assert "[NUM]" in editor.text
+        # Windows: wait for regex replace all to complete
+        await wait_for_condition(
+            pilot,
+            lambda: "[NUM]" in editor.text,
+            msg="Regex replace all did not substitute [NUM]",
+        )
         assert "123" not in editor.text
         assert "456" not in editor.text
 
