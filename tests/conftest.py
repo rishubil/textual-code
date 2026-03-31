@@ -49,7 +49,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
         reason="Snapshot SVG rendering differs on Windows — run on Linux CI",
     )
     for item in items:
-        if "snap_compare" in item.fixturenames:
+        if isinstance(item, pytest.Function) and "snap_compare" in item.fixturenames:
             item.add_marker(skip_win)
 
 
