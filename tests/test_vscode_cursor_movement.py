@@ -554,7 +554,7 @@ EMOJI_LINE = "    Third Line\U0001f436"  # "    Third Line🐶" — 15 chars in 
 @pytest.fixture
 def emoji_test_file(workspace: Path) -> Path:
     f = workspace / "emoji_test.txt"
-    f.write_text(EMOJI_LINE + "\n")
+    f.write_text(EMOJI_LINE + "\n", encoding="utf-8")
     return f
 
 

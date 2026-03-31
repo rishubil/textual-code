@@ -747,7 +747,7 @@ async def test_save_screenshot_writes_svg_file(workspace: Path):
 
     svg_files = list(workspace.glob("screenshot_*.svg"))
     assert len(svg_files) == 1
-    content = svg_files[0].read_text()
+    content = svg_files[0].read_text(encoding="utf-8")
     assert "<svg" in content
 
 
@@ -773,7 +773,7 @@ async def test_save_screenshot_relative_path_resolves_to_workspace(workspace: Pa
 
     output = workspace / "subdir" / "shot.svg"
     assert output.exists()
-    content = output.read_text()
+    content = output.read_text(encoding="utf-8")
     assert "<svg" in content
 
 

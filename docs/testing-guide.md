@@ -71,6 +71,26 @@ Tests that pass an explicit `user_config_path` to `make_app()` or `TextualCode()
 unaffected — `load_editor_settings()` skips `get_user_config_path()` when a path is
 provided.
 
+## File I/O: Always Specify `encoding="utf-8"`
+
+All `Path.write_text()`, `Path.read_text()`, and `open()` calls in tests **must**
+include `encoding="utf-8"`.  Without it, Python defaults to the system locale
+encoding, which breaks on Windows with non-UTF-8 locales (e.g. cp949 Korean).
+
+```python
+# BAD — fails on Windows cp949 locale for non-ASCII content
+f.write_text("öçşğü\n")
+content = f.read_text()
+
+# GOOD — works on all platforms
+f.write_text("öçşğü\n", encoding="utf-8")
+content = f.read_text(encoding="utf-8")
+```
+
+The ruff rule `PLW1514` enforces this — any `write_text`/`read_text`/`open` call
+without `encoding=` will fail lint.  See `tests/test_encoding_safety.py` for
+regression tests that simulate a cp949 locale via `io.text_encoding` monkeypatch.
+
 ## `pilot.pause()`: When Required and When Redundant
 
 `pilot.press()` internally calls `_wait_for_screen()`, which processes pending widget

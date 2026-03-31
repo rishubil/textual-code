@@ -156,7 +156,7 @@ async def test_paste_copied_file_content_preserved(
     """Copied file content matches the original."""
     dest_dir = workspace / "lib"
     dest_dir.mkdir()
-    original_content = sample_py_file.read_text()
+    original_content = sample_py_file.read_text(encoding="utf-8")
     app = make_app(workspace)
     async with app.run_test() as pilot:
         await pilot.pause()
