@@ -207,6 +207,7 @@ async def test_file_load_detects_crlf(tmp_path: Path):
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         line_ending = app.code_editor.line_ending
 
     assert line_ending == "crlf"
@@ -220,6 +221,7 @@ async def test_file_load_detects_lf(tmp_path: Path):
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         line_ending = app.code_editor.line_ending
 
     assert line_ending == "lf"
@@ -235,6 +237,7 @@ async def test_change_line_ending_updates_reactive(tmp_path: Path):
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         editor.action_change_line_ending()
@@ -257,6 +260,7 @@ async def test_change_line_ending_cancel_no_change(tmp_path: Path):
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         editor.action_change_line_ending()
@@ -278,6 +282,7 @@ async def test_save_writes_crlf_to_disk(tmp_path: Path):
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         # change line ending to CRLF
@@ -351,6 +356,7 @@ async def test_select_crlf_shows_warning_toast(
 
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         original_notify = editor.notify
 
@@ -383,6 +389,7 @@ async def test_select_lf_no_warning_toast(
 
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         original_notify = editor.notify
 
@@ -626,6 +633,7 @@ async def test_select_crlf_no_warning_when_disabled(
 
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         original_notify = editor.notify
 

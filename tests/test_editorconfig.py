@@ -294,6 +294,7 @@ async def test_T23_indent_style_space(tmp_path: Path):
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         assert app.code_editor.indent_type == "spaces"
 
 
@@ -323,6 +324,7 @@ async def test_T25_indent_size_tab_uses_tab_width(tmp_path: Path):
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         assert app.code_editor.indent_size == 4
 
 
@@ -336,6 +338,7 @@ async def test_T26_charset_utf8_bom(tmp_path: Path):
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         assert app.code_editor.encoding == "utf-8-sig"
 
 
@@ -349,6 +352,7 @@ async def test_T27_charset_latin1(tmp_path: Path):
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         assert app.code_editor.encoding == "latin-1"
 
 
@@ -362,6 +366,7 @@ async def test_T28_end_of_line_crlf(tmp_path: Path):
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         assert app.code_editor.line_ending == "crlf"
 
 
@@ -433,6 +438,7 @@ async def test_T32_unsupported_indent_size_ignored(tmp_path: Path):
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         # indent_size 3 is not in (2, 4, 8) → ignored, default 4 stays
         assert app.code_editor.indent_size == 4
 
