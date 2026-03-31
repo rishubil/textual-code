@@ -34,7 +34,7 @@ main() {
     echo "=== Language check started (mode: ${mode}) ==="
     echo ""
 
-    python3 - "$mode" <<'PYEOF'
+    PYTHONUTF8=1 uv run python - "$mode" <<'PYEOF'
 import subprocess
 import sys
 from pathlib import Path
