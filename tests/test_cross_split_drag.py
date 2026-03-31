@@ -516,6 +516,7 @@ async def test_drag_markdown_preview_to_other_split(
         tc = main.query_one(f"#{source_leaf.leaf_id}", DraggableTabbedContent)
         tc.active = md_pane_id
         await pilot.pause()
+        await pilot.pause()  # wait for lazy editor remount
 
         await main.action_open_markdown_preview()
         await pilot.pause()
@@ -948,6 +949,7 @@ async def test_drag_cross_split_focuses_moved_tab(
         tc_left = main.query_one(f"#{left_leaf.leaf_id}", DraggableTabbedContent)
         tc_left.active = pane_id
         await pilot.pause()
+        await pilot.pause()  # wait for lazy editor remount
 
         # Move to right via action
         await main.action_move_editor_to_next_group()
