@@ -634,7 +634,7 @@ def test_search_results_nested_paths_sorted(tmp_path: Path) -> None:
     results = search_workspace(tmp_path, "needle").results
     assert len(results) == 3
 
-    rel_paths = [str(r.file_path.relative_to(tmp_path)) for r in results]
+    rel_paths = [r.file_path.relative_to(tmp_path).as_posix() for r in results]
 
     # Ripgrep sorts by path components: directory contents come before
     # sibling files. So with/path/foo.txt sorts before with/path.txt.
