@@ -91,6 +91,23 @@ The ruff rule `PLW1514` enforces this — any `write_text`/`read_text`/`open` ca
 without `encoding=` will fail lint.  See `tests/test_encoding_safety.py` for
 regression tests that simulate a cp949 locale via `io.text_encoding` monkeypatch.
 
+## Path Comparison: Use `.as_posix()` for Cross-Platform Safety
+
+When converting `Path` objects to strings for comparison in tests, use
+`.as_posix()` instead of `str()`.  `str()` on a `WindowsPath` produces
+backslash separators (`with\path\foo.txt`), which breaks assertions that
+use hardcoded forward slashes.
+
+```python
+# BAD — fails on Windows because str(WindowsPath) uses backslashes
+rel_paths = [str(p.relative_to(root)) for p in paths]
+assert "src/main.py" in rel_paths  # False on Windows: 'src\\main.py'
+
+# GOOD — .as_posix() always returns forward slashes
+rel_paths = [p.relative_to(root).as_posix() for p in paths]
+assert "src/main.py" in rel_paths  # True on all platforms
+```
+
 ## `pilot.pause()`: When Required and When Redundant
 
 `pilot.press()` internally calls `_wait_for_screen()`, which processes pending widget
