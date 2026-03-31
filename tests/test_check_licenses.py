@@ -4,8 +4,13 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 
 import pytest
+
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32", reason="bash not available on Windows"
+)
 
 
 @pytest.fixture(scope="module")

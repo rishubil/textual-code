@@ -10,41 +10,38 @@ from textual_code.widgets.code_editor import CodeEditor
 # ── Unit: is_binary_file ─────────────────────────────────────────────────────
 
 
-def test_is_binary_file_null_byte():
+def test_is_binary_file_null_byte(tmp_path: Path):
     """Files with null bytes are binary."""
     from textual_code.utils import is_binary_file
 
-    path = Path("/tmp/test_binary.bin")
+    path = tmp_path / "test_binary.bin"
     path.write_bytes(b"hello\x00world")
     assert is_binary_file(path) is True
-    path.unlink()
 
 
-def test_is_binary_file_text():
+def test_is_binary_file_text(tmp_path: Path):
     """Plain text files are not binary."""
     from textual_code.utils import is_binary_file
 
-    path = Path("/tmp/test_text.txt")
+    path = tmp_path / "test_text.txt"
     path.write_bytes(b"hello world\n")
     assert is_binary_file(path) is False
-    path.unlink()
 
 
-def test_is_binary_file_empty():
+def test_is_binary_file_empty(tmp_path: Path):
     """Empty files are not binary."""
     from textual_code.utils import is_binary_file
 
-    path = Path("/tmp/test_empty.txt")
+    path = tmp_path / "test_empty.txt"
     path.write_bytes(b"")
     assert is_binary_file(path) is False
-    path.unlink()
 
 
-def test_is_binary_file_missing_returns_false():
+def test_is_binary_file_missing_returns_false(tmp_path: Path):
     """Missing files return False (no error)."""
     from textual_code.utils import is_binary_file
 
-    assert is_binary_file(Path("/tmp/nonexistent_xyz_abc.bin")) is False
+    assert is_binary_file(tmp_path / "nonexistent_xyz_abc.bin") is False
 
 
 # ── Integration: open binary file → binary notice tab ────────────────────────
