@@ -307,6 +307,7 @@ async def test_T24_indent_style_tab_with_tab_width(tmp_path: Path):
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.indent_type == "tabs"
         assert editor.indent_size == 2
@@ -731,6 +732,7 @@ async def test_G02_modify_indent_size_detected(tmp_path: Path):
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.indent_size == 2
 

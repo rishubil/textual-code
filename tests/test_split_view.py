@@ -1076,6 +1076,7 @@ async def test_move_tab_duplicate_file_focuses_existing(
         # Split right copies the active file (py_file) to right
         await main.action_split_right()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for split creation + file open
 
         # py_file now in both splits
         assert py_file in main._opened_files["right"]
