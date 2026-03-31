@@ -317,17 +317,22 @@ async def wait_for_condition(
     condition,
     *,
     max_retries: int = 20,
+    delay: float = 0.1,
     msg: str = "Condition not met after retries",
 ):
-    """Wait until *condition()* returns truthy, calling pilot.pause() between retries.
+    """Wait until *condition()* returns truthy, with real-time delay between retries.
 
-    This replaces fragile multi-pause patterns that fail on Windows where the
-    event loop processes messages more slowly than on Linux.
+    ``pilot.pause()`` uses ``wait_for_idle(0)`` which monitors CPU idle time,
+    not actual async work completion.  On Windows CI, the event loop can be
+    CPU-idle while workers/mounts are still in progress, so ``pause()`` returns
+    instantly.  Using ``pilot.pause(delay=...)`` inserts a real wall-clock
+    ``asyncio.sleep()`` that gives workers and async mounts time to finish.
 
     Args:
         pilot: The Textual Pilot instance.
         condition: A callable (sync or async) returning a truthy value on success.
         max_retries: Maximum number of pause-retry cycles.
+        delay: Seconds of real-time delay per retry (default 0.1 s).
         msg: Assertion message if the condition is never met.
 
     Returns:
@@ -339,7 +344,7 @@ async def wait_for_condition(
     import inspect
 
     for _ in range(max_retries):
-        await pilot.pause()
+        await pilot.pause(delay=delay)
         try:
             result = condition()
             if inspect.isawaitable(result):
@@ -349,6 +354,22 @@ async def wait_for_condition(
         except Exception:
             pass
     raise AssertionError(msg)
+
+
+async def wait_for_workers(pilot, workers=None) -> None:
+    """Wait for Textual workers to complete plus one message-processing cycle.
+
+    **Warning**: calling without *workers* waits for ALL workers.  Apps with
+    long-running polling workers (e.g. explorer auto-refresh) will hang.
+    Pass an explicit worker list or prefer ``wait_for_condition`` instead.
+
+    Args:
+        pilot: The Textual Pilot instance.
+        workers: Optional iterable of specific workers to wait for.
+                 If None, waits for all workers in the manager.
+    """
+    await pilot.app.workers.wait_for_complete(workers)
+    await pilot.pause()
 
 
 # ── Strip style inspection helpers ────────────────────────────────────────────

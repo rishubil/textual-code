@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.conftest import init_git_repo, make_app, requires_git
+from tests.conftest import init_git_repo, make_app, requires_git, wait_for_condition
 from textual_code.widgets.explorer import FilteredDirectoryTree
 
 # ── Group A: _collect_expanded_dir_mtimes() ──────────────────────────────────
@@ -379,11 +379,14 @@ class TestPollWorkspaceChangeGit:
             await pilot.pause()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
+            # Windows: wait for background git loading to complete
+            await wait_for_condition(
+                pilot,
+                lambda: tree._git_result is not None,
+                msg="_git_result not loaded after retries",
+            )
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
             tree._git_ref_mtimes = tree._get_git_ref_mtimes()
-            # Pre-load git status cache
-            tree._ensure_git_status_loaded()
-            assert tree._git_result is not None
 
             # Simulate git index change (e.g., git add)
             git_env = {**os.environ, "HOME": str(ws)}
