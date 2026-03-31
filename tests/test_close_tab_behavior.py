@@ -47,6 +47,7 @@ async def _open_n_files(app, pilot, workspace: Path, count: int) -> list[str]:
         tc = main.tabbed_content
         main._safe_activate_tab(tc, pane_id)
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy editor mount
         pane_ids.append(pane_id)
     return pane_ids
 
