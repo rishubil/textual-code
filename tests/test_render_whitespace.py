@@ -473,6 +473,7 @@ class TestRendering:
             # -- Scroll right by 10 columns
             ta.scroll_x = 10
             await pilot.pause()
+            await pilot.pause()  # Windows: extra pause for scroll render update
             strip_at_10 = ta._render_line(0)
             positions_at_10 = _find_whitespace_positions(strip_at_10, gw)
             # Viewport cols 0-4 now map to doc cols 10-14 (all 'a' chars)
@@ -516,7 +517,8 @@ class TestRendering:
             scroll_amount = 3
             ta.scroll_x = scroll_amount
             await pilot.pause()
-            await pilot.pause()  # Windows: extra pause for scroll position update
+            await pilot.pause()
+            await pilot.pause()  # Windows: extra pause for scroll render update
             strip_after = ta._render_line(0)
             markers_after = _find_whitespace_positions(strip_after, gw)
 
