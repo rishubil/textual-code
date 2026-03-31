@@ -1081,6 +1081,7 @@ async def test_move_tab_duplicate_file_focuses_existing(
             lambda: (
                 "right" in main._opened_files and py_file in main._opened_files["right"]
             ),
+            max_retries=50,
             msg="py_file not registered in right split after split_right",
         )
 

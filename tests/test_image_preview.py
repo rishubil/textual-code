@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from textual.widgets import Static
 
-from tests.conftest import make_app, make_png
+from tests.conftest import make_app, make_png, wait_for_condition
 from textual_code.widgets.code_editor import CodeEditor
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -142,12 +142,16 @@ async def test_corrupt_image_shows_fallback(workspace: Path):
     bad.write_bytes(b"this is not a PNG file at all")
     app = make_app(workspace, open_file=bad, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        # Wait for the worker to load and fail
-        for _ in range(20):
-            await pilot.pause()
         preview = app.query_one(ImagePreviewPane)
-        static = preview.query_one("#image-content", Static)
-        assert "Could not load image" in str(static.content)
+        # Windows: wait for worker to load and fail
+        await wait_for_condition(
+            pilot,
+            lambda: (
+                "Could not load image"
+                in str(preview.query_one("#image-content", Static).content)
+            ),
+            msg="Corrupt image fallback message not shown",
+        )
 
 
 # ── Integration: non-image binary still shows binary notice ──────────────────
