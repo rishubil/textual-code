@@ -343,33 +343,20 @@ async def wait_for_condition(
     """
     import inspect
 
+    last_exc: Exception | None = None
     for _ in range(max_retries):
-        await pilot.pause(delay=delay)
         try:
             result = condition()
             if inspect.isawaitable(result):
                 result = await result
             if result:
                 return result
-        except Exception:
-            pass
+        except Exception as exc:
+            last_exc = exc
+        await pilot.pause(delay=delay)
+    if last_exc is not None:
+        raise AssertionError(msg) from last_exc
     raise AssertionError(msg)
-
-
-async def wait_for_workers(pilot, workers=None) -> None:
-    """Wait for Textual workers to complete plus one message-processing cycle.
-
-    **Warning**: calling without *workers* waits for ALL workers.  Apps with
-    long-running polling workers (e.g. explorer auto-refresh) will hang.
-    Pass an explicit worker list or prefer ``wait_for_condition`` instead.
-
-    Args:
-        pilot: The Textual Pilot instance.
-        workers: Optional iterable of specific workers to wait for.
-                 If None, waits for all workers in the manager.
-    """
-    await pilot.app.workers.wait_for_complete(workers)
-    await pilot.pause()
 
 
 # ── Strip style inspection helpers ────────────────────────────────────────────

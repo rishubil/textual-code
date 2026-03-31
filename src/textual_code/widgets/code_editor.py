@@ -1435,9 +1435,11 @@ class CodeEditor(Static):
 
     def _recompute_git_diff(self) -> None:
         """Recompute line changes using cached HEAD lines and current text."""
+        from textual.css.query import NoMatches
+
         try:
             ta = self.editor
-        except Exception:
+        except NoMatches:
             # MultiCursorTextArea not yet mounted (race on Windows)
             return
         if self._git_head_lines is None:
