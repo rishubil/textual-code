@@ -71,7 +71,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
       - run: uv sync --frozen
-      - run: uv run pytest tests/ -n 4 -m "not serial"
+      - run: uv run pytest tests/ -n 2 -m "not serial"
 
   test-snapshot:
     name: Snapshot Test (Python ${{ matrix.python-version }})
