@@ -336,7 +336,6 @@ async def wait_for_condition(
     Raises:
         AssertionError: If the condition is not met within *max_retries*.
     """
-    import asyncio
     import inspect
 
     for _ in range(max_retries):
