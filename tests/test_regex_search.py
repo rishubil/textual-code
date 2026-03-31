@@ -322,7 +322,7 @@ async def test_regex_replace_all_capture_group(workspace: Path):
 async def test_invalid_regex_replace_all_error(workspace: Path, regex_file: Path):
     """Invalid regex in replace_all → error notification, text unchanged."""
     app = make_app(workspace, open_file=regex_file, light=True)
-    original_text = regex_file.read_text()
+    original_text = regex_file.read_text(encoding="utf-8")
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()
@@ -423,7 +423,7 @@ async def test_regex_replace_single_no_match_finds(workspace: Path):
 async def test_invalid_regex_replace_single_error(workspace: Path, regex_file: Path):
     """Invalid regex in replace single → error notification, text unchanged."""
     app = make_app(workspace, open_file=regex_file, light=True)
-    original_text = regex_file.read_text()
+    original_text = regex_file.read_text(encoding="utf-8")
     async with app.run_test() as pilot:
         await pilot.pause()
         editor = app.main_view.get_active_code_editor()

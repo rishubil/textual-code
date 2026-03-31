@@ -48,7 +48,7 @@ async def test_light_app_save(workspace: Path, sample_py_file: Path):
         await pilot.press("ctrl+s")
         await pilot.pause()
         # File should be saved without crash
-        assert sample_py_file.read_text().startswith("a")
+        assert sample_py_file.read_text(encoding="utf-8").startswith("a")
 
 
 async def test_full_app_still_has_sidebar(workspace: Path, sample_py_file: Path):

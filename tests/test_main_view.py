@@ -185,7 +185,7 @@ async def test_save_all_saves_single_modified_file(
         app.main_view.action_save_all()
         await pilot.pause()
         assert app.main_view.has_unsaved_pane() is False
-        assert sample_py_file.read_text() == "modified\n"
+        assert sample_py_file.read_text(encoding="utf-8") == "modified\n"
 
 
 async def test_save_all_saves_all_of_two_modified(
@@ -205,8 +205,8 @@ async def test_save_all_saves_all_of_two_modified(
         app.main_view.action_save_all()
         await pilot.pause()
         assert app.main_view.has_unsaved_pane() is False
-        assert sample_py_file.read_text() == "modified\n"
-        assert sample_json_file.read_text() == "modified\n"
+        assert sample_py_file.read_text(encoding="utf-8") == "modified\n"
+        assert sample_json_file.read_text(encoding="utf-8") == "modified\n"
 
 
 async def test_save_all_saves_only_modified_among_three(workspace: Path):
@@ -314,7 +314,7 @@ async def test_save_all_mixed_saves_file_then_shows_save_as(
         await pilot.pause()
 
         # File with path should be saved before showing modal for untitled
-        assert sample_py_file.read_text() == "modified\n"
+        assert sample_py_file.read_text(encoding="utf-8") == "modified\n"
         assert isinstance(app.screen, SaveAsModalScreen)
 
         # Dismiss modal so app can shut down cleanly
@@ -416,7 +416,7 @@ async def test_save_all_files_via_app_action(workspace: Path, sample_py_file: Pa
         app.action_save_all_files()
         await pilot.pause()
         assert app.main_view.has_unsaved_pane() is False
-        assert sample_py_file.read_text() == "modified\n"
+        assert sample_py_file.read_text(encoding="utf-8") == "modified\n"
 
 
 async def test_ctrl_shift_s_triggers_save_all(workspace: Path, sample_py_file: Path):
@@ -434,7 +434,7 @@ async def test_ctrl_shift_s_triggers_save_all(workspace: Path, sample_py_file: P
         await pilot.pause()
         assert app.main_view.has_unsaved_pane() is False
 
-    assert sample_py_file.read_text() == "via_shortcut\n"
+    assert sample_py_file.read_text(encoding="utf-8") == "via_shortcut\n"
 
 
 async def test_save_all_clean_untitled_no_modal(workspace: Path):
@@ -469,12 +469,12 @@ async def test_save_all_idempotent_on_already_saved(
 
         app.main_view.action_save_all()
         await pilot.pause()
-        assert sample_py_file.read_text() == "first_write\n"
+        assert sample_py_file.read_text(encoding="utf-8") == "first_write\n"
 
         # Second call — nothing modified, nothing to save
         app.main_view.action_save_all()
         await pilot.pause()
-        assert sample_py_file.read_text() == "first_write\n"
+        assert sample_py_file.read_text(encoding="utf-8") == "first_write\n"
         assert app.main_view.has_unsaved_pane() is False
 
 
@@ -568,7 +568,7 @@ async def test_close_all_single_unsaved_save_closes(
         )
         await pilot.pause()
 
-        assert sample_py_file.read_text() == "modified\n"
+        assert sample_py_file.read_text(encoding="utf-8") == "modified\n"
         assert len(app.main_view.opened_pane_ids) == 0
 
 

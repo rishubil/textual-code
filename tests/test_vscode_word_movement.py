@@ -200,7 +200,8 @@ class TestCtrlLeftWithSelection:
         """From (4, 1) in '1', Shift+Ctrl+Left selects backward by word."""
         f = workspace / "test.txt"
         f.write_text(
-            "    \tMy First Line\t \n\tMy Second Line\n    Third Line\U0001f436\n\n1\n"
+            "    \tMy First Line\t \n\tMy Second Line\n    Third Line\U0001f436\n\n1\n",
+            encoding="utf-8",
         )
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:

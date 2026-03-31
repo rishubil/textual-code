@@ -1039,7 +1039,7 @@ class TextualCode(App):
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             # Exclusive create avoids overwriting a file created concurrently
-            with open(path, "x"):
+            with open(path, "x", encoding="utf-8"):
                 pass
         except FileExistsError:
             pass

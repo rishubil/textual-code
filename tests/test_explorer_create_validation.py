@@ -23,7 +23,7 @@ async def test_create_duplicate_file_shows_error(workspace: Path, sample_py_file
     VSCode origin: validateFileName (For Create) — 'alles.klar' (existing child)
     returns error.
     """
-    original_content = sample_py_file.read_text()
+    original_content = sample_py_file.read_text(encoding="utf-8")
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
@@ -35,7 +35,7 @@ async def test_create_duplicate_file_shows_error(workspace: Path, sample_py_file
 
     # File still exists with original content (not overwritten)
     assert sample_py_file.exists()
-    assert sample_py_file.read_text() == original_content
+    assert sample_py_file.read_text(encoding="utf-8") == original_content
 
 
 async def test_create_duplicate_directory_shows_error(workspace: Path):

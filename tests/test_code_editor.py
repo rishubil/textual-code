@@ -183,7 +183,7 @@ async def test_save_writes_to_disk(workspace: Path, sample_py_file: Path):
         await pilot.press("ctrl+s")
         await pilot.pause()
 
-    assert sample_py_file.read_text() == "print('modified')\n"
+    assert sample_py_file.read_text(encoding="utf-8") == "print('modified')\n"
 
 
 async def test_save_updates_initial_text(workspace: Path, sample_py_file: Path):

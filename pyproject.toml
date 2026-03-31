@@ -76,6 +76,7 @@ filterwarnings = [
 ]
 
 [tool.ruff.lint]
+preview = true
 select = [
     # pycodestyle
     "E",
@@ -89,6 +90,8 @@ select = [
     "SIM",
     # isort
     "I",
+    # pylint: require explicit encoding on all file I/O (PEP 597)
+    "PLW1514",
 ]
 # Disable fix for unused imports (`F401`) and unused variables (`F841`).
 unfixable = ["F401", "F841"]

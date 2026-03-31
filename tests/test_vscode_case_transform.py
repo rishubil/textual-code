@@ -56,7 +56,7 @@ async def test_uppercase_full_line(workspace: Path):
 async def test_uppercase_unicode(workspace: Path):
     """VSCode L957-960: Unicode 'öçşğü' → 'ÖÇŞĞÜ'."""
     f = workspace / "unicode.txt"
-    f.write_text("öçşğü\n")
+    f.write_text("öçşğü\n", encoding="utf-8")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()
@@ -91,7 +91,7 @@ async def test_lowercase_full_line(workspace: Path):
 async def test_lowercase_unicode(workspace: Path):
     """VSCode L962-965: Unicode 'ÖÇŞĞÜ' → 'öçşğü'."""
     f = workspace / "unicode.txt"
-    f.write_text("ÖÇŞĞÜ\n")
+    f.write_text("ÖÇŞĞÜ\n", encoding="utf-8")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
         await pilot.pause()

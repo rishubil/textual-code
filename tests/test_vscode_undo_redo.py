@@ -500,7 +500,7 @@ async def test_undo_after_unicode_edit(workspace: Path):
     and then undoing restores the characters correctly without mangling.
     """
     f = workspace / "emoji.txt"
-    f.write_text("'👁'")
+    f.write_text("'👁'", encoding="utf-8")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
         ta = await _get_ta(app, pilot, (0, 0))
