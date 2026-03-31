@@ -142,10 +142,9 @@ async def test_corrupt_image_shows_fallback(workspace: Path):
     bad.write_bytes(b"this is not a PNG file at all")
     app = make_app(workspace, open_file=bad, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        # Give the worker time to load and fail
-        for _ in range(5):
+        # Wait for the worker to load and fail
+        for _ in range(20):
             await pilot.pause()
-
         preview = app.query_one(ImagePreviewPane)
         static = preview.query_one("#image-content", Static)
         assert "Could not load image" in str(static.content)

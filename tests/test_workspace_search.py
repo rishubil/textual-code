@@ -240,6 +240,7 @@ async def test_search_result_click_opens_file(tmp_path: Path) -> None:
             WorkspaceSearchPane.OpenFileAtLineRequested(file_path=target, line_number=1)
         )
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for post_message + file open
 
         # The file should now be open
         editor = app.main_view.get_active_code_editor()
@@ -1094,7 +1095,7 @@ def test_multiple_matches_same_line(tmp_path: Path) -> None:
 
 def test_search_multibyte_columns(tmp_path: Path) -> None:
     """Match columns are character offsets, not byte offsets."""
-    (tmp_path / "a.txt").write_text("\ud55c\uae00 needle\n")
+    (tmp_path / "a.txt").write_text("\ud55c\uae00 needle\n", encoding="utf-8")
     results = search_workspace(tmp_path, "needle").results
     assert len(results) == 1
     r = results[0]

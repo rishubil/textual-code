@@ -206,8 +206,11 @@ async def test_sequential_find_stays_open(workspace: Path):
         assert editor is not None
         editor.action_find()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for find bar rendering
         await pilot.click("#find_input")
+        await pilot.pause()  # Windows: extra pause for focus to settle on find input
         await pilot.press("a", "a")
+        await pilot.pause()  # Windows: extra pause for key presses
 
         await pilot.click("#next_match")
         await pilot.pause()
@@ -370,6 +373,7 @@ async def test_regex_on_disables_case_sensitive_checkbox(workspace: Path):
 
         await pilot.click("#use_regex")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for checkbox click state propagation
 
         case_cb = bar.query_one("#case_sensitive", Checkbox)
         assert case_cb.disabled

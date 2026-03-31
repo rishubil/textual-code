@@ -523,6 +523,7 @@ async def test_close_all_closes_all_clean_files(workspace: Path):
 
         await app.main_view.action_close_all_editors()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for close all completion
         assert len(app.main_view.opened_pane_ids) == 0
 
 
@@ -792,6 +793,7 @@ async def test_close_all_clears_opened_files_dict(
 
         await app.main_view.action_close_all_editors()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for async close all + pane removal
         assert len(app.main_view.opened_files) == 0
 
 

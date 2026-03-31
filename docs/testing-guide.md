@@ -139,6 +139,10 @@ slower than on Linux/macOS. A single `pilot.pause()` is frequently insufficient 
 - `post_message(...)` followed by `isinstance(app.screen, ...)` (modal push)
 - `pilot.click("#button")` on a modal (button must be rendered first)
 - `action_close_all()` / `action_close()` (async pane removal)
+- `editor.action_find()` / `editor.action_replace()` (find/replace bar rendering)
+- `input_widget.value = "..."` before `pilot.click("#next_match")` (input value propagation)
+- `pilot.click("#use_regex")` (checkbox reactive state change)
+- `widget.focus()` (focus change + footer/explorer sync)
 
 Add a second `await pilot.pause()` with a comment explaining why.
 

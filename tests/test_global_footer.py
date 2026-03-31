@@ -219,6 +219,7 @@ async def test_footer_path_widens_when_button_label_shortens(
 
         footer.line_ending = "lf"
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for layout recalculation
         path_lf = footer.path_view.region.width
 
         # CRLF=8 cells, LF=6 cells → path must be 2 wider when showing LF

@@ -446,12 +446,14 @@ async def test_show_shortcuts_row_click_opens_settings_screen(workspace):
         await pilot.pause()
         app.action_show_keyboard_shortcuts()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for modal screen push
         assert isinstance(app.screen, ShowShortcutsScreen)
         table = app.screen.query_one(DataTable)
         # Simulate row selection on "save"
         table.move_cursor(row=0)
         table.action_select_cursor()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for settings screen push
         assert isinstance(app.screen, ShortcutSettingsScreen)
 
 

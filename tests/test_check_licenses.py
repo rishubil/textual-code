@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 
 import pytest
@@ -10,11 +11,13 @@ import pytest
 @pytest.fixture(scope="module")
 def license_check_result() -> subprocess.CompletedProcess[str]:
     """Run check-licenses.sh once and share the result across tests."""
+    env = {**os.environ, "PYTHONUTF8": "1"}
     return subprocess.run(
         ["bash", "scripts/check-licenses.sh"],
         capture_output=True,
         text=True,
         encoding="utf-8",
+        env=env,
         timeout=120,
     )
 

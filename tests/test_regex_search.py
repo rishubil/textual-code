@@ -96,17 +96,21 @@ async def test_regex_find_matches_dot_pattern(workspace: Path, regex_file: Path)
 
         editor.action_find()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for find bar rendering
 
         from textual.widgets import Checkbox
 
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
+        await pilot.pause()  # Windows: extra pause for checkbox state change
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", ".", "l", "o")
+        await pilot.pause()  # Windows: extra pause for key presses
         await pilot.click("#next_match")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for regex find + selection update
 
         sel = editor.editor.selection
         assert sel.start == (0, 0)
@@ -221,11 +225,14 @@ async def test_regex_find_case_insensitive_inline(workspace: Path, regex_file: P
 
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
+        await pilot.pause()  # Windows: extra pause for checkbox state change
 
         input_widget = editor.query_one("#find_input", Input)
         input_widget.value = "(?i)hello"
+        await pilot.pause()  # Windows: extra pause for input value change
         await pilot.click("#next_match")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for regex find + selection update
 
         sel = editor.editor.selection
         # cursor at (1,0) → searches from (1,0) → HELLO at (1,0)–(1,5)
@@ -274,13 +281,16 @@ async def test_regex_replace_all_basic(workspace: Path, regex_file: Path):
 
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
+        await pilot.pause()  # Windows: extra pause for checkbox state change
 
         await pilot.click("#find_input")
         await pilot.press("\\", "d", "+")
         await pilot.click("#replace_input")
         await pilot.press("[", "N", "U", "M", "]")
+        await pilot.pause()  # Windows: extra pause for key presses to propagate
         await pilot.click("#replace_all_btn")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for regex replace all completion
 
         # "foo123 bar456" → "foo[NUM] bar[NUM]"
         assert "[NUM]" in editor.text
@@ -300,11 +310,13 @@ async def test_regex_replace_all_capture_group(workspace: Path):
 
         editor.action_replace()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for replace bar rendering
 
         from textual.widgets import Checkbox
 
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
+        await pilot.pause()  # Windows: extra pause for checkbox state change
 
         await pilot.click("#find_input")
         # pattern: (\w+)
@@ -312,8 +324,10 @@ async def test_regex_replace_all_capture_group(workspace: Path):
         await pilot.click("#replace_input")
         # replacement: [\1]
         await pilot.press("[", "\\", "1", "]")
+        await pilot.pause()  # Windows: extra pause for key presses
         await pilot.click("#replace_all_btn")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for regex replace all completion
 
         assert "[hello]" in editor.text
         assert "[world]" in editor.text
@@ -368,18 +382,22 @@ async def test_regex_replace_single_match_replaces(workspace: Path):
 
         editor.action_replace()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for replace bar rendering
 
         from textual.widgets import Checkbox
 
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
+        await pilot.pause()  # Windows: extra pause for checkbox state change
 
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o", "\\", "d", "+")
         await pilot.click("#replace_input")
         await pilot.press("X")
+        await pilot.pause()  # Windows: extra pause for key presses
         await pilot.click("#replace_btn")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for regex replace + next match
 
         # foo123 → X, then foo456 is selected
         assert "X" in editor.text
@@ -399,18 +417,24 @@ async def test_regex_replace_single_no_match_finds(workspace: Path):
         # cursor at start with no selection (selected_text != "foo\d+")
         editor.action_replace()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for replace bar rendering
 
         from textual.widgets import Checkbox
 
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
+        await pilot.pause()  # Windows: extra pause for checkbox state change
 
         await pilot.click("#find_input")
+        await pilot.pause()  # Windows: extra pause for input focus
         await pilot.press("f", "o", "o", "\\", "d", "+")
         await pilot.click("#replace_input")
+        await pilot.pause()  # Windows: extra pause for input focus
         await pilot.press("X")
+        await pilot.pause()  # Windows: extra pause for key presses
         await pilot.click("#replace_btn")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for replace + next match
 
         sel = editor.editor.selection
         # foo123 at (0, 6)–(0, 12) should be selected
