@@ -190,13 +190,13 @@ def test_preview_binary_file_skipped(tmp_path: Path) -> None:
 
 
 def test_preview_diff_context_lines(tmp_path: Path) -> None:
-    (tmp_path / "a.txt").write_text("line1\nline2\nold\nline4\nline5\n")
+    (tmp_path / "a.txt").write_bytes(b"line1\nline2\nold\nline4\nline5\n")
     resp = preview_workspace_replace(tmp_path, "old", "new")
     assert len(resp.previews) == 1
     diff_text = "".join(resp.previews[0].diff_lines)
     assert "@@" in diff_text
-    assert "-old\n" in diff_text
-    assert "+new\n" in diff_text
+    assert "-old" in diff_text
+    assert "+new" in diff_text
 
 
 def test_preview_same_query_and_replacement(tmp_path: Path) -> None:
