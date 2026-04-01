@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tests**: fix `test_search_results_nested_paths_sorted` failure on Windows — use `.as_posix()` instead of `str()` for cross-platform path comparison (Fix #179)
 - **Tests**: fix 16+ test failures on Windows — skip `chmod` test on Windows, add `PYTHONUTF8=1` for license check script, add `encoding="utf-8"` for multibyte search test, and add extra `pilot.pause()` calls for Windows parallel execution timing (Fix #180)
 - **Tests**: use `wait_for_scheduled_animations()` across all tests (snapshot and non-snapshot) and in `wait_for_condition` / `_wait_for_stable_screen` helpers for more thorough event-loop settling; replace ad-hoc `pilot.pause()` sequences and 5-pause loops with deterministic settling patterns
+- **Tests**: replace `tempfile.TemporaryDirectory` with pytest `tmp_path_factory` in 3 tests and add `.resolve()` to path assertions in 2 tests — fixes deterministic `PermissionError` on Windows where temp directory cleanup races with open file handles (Fix #189)
 
 ## [0.4.0] - 2026-03-29
 
