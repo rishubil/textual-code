@@ -18,7 +18,6 @@ from textual_code.modals import (
     ReplacePreviewScreen,
 )
 from textual_code.search import (
-    apply_workspace_replace,
     preview_workspace_replace,
     search_workspace,
 )
@@ -279,22 +278,32 @@ class WorkspaceSearchPane(Static):
 
         self.app.call_from_thread(
             self._show_replace_preview,
+            workspace_path,
             query,
             replacement,
             use_regex,
+            respect_gitignore,
             case_sensitive,
+            show_hidden_files,
+            files_to_include,
+            files_to_exclude,
             response,
         )
 
     def _show_replace_preview(
         self,
+        workspace_path: Path,
         query: str,
         replacement: str,
         use_regex: bool,
+        respect_gitignore: bool,
         case_sensitive: bool,
+        show_hidden_files: bool,
+        files_to_include: str,
+        files_to_exclude: str,
         response: object,
     ) -> None:
-        from textual_code.search import PreviewResponse
+        from textual_code.search import PreviewResponse, replace_workspace
 
         assert isinstance(response, PreviewResponse)
         previews = response.previews
@@ -312,29 +321,21 @@ class WorkspaceSearchPane(Static):
         def on_result(result: ReplacePreviewResult | None) -> None:
             if result is None or result.is_cancelled or not result.should_apply:
                 return
-            apply_result = apply_workspace_replace(
-                previews,
+            # Apply to ALL matching files, not just the previewed subset.
+            replace_result = replace_workspace(
+                workspace_path,
                 query,
                 replacement,
                 use_regex,
+                respect_gitignore=respect_gitignore,
+                show_hidden_files=show_hidden_files,
+                files_to_include=files_to_include,
+                files_to_exclude=files_to_exclude,
                 case_sensitive=case_sensitive,
             )
-            n = apply_result.replacements_count
-            f = apply_result.files_modified
-            msg = f"Replaced {n} occurrence(s) in {f} file(s)"
-            if apply_result.files_skipped > 0:
-                skipped = apply_result.files_skipped
-                msg += f" ({skipped} skipped)"
-                self.app.notify(
-                    f"Skipped: {', '.join(apply_result.skipped_files)}",
-                    severity="warning",
-                )
-            if apply_result.failed_files:
-                self.app.notify(
-                    f"Failed: {', '.join(apply_result.failed_files)}",
-                    severity="error",
-                )
-            status.update(msg)
+            n = replace_result.replacements_count
+            f = replace_result.files_modified
+            status.update(f"Replaced {n} occurrence(s) in {f} file(s)")
 
         self.app.push_screen(modal, on_result)
 
