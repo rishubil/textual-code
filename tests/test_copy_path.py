@@ -10,8 +10,6 @@ Covers:
 - Click footer #path label to copy displayed path (respects path_display_mode)
 """
 
-from pathlib import Path
-
 import pytest
 
 from .conftest import make_app
@@ -78,20 +76,17 @@ async def test_b02_copy_path_unsaved_new_file(workspace, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_c01_copy_relative_path_outside_workspace(workspace):
-    import tempfile
-
-    # Create file in a completely separate temp dir (outside workspace)
-    with tempfile.TemporaryDirectory() as other_dir:
-        outside_file = Path(other_dir) / "outside.py"
-        outside_file.write_text("# outside\n")
-        app = make_app(workspace, open_file=outside_file, light=True)
-        async with app.run_test() as pilot:
-            await pilot.wait_for_scheduled_animations()
-            app.action_copy_relative_path()
-            await pilot.wait_for_scheduled_animations()
-            # Should fall back to absolute path since file is outside workspace
-            assert app.clipboard == str(outside_file)
+async def test_c01_copy_relative_path_outside_workspace(workspace, tmp_path_factory):
+    other_dir = tmp_path_factory.mktemp("outside")
+    outside_file = other_dir / "outside.py"
+    outside_file.write_text("# outside\n")
+    app = make_app(workspace, open_file=outside_file, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.action_copy_relative_path()
+        await pilot.wait_for_scheduled_animations()
+        # Should fall back to absolute path since file is outside workspace
+        assert app.clipboard == str(outside_file)
 
 
 # ---------------------------------------------------------------------------
@@ -167,17 +162,17 @@ async def test_e04_click_relative_mode_copies_relative_path(workspace, sample_py
 
 
 @pytest.mark.asyncio
-async def test_e05_click_relative_mode_outside_workspace_fallback(workspace):
+async def test_e05_click_relative_mode_outside_workspace_fallback(
+    workspace, tmp_path_factory
+):
     """Click #path in relative mode outside workspace falls back to absolute."""
-    import tempfile
-
-    with tempfile.TemporaryDirectory() as other_dir:
-        outside_file = Path(other_dir) / "outside.py"
-        outside_file.write_text("# outside\n")
-        app = make_app(workspace, open_file=outside_file, light=True)
-        async with app.run_test() as pilot:
-            await pilot.wait_for_scheduled_animations()
-            app.default_path_display_mode = "relative"
-            await pilot.click("CodeEditorFooter #path")
-            await pilot.wait_for_scheduled_animations()
-            assert app.clipboard == str(outside_file)
+    other_dir = tmp_path_factory.mktemp("outside")
+    outside_file = other_dir / "outside.py"
+    outside_file.write_text("# outside\n")
+    app = make_app(workspace, open_file=outside_file, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.default_path_display_mode = "relative"
+        await pilot.click("CodeEditorFooter #path")
+        await pilot.wait_for_scheduled_animations()
+        assert app.clipboard == str(outside_file)

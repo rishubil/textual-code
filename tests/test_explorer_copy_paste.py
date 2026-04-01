@@ -346,7 +346,7 @@ async def test_paste_cut_directory_updates_open_files(workspace: Path):
         )
         await pilot.wait_for_scheduled_animations()
 
-    assert editor.path == dest_dir / "src" / "main.py"
+    assert editor.path == (dest_dir / "src" / "main.py").resolve()
 
 
 async def test_paste_cut_clears_clipboard(workspace: Path, sample_py_file: Path):

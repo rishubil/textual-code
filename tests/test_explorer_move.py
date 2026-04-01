@@ -252,7 +252,7 @@ async def test_move_dir_updates_open_files(workspace: Path):
         )
         await pilot.wait_for_scheduled_animations()
 
-        assert editor.path == workspace / "dest" / "subdir" / "child.py"
+        assert editor.path == (workspace / "dest" / "subdir" / "child.py").resolve()
         assert "child.py" in editor.title
 
 

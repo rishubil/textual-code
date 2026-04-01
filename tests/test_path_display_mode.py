@@ -7,8 +7,6 @@ Covers:
 - Toggle command: system command exists, saves to config
 """
 
-from pathlib import Path
-
 import pytest
 
 from textual_code.config import (
@@ -88,20 +86,18 @@ async def test_b03_toggle_back_to_absolute(workspace, sample_py_file):
 
 
 @pytest.mark.asyncio
-async def test_b04_relative_outside_workspace_fallback(workspace):
-    import tempfile
-
-    with tempfile.TemporaryDirectory() as other_dir:
-        outside_file = Path(other_dir) / "outside.py"
-        outside_file.write_text("# outside\n")
-        app = make_app(workspace, open_file=outside_file, light=True)
-        async with app.run_test() as pilot:
-            await pilot.wait_for_scheduled_animations()
-            footer = app.main_view.query_one(CodeEditorFooter)
-            footer.path_display_mode = "relative"
-            await pilot.wait_for_scheduled_animations()
-            # Falls back to absolute since file is outside workspace
-            assert footer.path_view._raw == str(outside_file)
+async def test_b04_relative_outside_workspace_fallback(workspace, tmp_path_factory):
+    other_dir = tmp_path_factory.mktemp("outside")
+    outside_file = other_dir / "outside.py"
+    outside_file.write_text("# outside\n")
+    app = make_app(workspace, open_file=outside_file, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        footer = app.main_view.query_one(CodeEditorFooter)
+        footer.path_display_mode = "relative"
+        await pilot.wait_for_scheduled_animations()
+        # Falls back to absolute since file is outside workspace
+        assert footer.path_view._raw == str(outside_file)
 
 
 @pytest.mark.asyncio
