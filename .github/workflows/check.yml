@@ -59,6 +59,20 @@ jobs:
       - run: uv sync --frozen
       - run: uv run pytest tests/ -n auto -m "not serial"
 
+  test-windows:
+    name: Test Windows (Python ${{ matrix.python-version }})
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --frozen
+      - run: uv run pytest tests/ -n auto -m "not serial" --reruns 3
+
   test-snapshot:
     name: Snapshot Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest

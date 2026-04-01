@@ -74,6 +74,7 @@ async def test_rename_file_cancel(workspace: Path, sample_py_file: Path):
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for modal screen push
         assert isinstance(app.screen, RenameModalScreen)
 
         await pilot.click("#cancel")
@@ -128,8 +129,10 @@ async def test_rename_to_existing_shows_error(workspace: Path, sample_py_file: P
 
         inp = app.screen.query_one(Input)
         inp.value = "existing.py"
+        await pilot.pause()  # Windows: extra pause for input value change
         await pilot.click("#rename")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for rename action error handling
 
     assert sample_py_file.exists()
     assert existing.read_text() == "existing\n"
@@ -173,8 +176,10 @@ async def test_rename_with_path_separator_shows_error(
 
         inp = app.screen.query_one(Input)
         inp.value = "sub/dir.py"
+        await pilot.pause()  # Windows: extra pause for input value change
         await pilot.click("#rename")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for rename action error handling
 
     assert sample_py_file.exists()
 

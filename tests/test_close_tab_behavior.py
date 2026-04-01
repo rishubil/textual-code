@@ -47,6 +47,7 @@ async def _open_n_files(app, pilot, workspace: Path, count: int) -> list[str]:
         tc = main.tabbed_content
         main._safe_activate_tab(tc, pane_id)
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy editor mount
         pane_ids.append(pane_id)
     return pane_ids
 
@@ -103,11 +104,13 @@ async def test_close_first_activates_next_right(workspace: Path):
         # Activate file1 (first tab)
         tc.active = pane_ids[0]
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for tab switch + lazy mount
         assert _active_pane(app) == pane_ids[0]
 
         # Close file1 → file2 should activate (next to the right)
         await app.main_view.action_close_code_editor(pane_ids[0])
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for close + next tab activation
         assert _tab_count(app) == 2
         assert _active_pane(app) == pane_ids[1]
 
@@ -220,6 +223,7 @@ async def test_close_all_editors_empties_group(workspace: Path):
 
         await app.main_view.action_close_all_editors()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for close all completion
         assert len(app.main_view.opened_pane_ids) == 0
 
 
@@ -247,6 +251,7 @@ async def test_close_preserves_remaining_tab_order(workspace: Path):
         await pilot.pause()
         await app.main_view.action_close_code_editor(pane_ids[2])
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for tab close + reorder settling
 
         ordered_after = tc.get_ordered_pane_ids()
         expected = [pane_ids[0], pane_ids[1], pane_ids[3], pane_ids[4]]
@@ -1007,6 +1012,7 @@ async def test_close_saved_all_dirty_is_noop(workspace: Path):
         # Make both dirty
         tc.active = pane_ids[0]
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for tab switch + lazy mount
         editor1 = app.main_view.get_active_code_editor()
         assert editor1 is not None
         editor1.text = "dirty1!\n"
@@ -1014,6 +1020,7 @@ async def test_close_saved_all_dirty_is_noop(workspace: Path):
 
         tc.active = pane_ids[1]
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for tab switch + lazy mount
         editor2 = app.main_view.get_active_code_editor()
         assert editor2 is not None
         editor2.text = "dirty2!\n"
@@ -1021,6 +1028,7 @@ async def test_close_saved_all_dirty_is_noop(workspace: Path):
 
         await app.main_view.action_close_saved_editors()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for async close operation
 
         assert _tab_count(app) == 2
 

@@ -275,6 +275,7 @@ async def test_search_tree_cleared_on_new_search(tmp_path: Path) -> None:
         await pilot.pause()
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker completion
 
         # Verify results are populated
         assert len(results_tree.root.children) > 0, "First search should have results"
@@ -284,6 +285,7 @@ async def test_search_tree_cleared_on_new_search(tmp_path: Path) -> None:
         await pilot.pause()
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker completion
 
         # After the second search completes, results should show "No results"
         node_labels = [str(n.label) for n in results_tree.root.children]
@@ -345,6 +347,7 @@ async def test_previous_search_cancelled_by_new_search(
         await pilot.pause()
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker completion
 
         # Capture reference to the first worker
         first_workers = [
@@ -358,6 +361,7 @@ async def test_previous_search_cancelled_by_new_search(
         await pilot.pause()
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker completion
 
         # Release the gate so the first search can complete (or notice cancellation)
         gate.set()
@@ -396,6 +400,7 @@ async def test_search_tree_groups_results_by_file(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "target"
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -667,6 +672,7 @@ async def test_tree_hierarchy_file_and_match_nodes(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
 
@@ -707,6 +713,7 @@ async def test_tree_node_data_stores_file_and_line(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker + tree population
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -754,6 +761,7 @@ async def test_nested_directory_tree_grouping(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -815,6 +823,7 @@ async def test_next_focus_after_removing_match_with_sibling_file(
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -869,6 +878,7 @@ async def test_next_focus_after_removing_only_match(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -914,6 +924,7 @@ async def test_next_focus_after_removing_file_with_sibling(
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -957,6 +968,7 @@ async def test_last_file_node_in_tree(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -999,6 +1011,7 @@ async def test_last_match_node_in_tree(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search results tree population
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -1039,6 +1052,7 @@ async def test_next_focus_after_removing_only_file(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for search worker + tree population
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)

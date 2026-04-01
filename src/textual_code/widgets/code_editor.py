@@ -1435,14 +1435,21 @@ class CodeEditor(Static):
 
     def _recompute_git_diff(self) -> None:
         """Recompute line changes using cached HEAD lines and current text."""
-        if self._git_head_lines is None:
-            if self.editor._line_changes:
-                self.editor.set_line_changes({})
+        from textual.css.query import NoMatches
+
+        try:
+            ta = self.editor
+        except NoMatches:
+            # MultiCursorTextArea not yet mounted (race on Windows)
             return
-        current_lines = self.editor.text.splitlines()
+        if self._git_head_lines is None:
+            if ta._line_changes:
+                ta.set_line_changes({})
+            return
+        current_lines = ta.text.splitlines()
         changes = _compute_line_changes(self._git_head_lines, current_lines)
         log.debug("git diff: %d changes for %s", len(changes), self.path)
-        self.editor.set_line_changes(changes)
+        ta.set_line_changes(changes)
 
     def update_title(self) -> None:
         """

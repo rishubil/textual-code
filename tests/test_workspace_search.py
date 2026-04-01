@@ -240,6 +240,7 @@ async def test_search_result_click_opens_file(tmp_path: Path) -> None:
             WorkspaceSearchPane.OpenFileAtLineRequested(file_path=target, line_number=1)
         )
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for post_message + file open
 
         # The file should now be open
         editor = app.main_view.get_active_code_editor()
@@ -981,7 +982,7 @@ async def test_tree_file_node_click_opens_file(tmp_path: Path) -> None:
     """Clicking a file-level node opens the file at the first match line."""
     from textual.widgets import Input, Tree
 
-    from tests.conftest import make_app
+    from tests.conftest import make_app, wait_for_condition
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
     target = tmp_path / "target.py"
@@ -996,9 +997,14 @@ async def test_tree_file_node_click_opens_file(tmp_path: Path) -> None:
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "needle_here"
         ws_pane._run_search()
-        await pilot.pause()
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
+        # Windows: search worker may not finish in a single pause
+        await wait_for_condition(
+            pilot,
+            lambda: len(list(results_tree.root.children)) > 0,
+            msg="Search results tree has no children after retries",
+        )
         file_node = list(results_tree.root.children)[0]
 
         # File node data should carry the first match's line number
@@ -1094,7 +1100,7 @@ def test_multiple_matches_same_line(tmp_path: Path) -> None:
 
 def test_search_multibyte_columns(tmp_path: Path) -> None:
     """Match columns are character offsets, not byte offsets."""
-    (tmp_path / "a.txt").write_text("\ud55c\uae00 needle\n")
+    (tmp_path / "a.txt").write_text("\ud55c\uae00 needle\n", encoding="utf-8")
     results = search_workspace(tmp_path, "needle").results
     assert len(results) == 1
     r = results[0]

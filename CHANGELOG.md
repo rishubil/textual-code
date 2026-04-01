@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CI**: add Windows test job to CI — runs non-snapshot tests on `windows-latest` with Python 3.12/3.13/3.14 matrix to catch Windows-specific regressions (#180)
 - **Tabs**: directional/selective close tab commands via command palette — Close Other Editors, Close Editors to the Right, Close Editors to the Left, and Close Saved Editors; dirty unmounted editors are preserved to prevent silent data loss (#122)
 
 ### Fixed
@@ -19,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tests**: add explicit `encoding="utf-8"` to all `write_text()`/`read_text()` calls in tests — fixes 8 test failures on Windows with cp949 (Korean) locale; enable ruff `PLW1514` rule to prevent future regressions (Fix #177)
 - **Tests**: fix flaky cross-split drag tests on Windows — add extra `await pilot.pause()` after tab activation to allow lazy editor remount to complete before subsequent actions (Fix #178)
 - **Tests**: fix `test_search_results_nested_paths_sorted` failure on Windows — use `.as_posix()` instead of `str()` for cross-platform path comparison (Fix #179)
+- **Tests**: fix 16+ test failures on Windows — skip `chmod` test on Windows, add `PYTHONUTF8=1` for license check script, add `encoding="utf-8"` for multibyte search test, and add extra `pilot.pause()` calls for Windows parallel execution timing (Fix #180)
 
 ## [0.4.0] - 2026-03-29
 

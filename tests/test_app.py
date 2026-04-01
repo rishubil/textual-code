@@ -10,6 +10,7 @@ TextualCode app integration tests.
 - Sidebar toggle (Ctrl+B)
 """
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -443,6 +444,7 @@ async def test_footer_order_stable_across_focus(workspace: Path, sample_py_file:
         assert editor is not None
         editor.editor.focus()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for focus change + footer update
         editor_descs = _footer_descriptions(app)
 
         # Focus sidebar
@@ -450,6 +452,7 @@ async def test_footer_order_stable_across_focus(workspace: Path, sample_py_file:
         assert sidebar is not None
         sidebar.focus()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for focus change + footer update
         sidebar_descs = _footer_descriptions(app)
 
         # Editor-focused: full set of shortcuts
@@ -624,6 +627,7 @@ async def test_footer_order_differs_by_area(workspace: Path, sample_py_file: Pat
         assert editor is not None
         editor.editor.focus()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for focus + footer key rendering
         editor_descs = _footer_descriptions(app)
 
         # Focus explorer tree directly
@@ -632,6 +636,7 @@ async def test_footer_order_differs_by_area(workspace: Path, sample_py_file: Pat
         tree = sidebar.explorer.query_one(FilteredDirectoryTree)
         tree.focus()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for focus change + footer update
         explorer_descs = _footer_descriptions(app)
 
         # Editor should have save, find etc.
@@ -653,6 +658,7 @@ async def test_footer_default_order_per_area(workspace: Path, sample_py_file: Pa
         assert editor is not None
         editor.editor.focus()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for focus + footer key rendering
         editor_descs = _footer_descriptions(app)
         # Default editor order starts with Save
         assert editor_descs[0] == "Save"
@@ -777,6 +783,10 @@ async def test_save_screenshot_relative_path_resolves_to_workspace(workspace: Pa
     assert "<svg" in content
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="chmod(0o555) doesn't enforce read-only on Windows (uses ACLs)",
+)
 async def test_save_screenshot_error_on_invalid_path(
     workspace: Path, monkeypatch: pytest.MonkeyPatch
 ):

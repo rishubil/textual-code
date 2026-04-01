@@ -10,6 +10,7 @@ Groups:
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -21,7 +22,7 @@ from textual_code.config import (
     load_editor_settings,
 )
 
-from .conftest import get_style_color_at, make_app
+from .conftest import get_style_color_at, make_app, wait_for_condition
 
 # ── Group A: config layer ────────────────────────────────────────────────────
 
@@ -288,6 +289,10 @@ class TestRendering:
             strip = ta._render_line(0)
             assert _find_guide_positions(strip, gw) == expected_guide_cols
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="TextArea._render_line scroll_offset not reflected on Windows",
+    )
     @pytest.mark.asyncio
     async def test_e09_horizontal_scroll_guides_alignment(self, workspace: Path):
         """Indentation guides must stay aligned when scrolled horizontally.
@@ -316,12 +321,10 @@ class TestRendering:
 
             # Scroll right by 10 — all guide positions (0, 4) are off-screen
             ta.scroll_x = 10
-            await pilot.pause()
-            strip_at_10 = ta._render_line(0)
-            guides_at_10 = _find_guide_positions(strip_at_10, gw)
-            assert guides_at_10 == [], (
-                f"No guides expected after scrolling past indent region, "
-                f"got {guides_at_10}"
+            await wait_for_condition(
+                pilot,
+                lambda: _find_guide_positions(ta._render_line(0), gw) == [],
+                msg="Guides still visible after scrolling past indent region",
             )
 
     def test_e11_component_classes_defined(self):

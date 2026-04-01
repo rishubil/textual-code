@@ -105,6 +105,7 @@ async def test_file_load_detects_utf8(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         encoding = app.code_editor.encoding
 
     assert encoding == "utf-8"
@@ -118,6 +119,7 @@ async def test_file_load_detects_utf8_bom(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         encoding = app.code_editor.encoding
 
     assert encoding == "utf-8-sig"
@@ -131,6 +133,7 @@ async def test_file_load_detects_utf16(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         encoding = app.code_editor.encoding
 
     assert encoding == "utf-16"
@@ -144,6 +147,7 @@ async def test_file_load_detects_latin1(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         encoding = app.code_editor.encoding
 
     assert encoding == "latin-1"
@@ -157,6 +161,7 @@ async def test_file_load_bom_not_in_text(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         text = app.code_editor.text
 
     assert not text.startswith("\ufeff")
@@ -170,6 +175,7 @@ async def test_file_load_latin1_readable(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         text = app.code_editor.text
 
     assert "élève" in text
@@ -188,6 +194,7 @@ async def test_change_encoding_updates_reactive(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         editor.action_change_encoding()
@@ -210,6 +217,7 @@ async def test_change_encoding_cancel_no_change(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         editor.action_change_encoding()
@@ -251,6 +259,7 @@ async def test_save_writes_utf8_bom_bytes(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         editor.action_change_encoding()
@@ -276,6 +285,7 @@ async def test_save_writes_latin1_bytes(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         # Change encoding to latin-1
@@ -303,6 +313,7 @@ async def test_save_utf16_roundtrip(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         editor.action_save()
         await pilot.pause()
@@ -323,6 +334,7 @@ async def test_save_as_preserves_encoding(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.encoding == "utf-8-sig"
 
@@ -540,6 +552,7 @@ async def test_file_load_detects_gbk(tmp_path: Path):
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         encoding = app.code_editor.encoding
 
     assert encoding in ("gbk", "gb2312", "gb18030")

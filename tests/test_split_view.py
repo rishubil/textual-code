@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 from textual.message import Message
 
-from tests.conftest import assert_focus_on_leaf, make_app
+from tests.conftest import assert_focus_on_leaf, make_app, wait_for_condition
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 from textual_code.widgets.split_tree import BranchNode, all_leaves
 
@@ -1075,7 +1075,15 @@ async def test_move_tab_duplicate_file_focuses_existing(
 
         # Split right copies the active file (py_file) to right
         await main.action_split_right()
-        await pilot.pause()
+        # Windows: wait for split creation + file open to register
+        await wait_for_condition(
+            pilot,
+            lambda: (
+                "right" in main._opened_files and py_file in main._opened_files["right"]
+            ),
+            max_retries=50,
+            msg="py_file not registered in right split after split_right",
+        )
 
         # py_file now in both splits
         assert py_file in main._opened_files["right"]
@@ -1090,12 +1098,14 @@ async def test_move_tab_duplicate_file_focuses_existing(
         tc_left = main.query_one(f"#{left_leaf.leaf_id}", DraggableTabbedContent)
         tc_left.active = left_pane_id
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for tab switch in split
 
         # Move py_file from left to right (duplicate)
         await main.action_move_editor_to_next_group()
         await pilot.pause()
         await pilot.pause()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for move + deduplication
 
         # Focus should be on the right split's existing py_file pane
         leaves = all_leaves(main._split_root)
@@ -1135,6 +1145,7 @@ async def test_cross_split_focus_posts_active_file_changed(
         assert left_editor is not None
         left_editor.editor.focus()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for cross-split focus change
 
         # Explorer must update to show the left file (py_file)
         assert app.sidebar is not None
@@ -1173,6 +1184,7 @@ async def test_cross_split_focus_syncs_footer(
         assert left_editor is not None
         left_editor.editor.focus()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for cross-split focus + footer sync
 
         footer = app.main_view.query_one(CodeEditorFooter)
         assert footer.path == py_file, (
@@ -1184,6 +1196,7 @@ async def test_cross_split_focus_syncs_footer(
         assert right_editor is not None
         right_editor.editor.focus()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for cross-split focus + footer sync
 
         # Footer must sync to right editor's file
         assert footer.path == py_file2, (
@@ -1209,6 +1222,7 @@ async def test_focus_next_group_updates_explorer(
         # Use action_focus_next_group to cycle back to left split
         app.main_view.action_focus_next_group()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for focus group + explorer
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer

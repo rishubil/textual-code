@@ -207,6 +207,7 @@ async def test_file_load_detects_crlf(tmp_path: Path):
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         line_ending = app.code_editor.line_ending
 
     assert line_ending == "crlf"
@@ -220,6 +221,7 @@ async def test_file_load_detects_lf(tmp_path: Path):
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         line_ending = app.code_editor.line_ending
 
     assert line_ending == "lf"
@@ -235,6 +237,7 @@ async def test_change_line_ending_updates_reactive(tmp_path: Path):
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         editor.action_change_line_ending()
@@ -257,6 +260,7 @@ async def test_change_line_ending_cancel_no_change(tmp_path: Path):
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         editor.action_change_line_ending()
@@ -278,6 +282,7 @@ async def test_save_writes_crlf_to_disk(tmp_path: Path):
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         # change line ending to CRLF
@@ -351,6 +356,7 @@ async def test_select_crlf_shows_warning_toast(
 
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         original_notify = editor.notify
 
@@ -383,6 +389,7 @@ async def test_select_lf_no_warning_toast(
 
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         original_notify = editor.notify
 
@@ -435,6 +442,7 @@ async def test_open_crlf_file_no_warning_on_open(tmp_path: Path):
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for CodeEditor mount
 
     assert not any("warning" in n for n in app.notified)
 
@@ -447,6 +455,7 @@ async def test_open_lf_file_no_warning_toast(tmp_path: Path):
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for CodeEditor mount
 
     assert not any("warning" in n for n in app.notified)
 
@@ -481,6 +490,7 @@ async def test_copy_crlf_file_shows_warning_toast(tmp_path: Path):
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for CodeEditor mount
         app.notified.clear()  # discard any mount-time notifications
         # select all text then copy (multiline → triggers warning)
         app.code_editor.editor.select_all()
@@ -499,6 +509,7 @@ async def test_cut_crlf_file_shows_warning_toast(tmp_path: Path):
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for CodeEditor mount
         app.notified.clear()
         # no selection → cut whole line (includes newline)
         app.code_editor.editor.action_cut()
@@ -515,6 +526,7 @@ async def test_paste_crlf_file_shows_warning_toast(tmp_path: Path):
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for CodeEditor mount
         app.notified.clear()
         # put multiline text on clipboard, then paste
         app.copy_to_clipboard("line1\nline2")
@@ -532,6 +544,7 @@ async def test_copy_lf_file_no_warning(tmp_path: Path):
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for CodeEditor mount
         app.notified.clear()
         app.code_editor.editor.select_all()
         await pilot.pause()
@@ -549,6 +562,7 @@ async def test_copy_crlf_warning_only_once(tmp_path: Path):
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for CodeEditor mount
         app.notified.clear()
         # first copy
         app.code_editor.editor.select_all()
@@ -571,6 +585,7 @@ async def test_copy_single_line_crlf_no_warning(tmp_path: Path):
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for CodeEditor mount
         app.notified.clear()
         # select only "hello" on the first line (no newline)
         from textual.widgets._text_area import Selection
@@ -591,6 +606,7 @@ async def test_copy_crlf_no_warning_when_disabled(tmp_path: Path):
     app = _NotifyCapturingApp(path=f, warn_line_ending=False)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for CodeEditor mount
         app.notified.clear()
         app.code_editor.editor.select_all()
         await pilot.pause()
@@ -608,6 +624,7 @@ async def test_open_crlf_file_no_warning_when_disabled(tmp_path: Path):
     app = _NotifyCapturingApp(path=f, warn_line_ending=False)
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for CodeEditor mount
 
     assert not any("warning" in n for n in app.notified)
 
@@ -626,6 +643,7 @@ async def test_select_crlf_no_warning_when_disabled(
 
     async with app.run_test() as pilot:
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         original_notify = editor.notify
 

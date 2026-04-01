@@ -309,6 +309,56 @@ def restore_bindings():
         cls.BINDINGS = bindings
 
 
+# ── Condition-based wait helper ──────────────────────────────────────────────
+
+
+async def wait_for_condition(
+    pilot,
+    condition,
+    *,
+    max_retries: int = 20,
+    delay: float = 0.1,
+    msg: str = "Condition not met after retries",
+):
+    """Wait until *condition()* returns truthy, with real-time delay between retries.
+
+    ``pilot.pause()`` uses ``wait_for_idle(0)`` which monitors CPU idle time,
+    not actual async work completion.  On Windows CI, the event loop can be
+    CPU-idle while workers/mounts are still in progress, so ``pause()`` returns
+    instantly.  Using ``pilot.pause(delay=...)`` inserts a real wall-clock
+    ``asyncio.sleep()`` that gives workers and async mounts time to finish.
+
+    Args:
+        pilot: The Textual Pilot instance.
+        condition: A callable (sync or async) returning a truthy value on success.
+        max_retries: Maximum number of pause-retry cycles.
+        delay: Seconds of real-time delay per retry (default 0.1 s).
+        msg: Assertion message if the condition is never met.
+
+    Returns:
+        The truthy value returned by *condition*.
+
+    Raises:
+        AssertionError: If the condition is not met within *max_retries*.
+    """
+    import inspect
+
+    last_exc: Exception | None = None
+    for _ in range(max_retries):
+        try:
+            result = condition()
+            if inspect.isawaitable(result):
+                result = await result
+            if result:
+                return result
+        except Exception as exc:
+            last_exc = exc
+        await pilot.pause(delay=delay)
+    if last_exc is not None:
+        raise AssertionError(msg) from last_exc
+    raise AssertionError(msg)
+
+
 # ── Strip style inspection helpers ────────────────────────────────────────────
 
 

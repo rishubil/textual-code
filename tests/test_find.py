@@ -390,8 +390,10 @@ async def test_find_multiword_query(workspace: Path, search_file: Path):
 
         input_widget = editor.query_one("#find_input", Input)
         input_widget.value = "hello world"
+        await pilot.pause()  # Windows: extra pause for input value change
         await pilot.click("#next_match")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for find result + selection update
 
         sel = editor.editor.selection
         assert sel.start == (0, 0)
@@ -416,8 +418,10 @@ async def test_find_match_at_end_of_file(workspace: Path):
 
         input_widget = editor.query_one("#find_input", Input)
         input_widget.value = "find me"
+        await pilot.pause()  # Windows: extra pause for input value change
         await pilot.click("#next_match")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for find result + selection update
 
         sel = editor.editor.selection
         # "find me" is on row 1, cols 0–7
@@ -499,8 +503,10 @@ async def test_find_file_without_trailing_newline(workspace: Path):
 
         input_widget = editor.query_one("#find_input", Input)
         input_widget.value = "second"
+        await pilot.pause()  # Windows: extra pause for input value change
         await pilot.click("#next_match")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for find result + selection update
 
         sel = editor.editor.selection
         assert sel.start == (1, 0)
@@ -525,18 +531,23 @@ async def test_find_sequential_opens_finds_next_each_time(
         # Open bar and type query
         editor.action_find()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for find bar rendering
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
+        await pilot.pause()  # Windows: extra pause for input focus
         await pilot.press("h", "e", "l", "l", "o")
+        await pilot.pause()  # Windows: extra pause for key presses
 
         # First click: finds 'hello' at (0, 0)
         await pilot.click("#next_match")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for find + selection update
         assert editor.editor.selection.start == (0, 0)
 
         # Second click: searches from end of selection (0,5) → finds (1, 0)
         await pilot.click("#next_match")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for find + selection update
         assert editor.editor.selection.start == (1, 0)
         assert editor.editor.selection.end == (1, 5)
 
@@ -648,8 +659,10 @@ async def test_find_entire_file_content_as_query(workspace: Path):
 
         input_widget = editor.query_one("#find_input", Input)
         input_widget.value = content
+        await pilot.pause()  # Windows: extra pause for input value change
         await pilot.click("#next_match")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for find result + selection update
 
         sel = editor.editor.selection
         assert sel.start == (0, 0)

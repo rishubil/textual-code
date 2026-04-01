@@ -150,6 +150,7 @@ class TestMountPropagation:
             tc = app.main_view.tabbed_content
             tc.active = state.pane_id
             await pilot.pause()
+            await pilot.pause()  # Windows: extra pause for tab switch + remount
             restored = app.main_view.get_active_code_editor()
             assert restored is not None
             # The key assertion: text area must have the restored value
@@ -472,6 +473,7 @@ class TestRendering:
             # -- Scroll right by 10 columns
             ta.scroll_x = 10
             await pilot.pause()
+            await pilot.pause()  # Windows: extra pause for scroll render update
             strip_at_10 = ta._render_line(0)
             positions_at_10 = _find_whitespace_positions(strip_at_10, gw)
             # Viewport cols 0-4 now map to doc cols 10-14 (all 'a' chars)
@@ -515,6 +517,8 @@ class TestRendering:
             scroll_amount = 3
             ta.scroll_x = scroll_amount
             await pilot.pause()
+            await pilot.pause()
+            await pilot.pause()  # Windows: extra pause for scroll render update
             strip_after = ta._render_line(0)
             markers_after = _find_whitespace_positions(strip_after, gw)
 

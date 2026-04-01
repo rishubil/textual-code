@@ -319,8 +319,10 @@ async def test_sequential_multi_move_across_groups(
         pane_id_file2 = left_leaf.opened_files[py_file2]
         tc_left.active = pane_id_file2
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for tab switch
         await app.main_view.action_move_editor_right()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for move action
 
         # Now move py_file3 to right
         leaves = all_leaves(app.main_view._split_root)
@@ -331,8 +333,10 @@ async def test_sequential_multi_move_across_groups(
         pane_id_file3 = left_leaf.opened_files[py_file3]
         tc_left.active = pane_id_file3
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for tab switch
         await app.main_view.action_move_editor_right()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for move action
 
         # Verify: left has 1 (py_file), right has 2 (py_file2, py_file3)
         leaves = all_leaves(app.main_view._split_root)
@@ -366,6 +370,7 @@ async def test_move_preserves_unsaved_content(
         pane_id = leaf.opened_files[py_file]
         tc.active = pane_id
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for tab switch + lazy mount
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
@@ -375,6 +380,7 @@ async def test_move_preserves_unsaved_content(
         # Move to right (creates new split)
         await app.main_view.action_move_editor_right()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for move + split creation
 
         # Verify: content preserved in the new location
         editor_after = app.main_view.get_active_code_editor()
@@ -408,10 +414,12 @@ async def test_move_duplicate_file_activates_existing(
         tc = app.main_view.query_one(f"#{leaf.leaf_id}", TabbedContent)
         tc.active = leaf.opened_files[py_file]
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for tab switch
 
         # Split right — the active file (py_file) is duplicated in the right leaf
         await app.main_view.action_split_right()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for split view creation
 
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 2
@@ -429,11 +437,13 @@ async def test_move_duplicate_file_activates_existing(
         pane_id = left_leaf.opened_files[py_file]
         tc_left.active = pane_id
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for tab activation in split
 
         left_count_before = len(left_leaf.pane_ids)
 
         await app.main_view.action_move_editor_right()
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for split + tab deduplication
 
         # Source pane should be closed (deduplication: existing in target activated)
         leaves = all_leaves(app.main_view._split_root)

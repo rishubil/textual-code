@@ -323,6 +323,7 @@ async def test_replace_all_marks_file_as_unsaved(workspace: Path):
         await pilot.press("b", "a", "r")
         await pilot.click("#replace_all_btn")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for replace all completion
 
         assert editor.text != editor.initial_text
 
@@ -406,6 +407,7 @@ async def test_replace_all_replacement_contains_search_string(workspace: Path):
         await pilot.press("a", "a", "a")
         await pilot.click("#replace_all_btn")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for replace all completion
 
         # "aa aa" → "aaa aaa"
         assert editor.text == "aaa aaa\n"
@@ -496,8 +498,10 @@ async def test_replace_single_only_one_match_no_next(workspace: Path):
         find_input.value = "unique"
         replace_input = editor.query_one("#replace_input", Input)
         replace_input.value = "common"
+        await pilot.pause()  # Windows: extra pause for input value changes
         await pilot.click("#replace_btn")
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for replace action
 
         assert "common" in editor.text
         assert "unique" not in editor.text

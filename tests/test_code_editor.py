@@ -465,6 +465,7 @@ async def test_footer_path_updates_on_tab_switch(
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for tab open + footer path update
 
         json_editor = app.main_view.get_active_code_editor()
         assert json_editor is not None

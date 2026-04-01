@@ -111,6 +111,7 @@ async def test_only_active_tab_has_code_editor_mounted(
         await pilot.pause()
         await app.main_view.action_open_code_editor(path=sample_json_file)
         await pilot.pause()
+        await pilot.pause()  # Windows: extra pause for tab open + lazy unmount
 
         main = app.main_view
         tc = main.tabbed_content
