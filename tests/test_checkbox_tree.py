@@ -562,6 +562,33 @@ async def test_cursor_color_differs_between_focus_and_blur() -> None:
         )
 
 
+@pytest.mark.asyncio
+async def test_label_click_moves_cursor() -> None:
+    """Clicking a row's label should move the virtual cursor to that row."""
+    from textual_code.widgets.checkbox_tree import _LabelClicked, _NodeLabel
+
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        tree.focus()
+        await pilot.pause()
+
+        # Set cursor to first file row
+        first_file = tree.file_rows()[0]
+        tree._set_cursor(first_file)
+        await pilot.pause()
+        assert first_file.has_class("-cursor")
+
+        # Click the label of the second file row
+        second_file = tree.file_rows()[1]
+        label = second_file.query_one(_NodeLabel)
+        label.post_message(_LabelClicked(label))
+        await pilot.pause()
+
+        # Cursor should have moved to second file row
+        assert second_file.has_class("-cursor")
+        assert not first_file.has_class("-cursor")
+
+
 # ---------------------------------------------------------------------------
 # Replace preview truncation warning test
 # ---------------------------------------------------------------------------

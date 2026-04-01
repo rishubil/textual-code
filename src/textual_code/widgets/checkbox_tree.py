@@ -680,6 +680,7 @@ class CheckboxTree(VerticalScroll, can_focus=True, can_focus_children=False):
         event.stop()
         row = event.label.parent
         if isinstance(row, (_FileRow, _MatchRow)):
+            self._set_cursor(row)
             file_path, line_number = row.data
             self.post_message(
                 self.NodeSelected(file_path=file_path, line_number=line_number)
