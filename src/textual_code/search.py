@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import bisect
 import difflib
 import hashlib
 import logging
@@ -7,6 +8,7 @@ import re
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from itertools import groupby
 from pathlib import Path
 
 import pathspec
@@ -36,6 +38,7 @@ class WorkspaceSearchResult:
     line_text: str
     match_start: int  # column, 0-based (character offset)
     match_end: int  # column, 0-based (character offset)
+    file_hash: str = ""  # SHA-256 hex digest of file at search time
 
 
 @dataclass
@@ -54,6 +57,22 @@ class WorkspaceSearchResponse:
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------
+
+
+def _compile_search_pattern(
+    query: str,
+    use_regex: bool,
+    case_sensitive: bool,
+) -> re.Pattern[str] | None:
+    """Compile a search pattern from a query string.
+
+    Returns ``None`` if the regex is invalid.
+    """
+    flags = 0 if case_sensitive else re.IGNORECASE
+    try:
+        return re.compile(query if use_regex else re.escape(query), flags)
+    except re.error:
+        return None
 
 
 def _parse_include_exclude(
@@ -238,8 +257,12 @@ def search_workspace(
 
     results: list[WorkspaceSearchResult] = []
     path_cache: dict[str, Path] = {}
+    limit_reached = False
 
     for match in matches:
+        if limit_reached:
+            break
+
         # Skip binary content (null byte in matched line)
         if "\x00" in match.line_text:
             continue
@@ -277,7 +300,8 @@ def search_workspace(
                     )
                 )
                 if len(results) >= max_results:
-                    return WorkspaceSearchResponse(results=results)
+                    limit_reached = True
+                    break
         else:
             line_bytes = line_text.encode("utf-8")
             for sub in match.submatches:
@@ -295,8 +319,10 @@ def search_workspace(
                     )
                 )
                 if len(results) >= max_results:
-                    return WorkspaceSearchResponse(results=results)
+                    limit_reached = True
+                    break
 
+    _populate_file_hashes(results)
     return WorkspaceSearchResponse(results=results)
 
 
@@ -409,10 +435,8 @@ def preview_workspace_replace(
     if not query:
         return PreviewResponse()
 
-    flags = 0 if case_sensitive else re.IGNORECASE
-    try:
-        pattern = re.compile(query if use_regex else re.escape(query), flags)
-    except re.error:
+    pattern = _compile_search_pattern(query, use_regex, case_sensitive)
+    if pattern is None:
         return PreviewResponse()
 
     previews: list[FileDiffPreview] = []
@@ -483,10 +507,8 @@ def apply_workspace_replace(
     Re-reads each file and verifies its SHA-256 hash matches the preview.
     Files that have changed since the preview are skipped.
     """
-    flags = 0 if case_sensitive else re.IGNORECASE
-    try:
-        pattern = re.compile(query if use_regex else re.escape(query), flags)
-    except re.error:
+    pattern = _compile_search_pattern(query, use_regex, case_sensitive)
+    if pattern is None:
         return ApplyResult()
 
     result = ApplyResult()
@@ -522,6 +544,246 @@ def apply_workspace_replace(
     elapsed = time.monotonic() - t0
     logger.debug(
         "apply_workspace_replace: %d modified, %d skipped, %d failed in %.3fs",
+        result.files_modified,
+        result.files_skipped,
+        len(result.failed_files),
+        elapsed,
+    )
+    return result
+
+
+# ---------------------------------------------------------------------------
+# File hash computation for stale detection
+# ---------------------------------------------------------------------------
+
+
+def _populate_file_hashes(results: list[WorkspaceSearchResult]) -> None:
+    """Compute and set ``file_hash`` for each result (one read per unique file)."""
+    cache: dict[Path, str] = {}
+    for r in results:
+        if r.file_path not in cache:
+            try:
+                raw = r.file_path.read_bytes()
+                cache[r.file_path] = hashlib.sha256(raw).hexdigest()
+            except OSError:
+                cache[r.file_path] = ""
+        r.file_hash = cache[r.file_path]
+
+
+# ---------------------------------------------------------------------------
+# Position-based selective replace
+# ---------------------------------------------------------------------------
+
+
+def _build_line_offsets(text: str) -> list[int]:
+    """Return a list of character offsets where each line starts.
+
+    ``offsets[i]`` is the character offset of line ``i+1`` (1-based line numbers).
+    """
+    offsets = [0]
+    pos = 0
+    while True:
+        pos = text.find("\n", pos)
+        if pos == -1:
+            break
+        pos += 1  # skip past the newline
+        offsets.append(pos)
+    return offsets
+
+
+def _replace_at_positions(
+    text: str,
+    pattern: re.Pattern[str],
+    replacement: str,
+    selected_positions: set[tuple[int, int]],
+) -> tuple[str, int, int]:
+    """Replace only matches at selected ``(line_number, match_start)`` positions.
+
+    Returns ``(new_text, replaced_count, skipped_count)`` where *skipped_count*
+    is the number of selected positions that did not correspond to any match
+    found by ``pattern.finditer()``.
+    """
+    offsets = _build_line_offsets(text)
+    parts: list[str] = []
+    last_end = 0
+    replaced = 0
+    matched_positions: set[tuple[int, int]] = set()
+
+    for m in pattern.finditer(text):
+        # O(log n) line lookup
+        line_idx = bisect.bisect_right(offsets, m.start()) - 1
+        line_number = line_idx + 1
+        char_offset = m.start() - offsets[line_idx]
+        pos = (line_number, char_offset)
+
+        if pos in selected_positions:
+            matched_positions.add(pos)
+            parts.append(text[last_end : m.start()])
+            parts.append(m.expand(replacement))
+            last_end = m.end()
+            replaced += 1
+
+    parts.append(text[last_end:])
+    skipped = len(selected_positions) - len(matched_positions)
+    return "".join(parts), replaced, skipped
+
+
+def preview_selected_replace(
+    workspace_path: Path,
+    selected_results: list[WorkspaceSearchResult],
+    query: str,
+    replacement: str,
+    use_regex: bool = False,
+    *,
+    case_sensitive: bool = True,
+) -> PreviewResponse:
+    """Generate per-file diff previews for only the selected matches.
+
+    Unlike ``preview_workspace_replace`` this does **not** truncate — every
+    selected file is included so the user sees exactly what will change.
+    """
+    if not selected_results or not query:
+        return PreviewResponse()
+
+    pattern = _compile_search_pattern(query, use_regex, case_sensitive)
+    if pattern is None:
+        return PreviewResponse()
+
+    previews: list[FileDiffPreview] = []
+    t0 = time.monotonic()
+
+    sorted_results = sorted(
+        selected_results, key=lambda r: (str(r.file_path), r.line_number, r.match_start)
+    )
+    for file_path, group in groupby(sorted_results, key=lambda r: r.file_path):
+        file_results = list(group)
+        selected_positions = {(r.line_number, r.match_start) for r in file_results}
+        expected_hash = file_results[0].file_hash
+
+        try:
+            raw = file_path.read_bytes()
+            text = raw.decode("utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+
+        # Stale file detection
+        current_hash = hashlib.sha256(raw).hexdigest()
+        if expected_hash and current_hash != expected_hash:
+            logger.debug(
+                "preview_selected_replace: skipping %s (hash mismatch)", file_path
+            )
+            continue
+
+        new_text, count, skipped = _replace_at_positions(
+            text, pattern, replacement, selected_positions
+        )
+        if count == 0 or new_text == text:
+            continue
+        if skipped:
+            logger.debug(
+                "preview_selected_replace: %d/%d positions skipped in %s",
+                skipped,
+                len(selected_positions),
+                file_path,
+            )
+
+        try:
+            rel_path = str(file_path.relative_to(workspace_path))
+        except ValueError:
+            rel_path = str(file_path)
+
+        diff_lines = list(
+            difflib.unified_diff(
+                text.splitlines(keepends=True),
+                new_text.splitlines(keepends=True),
+                fromfile=rel_path,
+                tofile=rel_path,
+                n=2,
+            )
+        )
+
+        previews.append(
+            FileDiffPreview(
+                file_path=file_path,
+                rel_path=rel_path,
+                original_hash=current_hash,
+                replacement_count=count,
+                diff_lines=diff_lines,
+            )
+        )
+
+    elapsed = time.monotonic() - t0
+    logger.debug(
+        "preview_selected_replace: %d files, %d replacements in %.3fs",
+        len(previews),
+        sum(p.replacement_count for p in previews),
+        elapsed,
+    )
+    return PreviewResponse(previews=previews, is_truncated=False)
+
+
+def apply_selected_replace(
+    previews: list[FileDiffPreview],
+    selected_results: list[WorkspaceSearchResult],
+    query: str,
+    replacement: str,
+    use_regex: bool = False,
+    *,
+    case_sensitive: bool = True,
+) -> ApplyResult:
+    """Apply replacements for previously previewed selected matches.
+
+    Re-reads each file and verifies its SHA-256 hash matches the preview.
+    Files that have changed since the preview are skipped.
+    """
+    pattern = _compile_search_pattern(query, use_regex, case_sensitive)
+    if pattern is None:
+        return ApplyResult()
+
+    # Build per-file position sets from selected results
+    sorted_results = sorted(
+        selected_results, key=lambda r: (str(r.file_path), r.line_number, r.match_start)
+    )
+    positions_by_file: dict[Path, set[tuple[int, int]]] = {}
+    for file_path, group in groupby(sorted_results, key=lambda r: r.file_path):
+        positions_by_file[file_path] = {(r.line_number, r.match_start) for r in group}
+
+    result = ApplyResult()
+    t0 = time.monotonic()
+
+    for preview in previews:
+        try:
+            raw = preview.file_path.read_bytes()
+            text = raw.decode("utf-8")
+        except (OSError, UnicodeDecodeError):
+            result.failed_files.append(preview.rel_path)
+            continue
+
+        current_hash = hashlib.sha256(raw).hexdigest()
+        if current_hash != preview.original_hash:
+            result.files_skipped += 1
+            result.skipped_files.append(preview.rel_path)
+            continue
+
+        positions = positions_by_file.get(preview.file_path, set())
+        new_text, count, _skipped = _replace_at_positions(
+            text, pattern, replacement, positions
+        )
+        if count == 0:
+            continue
+
+        try:
+            preview.file_path.write_bytes(new_text.encode("utf-8"))
+        except OSError:
+            result.failed_files.append(preview.rel_path)
+            continue
+
+        result.files_modified += 1
+        result.replacements_count += count
+
+    elapsed = time.monotonic() - t0
+    logger.debug(
+        "apply_selected_replace: %d modified, %d skipped, %d failed in %.3fs",
         result.files_modified,
         result.files_skipped,
         len(result.failed_files),

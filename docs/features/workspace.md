@@ -25,22 +25,28 @@ Provides project-wide text search and batch replace without leaving the editor. 
 - If no matches are found, "No results" is displayed. If the worker errors unexpectedly, "Search failed" is shown.
 - If some directories are inaccessible (e.g., permission denied), they are silently skipped and partial results are still displayed.
 
-**Result navigation:**
+**Result navigation and selection:**
 
-- Click any result item to open the file at the matched line. The file opens in the active split pane and the cursor moves to the matched line number (1-based).
+- Click any result label to open the file at the matched line. The file opens in the active split pane and the cursor moves to the matched line number (1-based).
+- Each search result has a **checkbox** for selective Replace All. All matches are selected by default.
+- File-level rows display a **tri-state checkbox**: checked (all children selected), partial (some selected), unchecked (none selected). Toggling a file checkbox when partial selects all its children.
+- File rows can be expanded/collapsed to show/hide individual match rows.
+- Keyboard navigation: Up/Down arrows move between rows, Home/End jump to first/last row, Space toggles the focused row's checkbox.
+- The last-focused row retains a subtle highlight even when the tree loses focus, so users can return and find their place.
 
 **Replace All:**
 
 - Enter a replacement string in the "Replace with..." input and click "Replace All" or press Enter in the replace input.
-- Before replacing, a **diff preview screen** appears showing:
+- **When all matches are selected** (default), Replace All operates on the entire workspace (including matches beyond the 500-result display cap). A **diff preview screen** appears showing:
   - A title bar with the number of affected files and total occurrences (shows "N+" when truncated at 100 files).
-  - A left panel listing all affected files with per-file hit counts.
+  - A left panel listing affected files with per-file hit counts.
   - A right panel displaying a unified diff preview for the selected file, with syntax-highlighted additions (green) and removals (red).
-  - Selecting a different file in the left panel updates the diff view.
+  - A warning message at the bottom if more files will be modified than shown in the preview.
+- **When some matches are deselected**, Replace All operates only on selected matches. The preview shows **all** selected files without truncation so the user sees exactly what will change.
 - The diff preview is generated in a background thread to keep the UI responsive. If no matches are found, a "No matches found" status is shown without opening the screen.
-- Each file is hash-checked (SHA-256) before applying: if a file was modified between the preview and the apply, it is skipped and reported to the user via a notification.
+- Each file is hash-checked (SHA-256) before applying: if a file was modified between the search and the replace, it is skipped.
 - After the user clicks "Apply All", the replacement modifies files on disk directly.
-- A status line shows "Replaced N occurrence(s) in M file(s)" after completion. Skipped or failed files are reported separately.
+- A status line shows "Replaced N occurrence(s) in M file(s)" after completion. For partial selection, the message shows "Replaced N of M selected occurrence(s)".
 - Supports regex capture groups when regex mode is enabled (e.g., replace `(\w+)` with `\1_suffix`).
 
 **Search options (checkboxes):**

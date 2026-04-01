@@ -10,9 +10,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from textual.widgets import Input, Tree
+from textual.widgets import Input
 
 from tests.conftest import make_app, wait_for_condition
+from textual_code.widgets.checkbox_tree import CheckboxTree
 from textual_code.widgets.explorer import FilteredDirectoryTree
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -113,10 +114,10 @@ async def test_search_results_horizontal_scroll(workspace: Path) -> None:
         pane.query_one("#ws-query", Input).value = "xxx"
         pane._run_search()
         # Wait for threaded search worker to finish and post results
-        results_tree = app.query_one("#ws-results", Tree)
+        results_tree = app.query_one("#ws-results", CheckboxTree)
         await wait_for_condition(
             pilot,
-            lambda: results_tree.root.children,
+            lambda: results_tree.file_rows(),
             msg="Search worker did not post results",
         )
 

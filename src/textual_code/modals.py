@@ -2265,6 +2265,13 @@ class ReplacePreviewScreen(ModalScreen[ReplacePreviewResult]):
         width: 1fr;
         margin: 0 1;
     }
+    ReplacePreviewScreen #truncation-warning {
+        height: 1;
+        width: 1fr;
+        color: $text-warning;
+        text-style: bold;
+        content-align: center middle;
+    }
     """
 
     # No BINDINGS — escape must not dismiss a destructive action screen
@@ -2311,6 +2318,11 @@ class ReplacePreviewScreen(ModalScreen[ReplacePreviewResult]):
                 yield ListView(*items, id="file-list")
                 with VerticalScroll(id="diff-view"):
                     yield Static("", id="diff-content")
+            if self._is_truncated:
+                yield Label(
+                    "⚠ More files will be modified than shown in this preview.",
+                    id="truncation-warning",
+                )
             with Horizontal(classes="buttons"):
                 yield Button("Cancel", variant="default", id="cancel")
                 yield Button("Apply All", variant="warning", id="apply-all")

@@ -7,13 +7,19 @@ Covers:
 
 from __future__ import annotations
 
+import hashlib
+import re
 from pathlib import Path
 
 import pytest
 
 from textual_code.search import (
     WorkspaceReplaceResult,
+    WorkspaceSearchResult,
+    _replace_at_positions,
+    apply_selected_replace,
     apply_workspace_replace,
+    preview_selected_replace,
     preview_workspace_replace,
     replace_workspace,
 )
@@ -486,3 +492,171 @@ async def test_replace_all_no_matches_shows_status_no_modal(tmp_path: Path) -> N
         # Status should show "No matches found"
         status = ws_pane.query_one("#ws-replace-status", Label)
         assert "No matches found" in str(status.content)
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: _replace_at_positions()
+# ---------------------------------------------------------------------------
+
+
+def test_replace_at_positions_simple(tmp_path: Path) -> None:
+    text = "hello world\nhello again\n"
+    pattern = re.compile(re.escape("hello"))
+    # Only replace the first occurrence (line 1, col 0)
+    new_text, count, skipped = _replace_at_positions(text, pattern, "hi", {(1, 0)})
+    assert count == 1
+    assert skipped == 0
+    assert new_text == "hi world\nhello again\n"
+
+
+def test_replace_at_positions_partial_file(tmp_path: Path) -> None:
+    text = "aaa bbb aaa\nccc aaa ddd\n"
+    pattern = re.compile(re.escape("aaa"))
+    # Replace only the match at line 1 col 8 and line 2 col 4
+    new_text, count, skipped = _replace_at_positions(
+        text, pattern, "XXX", {(1, 8), (2, 4)}
+    )
+    assert count == 2
+    assert skipped == 0
+    assert new_text == "aaa bbb XXX\nccc XXX ddd\n"
+
+
+def test_replace_at_positions_regex_capture(tmp_path: Path) -> None:
+    text = "foo bar baz\n"
+    pattern = re.compile(r"(foo)")
+    new_text, count, skipped = _replace_at_positions(
+        text, pattern, r"\1_suffix", {(1, 0)}
+    )
+    assert count == 1
+    assert new_text == "foo_suffix bar baz\n"
+
+
+def test_replace_at_positions_multiple_matches_same_line() -> None:
+    text = "ab ab ab\n"
+    pattern = re.compile(re.escape("ab"))
+    # Select only the 2nd occurrence (col 3)
+    new_text, count, skipped = _replace_at_positions(text, pattern, "XY", {(1, 3)})
+    assert count == 1
+    assert skipped == 0
+    assert new_text == "ab XY ab\n"
+
+
+def test_replace_at_positions_skipped_count() -> None:
+    text = "hello\n"
+    pattern = re.compile(re.escape("hello"))
+    # Position doesn't match any finditer result
+    new_text, count, skipped = _replace_at_positions(
+        text, pattern, "hi", {(1, 0), (5, 0)}
+    )
+    assert count == 1
+    assert skipped == 1
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: preview_selected_replace()
+# ---------------------------------------------------------------------------
+
+
+def test_preview_selected_replace_no_truncation(tmp_path: Path) -> None:
+    # Create many files
+    for i in range(150):
+        (tmp_path / f"file_{i:03d}.txt").write_text("hello world\n")
+
+    results = [
+        WorkspaceSearchResult(
+            file_path=tmp_path / f"file_{i:03d}.txt",
+            line_number=1,
+            line_text="hello world",
+            match_start=0,
+            match_end=5,
+            file_hash=hashlib.sha256(b"hello world\n").hexdigest(),
+        )
+        for i in range(150)
+    ]
+    response = preview_selected_replace(
+        tmp_path, results, "hello", "hi", case_sensitive=True
+    )
+    # No truncation — all 150 files should be previewed
+    assert len(response.previews) == 150
+    assert response.is_truncated is False
+
+
+def test_preview_selected_replace_generates_diff(tmp_path: Path) -> None:
+    f = tmp_path / "test.txt"
+    f.write_text("hello world\nhello again\n")
+    file_hash = hashlib.sha256(b"hello world\nhello again\n").hexdigest()
+
+    results = [
+        WorkspaceSearchResult(
+            file_path=f,
+            line_number=1,
+            line_text="hello world",
+            match_start=0,
+            match_end=5,
+            file_hash=file_hash,
+        ),
+    ]
+    response = preview_selected_replace(
+        tmp_path, results, "hello", "hi", case_sensitive=True
+    )
+    assert len(response.previews) == 1
+    diff_text = "".join(response.previews[0].diff_lines)
+    assert "-hello world" in diff_text
+    assert "+hi world" in diff_text
+
+
+def test_preview_selected_skips_modified_file(tmp_path: Path) -> None:
+    f = tmp_path / "test.txt"
+    f.write_text("hello world\n")
+    old_hash = hashlib.sha256(b"old content\n").hexdigest()  # wrong hash
+
+    results = [
+        WorkspaceSearchResult(
+            file_path=f,
+            line_number=1,
+            line_text="hello world",
+            match_start=0,
+            match_end=5,
+            file_hash=old_hash,
+        ),
+    ]
+    response = preview_selected_replace(
+        tmp_path, results, "hello", "hi", case_sensitive=True
+    )
+    assert len(response.previews) == 0  # skipped due to hash mismatch
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: apply_selected_replace()
+# ---------------------------------------------------------------------------
+
+
+def test_apply_selected_replace_hash_mismatch(tmp_path: Path) -> None:
+    from textual_code.search import FileDiffPreview
+
+    f = tmp_path / "test.txt"
+    f.write_text("hello world\n")
+
+    preview = FileDiffPreview(
+        file_path=f,
+        rel_path="test.txt",
+        original_hash="wrong_hash",
+        replacement_count=1,
+        diff_lines=[],
+    )
+    results = [
+        WorkspaceSearchResult(
+            file_path=f,
+            line_number=1,
+            line_text="hello world",
+            match_start=0,
+            match_end=5,
+        ),
+    ]
+    result = apply_selected_replace(
+        [preview], results, "hello", "hi", case_sensitive=True
+    )
+    assert result.files_skipped == 1
+    assert result.files_modified == 0
+    # File should be unchanged
+    assert f.read_text() == "hello world\n"

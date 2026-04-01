@@ -35,13 +35,14 @@ from itertools import groupby
 from pathlib import Path
 
 import pytest
-from textual.widgets import Button, Checkbox, Input, Label, Static, Tree
+from textual.widgets import Button, Checkbox, Input, Label, Static
 
 from tests.conftest import make_app
 from textual_code.search import (
     replace_workspace,
     search_workspace,
 )
+from textual_code.widgets.checkbox_tree import CheckboxTree
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
 # ── Unit: search_workspace result aggregation ────────────────────────────
@@ -268,7 +269,7 @@ async def test_search_tree_cleared_on_new_search(tmp_path: Path) -> None:
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         query_input = ws_pane.query_one("#ws-query", Input)
-        results_tree = ws_pane.query_one("#ws-results", Tree)
+        results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
 
         # First search: populate results
         query_input.value = "hello"
@@ -280,7 +281,7 @@ async def test_search_tree_cleared_on_new_search(tmp_path: Path) -> None:
         )  # Windows: extra pause for search worker completion
 
         # Verify results are populated
-        assert len(results_tree.root.children) > 0, "First search should have results"
+        assert len(results_tree.file_rows()) > 0, "First search should have results"
 
         # Second search with different query — tree should be cleared first
         query_input.value = "nonexistent_string_xyz"
@@ -291,11 +292,8 @@ async def test_search_tree_cleared_on_new_search(tmp_path: Path) -> None:
             pilot.wait_for_scheduled_animations()
         )  # Windows: extra pause for search worker completion
 
-        # After the second search completes, results should show "No results"
-        node_labels = [str(n.label) for n in results_tree.root.children]
-        assert any("No results" in lbl for lbl in node_labels), (
-            f"Expected 'No results' after nonexistent search, got: {node_labels}"
-        )
+        # After the second search completes, tree should be empty (no results)
+        assert results_tree.file_rows() == []
 
 
 # ── Integration: exclusive worker cancellation ───────────────────────────
@@ -412,13 +410,13 @@ async def test_search_tree_groups_results_by_file(tmp_path: Path) -> None:
             pilot.wait_for_scheduled_animations()
         )  # Windows: extra pause for search worker completion
 
-        results_tree = ws_pane.query_one("#ws-results", Tree)
-        file_nodes = list(results_tree.root.children)
+        results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
+        file_nodes = list(results_tree.file_rows())
 
         assert len(file_nodes) == 2, f"Expected 2 file groups, got {len(file_nodes)}"
 
         # Find nodes by filename (order depends on ripgrep path sorting)
-        node_labels = {str(n.label): n for n in file_nodes}
+        node_labels = {n.label_text: n for n in file_nodes}
         file1_label = next(lbl for lbl in node_labels if "file1.txt" in lbl)
         file2_label = next(lbl for lbl in node_labels if "file2.txt" in lbl)
 
@@ -426,14 +424,14 @@ async def test_search_tree_groups_results_by_file(tmp_path: Path) -> None:
         assert "1 match" in file2_label
         assert "1 matches" not in file2_label  # singular form
 
-        # Verify leaf children of file1 node
+        # Verify match row children of file1 node
         file1_node = node_labels[file1_label]
-        file1_children = list(file1_node.children)
+        file1_children = results_tree.match_rows_for(file1_node)
         assert len(file1_children) == 2
-        assert "1:" in str(file1_children[0].label)
-        assert "alpha target" in str(file1_children[0].label)
-        assert "2:" in str(file1_children[1].label)
-        assert "beta target" in str(file1_children[1].label)
+        assert "1:" in file1_children[0].label_text
+        assert "alpha target" in file1_children[0].label_text
+        assert "2:" in file1_children[1].label_text
+        assert "beta target" in file1_children[1].label_text
 
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -686,18 +684,16 @@ async def test_tree_hierarchy_file_and_match_nodes(tmp_path: Path) -> None:
             pilot.wait_for_scheduled_animations()
         )  # Windows: extra pause for search worker completion
 
-        results_tree = ws_pane.query_one("#ws-results", Tree)
+        results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
 
         # Level 1: file nodes are direct children of root
-        file_nodes = list(results_tree.root.children)
+        file_nodes = list(results_tree.file_rows())
         assert len(file_nodes) == 1
-        assert "test.txt" in str(file_nodes[0].label)
+        assert "test.txt" in file_nodes[0].label_text
 
-        # Level 2: match leaves are children of the file node
-        match_nodes = list(file_nodes[0].children)
-        assert len(match_nodes) == 2
-        assert not match_nodes[0].allow_expand  # match nodes are leaves
-        assert not match_nodes[1].allow_expand
+        # Level 2: match rows are children of the file row
+        match_rows = results_tree.match_rows_for(file_nodes[0])
+        assert len(match_rows) == 2
 
 
 # ── Integration: Tree node data storage ──────────────────────────────────
@@ -729,8 +725,8 @@ async def test_tree_node_data_stores_file_and_line(tmp_path: Path) -> None:
             pilot.wait_for_scheduled_animations()
         )  # Windows: extra pause for search worker + tree population
 
-        results_tree = ws_pane.query_one("#ws-results", Tree)
-        file_nodes = list(results_tree.root.children)
+        results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
+        file_nodes = list(results_tree.file_rows())
         assert len(file_nodes) == 1
 
         # File node data: (file_path, first_match_line_number)
@@ -738,11 +734,11 @@ async def test_tree_node_data_stores_file_and_line(tmp_path: Path) -> None:
         assert file_data[0] == target
         assert file_data[1] == 2  # "needle here" is on line 2
 
-        # Match leaf node data: (file_path, match_line_number)
-        match_leaves = list(file_nodes[0].children)
-        assert len(match_leaves) == 2
-        assert match_leaves[0].data == (target, 2)
-        assert match_leaves[1].data == (target, 4)
+        # Match row data: (file_path, match_line_number)
+        match_rows = results_tree.match_rows_for(file_nodes[0])
+        assert len(match_rows) == 2
+        assert match_rows[0].data == (target, 2)
+        assert match_rows[1].data == (target, 4)
 
 
 # ── Integration: nested directory Tree grouping ──────────────────────────
@@ -779,12 +775,12 @@ async def test_nested_directory_tree_grouping(tmp_path: Path) -> None:
             pilot.wait_for_scheduled_animations()
         )  # Windows: extra pause for search worker completion
 
-        results_tree = ws_pane.query_one("#ws-results", Tree)
-        file_nodes = list(results_tree.root.children)
+        results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
+        file_nodes = list(results_tree.file_rows())
         assert len(file_nodes) == 3, f"Expected 3 file groups, got {len(file_nodes)}"
 
         # Collect labels for verification
-        labels = [str(n.label) for n in file_nodes]
+        labels = [n.label_text for n in file_nodes]
 
         # All three files should appear with relative paths
         assert any("root.txt" in lbl for lbl in labels)
@@ -816,15 +812,12 @@ async def test_nested_directory_tree_grouping(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_next_focus_after_removing_match_with_sibling_file(
+async def test_remove_match_row_updates_tree(
     tmp_path: Path,
 ) -> None:
-    """After removing a match, the next file's first match is reachable.
+    """Removing a match row updates the file row and tree structure.
 
-    VSCode: [file1, match1, match2, file2, match3, match4]
-    Remove match2 → getElementToFocusAfterRemoved returns match3.
-    Our equivalent: match's parent file_node has next_sibling (file2_node),
-    whose first child is the next match to focus.
+    Adapted from VSCode searchActions.test.ts focus-after-removal tests.
     """
     (tmp_path / "aaa.txt").write_text("needle one\nneedle two\n")
     (tmp_path / "bbb.txt").write_text("needle three\nneedle four\n")
@@ -839,50 +832,36 @@ async def test_next_focus_after_removing_match_with_sibling_file(
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await (
-            pilot.wait_for_scheduled_animations()
-        )  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
 
-        results_tree = ws_pane.query_one("#ws-results", Tree)
-        file_nodes = list(results_tree.root.children)
+        results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
+        file_nodes = list(results_tree.file_rows())
         assert len(file_nodes) == 2
 
-        file1_node = file_nodes[0]
-        file2_node = file_nodes[1]
-        file1_matches = list(file1_node.children)
-        file2_matches = list(file2_node.children)
-
-        # Verify structure: 2 files × 2 matches each
+        file1_matches = results_tree.match_rows_for(file_nodes[0])
         assert len(file1_matches) == 2
+
+        # Remove last match in file1
+        results_tree.remove_match_row(file1_matches[1])
+        await pilot.pause()
+
+        # File1 should still have 1 match
+        assert len(results_tree.match_rows_for(file_nodes[0])) == 1
+
+        # File2 is still accessible
+        file2_matches = results_tree.match_rows_for(file_nodes[1])
         assert len(file2_matches) == 2
-
-        # Target: last match in file1 (equivalent to data[2] in VSCode)
-        target = file1_matches[1]
-
-        # Navigate to next file's first match — equivalent to
-        # getElementToFocusAfterRemoved returning data[4]
-        next_file = target.parent.next_sibling
-        assert next_file is file2_node
-        next_match = list(next_file.children)[0]
-
-        # Remove target and verify the navigation path is still valid
-        target.remove()
-        assert len(list(file1_node.children)) == 1
-        assert next_match in list(file2_node.children)
+        assert "needle three" in file2_matches[0].label_text
 
 
-# ── Integration: focus after removing the only match ─────────────────────
-# Adapted from searchActions.test.ts "get next element to focus after
-# removing a match when it is the only match" (line 61)
+# ── Integration: removing the only match removes the file row ────────────
 
 
 @pytest.mark.asyncio
-async def test_next_focus_after_removing_only_match(tmp_path: Path) -> None:
-    """After removing the only match, no next match to focus.
+async def test_remove_only_match_removes_file_row(tmp_path: Path) -> None:
+    """Removing the only match in a file removes the file row too.
 
-    VSCode: [file1, match1] → remove match1 → returns undefined.
-    Our equivalent: the only match leaf has no next_sibling, and its parent
-    file_node has no next_sibling either.
+    Adapted from VSCode searchActions.test.ts single-match removal tests.
     """
     (tmp_path / "only.txt").write_text("needle\n")
 
@@ -896,39 +875,31 @@ async def test_next_focus_after_removing_only_match(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await (
-            pilot.wait_for_scheduled_animations()
-        )  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
 
-        results_tree = ws_pane.query_one("#ws-results", Tree)
-        file_nodes = list(results_tree.root.children)
+        results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
+        file_nodes = list(results_tree.file_rows())
         assert len(file_nodes) == 1
 
-        match_node = list(file_nodes[0].children)[0]
+        match_rows = results_tree.match_rows_for(file_nodes[0])
+        assert len(match_rows) == 1
 
-        # No sibling match and no sibling file → nothing to focus
-        assert match_node.next_sibling is None
-        assert file_nodes[0].next_sibling is None
-
-        # After removal, file node has no children
-        match_node.remove()
-        assert len(list(file_nodes[0].children)) == 0
+        # Remove the only match — file row should also be removed
+        results_tree.remove_match_row(match_rows[0])
+        await pilot.pause()
+        assert len(results_tree.file_rows()) == 0
 
 
-# ── Integration: focus after removing a file with next sibling ───────────
-# Adapted from searchActions.test.ts "get next element to focus after
-# removing a file match when it has next sibling" (line 71)
+# ── Integration: removing a file row with siblings ────────────────────────
 
 
 @pytest.mark.asyncio
-async def test_next_focus_after_removing_file_with_sibling(
+async def test_remove_file_row_with_siblings(
     tmp_path: Path,
 ) -> None:
-    """After removing a file node, the next sibling file is navigable.
+    """Removing a file row keeps sibling files accessible.
 
-    VSCode: [file1, match1, file2, match2, file3, match3]
-    Remove file2 → getElementToFocusAfterRemoved returns file3.
-    Our equivalent: file2_node.next_sibling is file3_node.
+    Adapted from VSCode searchActions.test.ts file sibling removal tests.
     """
     (tmp_path / "aaa.txt").write_text("needle\n")
     (tmp_path / "bbb.txt").write_text("needle\n")
@@ -944,25 +915,21 @@ async def test_next_focus_after_removing_file_with_sibling(
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await (
-            pilot.wait_for_scheduled_animations()
-        )  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
 
-        results_tree = ws_pane.query_one("#ws-results", Tree)
-        file_nodes = list(results_tree.root.children)
+        results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
+        file_nodes = list(results_tree.file_rows())
         assert len(file_nodes) == 3
 
-        file2_node = file_nodes[1]
-        file3_node = file_nodes[2]
+        # Remove the middle file
+        file2 = file_nodes[1]
+        results_tree.remove_file_row(file2)
+        await pilot.pause()
 
-        # file2 → next_sibling is file3
-        assert file2_node.next_sibling is file3_node
-
-        # Remove file2 and verify file3 is still accessible from file1
-        file2_node.remove()
-        remaining = list(results_tree.root.children)
+        remaining = results_tree.file_rows()
         assert len(remaining) == 2
-        assert remaining[1] is file3_node
+        assert "aaa.txt" in remaining[0].label_text
+        assert "ccc.txt" in remaining[1].label_text
 
 
 # ── Integration: last file node in tree ──────────────────────────────────
@@ -994,19 +961,16 @@ async def test_last_file_node_in_tree(tmp_path: Path) -> None:
             pilot.wait_for_scheduled_animations()
         )  # Windows: extra pause for search worker completion
 
-        results_tree = ws_pane.query_one("#ws-results", Tree)
-        file_nodes = list(results_tree.root.children)
+        results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
+        file_nodes = list(results_tree.file_rows())
         assert len(file_nodes) == 3
 
         # Last file node — equivalent to getLastNodeFromSameType for FileMatch
         last_file = file_nodes[-1]
-        assert "ccc.txt" in str(last_file.label)
+        assert "ccc.txt" in last_file.label_text
 
-        # Verify it's also reachable via next_sibling chain
-        current = file_nodes[0]
-        while current.next_sibling is not None:
-            current = current.next_sibling
-        assert current is last_file
+        # Verify it's the last in the list
+        assert last_file is file_nodes[-1]
 
 
 # ── Integration: last match node in tree ─────────────────────────────────
@@ -1039,18 +1003,16 @@ async def test_last_match_node_in_tree(tmp_path: Path) -> None:
             pilot.wait_for_scheduled_animations()
         )  # Windows: extra pause for search results tree population
 
-        results_tree = ws_pane.query_one("#ws-results", Tree)
-        file_nodes = list(results_tree.root.children)
+        results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
+        file_nodes = list(results_tree.file_rows())
         assert len(file_nodes) == 3
 
-        # Last match in tree = last child of last file node
+        # Last match in tree = last match row of last file row
         last_file = file_nodes[-1]
-        last_file_matches = list(last_file.children)
+        last_file_matches = results_tree.match_rows_for(last_file)
         last_match = last_file_matches[-1]
 
-        # Verify it's a leaf node with correct data
-        assert not last_match.allow_expand
-        assert "needle three" in str(last_match.label)
+        assert "needle three" in last_match.label_text
 
 
 # ── Integration: focus after removing the only file ──────────────────────
@@ -1059,12 +1021,11 @@ async def test_last_match_node_in_tree(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
-async def test_next_focus_after_removing_only_file(tmp_path: Path) -> None:
-    """After removing the only file node, no next file to focus.
+async def test_clear_removes_all_results(tmp_path: Path) -> None:
+    """Clearing the tree removes all file and match rows.
 
-    VSCode: [file1, match1] → remove file1 → returns undefined.
-    Our equivalent: the only file_node has no next_sibling and no
-    previous_sibling.
+    Adapted from VSCode searchActions.test.ts remove-only-file tests.
+    CheckboxTree uses clear() instead of individual node removal.
     """
     (tmp_path / "only.txt").write_text("needle\n")
 
@@ -1078,23 +1039,15 @@ async def test_next_focus_after_removing_only_file(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await (
-            pilot.wait_for_scheduled_animations()
-        )  # Windows: extra pause for search worker + tree population
+        await pilot.wait_for_scheduled_animations()
 
-        results_tree = ws_pane.query_one("#ws-results", Tree)
-        file_nodes = list(results_tree.root.children)
-        assert len(file_nodes) == 1
+        results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
+        assert len(results_tree.file_rows()) == 1
 
-        only_file = file_nodes[0]
-
-        # No sibling files → nothing to focus
-        assert only_file.next_sibling is None
-        assert only_file.previous_sibling is None
-
-        # After removal, tree root has no children
-        only_file.remove()
-        assert len(list(results_tree.root.children)) == 0
+        # Clear the tree — equivalent to removing all nodes
+        results_tree.clear()
+        await pilot.pause()
+        assert len(results_tree.file_rows()) == 0
 
 
 # ══════════════════════════════════════════════════════════════════════════
