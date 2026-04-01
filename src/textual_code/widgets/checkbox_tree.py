@@ -604,18 +604,19 @@ class CheckboxTree(VerticalScroll):
             self._last_focused_row = focused
             focused.add_class("-cursor")
 
-    def focus(self, scroll_visible: bool = True) -> None:
+    def focus(self, scroll_visible: bool = True) -> CheckboxTree:
         """Override to redirect focus to the last-focused row."""
         row = self._last_focused_row
         if row is not None and row.display and row.is_attached:
             row.focus(scroll_visible=scroll_visible)
-            return
+            return self
         # Fallback: focus the first visible row
         visible = self._visible_rows()
         if visible:
             visible[0].focus(scroll_visible=scroll_visible)
-            return
+            return self
         super().focus(scroll_visible=scroll_visible)
+        return self
 
     # ── Checkbox synchronization (central handler) ────────────────────────
 
