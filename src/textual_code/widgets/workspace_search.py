@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from itertools import groupby
 from pathlib import Path
 
 from rich.cells import cell_len
-from rich.markup import escape as markup_escape
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
-from textual.widgets import Button, Checkbox, Input, Label, Static, Tree
+from textual.widgets import Button, Checkbox, Input, Label, Static
 from textual.worker import Worker, WorkerState
 
 from textual_code.modals import (
@@ -18,9 +16,11 @@ from textual_code.modals import (
     ReplacePreviewScreen,
 )
 from textual_code.search import (
+    preview_selected_replace,
     preview_workspace_replace,
     search_workspace,
 )
+from textual_code.widgets.checkbox_tree import CheckboxTree
 
 _BTN_LABELS = {
     "ws-search": ("🔍 Search", "🔍"),
@@ -63,10 +63,7 @@ class WorkspaceSearchPane(Static):
                 _BTN_LABELS["ws-replace-all"][0], id="ws-replace-all", variant="warning"
             )
         yield Label("", id="ws-replace-status")
-        tree = Tree("Results", id="ws-results")
-        tree.show_root = False
-        tree.show_guides = False
-        yield tree
+        yield CheckboxTree(id="ws-results")
 
     # ── Responsive labels ──────────────────────────────────────────────────────
 
@@ -104,9 +101,9 @@ class WorkspaceSearchPane(Static):
             files_to_exclude,
         ) = self._read_search_inputs()
 
-        results_tree = self.query_one("#ws-results", Tree)
-        results_tree.clear()
-        results_tree.loading = False
+        checkbox_tree = self.query_one("#ws-results", CheckboxTree)
+        checkbox_tree.clear()
+        checkbox_tree.loading = False
 
         if not query:
             return
@@ -116,7 +113,7 @@ class WorkspaceSearchPane(Static):
             return
 
         show_hidden = getattr(self.app, "default_show_hidden_files", True)
-        results_tree.loading = True
+        checkbox_tree.loading = True
         self._search_worker(
             workspace_path,
             query,
@@ -163,34 +160,9 @@ class WorkspaceSearchPane(Static):
         workspace_path: Path,
         inaccessible_paths: list[str] | None = None,
     ) -> None:
-        results_tree = self.query_one("#ws-results", Tree)
-        results_tree.loading = False
-        results_tree.clear()
-
-        if not results:
-            results_tree.root.add_leaf("No results")
-        else:
-            for file_path, file_results in groupby(results, key=lambda r: r.file_path):
-                matches = list(file_results)
-                count = len(matches)
-                try:
-                    relative = file_path.relative_to(workspace_path)
-                except ValueError:
-                    relative = file_path
-                suffix = "match" if count == 1 else "matches"
-                first_line = matches[0].line_number
-                file_node = results_tree.root.add(
-                    markup_escape(f"{relative} ({count} {suffix})"),
-                    data=(file_path, first_line),
-                    expand=True,
-                )
-                for match in matches:
-                    file_node.add_leaf(
-                        markup_escape(
-                            f"{match.line_number}: {match.line_text.strip()}"
-                        ),
-                        data=(file_path, match.line_number),
-                    )
+        checkbox_tree = self.query_one("#ws-results", CheckboxTree)
+        checkbox_tree.loading = False
+        checkbox_tree.populate(results, workspace_path)
 
         if inaccessible_paths:
             count = len(inaccessible_paths)
@@ -207,10 +179,9 @@ class WorkspaceSearchPane(Static):
             return
         if event.state == WorkerState.ERROR:
             if event.worker.group == "search":
-                results_tree = self.query_one("#ws-results", Tree)
-                results_tree.loading = False
-                results_tree.clear()
-                results_tree.root.add_leaf("Search failed")
+                checkbox_tree = self.query_one("#ws-results", CheckboxTree)
+                checkbox_tree.loading = False
+                checkbox_tree.clear()
             elif event.worker.group == "replace_count":
                 status = self.query_one("#ws-replace-status", Label)
                 status.update("Replace count failed")
@@ -239,17 +210,36 @@ class WorkspaceSearchPane(Static):
             return
 
         show_hidden = getattr(self.app, "default_show_hidden_files", True)
-        self._preview_replace_worker(
-            workspace_path,
-            query,
-            replacement,
-            use_regex,
-            respect_gitignore,
-            case_sensitive,
-            show_hidden,
-            files_to_include,
-            files_to_exclude,
-        )
+        checkbox_tree = self.query_one("#ws-results", CheckboxTree)
+
+        if checkbox_tree.all_selected:
+            # Fast path: replace ALL matches (including beyond 500 cap)
+            self._preview_replace_worker(
+                workspace_path,
+                query,
+                replacement,
+                use_regex,
+                respect_gitignore,
+                case_sensitive,
+                show_hidden,
+                files_to_include,
+                files_to_exclude,
+            )
+        else:
+            # Selected-only path
+            selected = checkbox_tree.selected_results
+            if not selected:
+                status = self.query_one("#ws-replace-status", Label)
+                status.update("No matches selected")
+                return
+            self._preview_selected_worker(
+                workspace_path,
+                query,
+                replacement,
+                use_regex,
+                case_sensitive,
+                selected,
+            )
 
     @work(thread=True, exclusive=True, group="replace_count", exit_on_error=False)
     def _preview_replace_worker(
@@ -288,6 +278,41 @@ class WorkspaceSearchPane(Static):
             files_to_include,
             files_to_exclude,
             response,
+            None,  # selected_results=None means "all" path
+        )
+
+    @work(thread=True, exclusive=True, group="replace_count", exit_on_error=False)
+    def _preview_selected_worker(
+        self,
+        workspace_path: Path,
+        query: str,
+        replacement: str,
+        use_regex: bool,
+        case_sensitive: bool,
+        selected_results: list,
+    ) -> None:
+        response = preview_selected_replace(
+            workspace_path,
+            selected_results,
+            query,
+            replacement,
+            use_regex,
+            case_sensitive=case_sensitive,
+        )
+
+        self.app.call_from_thread(
+            self._show_replace_preview,
+            workspace_path,
+            query,
+            replacement,
+            use_regex,
+            False,  # respect_gitignore (unused for selected path)
+            case_sensitive,
+            True,  # show_hidden_files (unused for selected path)
+            "",  # files_to_include (unused)
+            "",  # files_to_exclude (unused)
+            response,
+            selected_results,
         )
 
     def _show_replace_preview(
@@ -302,8 +327,13 @@ class WorkspaceSearchPane(Static):
         files_to_include: str,
         files_to_exclude: str,
         response: object,
+        selected_results: list | None,
     ) -> None:
-        from textual_code.search import PreviewResponse, replace_workspace
+        from textual_code.search import (
+            PreviewResponse,
+            apply_selected_replace,
+            replace_workspace,
+        )
 
         assert isinstance(response, PreviewResponse)
         previews = response.previews
@@ -321,21 +351,39 @@ class WorkspaceSearchPane(Static):
         def on_result(result: ReplacePreviewResult | None) -> None:
             if result is None or result.is_cancelled or not result.should_apply:
                 return
-            # Apply to ALL matching files, not just the previewed subset.
-            replace_result = replace_workspace(
-                workspace_path,
-                query,
-                replacement,
-                use_regex,
-                respect_gitignore=respect_gitignore,
-                show_hidden_files=show_hidden_files,
-                files_to_include=files_to_include,
-                files_to_exclude=files_to_exclude,
-                case_sensitive=case_sensitive,
-            )
-            n = replace_result.replacements_count
-            f = replace_result.files_modified
-            status.update(f"Replaced {n} occurrence(s) in {f} file(s)")
+
+            if selected_results is None:
+                # All-selected fast path: replace ALL matching files
+                replace_result = replace_workspace(
+                    workspace_path,
+                    query,
+                    replacement,
+                    use_regex,
+                    respect_gitignore=respect_gitignore,
+                    show_hidden_files=show_hidden_files,
+                    files_to_include=files_to_include,
+                    files_to_exclude=files_to_exclude,
+                    case_sensitive=case_sensitive,
+                )
+                n = replace_result.replacements_count
+                f = replace_result.files_modified
+                status.update(f"Replaced {n} occurrence(s) in {f} file(s)")
+            else:
+                # Selected-only path
+                apply_result = apply_selected_replace(
+                    previews,
+                    selected_results,
+                    query,
+                    replacement,
+                    use_regex,
+                    case_sensitive=case_sensitive,
+                )
+                n = apply_result.replacements_count
+                f = apply_result.files_modified
+                total = len(selected_results)
+                status.update(
+                    f"Replaced {n} of {total} selected occurrence(s) in {f} file(s)"
+                )
 
         self.app.push_screen(modal, on_result)
 
@@ -357,15 +405,11 @@ class WorkspaceSearchPane(Static):
     def _on_replace_submitted(self) -> None:
         self._run_replace_all()
 
-    def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
-        data = event.node.data
-        if data is None:
-            return
-        file_path, line_number = data
+    def on_checkbox_tree_node_selected(self, event: CheckboxTree.NodeSelected) -> None:
         self.post_message(
             self.OpenFileAtLineRequested(
-                file_path=file_path,
-                line_number=line_number,
+                file_path=event.file_path,
+                line_number=event.line_number,
             )
         )
 
