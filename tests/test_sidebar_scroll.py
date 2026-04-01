@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 from textual.widgets import Input, Tree
 
-from tests.conftest import make_app
+from tests.conftest import make_app, wait_for_condition
 from textual_code.widgets.explorer import FilteredDirectoryTree
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -112,10 +112,13 @@ async def test_search_results_horizontal_scroll(workspace: Path) -> None:
         pane = app.query_one(WorkspaceSearchPane)
         pane.query_one("#ws-query", Input).value = "xxx"
         pane._run_search()
-        # Give threaded search worker time to finish
-        await pilot.wait_for_scheduled_animations()
-
+        # Wait for threaded search worker to finish and post results
         results_tree = app.query_one("#ws-results", Tree)
+        await wait_for_condition(
+            pilot,
+            lambda: results_tree.root.children,
+            msg="Search worker did not post results",
+        )
 
         assert results_tree.styles.overflow_x == "auto", (
             f"Search results overflow_x is '{results_tree.styles.overflow_x}', "
