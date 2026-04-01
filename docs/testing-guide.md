@@ -259,8 +259,10 @@ screenshot is captured.  This is separate from `animation_level` — cursor blin
 uses a 0.5s timer that runs even in headless mode, so without this wrapper the
 cursor may or may not be visible at capture time, causing non-deterministic failures.
 
-The wrapper is transparent: tests use `snap_compare` exactly as before, and the
-cursor-blink disable happens automatically after any `run_before` callback.
+The wrapper is transparent: tests use `snap_compare` exactly as before.  Cursor-blink
+disable happens automatically before and after `run_before`, and the wrapper finishes
+with `_wait_for_stable_screen(pilot)` to ensure the screen is fully settled before
+the screenshot is captured.
 
 ### Adding a new snapshot
 
@@ -277,6 +279,26 @@ cursor-blink disable happens automatically after any `run_before` callback.
 3. Visually inspect the generated SVG in `tests/__snapshots__/`.
 4. Snapshot tests use the **full app** (no `light=True`) because the SVG must include the sidebar.
 
+### Snapshot `run_before`: use `wait_for_scheduled_animations()` for settling
+
+All snapshot `run_before` callbacks use `pilot.wait_for_scheduled_animations()`
+instead of `pilot.pause()` between actions.  `wait_for_scheduled_animations()` is
+strictly more thorough — it calls `_wait_for_screen()` twice, waits for the
+animator to complete, and does a full `wait_for_idle()`.
+
+```python
+async def run_before(pilot):
+    await pilot.wait_for_scheduled_animations()
+    editor = app.main_view.get_active_code_editor()
+    if editor is not None:
+        editor.action_focus()
+    await pilot.wait_for_scheduled_animations()
+```
+
+The `snap_compare` wrapper automatically calls `_wait_for_stable_screen(pilot)`
+after `run_before` completes, so individual callbacks do not need a final
+stability check.
+
 ### Snapshot tests with split panes
 
 When a snapshot test creates a split and opens files in multiple panes, the active tab
@@ -287,19 +309,16 @@ underline can vary between runs.  To stabilise:
 pane_ids = dtc.get_ordered_pane_ids()
 if pane_ids:
     dtc.active = pane_ids[0]
-for _ in range(5):      # let the underline indicator settle
-    await pilot.pause()
+await _wait_for_stable_screen(pilot, stability_count=3)
 ```
 
-### Screen stability wait for complex async operations
+### Screen stability wait: `_wait_for_stable_screen` for complex async operations
 
 When a snapshot test triggers **cascading deferred work** — markdown preview rendering,
-split creation with pane moves, or any code path using `call_after_refresh` — a fixed
-number of `pilot.pause()` calls may not be enough. The settling depth varies by system
-speed, making fixed counts unreliable on CI.
-
-Use `_wait_for_stable_screen(pilot)` (defined in `test_snapshots.py`) instead. It polls
-`export_screenshot()` in a loop and returns when consecutive frames produce identical SVGs:
+split creation with pane moves, threaded workers, or any code path using
+`call_after_refresh` — use `_wait_for_stable_screen(pilot)` (defined in
+`test_snapshots.py`).  It repeatedly calls `wait_for_scheduled_animations()` and
+compares consecutive `export_screenshot()` results, returning when the output stabilises.
 
 ```python
 await app.main_view.action_open_markdown_preview()
@@ -320,10 +339,19 @@ app.main_view._set_active_leaf(left_leaf)
 await _wait_for_stable_screen(pilot)
 ```
 
-**When to use:** markdown preview, split + move combos, or any operation that triggers
-multiple rounds of `call_after_refresh` / reactive watchers.
+For threaded workers (search, image, git diff), use `stability_count=3` to ensure the
+worker result is reflected:
 
-**When NOT to use:** simple single-action tests where one `pilot.pause()` suffices.
+```python
+pane._run_search()
+await _wait_for_stable_screen(pilot, stability_count=3)
+```
+
+**When to use:** markdown preview, split + move combos, threaded workers, or any
+operation that triggers multiple rounds of `call_after_refresh` / reactive watchers.
+
+**When NOT to use:** simple single-action tests where `wait_for_scheduled_animations()`
+suffices.
 
 ### Snapshot workspace path stability
 

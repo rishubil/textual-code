@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tests**: fix flaky cross-split drag tests on Windows — add extra `await pilot.pause()` after tab activation to allow lazy editor remount to complete before subsequent actions (Fix #178)
 - **Tests**: fix `test_search_results_nested_paths_sorted` failure on Windows — use `.as_posix()` instead of `str()` for cross-platform path comparison (Fix #179)
 - **Tests**: fix 16+ test failures on Windows — skip `chmod` test on Windows, add `PYTHONUTF8=1` for license check script, add `encoding="utf-8"` for multibyte search test, and add extra `pilot.pause()` calls for Windows parallel execution timing (Fix #180)
+- **Tests**: use `wait_for_scheduled_animations()` across all snapshot tests and in `wait_for_condition` / `_wait_for_stable_screen` helpers for more thorough event-loop settling; replace ad-hoc `pilot.pause()` sequences and 5-pause loops with deterministic settling patterns
 
 ## [0.4.0] - 2026-03-29
 

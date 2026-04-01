@@ -36,18 +36,20 @@ async def _wait_for_stable_screen(
 ) -> None:
     """Pause until the app's rendered SVG output stabilises.
 
-    Instead of a fixed number of ``pilot.pause()`` calls, this repeatedly
-    pauses and compares consecutive ``export_screenshot()`` results.  The
-    screen is considered stable when *stability_count* consecutive pauses
-    produce identical SVGs.
+    Background workers, reactive chains, and deferred layout passes can take
+    a variable number of event-loop cycles to settle.  This helper repeatedly
+    calls ``wait_for_scheduled_animations()`` and compares consecutive
+    ``export_screenshot()`` results.  The screen is considered stable when
+    *stability_count* consecutive iterations produce identical SVGs.
 
     Cursor blinking must already be disabled before calling this helper;
     the ``snap_compare`` wrapper in conftest.py handles this automatically.
     """
     prev_svg: str | None = None
     stable = 0
-    for _ in range(max_pauses):
-        await pilot.pause()
+    last_change_iter = 0
+    for i in range(max_pauses):
+        await pilot.wait_for_scheduled_animations()
         current_svg = pilot.app.export_screenshot()
         if current_svg == prev_svg:
             stable += 1
@@ -56,11 +58,13 @@ async def _wait_for_stable_screen(
         else:
             stable = 0
             prev_svg = current_svg
+            last_change_iter = i
     import warnings
 
     warnings.warn(
         f"_wait_for_stable_screen: screen did not stabilise within "
-        f"{max_pauses} pauses (stability_count={stability_count})",
+        f"{max_pauses} iterations (stability_count={stability_count}, "
+        f"last change at iteration {last_change_iter})",
         stacklevel=2,
     )
 
@@ -69,11 +73,11 @@ def _focus_editor(app):
     """Return a run_before function that waits for the editor to settle and focus."""
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         if editor is not None:
             editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     return run_before
 
@@ -105,12 +109,12 @@ def test_snapshot_multiple_tabs(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def open_second_file(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=snapshot_json_file)
         editor = app.main_view.get_active_code_editor()
         if editor is not None:
             editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=open_second_file, terminal_size=TERMINAL_SIZE)
 
@@ -127,7 +131,7 @@ def test_snapshot_new_editor_tab(snap_compare, snapshot_workspace: Path):
         editor = app.main_view.get_active_code_editor()
         if editor is not None:
             editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=open_new_editor, terminal_size=TERMINAL_SIZE)
 
@@ -139,7 +143,7 @@ def test_snapshot_unsaved_marker(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def modify_text(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_focus()
@@ -150,8 +154,8 @@ def test_snapshot_unsaved_marker(
         # Reactive chain: watch_text → update_title → watch_title →
         # TitleChanged message → on_code_editor_title_changed → tab label update.
         # Each reactive watcher is deferred via call_later, so the chain spans
-        # several event-loop cycles.  A real-time pause lets everything settle.
-        await pilot.pause(0.2)
+        # several event-loop cycles.
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=modify_text, terminal_size=TERMINAL_SIZE)
 
@@ -166,13 +170,13 @@ def test_snapshot_save_as_modal(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def open_save_as(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor.action_save_as()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=open_save_as, terminal_size=TERMINAL_SIZE)
 
@@ -184,13 +188,13 @@ def test_snapshot_unsaved_change_modal(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def modify_and_close(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "modified content\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor.action_close()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=modify_and_close, terminal_size=TERMINAL_SIZE)
 
@@ -202,13 +206,13 @@ def test_snapshot_unsaved_quit_modal(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def modify_and_quit(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "modified content\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.action_quit()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=modify_and_quit, terminal_size=TERMINAL_SIZE)
 
@@ -220,13 +224,13 @@ def test_snapshot_delete_modal(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def open_delete(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor.action_delete()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=open_delete, terminal_size=TERMINAL_SIZE)
 
@@ -241,12 +245,12 @@ def test_snapshot_split_view_open(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def open_split(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
         editor = app.main_view._get_active_code_editor_in_split("right")
         if editor is not None:
             editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=open_split, terminal_size=TERMINAL_SIZE)
 
@@ -258,9 +262,9 @@ def test_snapshot_split_left_view_open(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def open_split(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=open_split, terminal_size=TERMINAL_SIZE)
 
@@ -275,7 +279,7 @@ def test_snapshot_markdown_preview_open(snap_compare, snapshot_workspace: Path):
     app = make_app(snapshot_workspace, open_file=md_file)
 
     async def open_preview(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_markdown_preview()
         # Wait for markdown rendering and tab activation to settle
         await _wait_for_stable_screen(pilot)
@@ -307,7 +311,7 @@ def test_snapshot_readme_preview(snap_compare, snapshot_workspace: Path):
     app = make_app(snapshot_workspace, open_file=readme, user_config_path=config)
 
     async def setup_preview_split(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Open markdown preview (tab in left/only leaf)
         await app.main_view.action_open_markdown_preview()
         await _wait_for_stable_screen(pilot)
@@ -333,17 +337,17 @@ def test_snapshot_overwrite_confirm_modal(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def trigger_overwrite_modal(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_focus()
         editor.text = "editor changes\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Simulate external change by shifting mtime tracker
         assert editor._file_mtime is not None
         editor._file_mtime -= 1.0
         editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(
         app, run_before=trigger_overwrite_modal, terminal_size=TERMINAL_SIZE
@@ -357,14 +361,14 @@ def test_snapshot_discard_and_reload_modal(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def trigger_reload_modal(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_focus()
         editor.text = "unsaved changes\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor.action_revert_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(
         app, run_before=trigger_reload_modal, terminal_size=TERMINAL_SIZE
@@ -376,9 +380,9 @@ def test_snapshot_show_shortcuts_screen(snap_compare, snapshot_workspace: Path):
     app = make_app(snapshot_workspace)
 
     async def open_shortcuts(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_show_keyboard_shortcuts()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=open_shortcuts, terminal_size=TERMINAL_SIZE)
 
@@ -390,7 +394,7 @@ def test_snapshot_shortcut_settings_screen(snap_compare, snapshot_workspace: Pat
     app = make_app(snapshot_workspace)
 
     async def open_settings(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             ShortcutSettingsScreen(
                 action_name="save",
@@ -399,7 +403,7 @@ def test_snapshot_shortcut_settings_screen(snap_compare, snapshot_workspace: Pat
                 palette_visible=True,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=open_settings, terminal_size=TERMINAL_SIZE)
 
@@ -412,7 +416,7 @@ def test_snapshot_footer_config_screen(snap_compare, snapshot_workspace: Path):
     app = make_app(snapshot_workspace)
 
     async def open_footer_config(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor_actions = [
             ("save", "Save", "Ctrl+S", True),
             ("find", "Find", "Ctrl+F", True),
@@ -436,7 +440,7 @@ def test_snapshot_footer_config_screen(snap_compare, snapshot_workspace: Path):
         app.push_screen(
             FooterConfigScreen(all_area_actions, orders, initial_area="editor")
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=open_footer_config, terminal_size=TERMINAL_SIZE)
 
@@ -455,9 +459,9 @@ def test_snapshot_tab_reorder_active_indicator(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def reorder_tabs(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=snapshot_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         from textual_code.widgets.split_tree import all_leaves
 
@@ -470,13 +474,12 @@ def test_snapshot_tab_reorder_active_indicator(
         a_id = ContentTab.sans_prefix(tabs[0].id)
         dtc.reorder_tab(b_id, a_id, before=True)
         assert dtc.active == b_id  # active tab must remain data.json after reorder
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor = app.main_view.get_active_code_editor()
         if editor is not None:
             editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=reorder_tabs, terminal_size=TERMINAL_SIZE)
 
@@ -491,25 +494,24 @@ def test_snapshot_tab_reorder_right_indicator(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def reorder_right(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=snapshot_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         tc = app.main_view.tabbed_content
         order = tc.get_ordered_pane_ids()
         # Activate first tab (hello.py)
         tc.active = order[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Move it right (swap with data.json)
         app.main_view.action_reorder_tab_right()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor = app.main_view.get_active_code_editor()
         if editor is not None:
             editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=reorder_right, terminal_size=TERMINAL_SIZE)
 
@@ -578,11 +580,11 @@ def test_snapshot_footer_indent_modal_no_save_level(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def open_modal(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=open_modal, terminal_size=TERMINAL_SIZE)
 
@@ -594,11 +596,11 @@ def test_snapshot_footer_line_ending_modal_no_save_level(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def open_modal(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_change_line_ending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=open_modal, terminal_size=TERMINAL_SIZE)
 
@@ -610,11 +612,11 @@ def test_snapshot_footer_encoding_modal_no_save_level(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def open_modal(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_change_encoding()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=open_modal, terminal_size=TERMINAL_SIZE)
 
@@ -626,13 +628,13 @@ def _open_editor_modal(app, action_fn):
     """Return run_before that focuses the editor then calls action_fn."""
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None, f"No active editor in {app}"
         editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         action_fn(editor)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     return run_before
 
@@ -641,9 +643,9 @@ def _open_app_modal(app, action_fn):
     """Return run_before that calls an app-level action_fn."""
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         action_fn(app)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     return run_before
 
@@ -722,11 +724,11 @@ def test_snapshot_split_resize_modal(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_resize_split()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
@@ -736,9 +738,9 @@ def test_snapshot_rebind_key_screen(snap_compare, snapshot_workspace: Path):
     app = make_app(snapshot_workspace)
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(RebindKeyScreen("quit", "Quit", "q"))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
@@ -809,9 +811,9 @@ def test_snapshot_sidebar_search_tab(snap_compare, snapshot_workspace: Path):
     app = make_app(snapshot_workspace)
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.main_view.action_find_in_files()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
@@ -823,15 +825,14 @@ def test_snapshot_workspace_search_results(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.main_view.action_find_in_files()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane = app.query_one(WorkspaceSearchPane)
         pane.query_one("#ws-query", Input).value = "print"
         pane._run_search()
         # Give threaded search worker time to finish and post results
-        for _ in range(5):
-            await pilot.pause()
+        await _wait_for_stable_screen(pilot, stability_count=3)
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
@@ -843,14 +844,13 @@ def test_snapshot_search_results_long_lines(snap_compare, snapshot_workspace: Pa
     app = make_app(snapshot_workspace, open_file=snapshot_workspace / "wide.py")
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.main_view.action_find_in_files()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane = app.query_one(WorkspaceSearchPane)
         pane.query_one("#ws-query", Input).value = "xxx"
         pane._run_search()
-        for _ in range(5):
-            await pilot.pause()
+        await _wait_for_stable_screen(pilot, stability_count=3)
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
@@ -862,15 +862,15 @@ def test_snapshot_multi_cursor(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+alt+down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+alt+down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
@@ -890,9 +890,9 @@ def test_snapshot_tab_dragging_highlight(
     app = make_app(snapshot_workspace, open_file=snapshot_py_file)
 
     async def add_dragging_class(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=snapshot_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
@@ -900,7 +900,7 @@ def test_snapshot_tab_dragging_highlight(
         tabs = list(content_tabs.query(ContentTab))
         # Manually add -dragging class to the first tab
         tabs[0].add_class("-dragging")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=add_dragging_class, terminal_size=TERMINAL_SIZE)
 
@@ -922,18 +922,18 @@ def test_snapshot_drop_target_highlight(
     async def setup_drop_target(pilot):
         from textual_code.widgets.draggable_tabs_content import DropTargetScreen
 
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=snapshot_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open a different file in the right split so it has visible content
         leaves = all_leaves(app.main_view._split_root)
         right_leaf = leaves[-1]
         app.main_view._active_leaf_id = right_leaf.leaf_id
         await app.main_view.action_open_code_editor(path=snapshot_py_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         left_dtc = app.main_view.query_one(
@@ -951,8 +951,7 @@ def test_snapshot_drop_target_highlight(
         left_pane_ids = left_dtc.get_ordered_pane_ids()
         if left_pane_ids:
             left_dtc.active = left_pane_ids[0]
-        for _ in range(5):
-            await pilot.pause()
+        await _wait_for_stable_screen(pilot, stability_count=3)
 
         # Push overlay screen and set references on all DTCs
         dtcs = list(app.main_view.query(DraggableTabbedContent))
@@ -960,14 +959,14 @@ def test_snapshot_drop_target_highlight(
         for dtc in dtcs:
             dtc._overlay_screen = overlay
         app.push_screen(overlay)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Simulate drag state: -dragging on source tab, overlay on target pane
         content_tabs = left_dtc.get_child_by_type(ContentTabs)
         tabs = list(content_tabs.query(ContentTab))
         tabs[0].add_class("-dragging")
         right_dtc.show_drop_overlay()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=setup_drop_target, terminal_size=TERMINAL_SIZE)
 
@@ -989,18 +988,18 @@ def test_snapshot_drop_target_edge_highlight(
     async def setup_edge_overlay(pilot):
         from textual_code.widgets.draggable_tabs_content import DropTargetScreen
 
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=snapshot_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open a different file in the right split so it has visible content
         leaves = all_leaves(app.main_view._split_root)
         right_leaf = leaves[-1]
         app.main_view._active_leaf_id = right_leaf.leaf_id
         await app.main_view.action_open_code_editor(path=snapshot_py_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         left_dtc = app.main_view.query_one(
@@ -1011,8 +1010,7 @@ def test_snapshot_drop_target_edge_highlight(
         left_pane_ids = left_dtc.get_ordered_pane_ids()
         if left_pane_ids:
             left_dtc.active = left_pane_ids[0]
-        for _ in range(5):
-            await pilot.pause()
+        await _wait_for_stable_screen(pilot, stability_count=3)
 
         # Push overlay screen and set references on all DTCs
         dtcs = list(app.main_view.query(DraggableTabbedContent))
@@ -1020,16 +1018,14 @@ def test_snapshot_drop_target_edge_highlight(
         for dtc in dtcs:
             dtc._overlay_screen = overlay
         app.push_screen(overlay)
-        for _ in range(5):
-            await pilot.pause()
+        await _wait_for_stable_screen(pilot, stability_count=3)
 
         # Simulate drag state: -dragging on source tab, edge overlay on source pane
         content_tabs = left_dtc.get_child_by_type(ContentTabs)
         tabs = list(content_tabs.query(ContentTab))
         tabs[0].add_class("-dragging")
         left_dtc.show_edge_overlay("right")
-        for _ in range(5):
-            await pilot.pause()
+        await _wait_for_stable_screen(pilot, stability_count=3)
 
     assert snap_compare(app, run_before=setup_edge_overlay, terminal_size=TERMINAL_SIZE)
 
@@ -1047,12 +1043,12 @@ def test_snapshot_narrow_sidebar_icon_only(snap_compare, snapshot_workspace: Pat
     app = make_app(snapshot_workspace)
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.main_view.action_find_in_files()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         app.sidebar.styles.width = 12
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
@@ -1173,7 +1169,7 @@ def test_snapshot_explorer_create_file_prefilled(
     app = make_app(snapshot_workspace)
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         tree = explorer.directory_tree
@@ -1182,11 +1178,11 @@ def test_snapshot_explorer_create_file_prefilled(
             if node.data and node.data.path == subdir:
                 tree.move_cursor(node)
                 break
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         tree.focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+n")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
@@ -1250,12 +1246,12 @@ def test_snapshot_save_screenshot_modal(snap_compare, snapshot_workspace: Path):
     app = make_app(snapshot_workspace)
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Push modal directly with a fixed path to avoid timestamp nondeterminism
         app.push_screen(
             SaveAsModalScreen(title="Save Screenshot", default_path="screenshot.svg")
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
@@ -1270,12 +1266,11 @@ def test_snapshot_image_preview(snap_compare, snapshot_workspace: Path):
 
     async def run_before(pilot):
         # Give image worker time to load and render
-        for _ in range(5):
-            await pilot.pause()
+        await _wait_for_stable_screen(pilot, stability_count=3)
         preview = app.query(ImagePreviewPane)
         if preview:
             preview.first().focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
@@ -1294,12 +1289,11 @@ def test_snapshot_git_diff_gutter(snap_compare, snapshot_workspace: Path):
 
     async def run_before(pilot):
         # Wait for mount + background git diff worker
-        for _ in range(5):
-            await pilot.pause()
+        await _wait_for_stable_screen(pilot, stability_count=3)
         editor = app.main_view.get_active_code_editor()
         if editor is not None:
             editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
 
@@ -1332,12 +1326,12 @@ def test_snapshot_render_whitespace(snap_compare, snapshot_workspace: Path):
     app = make_app(snapshot_workspace, open_file=f)
 
     async def enable_whitespace(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         if editor is not None:
             editor.render_whitespace = "all"
             editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=enable_whitespace, terminal_size=TERMINAL_SIZE)
 
@@ -1348,15 +1342,15 @@ def test_snapshot_replace_all_confirm_modal(snap_compare, snapshot_workspace: Pa
     app = make_app(snapshot_workspace)
 
     async def run_before(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.main_view.action_find_in_files()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "hello"
         ws_pane.query_one("#ws-replace", Input).value = "hi"
         ws_pane._run_replace_all()
-        await pilot.pause()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
