@@ -38,9 +38,9 @@ async def test_reorder_tab_moves_before(
     """reorder_tab(A, B, before=True) puts A before B."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=sample_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         dtc = _first_dtc(app)
         order = _tab_order(dtc)
@@ -49,7 +49,7 @@ async def test_reorder_tab_moves_before(
 
         # Move B before A
         dtc.reorder_tab(b_id, a_id, before=True)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         new_order = _tab_order(dtc)
         assert new_order.index(b_id) < new_order.index(a_id)
@@ -61,9 +61,9 @@ async def test_reorder_tab_moves_after(
     """reorder_tab(A, B, before=False) puts A after B."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=sample_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         dtc = _first_dtc(app)
         order = _tab_order(dtc)
@@ -72,7 +72,7 @@ async def test_reorder_tab_moves_after(
 
         # Move A after B
         dtc.reorder_tab(a_id, b_id, before=False)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         new_order = _tab_order(dtc)
         assert new_order.index(a_id) > new_order.index(b_id)
@@ -84,9 +84,9 @@ async def test_reorder_tab_correct_order_and_content(
     """Tab order and editor text are both preserved after reorder."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=sample_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         dtc = _first_dtc(app)
         order_before = _tab_order(dtc)
@@ -95,8 +95,10 @@ async def test_reorder_tab_correct_order_and_content(
 
         # Swap: move py_id after json_id
         dtc.reorder_tab(py_id, json_id, before=False)
-        await pilot.pause()
-        await pilot.pause()  # extra settle for reorder DOM mutations on Windows
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # extra settle for reorder DOM mutations on Windows
 
         order_after = _tab_order(dtc)
         assert order_after == [json_id, py_id]
@@ -105,15 +107,19 @@ async def test_reorder_tab_correct_order_and_content(
         # json tab is active (mounted); py tab is lazily unmounted.
         # Switch to py to mount its editor, then check content.
         dtc.active = py_id
-        await pilot.pause()
-        await pilot.pause()  # extra settle for tab switch + editor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # extra settle for tab switch + editor mount
 
         py_editor = app.main_view.query_one(f"#{py_id} CodeEditor", CodeEditor)
         assert "print" in py_editor.text
 
         dtc.active = json_id
-        await pilot.pause()
-        await pilot.pause()  # extra settle for tab switch + editor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # extra settle for tab switch + editor mount
 
         json_editor = app.main_view.query_one(f"#{json_id} CodeEditor", CodeEditor)
         assert "key" in json_editor.text
@@ -125,15 +131,15 @@ async def test_reorder_tab_same_id_noop(
     """reorder_tab with same src and target is a no-op."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=sample_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         dtc = _first_dtc(app)
         order_before = _tab_order(dtc)
 
         dtc.reorder_tab(order_before[0], order_before[0], before=True)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert _tab_order(dtc) == order_before
 
@@ -144,14 +150,14 @@ async def test_reorder_tab_invalid_target_id_noop(
     """reorder_tab with non-existent pane_id does not raise and is a noop."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         dtc = _first_dtc(app)
         order_before = _tab_order(dtc)
 
         # Neither raises nor changes order
         dtc.reorder_tab("nonexistent-id", order_before[0], before=True)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert _tab_order(dtc) == order_before
 
@@ -165,7 +171,7 @@ async def test_drag_threshold_not_exceeded_no_capture(
     """Moving less than threshold keeps _dragging=False."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         dtc = _first_dtc(app)
         # Simulate state as if mouse_down was captured on a tab
@@ -208,10 +214,12 @@ async def test_drag_applies_dragging_class(
     """Dragging a tab adds -dragging class; releasing removes it."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=sample_json_file)
-        await pilot.pause()
-        await pilot.pause()  # let tab layout fully settle before reading regions
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # let tab layout fully settle before reading regions
 
         dtc = _first_dtc(app)
         content_tabs = dtc.get_child_by_type(ContentTabs)
@@ -232,11 +240,11 @@ async def test_drag_applies_dragging_class(
 
         # mouse_down on first tab
         await pilot.mouse_down(dtc, offset=first_offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Hover to exceed threshold — should activate dragging
         await pilot.hover(dtc, offset=second_offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # The dragged tab should have -dragging class
         assert first_tab.has_class("-dragging")
@@ -257,8 +265,8 @@ async def test_drag_applies_dragging_class(
             style=None,
         )
         dtc.on_mouse_up(mouse_up)
-        await pilot.pause()
-        await pilot.pause()  # extra settle for drag-end cleanup
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()  # extra settle for drag-end cleanup
 
         # No tab should have -dragging class after release
         for tab in content_tabs.query(ContentTab):
@@ -274,10 +282,12 @@ async def test_drag_reorders_tabs(
     """E2E: mouse_down → mouse_move (threshold exceeded) → mouse_up reorders tabs."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=sample_json_file)
-        await pilot.pause()
-        await pilot.pause()  # let tab layout fully settle before reading regions
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # let tab layout fully settle before reading regions
 
         dtc = _first_dtc(app)
         order_before = _tab_order(dtc)
@@ -304,14 +314,14 @@ async def test_drag_reorders_tabs(
         first_offset = (first_x - dtc.region.x, first_y - dtc.region.y)
 
         await pilot.mouse_down(dtc, offset=first_offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Hover to exceed threshold distance — this pushes DropTargetScreen
         await pilot.hover(
             dtc, offset=(second_x - dtc.region.x, second_y - dtc.region.y)
         )
-        await pilot.pause()
-        await pilot.pause()  # let overlay screen fully settle
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()  # let overlay screen fully settle
 
         # Send MouseUp directly to the DTC to avoid overlay routing issues
         mouse_up = MouseUp(
@@ -329,8 +339,8 @@ async def test_drag_reorders_tabs(
             style=None,
         )
         dtc.on_mouse_up(mouse_up)
-        await pilot.pause()
-        await pilot.pause()  # extra settle for drag-end reorder
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()  # extra settle for drag-end reorder
 
         order_after = _tab_order(dtc)
         # Order should have changed

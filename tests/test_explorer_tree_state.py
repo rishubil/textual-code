@@ -88,8 +88,8 @@ async def test_sort_order_dirs_first_then_files_alphabetical(
     """
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -111,8 +111,8 @@ async def test_sort_order_case_insensitive(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -131,8 +131,8 @@ async def test_sort_order_children_within_directory(
     """
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -141,8 +141,8 @@ async def test_sort_order_children_within_directory(
         dir_beta_node = find_tree_node_by_path(tree, state_tree["dir_beta"])
         assert dir_beta_node is not None
         dir_beta_node.expand()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Children: sub_beta/ first (directory), then beta_file.py (file)
         child_labels = [str(c.label) for c in dir_beta_node.children]
@@ -162,8 +162,8 @@ async def test_expand_state_preserved_after_reload(
     """
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -172,8 +172,8 @@ async def test_expand_state_preserved_after_reload(
         alpha_node = find_tree_node_by_path(tree, state_tree["dir_alpha"])
         assert alpha_node is not None
         alpha_node.expand()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify expanded before reload
         expanded_before = _get_expanded_paths(tree)
@@ -182,7 +182,7 @@ async def test_expand_state_preserved_after_reload(
         # Trigger reload
         tree.reload()
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # dir_alpha should still be expanded
         alpha_node_after = find_tree_node_by_path(tree, state_tree["dir_alpha"])
@@ -201,8 +201,8 @@ async def test_nested_expand_preserved_after_reload(
     """
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -211,15 +211,15 @@ async def test_nested_expand_preserved_after_reload(
         beta_node = find_tree_node_by_path(tree, state_tree["dir_beta"])
         assert beta_node is not None
         beta_node.expand()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Expand sub_beta
         sub_beta_node = find_tree_node_by_path(tree, state_tree["sub_beta"])
         assert sub_beta_node is not None
         sub_beta_node.expand()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify both expanded
         expanded_before = _get_expanded_paths(tree)
@@ -229,7 +229,7 @@ async def test_nested_expand_preserved_after_reload(
         # Reload
         tree.reload()
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # Both should still be expanded
         beta_after = find_tree_node_by_path(tree, state_tree["dir_beta"])
@@ -251,8 +251,8 @@ async def test_collapse_state_not_changed_after_reload(
     """
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -265,7 +265,7 @@ async def test_collapse_state_not_changed_after_reload(
         # Reload
         tree.reload()
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # Should still be collapsed
         alpha_after = find_tree_node_by_path(tree, state_tree["dir_alpha"])
@@ -283,8 +283,8 @@ async def test_expand_state_preserved_after_file_create(
     """
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -293,8 +293,8 @@ async def test_expand_state_preserved_after_file_create(
         alpha_node = find_tree_node_by_path(tree, state_tree["dir_alpha"])
         assert alpha_node is not None
         alpha_node.expand()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Create a new file (triggers workspace change on next poll)
         new_file = workspace / "new_file.py"
@@ -303,7 +303,7 @@ async def test_expand_state_preserved_after_file_create(
         # Trigger reload to simulate auto-refresh detecting the change
         tree.reload()
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # dir_alpha should still be expanded
         alpha_after = find_tree_node_by_path(tree, state_tree["dir_alpha"])
@@ -325,15 +325,15 @@ async def test_select_file_updates_cursor(workspace: Path, state_tree: dict[str,
     """
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
 
         # Select a top-level file
         explorer.select_file(state_tree["mmm"])
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         cursor = explorer.directory_tree.cursor_node
         assert cursor is not None
@@ -351,8 +351,8 @@ async def test_select_file_expands_collapsed_parent(
     """
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
@@ -366,7 +366,7 @@ async def test_select_file_expands_collapsed_parent(
         # Select inner.py inside dir_alpha — should trigger auto-expansion
         explorer.select_file(state_tree["inner"])
         for _ in range(20):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # dir_alpha should now be expanded
         alpha_node = find_tree_node_by_path(tree, state_tree["dir_alpha"])
@@ -389,8 +389,8 @@ async def test_select_file_expands_deeply_nested_path(
     """
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
@@ -399,7 +399,7 @@ async def test_select_file_expands_deeply_nested_path(
         # Select deep.py (two levels deep)
         explorer.select_file(state_tree["deep"])
         for _ in range(30):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # Both dir_beta and sub_beta should be expanded
         beta_node = find_tree_node_by_path(tree, state_tree["dir_beta"])
@@ -432,8 +432,8 @@ async def test_cursor_after_selected_file_deleted(workspace: Path):
 
     app = make_app(workspace, open_file=f1)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
@@ -446,19 +446,19 @@ async def test_cursor_after_selected_file_deleted(workspace: Path):
 
         # Delete f1 via the explorer message flow
         explorer.post_message(Explorer.FileDeleteRequested(explorer=explorer, path=f1))
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Confirm deletion in modal
         from textual_code.modals import DeleteFileModalScreen
 
         assert isinstance(app.screen, DeleteFileModalScreen)
         await pilot.click("#delete")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Wait for tree reload
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # File should be gone from disk
         assert not f1.exists()

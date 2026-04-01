@@ -206,8 +206,10 @@ async def test_file_load_detects_crlf(tmp_path: Path):
 
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         line_ending = app.code_editor.line_ending
 
     assert line_ending == "crlf"
@@ -220,8 +222,10 @@ async def test_file_load_detects_lf(tmp_path: Path):
 
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         line_ending = app.code_editor.line_ending
 
     assert line_ending == "lf"
@@ -236,16 +240,18 @@ async def test_change_line_ending_updates_reactive(tmp_path: Path):
 
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         editor.action_change_line_ending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.screen.query_one(Select).value = "crlf"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         line_ending = app.screen_stack[0].query_one(CodeEditor).line_ending
 
@@ -259,15 +265,17 @@ async def test_change_line_ending_cancel_no_change(tmp_path: Path):
 
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         editor.action_change_line_ending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         line_ending = app.screen_stack[0].query_one(CodeEditor).line_ending
 
@@ -281,23 +289,25 @@ async def test_save_writes_crlf_to_disk(tmp_path: Path):
 
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         # change line ending to CRLF
         from textual.widgets import Select
 
         editor.action_change_line_ending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one(Select).value = "crlf"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # save the file
         editor = app.screen_stack[0].query_one(CodeEditor)
         editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     saved = f.read_bytes()
     assert b"\r\n" in saved
@@ -312,7 +322,7 @@ async def test_footer_shows_line_ending(tmp_path: Path):
 
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         btn = app.query_one("#line_ending_btn", Button)
         label = str(btn.label)
 
@@ -337,7 +347,7 @@ async def test_change_line_ending_cmd_no_editor(
 
         monkeypatch.setattr(tc_app, "notify", capture_notify)
         tc_app.action_change_line_ending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert any("error" in n for n in notified)
 
@@ -355,8 +365,10 @@ async def test_select_crlf_shows_warning_toast(
     notified: list[str] = []
 
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         original_notify = editor.notify
 
@@ -367,10 +379,10 @@ async def test_select_crlf_shows_warning_toast(
         monkeypatch.setattr(editor, "notify", capture_notify)
 
         editor.action_change_line_ending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one(Select).value = "crlf"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert any("warning" in n for n in notified)
 
@@ -388,8 +400,10 @@ async def test_select_lf_no_warning_toast(
     notified: list[str] = []
 
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         original_notify = editor.notify
 
@@ -400,10 +414,10 @@ async def test_select_lf_no_warning_toast(
         monkeypatch.setattr(editor, "notify", capture_notify)
 
         editor.action_change_line_ending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one(Select).value = "lf"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not any("warning" in n for n in notified)
 
@@ -441,8 +455,10 @@ async def test_open_crlf_file_no_warning_on_open(tmp_path: Path):
 
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for CodeEditor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for CodeEditor mount
 
     assert not any("warning" in n for n in app.notified)
 
@@ -454,8 +470,10 @@ async def test_open_lf_file_no_warning_toast(tmp_path: Path):
 
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for CodeEditor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for CodeEditor mount
 
     assert not any("warning" in n for n in app.notified)
 
@@ -471,9 +489,9 @@ async def test_footer_line_ending_modal_no_save_level(tmp_path: Path):
     f.write_bytes(b"hello\nworld")
     app = _LineEndingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_line_ending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert isinstance(app.screen, ChangeLineEndingModalScreen)
         assert len(app.screen.query("#save_level")) == 0
@@ -489,14 +507,16 @@ async def test_copy_crlf_file_shows_warning_toast(tmp_path: Path):
 
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for CodeEditor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for CodeEditor mount
         app.notified.clear()  # discard any mount-time notifications
         # select all text then copy (multiline → triggers warning)
         app.code_editor.editor.select_all()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.editor.action_copy()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert any("warning" in n for n in app.notified)
 
@@ -508,12 +528,14 @@ async def test_cut_crlf_file_shows_warning_toast(tmp_path: Path):
 
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for CodeEditor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for CodeEditor mount
         app.notified.clear()
         # no selection → cut whole line (includes newline)
         app.code_editor.editor.action_cut()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert any("warning" in n for n in app.notified)
 
@@ -525,13 +547,15 @@ async def test_paste_crlf_file_shows_warning_toast(tmp_path: Path):
 
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for CodeEditor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for CodeEditor mount
         app.notified.clear()
         # put multiline text on clipboard, then paste
         app.copy_to_clipboard("line1\nline2")
         app.code_editor.editor.action_paste()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert any("warning" in n for n in app.notified)
 
@@ -543,13 +567,15 @@ async def test_copy_lf_file_no_warning(tmp_path: Path):
 
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for CodeEditor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for CodeEditor mount
         app.notified.clear()
         app.code_editor.editor.select_all()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.editor.action_copy()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not any("warning" in n for n in app.notified)
 
@@ -561,17 +587,19 @@ async def test_copy_crlf_warning_only_once(tmp_path: Path):
 
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for CodeEditor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for CodeEditor mount
         app.notified.clear()
         # first copy
         app.code_editor.editor.select_all()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.editor.action_copy()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # second copy
         app.code_editor.editor.action_copy()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     warning_count = sum(1 for n in app.notified if "warning" in n)
     assert warning_count == 1
@@ -584,16 +612,18 @@ async def test_copy_single_line_crlf_no_warning(tmp_path: Path):
 
     app = _NotifyCapturingApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for CodeEditor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for CodeEditor mount
         app.notified.clear()
         # select only "hello" on the first line (no newline)
         from textual.widgets._text_area import Selection
 
         app.code_editor.editor.selection = Selection((0, 0), (0, 5))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.editor.action_copy()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not any("warning" in n for n in app.notified)
 
@@ -605,13 +635,15 @@ async def test_copy_crlf_no_warning_when_disabled(tmp_path: Path):
 
     app = _NotifyCapturingApp(path=f, warn_line_ending=False)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for CodeEditor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for CodeEditor mount
         app.notified.clear()
         app.code_editor.editor.select_all()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.editor.action_copy()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not any("warning" in n for n in app.notified)
 
@@ -623,8 +655,10 @@ async def test_open_crlf_file_no_warning_when_disabled(tmp_path: Path):
 
     app = _NotifyCapturingApp(path=f, warn_line_ending=False)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for CodeEditor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for CodeEditor mount
 
     assert not any("warning" in n for n in app.notified)
 
@@ -642,8 +676,10 @@ async def test_select_crlf_no_warning_when_disabled(
     notified: list[str] = []
 
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         original_notify = editor.notify
 
@@ -654,9 +690,9 @@ async def test_select_crlf_no_warning_when_disabled(
         monkeypatch.setattr(editor, "notify", capture_notify)
 
         editor.action_change_line_ending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one(Select).value = "crlf"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not any("warning" in n for n in notified)

@@ -50,7 +50,7 @@ async def test_move_line_down_single_cursor(workspace: Path, five_line_file: Pat
     """Moving line 0 down swaps it with line 1; cursor follows."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.cursor_location = (0, 0)
         ta.action_move_line_down()
@@ -64,7 +64,7 @@ async def test_move_line_down_last_line_noop(workspace: Path, five_line_file: Pa
     """Moving the last content line down is a no-op."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         original = ta.text
         lines = original.split("\n")
@@ -79,7 +79,7 @@ async def test_move_line_down_preserves_column(workspace: Path, five_line_file: 
     """Column position is preserved after moving down."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.cursor_location = (0, 2)
         ta.action_move_line_down()
@@ -95,7 +95,7 @@ async def test_move_line_down_multi_line_selection(
     """Selecting lines 0-1 and moving down shifts the block below line 2."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.selection = Selection(start=(0, 0), end=(1, 3))
         ta.action_move_line_down()
@@ -111,7 +111,7 @@ async def test_move_line_down_selection_end_col0(workspace: Path, five_line_file
     """Selection ending at col 0 of a row excludes that row from the block."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         # Select from (0,0) to (2,0) — should only move rows 0-1
         ta.selection = Selection(start=(0, 0), end=(2, 0))
@@ -129,7 +129,7 @@ async def test_move_line_up_single_cursor(workspace: Path, five_line_file: Path)
     """Moving line 2 up swaps it with line 1; cursor follows."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.cursor_location = (2, 0)
         ta.action_move_line_up()
@@ -143,7 +143,7 @@ async def test_move_line_up_first_line_noop(workspace: Path, five_line_file: Pat
     """Moving the first line up is a no-op."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         original = ta.text
         ta.cursor_location = (0, 0)
@@ -156,7 +156,7 @@ async def test_move_line_up_preserves_column(workspace: Path, five_line_file: Pa
     """Column position is preserved after moving up."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.cursor_location = (2, 2)
         ta.action_move_line_up()
@@ -170,7 +170,7 @@ async def test_move_line_up_multi_line_selection(workspace: Path, five_line_file
     """Selecting lines 1-2 and moving up shifts the block above line 0."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.selection = Selection(start=(1, 0), end=(2, 3))
         ta.action_move_line_up()
@@ -186,7 +186,7 @@ async def test_move_line_up_selection_end_col0(workspace: Path, five_line_file: 
     """Selection ending at col 0 excludes that row (move up)."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         # Select from (1,0) to (3,0) — should only move rows 1-2
         ta.selection = Selection(start=(1, 0), end=(3, 0))
@@ -204,7 +204,7 @@ async def test_move_line_single_line_file_noop(workspace: Path, single_line_file
     """Single-line file: move down and up are both no-ops."""
     app = make_app(workspace, light=True, open_file=single_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         original = ta.text
         ta.action_move_line_down()
@@ -217,7 +217,7 @@ async def test_move_line_down_reverse_selection(workspace: Path, five_line_file:
     """Reverse selection (start > end) still moves the correct row range."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         # Reverse selection: anchor at row 1, cursor at row 0
         ta.selection = Selection(start=(1, 3), end=(0, 0))
@@ -232,7 +232,7 @@ async def test_move_line_empty_file_noop(workspace: Path, empty_file: Path):
     """Empty file: move is a no-op."""
     app = make_app(workspace, light=True, open_file=empty_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         original = ta.text
         ta.action_move_line_down()
@@ -248,7 +248,7 @@ async def test_move_line_down_multi_cursor(workspace: Path, five_line_file: Path
     """Two cursors on different rows: both lines move down."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.cursor_location = (0, 0)
         ta.add_cursor((2, 0))
@@ -265,7 +265,7 @@ async def test_move_line_down_blocked_at_bottom(workspace: Path, five_line_file:
     """If any cursor is at the last line, entire operation is no-op."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         original = ta.text
         last_row = len(original.split("\n")) - 1
@@ -279,7 +279,7 @@ async def test_move_line_up_multi_cursor(workspace: Path, five_line_file: Path):
     """Two cursors on different rows: both lines move up."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.cursor_location = (2, 0)
         ta.add_cursor((4, 0))
@@ -296,7 +296,7 @@ async def test_move_line_up_blocked_at_top(workspace: Path, five_line_file: Path
     """If any cursor is at line 0, entire operation is no-op."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         original = ta.text
         ta.cursor_location = (0, 0)
@@ -312,12 +312,12 @@ async def test_alt_down_key(workspace: Path, five_line_file: Path):
     """Alt+Down key binding moves the current line down."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.cursor_location = (0, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("alt+down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines[0] == "bbb"
         assert lines[1] == "aaa"
@@ -327,12 +327,12 @@ async def test_alt_up_key(workspace: Path, five_line_file: Path):
     """Alt+Up key binding moves the current line up."""
     app = make_app(workspace, light=True, open_file=five_line_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.cursor_location = (2, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("alt+up")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines[1] == "ccc"
         assert lines[2] == "bbb"
@@ -348,13 +348,13 @@ async def test_ctrl_down_scrolls(workspace: Path) -> None:
     f.write_text("\n".join(f"line{i}" for i in range(100)) + "\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.cursor_location = (0, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         cursor_before = ta.cursor_location
         ta.action_scroll_down()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.cursor_location == cursor_before
 
 
@@ -364,11 +364,11 @@ async def test_ctrl_up_scrolls(workspace: Path) -> None:
     f.write_text("\n".join(f"line{i}" for i in range(100)) + "\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.cursor_location = (0, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         cursor_before = ta.cursor_location
         ta.action_scroll_up()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.cursor_location == cursor_before

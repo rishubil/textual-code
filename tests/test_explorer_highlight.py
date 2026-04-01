@@ -22,8 +22,10 @@ async def test_open_file_highlights_in_explorer(workspace: Path, two_files):
     f1, f2 = two_files
     app = make_app(workspace, open_file=f1)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()  # extra pause for directory tree to load
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # extra pause for directory tree to load
 
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
@@ -38,14 +40,14 @@ async def test_switch_tab_updates_explorer(workspace: Path, two_files):
     f1, f2 = two_files
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open both files
         await app.main_view.action_open_code_editor(f1)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(f2)
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # f2 should be highlighted (most recently opened)
         assert app.sidebar is not None
@@ -59,8 +61,8 @@ async def test_switch_tab_updates_explorer(workspace: Path, two_files):
         assert pane_id_f1 is not None
         tc = app.main_view.tabbed_content
         tc.active = pane_id_f1
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # f1 should now be highlighted
         assert explorer.directory_tree.cursor_node is not None
@@ -79,14 +81,14 @@ async def test_switch_tab_updates_explorer_nested_file(workspace: Path):
 
     app = make_app(workspace, open_file=f_top)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Open nested file — subdir is collapsed in the explorer
         await app.main_view.action_open_code_editor(f_nested)
         # Wait for expand + reload chain (each folder level requires one refresh cycle)
         for _ in range(5):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
@@ -106,15 +108,15 @@ async def test_switch_tab_updates_explorer_doubly_nested_file(workspace: Path):
 
     app = make_app(workspace, open_file=f_top)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
         await app.main_view.action_open_code_editor(f_nested)
         # Poll until cursor reaches the target file.
         for _ in range(100):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             node = explorer.directory_tree.cursor_node
             if (
                 node is not None
@@ -150,8 +152,8 @@ async def test_select_file_deep_path_no_compact(workspace: Path):
 
     app = make_app(workspace, open_file=f_top)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
@@ -160,7 +162,7 @@ async def test_select_file_deep_path_no_compact(workspace: Path):
         # Wait for the explorer to expand all ancestors — NO re-trigger workaround.
         # Each directory level needs several frames for async loading.
         for _ in range(200):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         node = explorer.directory_tree.cursor_node
         assert node is not None and node.data is not None
@@ -179,15 +181,15 @@ async def test_switch_tab_updates_explorer_after_collapse(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Open both files so subdir gets expanded
         await app.main_view.action_open_code_editor(f_top)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(f_nested)
         for _ in range(5):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
@@ -199,21 +201,21 @@ async def test_switch_tab_updates_explorer_after_collapse(workspace: Path):
             if n.data is not None and n.data.path == subdir
         )
         subdir_node.collapse()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Switch to f_top, then back to f_nested (subdir is collapsed)
         pane_id_top = app.main_view.pane_id_from_path(f_top)
         assert pane_id_top is not None
         tc = app.main_view.tabbed_content
         tc.active = pane_id_top
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         pane_id_nested = app.main_view.pane_id_from_path(f_nested)
         assert pane_id_nested is not None
         tc = app.main_view.tabbed_content
         tc.active = pane_id_nested
         for _ in range(5):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         assert explorer.directory_tree.cursor_node is not None
         assert explorer.directory_tree.cursor_node.data is not None
@@ -224,8 +226,8 @@ async def test_select_file_nonexistent_nested_path_is_noop(workspace: Path):
     """select_file with a path whose parent dir is missing from the tree is a no-op."""
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
@@ -234,7 +236,7 @@ async def test_select_file_nonexistent_nested_path_is_noop(workspace: Path):
         # Path is inside workspace but the subdirectory does not exist on disk
         ghost_path = workspace / "ghost_dir" / "ghost.py"
         explorer.select_file(ghost_path)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Cursor should not have changed
         assert explorer.directory_tree.cursor_node is original_node
@@ -245,8 +247,8 @@ async def test_select_file_outside_workspace_is_noop(workspace: Path, two_files)
     f1, _ = two_files
     app = make_app(workspace, open_file=f1)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.query_one(Explorer)
@@ -255,7 +257,7 @@ async def test_select_file_outside_workspace_is_noop(workspace: Path, two_files)
         # Call select_file with a path outside workspace — should not raise
         outside_path = Path("/tmp/outside.py")
         explorer.select_file(outside_path)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Cursor should not have changed
         assert explorer.directory_tree.cursor_node is original_node

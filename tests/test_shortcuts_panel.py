@@ -197,7 +197,7 @@ def test_f1_binding_in_textualcode_bindings():
 async def test_command_palette_has_show_shortcuts(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
         assert "Show Keyboard Shortcuts" in titles
@@ -214,9 +214,9 @@ async def test_show_shortcuts_screen_has_datatable(workspace):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_show_keyboard_shortcuts()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, ShowShortcutsScreen)
         table = app.screen.query_one(DataTable)
         assert len(table.rows) > 0
@@ -228,9 +228,9 @@ async def test_show_shortcuts_screen_rows_include_save(workspace):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_show_keyboard_shortcuts()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         table = app.screen.query_one(DataTable)
         row_keys = {str(rk.value) for rk in table.rows}
         assert "save" in row_keys
@@ -260,9 +260,9 @@ async def test_rebind_screen_apply_disabled_until_key_pressed(workspace):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(RebindKeyScreen("save", "Save", "ctrl+s"))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, RebindKeyScreen)
         btn = app.screen.query_one("#apply", Button)
         assert btn.disabled
@@ -274,11 +274,11 @@ async def test_rebind_screen_captures_key(workspace):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(RebindKeyScreen("save", "Save", "ctrl+s"))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+k")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         btn = app.screen.query_one("#apply", Button)
         assert not btn.disabled
         label = app.screen.query_one("#captured_key", Label)
@@ -289,12 +289,12 @@ async def test_rebind_screen_captures_key(workspace):
 async def test_rebind_screen_escape_dismisses_screen(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(RebindKeyScreen("save", "Save", "ctrl+s"))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, RebindKeyScreen)
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert not isinstance(app.screen, RebindKeyScreen)
 
 
@@ -304,16 +304,16 @@ async def test_rebind_screen_dismiss_returns_result(workspace):
     results = []
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             RebindKeyScreen("save", "Save", "ctrl+s"),
             callback=results.append,
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.dismiss(
             RebindResult(is_cancelled=False, action_name="save", new_key="ctrl+k")
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(results) == 1
         assert not results[0].is_cancelled
         assert results[0].new_key == "ctrl+k"
@@ -356,7 +356,7 @@ async def test_shortcut_settings_screen_renders(workspace):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             ShortcutSettingsScreen(
                 action_name="save",
@@ -365,7 +365,7 @@ async def test_shortcut_settings_screen_renders(workspace):
                 palette_visible=True,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, ShortcutSettingsScreen)
         palette_cb = app.screen.query_one("#palette_visible", Checkbox)
         assert palette_cb.value is True
@@ -382,7 +382,7 @@ async def test_shortcut_settings_screen_save_returns_result(workspace):
     results = []
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             ShortcutSettingsScreen(
                 action_name="save",
@@ -392,10 +392,10 @@ async def test_shortcut_settings_screen_save_returns_result(workspace):
             ),
             callback=results.append,
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         save_btn = app.screen.query_one("#save", Button)
         save_btn.press()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(results) == 1
         r = results[0]
         assert isinstance(r, ShortcutSettingsResult)
@@ -412,7 +412,7 @@ async def test_shortcut_settings_screen_cancel(workspace):
     results = []
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             ShortcutSettingsScreen(
                 action_name="save",
@@ -422,10 +422,10 @@ async def test_shortcut_settings_screen_cancel(workspace):
             ),
             callback=results.append,
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         cancel_btn = app.screen.query_one("#cancel", Button)
         cancel_btn.press()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(results) == 1
         assert results[0].is_cancelled
 
@@ -443,17 +443,21 @@ async def test_show_shortcuts_row_click_opens_settings_screen(workspace):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_show_keyboard_shortcuts()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for modal screen push
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for modal screen push
         assert isinstance(app.screen, ShowShortcutsScreen)
         table = app.screen.query_one(DataTable)
         # Simulate row selection on "save"
         table.move_cursor(row=0)
         table.action_select_cursor()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for settings screen push
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for settings screen push
         assert isinstance(app.screen, ShortcutSettingsScreen)
 
 
@@ -471,9 +475,9 @@ async def test_set_keybinding_saves_to_config(workspace, tmp_path, restore_bindi
         user_config_path=settings_path,
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.set_keybinding("save", "ctrl+alt+s")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         kb_path = get_keybindings_path(settings_path)
         assert kb_path.exists()
         loaded = load_keybindings(kb_path)
@@ -496,12 +500,12 @@ async def test_palette_hides_command_when_palette_false(
         user_config_path=settings_path,
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.set_shortcut_display(
             "save",
             ShortcutDisplayEntry(palette=False),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
         assert "Save" not in titles
@@ -511,7 +515,7 @@ async def test_palette_hides_command_when_palette_false(
 async def test_palette_shows_command_by_default(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
         assert "Save" in titles
@@ -574,10 +578,10 @@ async def test_set_footer_order_saves_and_applies(
         skip_sidebar=True,
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Use app-level bindings (new_editor, toggle_sidebar) which are always active
         app.set_footer_order(["new_untitled_file"], area="editor")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Verify saved to disk
         kb_path = get_keybindings_path(settings_path)
         loaded = load_footer_orders(kb_path)
@@ -604,9 +608,9 @@ async def test_get_footer_priority_with_order(workspace, tmp_path, restore_bindi
         skip_sidebar=True,
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.set_footer_order(["find", "save"], area="editor")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.get_footer_priority("find") == 0
         assert app.get_footer_priority("save") == 1
 
@@ -615,7 +619,7 @@ async def test_get_footer_priority_with_order(workspace, tmp_path, restore_bindi
 async def test_get_footer_priority_falls_back_to_action_order(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # No footer_order set — falls back to ACTION_ORDER
         priority = app.get_footer_priority("save")
         assert priority == 0
@@ -726,9 +730,9 @@ async def test_show_shortcuts_includes_unbound_commands(workspace):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_show_keyboard_shortcuts()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, ShowShortcutsScreen)
         table = app.screen.query_one(DataTable)
         row_keys = {str(rk.value) for rk in table.rows}
@@ -745,9 +749,9 @@ async def test_show_shortcuts_includes_text_area_actions(workspace):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_show_keyboard_shortcuts()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         table = app.screen.query_one(DataTable)
         row_keys = {str(rk.value) for rk in table.rows}
         assert "redo" in row_keys
@@ -765,10 +769,10 @@ async def test_dynamic_key_hint_in_palette(workspace, tmp_path, restore_bindings
         user_config_path=settings_path,
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Set custom keybinding
         app.set_keybinding("save", "ctrl+alt+s")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         commands = list(app.get_system_commands(app.screen))
         save_cmd = next((c for c in commands if c.title == "Save"), None)
         assert save_cmd is not None
@@ -785,12 +789,12 @@ async def test_unbind_removes_binding(workspace, tmp_path, restore_bindings):
         user_config_path=settings_path,
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Verify "save" binding exists initially
         assert any(b.action == "save" for b in MainView.BINDINGS)
         # Unbind it
         app.set_keybinding("save", "")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Should be removed from BINDINGS
         assert not any(b.action == "save" for b in MainView.BINDINGS)
 
@@ -811,7 +815,7 @@ async def test_all_registry_commands_in_palette(workspace):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         commands = list(app.get_system_commands(app.screen))
         cmd_titles = {c.title for c in commands}
         for entry in COMMAND_REGISTRY:

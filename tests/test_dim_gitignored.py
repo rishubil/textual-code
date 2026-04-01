@@ -282,7 +282,7 @@ class TestRenderLabelDim:
         config = tmp_path / "settings.toml"
         app = make_app(ws, user_config_path=config)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             # Verify gitignore matching
@@ -299,7 +299,7 @@ class TestRenderLabelDim:
         config = tmp_path / "settings.toml"
         app = make_app(ws, user_config_path=config)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree._is_gitignored(ws / ".env") is False
@@ -314,12 +314,12 @@ class TestRenderLabelDim:
         config = tmp_path / "settings.toml"
         app = make_app(ws, user_config_path=config)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree._is_gitignored(ws / "debug.log") is True
             # Toggle off
             app.action_toggle_dim_gitignored()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert tree.dim_gitignored is False
             assert tree._is_gitignored(ws / "debug.log") is False

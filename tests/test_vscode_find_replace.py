@@ -192,7 +192,7 @@ async def test_replace_all_regex_lookahead(workspace: Path):
     f.write_text(VSCODE_TEXT)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -204,7 +204,7 @@ async def test_replace_all_regex_lookahead(workspace: Path):
                 case_sensitive=True,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         lines = editor.text.split("\n")
         # "hello" before " world" → "hi"
@@ -225,7 +225,7 @@ async def test_replace_all_regex_capturing_groups(workspace: Path):
     f.write_text(VSCODE_TEXT)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -237,7 +237,7 @@ async def test_replace_all_regex_capturing_groups(workspace: Path):
                 case_sensitive=True,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         lines = editor.text.split("\n")
         # hel(lo) → hi + lo = "hilo"
@@ -255,7 +255,7 @@ async def test_replace_all_overlapping_two_spaces_to_one(workspace: Path):
     f.write_text(VSCODE_TEXT)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -267,7 +267,7 @@ async def test_replace_all_overlapping_two_spaces_to_one(workspace: Path):
                 case_sensitive=True,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         lines = editor.text.split("\n")
         # 4 spaces → 2 spaces (two overlapping "  " in "    ")
@@ -283,7 +283,7 @@ async def test_replace_all_adjacent_bla_to_ciao(workspace: Path):
     f.write_text(VSCODE_TEXT)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -295,7 +295,7 @@ async def test_replace_all_adjacent_bla_to_ciao(workspace: Path):
                 case_sensitive=True,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         lines = editor.text.split("\n")
         assert lines[10] == "// ciaociaociaociao"
@@ -307,7 +307,7 @@ async def test_replace_all_regex_with_newline_tab(workspace: Path):
     f.write_text(VSCODE_TEXT)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -319,7 +319,7 @@ async def test_replace_all_regex_with_newline_tab(workspace: Path):
                 case_sensitive=True,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # "// blablablaciao" → "// <\n\t><\n\t><\n\t>ciao"
         assert "// <\n\t><\n\t><\n\t>ciao" in editor.text
@@ -331,7 +331,7 @@ async def test_replace_all_with_empty_string(workspace: Path):
     f.write_text(VSCODE_TEXT)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -343,7 +343,7 @@ async def test_replace_all_with_empty_string(workspace: Path):
                 case_sensitive=True,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         lines = editor.text.split("\n")
         # Only lowercase "hello" removed (case-sensitive)
@@ -364,7 +364,7 @@ async def test_replace_all_regex_caret_prefix_many_lines(workspace: Path):
     f.write_text(content)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -376,7 +376,7 @@ async def test_replace_all_regex_caret_prefix_many_lines(workspace: Path):
                 case_sensitive=True,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         result_lines = editor.text.split("\n")
         assert result_lines[0] == "a line0"
@@ -395,7 +395,7 @@ async def test_replace_all_regex_optional_capture_not_undefined(workspace: Path)
     f.write_text(VSCODE_TEXT)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -407,7 +407,7 @@ async def test_replace_all_regex_optional_capture_not_undefined(workspace: Path)
                 case_sensitive=True,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         lines = editor.text.split("\n")
         # "hello" → (z)? unmatched → \1 = "" → "hi"
@@ -430,12 +430,12 @@ async def test_replace_current_regex_lookahead_sequential(workspace: Path):
     f.write_text(VSCODE_TEXT)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.editor.cursor_location = (0, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         msg = FindReplaceBar.ReplaceCurrent(
             query=r"hello(?=\sworld)",
@@ -446,7 +446,7 @@ async def test_replace_current_regex_lookahead_sequential(workspace: Path):
 
         # 1st call: find first match (no replacement yet)
         editor.on_find_replace_bar_replace_current(msg)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         assert sel.start == (5, 13)
@@ -456,7 +456,7 @@ async def test_replace_current_regex_lookahead_sequential(workspace: Path):
 
         # 2nd call: replace "hello" → "hi", then find next match
         editor.on_find_replace_bar_replace_current(msg)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         lines = editor.text.split("\n")
         assert '"hi world, Hello!"' in lines[5]
@@ -475,12 +475,12 @@ async def test_replace_current_regex_capturing_groups(workspace: Path):
     f.write_text(VSCODE_TEXT)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.editor.cursor_location = (0, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         msg = FindReplaceBar.ReplaceCurrent(
             query=r"hel(lo)(?=\sworld)",
@@ -491,17 +491,17 @@ async def test_replace_current_regex_capturing_groups(workspace: Path):
 
         # Find first match
         editor.on_find_replace_bar_replace_current(msg)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.editor.selection.start == (5, 13)
 
         # Replace: hello → hilo
         editor.on_find_replace_bar_replace_current(msg)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert '"hilo world, Hello!"' in editor.text.split("\n")[5]
 
         # Replace next: line 6 hello → hilo
         editor.on_find_replace_bar_replace_current(msg)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert '"hilo world again"' in editor.text.split("\n")[6]
 
 
@@ -514,7 +514,7 @@ async def test_select_all_matches_creates_multi_cursors(workspace: Path):
     f.write_text(VSCODE_TEXT)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -525,7 +525,7 @@ async def test_select_all_matches_creates_multi_cursors(workspace: Path):
                 case_sensitive=True,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ta = editor.editor
         # "hello" case-sensitive: 3 matches (lines 5, 6, 8)
@@ -539,7 +539,7 @@ async def test_select_all_matches_regex_lookahead(workspace: Path):
     f.write_text(VSCODE_TEXT)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -550,7 +550,7 @@ async def test_select_all_matches_regex_lookahead(workspace: Path):
                 case_sensitive=True,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ta = editor.editor
         # Matches: line 5 "hello" (before " world"), line 6 "hello"

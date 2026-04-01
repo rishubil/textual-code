@@ -67,16 +67,16 @@ class TestCtrlDFromCollapsedCursor:
         """First Ctrl+D from collapsed cursor selects the word under cursor."""
         app = make_app(workspace, light=True, open_file=abc_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.cursor_location = (0, 1)  # inside "abc"
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Primary selection should cover "abc" on line 0
             sel = ta.selection
@@ -88,18 +88,18 @@ class TestCtrlDFromCollapsedCursor:
         """Second Ctrl+D adds cursor at next occurrence."""
         app = make_app(workspace, light=True, open_file=abc_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.cursor_location = (0, 1)
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Primary: "abc" at line 0
             assert _sel(ta) == ((0, 0), (0, 3))
@@ -111,20 +111,20 @@ class TestCtrlDFromCollapsedCursor:
         """Three Ctrl+D presses select all three 'abc' occurrences."""
         app = make_app(workspace, light=True, open_file=abc_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.cursor_location = (0, 1)
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             assert _sel(ta) == ((0, 0), (0, 3))
             assert len(ta.extra_cursors) == 2
@@ -135,17 +135,17 @@ class TestCtrlDFromCollapsedCursor:
         """Fourth Ctrl+D wraps around — all already selected, no new cursor."""
         app = make_app(workspace, light=True, open_file=abc_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.cursor_location = (0, 1)
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             for _ in range(4):
                 await pilot.press("ctrl+d")
-                await pilot.pause()
+                await pilot.wait_for_scheduled_animations()
 
             # Still 2 extras (3 total), no additional cursor added
             assert len(ta.extra_cursors) == 2
@@ -171,19 +171,19 @@ class TestCtrlDTouchingRanges:
         """Ctrl+D finds all 5 'abc' occurrences including adjacent ones."""
         app = make_app(workspace, light=True, open_file=touching_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Select "abc" at (0, 0)-(0, 3)
             ta.selection = Selection((0, 0), (0, 3))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Press Ctrl+D 4 times to add remaining 4 occurrences
             for _ in range(4):
                 await pilot.press("ctrl+d")
-                await pilot.pause()
+                await pilot.wait_for_scheduled_animations()
 
             # Primary: (0,0)-(0,3) = first "abc"
             assert _sel(ta) == ((0, 0), (0, 3))
@@ -204,25 +204,25 @@ class TestCtrlDTouchingRanges:
         """
         app = make_app(workspace, light=True, open_file=touching_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Select "abc" at (0, 0)-(0, 3)
             ta.selection = Selection((0, 0), (0, 3))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Add all 4 remaining occurrences
             for _ in range(4):
                 await pilot.press("ctrl+d")
-                await pilot.pause()
+                await pilot.wait_for_scheduled_animations()
 
             assert len(ta.extra_cursors) == 4
 
             # Type 'z' to replace all "abc" with "z"
             await pilot.press("z")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             lines = ta.text.rstrip("\n").split("\n")
             assert lines[0] == "zz"
@@ -255,36 +255,36 @@ class TestCtrlDCaseInsensitive:
         """
         app = make_app(workspace, light=True, open_file=case_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Select "test" on line 0 (user selection → substring mode)
             ta.selection = Selection((0, 0), (0, 4))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # First Ctrl+D: finds "test" in "testte" on line 1
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert len(ta.extra_cursors) == 1
             assert _sel(ta, extra_index=0) == ((1, 0), (1, 4))
 
             # Second Ctrl+D: finds "Test" on line 2 (case-insensitive!)
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert len(ta.extra_cursors) == 2
             assert _sel(ta, extra_index=1) == ((2, 0), (2, 4))
 
             # Third Ctrl+D: finds "test" in "testte" on line 3
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert len(ta.extra_cursors) == 3
             assert _sel(ta, extra_index=2) == ((3, 0), (3, 4))
 
             # Fourth Ctrl+D: finds "test" on line 4
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert len(ta.extra_cursors) == 4
             assert _sel(ta, extra_index=3) == ((4, 0), (4, 4))
 
@@ -317,31 +317,31 @@ class TestCtrlDWordBoundary:
         """
         app = make_app(workspace, light=True, open_file=app_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Cursor inside "app" on line 0
             ta.cursor_location = (0, 1)
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # First Ctrl+D: selects "app" on line 0
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert _sel(ta) == ((0, 0), (0, 3))
 
             # Second Ctrl+D: skips "apples" and "whatsapp",
             # finds whole-word "app" on line 3
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert len(ta.extra_cursors) == 1
             assert _sel(ta, extra_index=0) == ((3, 0), (3, 3))
 
             # Third Ctrl+D: skips "App" (case-sensitive),
             # finds " app" on line 5 (space is word boundary)
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert len(ta.extra_cursors) == 2
             assert _sel(ta, extra_index=1) == ((5, 1), (5, 4))
 
@@ -377,7 +377,7 @@ class TestCtrlDMultilineMatch:
         selected multiline text."""
         app = make_app(workspace, light=True, open_file=multiline_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -385,12 +385,12 @@ class TestCtrlDMultilineMatch:
             # Select "qwe\nrty" at lines 1-2 (0-based)
             # VSCode: Selection(2, 1, 3, 4) → Textual: Selection((1, 0), (2, 3))
             ta.selection = Selection((1, 0), (2, 3))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert ta.selected_text == "qwe\nrty"
 
             # Ctrl+D: find next "qwe\nrty" → should be at lines 7-8 (0-based)
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             assert len(ta.extra_cursors) == 1
             assert _sel(ta, extra_index=0) == ((7, 0), (8, 3))
@@ -405,17 +405,17 @@ async def test_ctrl_d_no_word_at_whitespace(workspace: Path):
     f.write_text("   \nhello\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         ta = editor.editor
 
         ta.cursor_location = (0, 1)  # in whitespace
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel_before = ta.selection
         await pilot.press("ctrl+d")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # No change — nothing to select
         assert ta.selection == sel_before
@@ -428,18 +428,18 @@ async def test_ctrl_d_wraps_around_to_beginning(workspace: Path):
     f.write_text("alpha\nbeta\nalpha\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         ta = editor.editor
 
         # Select "alpha" on line 2 (the second occurrence)
         ta.selection = Selection((2, 0), (2, 5))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Ctrl+D: wraps around to find "alpha" on line 0
         await pilot.press("ctrl+d")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert len(ta.extra_cursors) == 1
         assert _sel(ta, extra_index=0) == ((0, 0), (0, 5))
@@ -451,17 +451,17 @@ async def test_ctrl_d_single_occurrence_no_extra(workspace: Path):
     f.write_text("unique\nother\nwords\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         ta = editor.editor
 
         # Select "unique"
         ta.selection = Selection((0, 0), (0, 6))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("ctrl+d")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # No extra cursor — only one occurrence
         assert ta.extra_cursors == []
@@ -486,25 +486,25 @@ class TestEscapeAfterCtrlD:
         """Escape after Ctrl+D removes extra cursors."""
         app = make_app(workspace, light=True, open_file=repeat_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Select "(3 * 5)" on line 0
             ta.selection = Selection((0, 8), (0, 15))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Ctrl+D twice to add 2 extra cursors
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert len(ta.extra_cursors) == 2
 
             # Escape
             await pilot.press("escape")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             assert ta.extra_cursors == []
 
@@ -514,17 +514,17 @@ class TestEscapeAfterCtrlD:
         """After escape, primary cursor stays at its current position."""
         app = make_app(workspace, light=True, open_file=repeat_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Select "(3 * 5)" on line 0
             ta.selection = Selection((0, 8), (0, 15))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+d")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Record primary position before escape
             primary_sel_before = (
@@ -533,7 +533,7 @@ class TestEscapeAfterCtrlD:
             )
 
             await pilot.press("escape")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Primary selection is collapsed at cursor_location after escape
             assert ta.extra_cursors == []
@@ -563,17 +563,17 @@ class TestSelectAllOccurrences:
         """Ctrl+Shift+L selects all occurrences of selected text."""
         app = make_app(workspace, light=True, open_file=multi_match_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Select "foo" on line 0
             ta.selection = Selection((0, 0), (0, 3))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+l")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Primary + 3 extras = 4 total "foo" occurrences
             assert _sel(ta) == ((0, 0), (0, 3))
@@ -589,17 +589,17 @@ class TestSelectAllOccurrences:
         under cursor."""
         app = make_app(workspace, light=True, open_file=multi_match_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Cursor inside "foo" on line 0
             ta.cursor_location = (0, 1)
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+l")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # All 4 "foo" occurrences selected
             assert _sel(ta) == ((0, 0), (0, 3))
@@ -611,16 +611,16 @@ class TestSelectAllOccurrences:
         f.write_text("   \nhello\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.cursor_location = (0, 1)
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+l")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # No extra cursors — nothing to match
             assert ta.extra_cursors == []
@@ -640,16 +640,16 @@ async def test_insert_cursor_below_on_last_line_no_duplicate(workspace: Path):
     f.write_text("abc\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         ta = editor.editor
 
         ta.cursor_location = (0, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("ctrl+alt+down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # No extra cursor added — already at last content line
         # (line 1 is empty trailing newline)

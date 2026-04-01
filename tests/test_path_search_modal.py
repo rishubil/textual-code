@@ -55,7 +55,7 @@ async def test_path_search_modal_mounts(workspace: Path, sample_files: list[Path
     _populate_cache(workspace, "files", sample_files)
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -63,7 +63,7 @@ async def test_path_search_modal_mounts(workspace: Path, sample_files: list[Path
                 cache_key="files",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         assert isinstance(modal, PathSearchModal)
         assert modal.query_one("#path-search-input") is not None
@@ -82,7 +82,7 @@ async def test_path_search_modal_shows_cached_paths(
     _populate_cache(workspace, "files", sample_files)
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -90,7 +90,7 @@ async def test_path_search_modal_shows_cached_paths(
                 cache_key="files",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ol = app.screen.query_one("#path-search-results", OptionList)
         assert ol.option_count == len(sample_files)
 
@@ -107,7 +107,7 @@ async def test_path_search_modal_fuzzy_search(
     _populate_cache(workspace, "files", sample_files)
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -115,10 +115,10 @@ async def test_path_search_modal_fuzzy_search(
                 cache_key="files",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Type "alpha" to search
         await pilot.press("a", "l", "p", "h", "a")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ol = app.screen.query_one("#path-search-results", OptionList)
         assert ol.option_count >= 1
         # The top result should contain "alpha"
@@ -138,7 +138,7 @@ async def test_path_search_modal_escape_dismisses(
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -147,9 +147,9 @@ async def test_path_search_modal_escape_dismisses(
             ),
             callback=lambda result: dismissed_with.append(result),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(dismissed_with) == 1
         assert dismissed_with[0] is None
 
@@ -167,7 +167,7 @@ async def test_path_search_modal_applies_filter(
     _populate_cache(workspace, "files", sample_files)
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -176,7 +176,7 @@ async def test_path_search_modal_applies_filter(
                 path_filter=lambda p: p.suffix != ".txt",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ol = app.screen.query_one("#path-search-results", OptionList)
         # Only .py files should remain
         py_files = [f for f in sample_files if f.suffix == ".py"]
@@ -197,7 +197,7 @@ async def test_path_search_modal_displays_relative_paths(
     _populate_cache(workspace, "paths", abs_paths)
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -205,7 +205,7 @@ async def test_path_search_modal_displays_relative_paths(
                 cache_key="paths",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ol = app.screen.query_one("#path-search-results", OptionList)
         # All displayed paths should be relative (no leading /)
         for i in range(ol.option_count):
@@ -233,7 +233,7 @@ async def test_path_search_modal_sorted_discovery(
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -241,7 +241,7 @@ async def test_path_search_modal_sorted_discovery(
                 cache_key="files",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ol = app.screen.query_one("#path-search-results", OptionList)
         names = [str(ol.get_option_at_index(i).prompt) for i in range(ol.option_count)]
         assert names == sorted(names)
@@ -258,9 +258,9 @@ async def test_action_opens_path_search_modal(
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_open_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, PathSearchModal)
 
 
@@ -272,19 +272,21 @@ async def test_file_search_opens_selected_file(
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_open_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Type to search for "alpha"
         await pilot.press("a", "l", "p", "h", "a")
         # Wait for background fuzzy matching worker to complete
-        await pilot.pause(0.5)
+        await pilot.wait_for_scheduled_animations()
         ol = app.screen.query_one("#path-search-results", OptionList)
         assert ol.option_count >= 1, "No search results found"
         # Select the highlighted option
         await pilot.press("enter")
-        await pilot.pause()
-        await pilot.pause()  # Extra pause for file open async processing
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Extra pause for file open async processing
         # Check that the file was opened
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
@@ -303,16 +305,16 @@ async def test_path_search_modal_search_without_cache(
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
                 scan_func=_read_workspace_files,
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("a", "l", "p", "h", "a")
-        await pilot.pause(1.0)
+        await pilot.wait_for_scheduled_animations()
         ol = app.screen.query_one("#path-search-results", OptionList)
         assert ol.option_count >= 1, "No search results when cache is None"
 
@@ -332,7 +334,7 @@ async def test_stale_search_results_discarded(
     _populate_cache(workspace, "files", sample_files)
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -340,12 +342,12 @@ async def test_stale_search_results_discarded(
                 cache_key="files",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         assert isinstance(modal, PathSearchModal)
         # Type to get results
         await pilot.press("a", "l", "p", "h", "a")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ol = modal.query_one("#path-search-results", OptionList)
         current_count = ol.option_count
         assert current_count >= 1
@@ -373,7 +375,7 @@ async def test_cache_hit_on_second_open(workspace: Path, sample_files: list[Path
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # First open — triggers scan
         app.push_screen(
             PathSearchModal(
@@ -382,10 +384,10 @@ async def test_cache_hit_on_second_open(workspace: Path, sample_files: list[Path
                 cache_key="files",
             )
         )
-        await pilot.pause(1.0)
+        await pilot.wait_for_scheduled_animations()
         # Dismiss
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Verify cache was populated
         assert (workspace, "files") in PathSearchModal._cache
         # Second open — should hit cache
@@ -396,7 +398,7 @@ async def test_cache_hit_on_second_open(workspace: Path, sample_files: list[Path
                 cache_key="files",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ol = app.screen.query_one("#path-search-results", OptionList)
         # Should have results immediately from cache
         assert ol.option_count >= 1, "Cache miss on second open"
@@ -433,7 +435,7 @@ async def test_dirty_cache_rescan_no_duplicates(
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -442,7 +444,7 @@ async def test_dirty_cache_rescan_no_duplicates(
             )
         )
         # Wait for scan to complete
-        await pilot.pause(1.0)
+        await pilot.wait_for_scheduled_animations()
         ol = app.screen.query_one("#path-search-results", OptionList)
         # Count should equal unique files, not doubled
         displayed = [
@@ -466,7 +468,7 @@ async def test_keyboard_navigation_down_up(workspace: Path, sample_files: list[P
     _populate_cache(workspace, "files", sample_files)
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -474,7 +476,7 @@ async def test_keyboard_navigation_down_up(workspace: Path, sample_files: list[P
                 cache_key="files",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         assert isinstance(modal, PathSearchModal)
         ol = modal.query_one("#path-search-results", OptionList)
@@ -482,16 +484,16 @@ async def test_keyboard_navigation_down_up(workspace: Path, sample_files: list[P
         assert ol.option_count >= 2
         # Press down to highlight first item
         await pilot.press("down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ol.highlighted is not None
         initial_highlight = ol.highlighted
         # Press down again
         await pilot.press("down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ol.highlighted == initial_highlight + 1
         # Press up
         await pilot.press("up")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ol.highlighted == initial_highlight
         # Input should still have focus
         inp = modal.query_one("#path-search-input", Input)
@@ -515,7 +517,7 @@ async def test_large_cache_discovery_and_navigation(workspace: Path):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -523,7 +525,7 @@ async def test_large_cache_discovery_and_navigation(workspace: Path):
                 cache_key="files",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         assert isinstance(modal, PathSearchModal)
         ol = modal.query_one("#path-search-results", OptionList)
@@ -531,13 +533,13 @@ async def test_large_cache_discovery_and_navigation(workspace: Path):
         assert ol.option_count == _MAX_DISCOVERY
         # Cursor navigation should work without lag
         await pilot.press("down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ol.highlighted is not None
         first = ol.highlighted
         # Navigate several items down
         for _ in range(5):
             await pilot.press("down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ol.highlighted == first + 5
         # Input should keep focus during navigation
         inp = modal.query_one("#path-search-input", Input)
@@ -557,7 +559,7 @@ async def test_gitignore_toggle_visible(workspace: Path, sample_files: list[Path
     _populate_cache(workspace, "files:gitignore=True", sample_files)
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -568,7 +570,7 @@ async def test_gitignore_toggle_visible(workspace: Path, sample_files: list[Path
                 unfiltered_cache_key="files:gitignore=False",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         assert isinstance(modal, PathSearchModal)
         cb = modal.query_one("#path-search-gitignore", Checkbox)
@@ -588,7 +590,7 @@ async def test_gitignore_toggle_hidden_by_default(
     _populate_cache(workspace, "files", sample_files)
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -596,7 +598,7 @@ async def test_gitignore_toggle_hidden_by_default(
                 cache_key="files",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         assert isinstance(modal, PathSearchModal)
         with pytest.raises(NoMatches):
@@ -627,7 +629,7 @@ async def test_gitignore_toggle_triggers_rescan(workspace: Path):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -638,7 +640,7 @@ async def test_gitignore_toggle_triggers_rescan(workspace: Path):
                 unfiltered_cache_key="unfiltered",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         assert isinstance(modal, PathSearchModal)
         ol = modal.query_one("#path-search-results", OptionList)
@@ -648,7 +650,7 @@ async def test_gitignore_toggle_triggers_rescan(workspace: Path):
         # Uncheck gitignore toggle
         cb = modal.query_one("#path-search-gitignore", Checkbox)
         cb.value = False
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Should now show unfiltered results
         ol = modal.query_one("#path-search-results", OptionList)
         assert ol.option_count == 4
@@ -664,9 +666,9 @@ async def test_action_open_file_has_gitignore_toggle(
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_open_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         assert isinstance(modal, PathSearchModal)
         cb = modal.query_one("#path-search-gitignore", Checkbox)
@@ -733,7 +735,7 @@ async def test_rapidfuzz_used_for_large_file_list(workspace: Path):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -741,10 +743,10 @@ async def test_rapidfuzz_used_for_large_file_list(workspace: Path):
                 cache_key="files",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Type to search
         await pilot.press("f", "i", "l", "e", "_", "0", "0", "5")
-        await pilot.pause(0.5)
+        await pilot.wait_for_scheduled_animations()
         ol = app.screen.query_one("#path-search-results", OptionList)
         assert ol.option_count >= 1, "rapidfuzz path should return results"
         # Top result should contain the query
@@ -768,7 +770,7 @@ async def test_rapidfuzz_prefers_filename_match(workspace: Path):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.push_screen(
             PathSearchModal(
                 workspace,
@@ -776,9 +778,9 @@ async def test_rapidfuzz_prefers_filename_match(workspace: Path):
                 cache_key="files",
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("t", "a", "r", "g", "e", "t")
-        await pilot.pause(0.5)
+        await pilot.wait_for_scheduled_animations()
         ol = app.screen.query_one("#path-search-results", OptionList)
         assert ol.option_count >= 1
         # "target.py" should be the top result (filename match)

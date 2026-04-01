@@ -37,11 +37,11 @@ async def test_transform_uppercase(workspace: Path, mixed_case_file: Path):
     """Selecting 'Hello' and transforming to uppercase produces 'HELLO'."""
     app = make_app(workspace, light=True, open_file=mixed_case_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.selection = Selection(start=(0, 0), end=(0, 5))
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines[0] == "HELLO World"
         assert lines[1] == "foo BAR"
@@ -54,11 +54,11 @@ async def test_transform_lowercase(workspace: Path, mixed_case_file: Path):
     """Selecting 'BAR' and transforming to lowercase produces 'bar'."""
     app = make_app(workspace, light=True, open_file=mixed_case_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.selection = Selection(start=(1, 4), end=(1, 7))
         ta.action_transform_lowercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines[0] == "Hello World"
         assert lines[1] == "foo bar"
@@ -73,12 +73,12 @@ async def test_transform_uppercase_collapsed_cursor_selects_word(
     """Collapsed cursor auto-selects word under cursor (VSCode behavior)."""
     app = make_app(workspace, light=True, open_file=mixed_case_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         # Cursor inside "Hello" → auto-selects "Hello" → "HELLO"
         ta.cursor_location = (0, 3)
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines[0] == "HELLO World"
 
@@ -89,12 +89,12 @@ async def test_transform_lowercase_collapsed_cursor_selects_word(
     """Collapsed cursor auto-selects word under cursor (VSCode behavior)."""
     app = make_app(workspace, light=True, open_file=mixed_case_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         # Cursor inside "BAR" at (1, 5) → auto-selects "BAR" → "bar"
         ta.cursor_location = (1, 5)
         ta.action_transform_lowercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines[1] == "foo bar"
 
@@ -105,13 +105,13 @@ async def test_transform_collapsed_cursor_on_whitespace_noop(
     """Collapsed cursor on whitespace/non-word char is still a no-op."""
     app = make_app(workspace, light=True, open_file=mixed_case_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         original = ta.text
         # Cursor at the space between "Hello" and "World"
         ta.cursor_location = (0, 5)
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == original
 
 
@@ -122,12 +122,12 @@ async def test_transform_uppercase_multiline(workspace: Path, mixed_case_file: P
     """Selecting across lines transforms all selected text to uppercase."""
     app = make_app(workspace, light=True, open_file=mixed_case_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         # Select "World\nfoo"
         ta.selection = Selection(start=(0, 6), end=(1, 3))
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines[0] == "Hello WORLD"
         assert lines[1] == "FOO BAR"
@@ -140,11 +140,11 @@ async def test_transform_preserves_selection(workspace: Path, mixed_case_file: P
     """After transforming, the selection covers the same range."""
     app = make_app(workspace, light=True, open_file=mixed_case_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         ta.selection = Selection(start=(0, 0), end=(0, 5))
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.selection.start == (0, 0)
         assert ta.selection.end == (0, 5)
 
@@ -156,12 +156,12 @@ async def test_transform_backward_selection(workspace: Path, mixed_case_file: Pa
     """Backward (right-to-left) selection transforms correctly."""
     app = make_app(workspace, light=True, open_file=mixed_case_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         # Select "Hello" backwards (end before start)
         ta.selection = Selection(start=(0, 5), end=(0, 0))
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines[0] == "HELLO World"
 
@@ -173,7 +173,7 @@ async def test_transform_command_palette(workspace: Path):
     """All 7 transform commands are available in the system command palette."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         commands = list(app.get_system_commands(app.screen))
         titles = [cmd.title for cmd in commands]
         assert "Transform to Uppercase" in titles
@@ -194,12 +194,12 @@ async def test_snake_case_selection_grows(workspace: Path):
     f.write_text("parseHTMLString\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         # "parseHTMLString" (15 chars) → "parse_html_string" (17 chars)
         ta.selection = Selection(start=(0, 0), end=(0, 15))
         ta.action_transform_snake_case()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "parse_html_string"
         assert ta.selection == Selection((0, 0), (0, 17))
 
@@ -210,11 +210,11 @@ async def test_pascal_case_selection_shrinks(workspace: Path):
     f.write_text("hello world\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_editor(app)
         # "hello world" (11 chars) → "HelloWorld" (10 chars)
         ta.selection = Selection(start=(0, 0), end=(0, 11))
         ta.action_transform_pascal_case()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "HelloWorld"
         assert ta.selection == Selection((0, 0), (0, 10))

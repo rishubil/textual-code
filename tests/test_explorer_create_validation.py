@@ -27,11 +27,11 @@ async def test_create_duplicate_file_shows_error(workspace: Path, sample_py_file
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(
             TextualCode.CreateFileOrDirRequested(path=sample_py_file, is_dir=False)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     # File still exists with original content (not overwritten)
     assert sample_py_file.exists()
@@ -49,9 +49,9 @@ async def test_create_duplicate_directory_shows_error(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(TextualCode.CreateFileOrDirRequested(path=subdir, is_dir=True))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     # Directory unchanged, child file preserved
     assert subdir.is_dir()
@@ -71,11 +71,11 @@ async def test_create_new_file(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(
             TextualCode.CreateFileOrDirRequested(path=new_file, is_dir=False)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert new_file.exists()
     assert new_file.is_file()
@@ -88,11 +88,11 @@ async def test_create_new_directory(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(
             TextualCode.CreateFileOrDirRequested(path=new_dir, is_dir=True)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert new_dir.exists()
     assert new_dir.is_dir()
@@ -110,9 +110,9 @@ async def test_create_nested_directory(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(TextualCode.CreateFileOrDirRequested(path=nested, is_dir=True))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert nested.exists()
     assert nested.is_dir()
@@ -129,11 +129,11 @@ async def test_create_hidden_file(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(
             TextualCode.CreateFileOrDirRequested(path=hidden, is_dir=False)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert hidden.exists()
     assert hidden.is_file()
@@ -145,12 +145,12 @@ async def test_create_file_opens_in_editor(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(
             TextualCode.CreateFileOrDirRequested(path=new_file, is_dir=False)
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
@@ -163,11 +163,11 @@ async def test_create_directory_does_not_open_editor(workspace: Path):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(
             TextualCode.CreateFileOrDirRequested(path=new_dir, is_dir=True)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor = app.main_view.get_active_code_editor()
         assert editor is None

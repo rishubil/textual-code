@@ -31,7 +31,7 @@ class TestCollectExpandedDirMtimes:
         (ws / "file.py").write_text("x = 1\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             mtimes = tree._collect_expanded_dir_mtimes()
@@ -50,7 +50,7 @@ class TestCollectExpandedDirMtimes:
         (sub_b / "file.py").write_text("y\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             # Initially only root children are visible, dirs are collapsed
@@ -63,7 +63,7 @@ class TestCollectExpandedDirMtimes:
                 if child.data is not None and child.data.path == sub_a:
                     child.expand()
                     break
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             mtimes_after = tree._collect_expanded_dir_mtimes()
             assert sub_a in mtimes_after
@@ -82,7 +82,7 @@ class TestGetGitRefMtimes:
         init_git_repo(ws)
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             index_mtime, head_mtime = tree._get_git_ref_mtimes()
@@ -98,7 +98,7 @@ class TestGetGitRefMtimes:
         (ws / "file.py").write_text("x\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree._get_git_ref_mtimes() == (None, None)
@@ -111,7 +111,7 @@ class TestGetGitRefMtimes:
         (ws / "file.py").write_text("x\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree._get_git_ref_mtimes() == (None, None)
@@ -128,7 +128,7 @@ class TestPollWorkspaceChangeDir:
         (ws / "existing.py").write_text("x\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             # Initialize polling state
@@ -152,7 +152,7 @@ class TestPollWorkspaceChangeDir:
         target.write_text("x\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
@@ -174,7 +174,7 @@ class TestPollWorkspaceChangeDir:
         (ws / "file.py").write_text("x\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
@@ -197,7 +197,7 @@ class TestPollWorkspaceChangeDir:
         (ws / "file.py").write_text("x\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
@@ -220,7 +220,7 @@ class TestPollWorkspaceChangeDir:
         (ws / "file.py").write_text("x\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
@@ -233,8 +233,8 @@ class TestPollWorkspaceChangeDir:
             assert tree._ws_polling_paused is True
 
             # Wait for async reload to complete
-            await pilot.pause()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
 
             assert tree._ws_polling_paused is False
 
@@ -252,7 +252,7 @@ class TestPollWorkspaceChangeGit:
         (ws / "file.py").write_text("x\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
@@ -293,7 +293,7 @@ class TestPollWorkspaceChangeGit:
         init_git_repo(ws)
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
@@ -328,7 +328,7 @@ class TestPollWorkspaceChangeGit:
         (sub / "inner.py").write_text("x\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
 
@@ -337,7 +337,7 @@ class TestPollWorkspaceChangeGit:
                 if child.data is not None and child.data.path == sub:
                     child.expand()
                     break
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
             tree._git_ref_mtimes = tree._get_git_ref_mtimes()
@@ -353,7 +353,7 @@ class TestPollWorkspaceChangeGit:
             )
 
             tree._poll_workspace_change()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Verify subdir is still expanded
             for child in tree.root.children:
@@ -376,7 +376,7 @@ class TestPollWorkspaceChangeGit:
         (ws / "file.py").write_text("x\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             # Windows: wait for background git loading to complete
@@ -421,7 +421,7 @@ class TestPollWorkspaceChangeGit:
         (ws / "new.py").write_text("y\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             # Pre-load git status synchronously (bypass bg_loading for test)
@@ -451,7 +451,7 @@ class TestIntegration:
         (ws / "existing.py").write_text("x\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
@@ -468,8 +468,8 @@ class TestIntegration:
 
             # Trigger poll and wait for async reload
             tree._poll_workspace_change()
-            await pilot.pause()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
 
             # Verify new file now appears in tree
             names_after = {
@@ -487,7 +487,7 @@ class TestIntegration:
         (ws / "root.py").write_text("y\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
 
@@ -496,7 +496,7 @@ class TestIntegration:
                 if child.data is not None and child.data.path == sub:
                     child.expand()
                     break
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             tree._dir_mtimes = tree._collect_expanded_dir_mtimes()
             tree._git_ref_mtimes = tree._get_git_ref_mtimes()
@@ -506,9 +506,9 @@ class TestIntegration:
 
             # Trigger poll and wait for async reload
             tree._poll_workspace_change()
-            await pilot.pause()
-            await pilot.pause()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
 
             # Verify mydir is still expanded after reload
             found = False

@@ -133,7 +133,7 @@ class TestFeatureInteraction:
         config.write_text("[editor]\ndim_hidden_files = true\ndim_gitignored = true\n")
         app = make_app(ws, user_config_path=config)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             # Dotfile is NOT gitignored (exempt)

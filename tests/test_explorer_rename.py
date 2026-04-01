@@ -23,13 +23,13 @@ async def test_file_rename_requested_message_posts(
     """Posting FileRenameRequested directly → modal opens."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, RenameModalScreen)
 
 
@@ -40,7 +40,7 @@ async def test_rename_file_from_explorer(workspace: Path, sample_py_file: Path):
     """Rename confirm → file is renamed on disk."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert sample_py_file.exists()
 
         assert app.sidebar is not None
@@ -48,15 +48,15 @@ async def test_rename_file_from_explorer(workspace: Path, sample_py_file: Path):
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, RenameModalScreen)
 
         inp = app.screen.query_one(Input)
         inp.value = "renamed.py"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not sample_py_file.exists()
     assert (workspace / "renamed.py").exists()
@@ -66,19 +66,21 @@ async def test_rename_file_cancel(workspace: Path, sample_py_file: Path):
     """Cancel → file is unchanged."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for modal screen push
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for modal screen push
         assert isinstance(app.screen, RenameModalScreen)
 
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert sample_py_file.exists()
 
@@ -87,7 +89,7 @@ async def test_rename_open_file_updates_tab(workspace: Path, sample_py_file: Pat
     """Renaming an open file → editor.path and tab title update."""
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.path == sample_py_file
@@ -97,15 +99,15 @@ async def test_rename_open_file_updates_tab(workspace: Path, sample_py_file: Pat
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, RenameModalScreen)
 
         inp = app.screen.query_one(Input)
         inp.value = "renamed.py"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.path == workspace / "renamed.py"
         assert "renamed.py" in editor.title
@@ -118,21 +120,25 @@ async def test_rename_to_existing_shows_error(workspace: Path, sample_py_file: P
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         inp = app.screen.query_one(Input)
         inp.value = "existing.py"
-        await pilot.pause()  # Windows: extra pause for input value change
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for input value change
         await pilot.click("#rename")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for rename action error handling
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for rename action error handling
 
     assert sample_py_file.exists()
     assert existing.read_text() == "existing\n"
@@ -142,19 +148,19 @@ async def test_rename_unchanged_name_noop(workspace: Path, sample_py_file: Path)
     """Same name → no filesystem change."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Don't change the input value — keep it as the original name
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert sample_py_file.exists()
 
@@ -165,21 +171,25 @@ async def test_rename_with_path_separator_shows_error(
     """Name with path separator → error notification, file unchanged."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         inp = app.screen.query_one(Input)
         inp.value = "sub/dir.py"
-        await pilot.pause()  # Windows: extra pause for input value change
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for input value change
         await pilot.click("#rename")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for rename action error handling
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for rename action error handling
 
     assert sample_py_file.exists()
 
@@ -193,15 +203,15 @@ async def test_rename_empty_name_noop(
     """
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, RenameModalScreen)
 
         notify_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
@@ -212,7 +222,7 @@ async def test_rename_empty_name_noop(
         inp = app.screen.query_one(Input)
         inp.value = ""
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert sample_py_file.exists()
     assert any(
@@ -230,15 +240,15 @@ async def test_rename_whitespace_only_noop(
     """
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, RenameModalScreen)
 
         notify_calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
@@ -249,7 +259,7 @@ async def test_rename_whitespace_only_noop(
         inp = app.screen.query_one(Input)
         inp.value = "   "
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert sample_py_file.exists()
     assert any(
@@ -265,22 +275,22 @@ async def test_rename_to_hidden_file(workspace: Path, sample_py_file: Path):
     """
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, RenameModalScreen)
 
         inp = app.screen.query_one(Input)
         inp.value = ".hidden"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not sample_py_file.exists()
     assert (workspace / ".hidden").exists()
@@ -293,22 +303,22 @@ async def test_rename_with_spaces_in_name(workspace: Path, sample_py_file: Path)
     """
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, RenameModalScreen)
 
         inp = app.screen.query_one(Input)
         inp.value = "Read Me.py"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not sample_py_file.exists()
     assert (workspace / "Read Me.py").exists()
@@ -325,22 +335,22 @@ async def test_rename_directory_from_explorer(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=subdir)
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, RenameModalScreen)
 
         inp = app.screen.query_one(Input)
         inp.value = "newdir"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not subdir.exists()
     assert (workspace / "newdir").exists()
@@ -356,7 +366,7 @@ async def test_rename_dir_updates_open_files(workspace: Path):
 
     app = make_app(workspace, open_file=child_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.path == child_file
@@ -366,14 +376,14 @@ async def test_rename_dir_updates_open_files(workspace: Path):
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=subdir)
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         inp = app.screen.query_one(Input)
         inp.value = "newdir"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.path == workspace / "newdir" / "child.py"
         assert "child.py" in editor.title
@@ -386,10 +396,10 @@ async def test_rename_no_cursor_no_modal(workspace: Path):
     """No cursor node → modal does not open."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         app.sidebar.explorer.action_rename_node()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert not isinstance(app.screen, RenameModalScreen)
 
 
@@ -402,27 +412,27 @@ async def test_rename_file_preserves_unsaved_changes(
     """Renaming preserves unsaved (dirty) editor state."""
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Make the editor dirty
         editor.text = "modified content"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         inp = app.screen.query_one(Input)
         inp.value = "renamed.py"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Path updated but content and dirty state preserved
         assert editor.path == workspace / "renamed.py"
@@ -437,20 +447,20 @@ async def test_rename_file_from_editor_f2(workspace: Path, sample_py_file: Path)
     """F2 in editor → rename modal opens, rename works."""
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("f2")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, RenameModalScreen)
 
         inp = app.screen.query_one(Input)
         inp.value = "from_editor.py"
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not sample_py_file.exists()
     assert (workspace / "from_editor.py").exists()
@@ -460,17 +470,17 @@ async def test_rename_untitled_file_shows_error(workspace: Path):
     """F2 in editor with no path → error notification."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.path is None
         editor.action_focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("f2")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert not isinstance(app.screen, RenameModalScreen)
 
 
@@ -483,17 +493,17 @@ async def test_rename_via_command_palette(workspace: Path, sample_py_file: Path)
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(
             TextualCode.RenamePathWithPaletteRequested(path=sample_py_file)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, RenameModalScreen)
 
         inp = app.screen.query_one(Input)
         inp.value = "palette_renamed.py"
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not sample_py_file.exists()
     assert (workspace / "palette_renamed.py").exists()

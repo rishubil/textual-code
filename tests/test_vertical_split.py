@@ -28,7 +28,7 @@ async def test_toggle_split_vertical_command_exists(workspace: Path):
 
     app = make_app(workspace, open_file=None, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         screen_mock = MagicMock()
         commands = list(app.get_system_commands(screen_mock))
         titles = [c.title for c in commands]
@@ -39,17 +39,17 @@ async def test_toggle_split_vertical_adds_css_class(workspace: Path, py_file: Pa
     """Toggle split orientation toggles 'split-vertical' CSS class."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # First create a split so we have a SplitContainer
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         containers = list(app.main_view.query(SplitContainer))
         assert containers, "Expected a SplitContainer after split"
         container = containers[0]
 
         app.main_view.action_toggle_split_orientation()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert "split-vertical" in container.classes
 
@@ -60,19 +60,19 @@ async def test_toggle_split_vertical_twice_removes_class(
     """Calling action_toggle_split_orientation twice reverts to horizontal layout."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         containers = list(app.main_view.query(SplitContainer))
         container = containers[0]
 
         app.main_view.action_toggle_split_orientation()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert "split-vertical" in container.classes
 
         app.main_view.action_toggle_split_orientation()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert "split-vertical" not in container.classes
 
 
@@ -82,15 +82,15 @@ async def test_horizontal_split_still_works_after_vertical_toggle(
     """Horizontal split (Ctrl+\\) still works after toggling vertical orientation."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open horizontal split first
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Toggle to vertical orientation
         app.main_view.action_toggle_split_orientation()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Split should still be visible
         assert app.main_view._split_visible is True
@@ -108,11 +108,11 @@ def test_vertical_split_snapshot(snap_compare, snapshot_workspace: Path):
     app = make_app(snapshot_workspace, open_file=py_file)
 
     async def setup(pilot):
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Enable split and toggle to vertical
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.main_view.action_toggle_split_orientation()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=setup, terminal_size=(120, 40))

@@ -262,9 +262,9 @@ async def test_search_tree_cleared_on_new_search(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         query_input = ws_pane.query_one("#ws-query", Input)
@@ -272,20 +272,24 @@ async def test_search_tree_cleared_on_new_search(tmp_path: Path) -> None:
 
         # First search: populate results
         query_input.value = "hello"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker completion
 
         # Verify results are populated
         assert len(results_tree.root.children) > 0, "First search should have results"
 
         # Second search with different query — tree should be cleared first
         query_input.value = "nonexistent_string_xyz"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker completion
 
         # After the second search completes, results should show "No results"
         node_labels = [str(n.label) for n in results_tree.root.children]
@@ -335,19 +339,21 @@ async def test_previous_search_cancelled_by_new_search(
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         query_input = ws_pane.query_one("#ws-query", Input)
 
         # Start first search (will block on gate)
         query_input.value = "needle"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker completion
 
         # Capture reference to the first worker
         first_workers = [
@@ -358,15 +364,17 @@ async def test_previous_search_cancelled_by_new_search(
 
         # Start second search — exclusive worker should cancel the first
         query_input.value = "content"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker completion
 
         # Release the gate so the first search can complete (or notice cancellation)
         gate.set()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # The first worker should have been cancelled by the exclusive worker mechanism
         assert first_worker.state == WorkerState.CANCELLED, (
@@ -392,15 +400,17 @@ async def test_search_tree_groups_results_by_file(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "target"
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -664,15 +674,17 @@ async def test_tree_hierarchy_file_and_match_nodes(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
 
@@ -705,15 +717,17 @@ async def test_tree_node_data_stores_file_and_line(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker + tree population
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker + tree population
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -753,15 +767,17 @@ async def test_nested_directory_tree_grouping(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -815,15 +831,17 @@ async def test_next_focus_after_removing_match_with_sibling_file(
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -870,15 +888,17 @@ async def test_next_focus_after_removing_only_match(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -916,15 +936,17 @@ async def test_next_focus_after_removing_file_with_sibling(
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -960,15 +982,17 @@ async def test_last_file_node_in_tree(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker completion
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -1003,15 +1027,17 @@ async def test_last_match_node_in_tree(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search results tree population
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search results tree population
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -1044,15 +1070,17 @@ async def test_next_focus_after_removing_only_file(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for search worker + tree population
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for search worker + tree population
 
         results_tree = ws_pane.query_one("#ws-results", Tree)
         file_nodes = list(results_tree.root.children)
@@ -1094,26 +1122,26 @@ async def test_replace_all_via_ui_modifies_files(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "hello"
         ws_pane.query_one("#ws-replace", Input).value = "goodbye"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Trigger Replace All — worker thread → call_from_thread → push_screen
         ws_pane._run_replace_all()
-        await pilot.pause()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Confirm in modal — query within the modal screen
         replace_btn = app.screen.query_one("#replace-all", Button)
         replace_btn.press()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify files were modified on disk
         assert "goodbye world" in (tmp_path / "file1.txt").read_text()
@@ -1142,25 +1170,25 @@ async def test_replace_all_cancel_preserves_files(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "hello"
         ws_pane.query_one("#ws-replace", Input).value = "goodbye"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Trigger Replace All
         ws_pane._run_replace_all()
-        await pilot.pause()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Cancel in modal
         cancel_btn = app.screen.query_one("#cancel", Button)
         cancel_btn.press()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # File should be unchanged
         assert (tmp_path / "file1.txt").read_text() == original_content
@@ -1182,9 +1210,9 @@ async def test_replace_all_regex_capture_groups_via_ui(
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = r"(\d{4})-(\d{2})-(\d{2})"
@@ -1193,18 +1221,18 @@ async def test_replace_all_regex_capture_groups_via_ui(
         # Enable regex mode
         regex_checkbox = ws_pane.query_one("#ws-regex", Checkbox)
         regex_checkbox.value = True
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Trigger Replace All
         ws_pane._run_replace_all()
-        await pilot.pause()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Confirm in modal
         app.screen.query_one("#replace-all", Button).press()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify capture group replacement on disk
         content = (tmp_path / "dates.txt").read_text()
@@ -1226,20 +1254,20 @@ async def test_replace_all_modal_shows_preview(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "old"
         ws_pane.query_one("#ws-replace", Input).value = "new"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Trigger Replace All — this opens the confirmation modal
         ws_pane._run_replace_all()
-        await pilot.pause()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify modal content
         summary = app.screen.query_one("#message", Label)
@@ -1253,7 +1281,7 @@ async def test_replace_all_modal_shows_preview(tmp_path: Path) -> None:
 
         # Cancel to clean up
         app.screen.query_one("#cancel", Button).press()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
 
 # ── Integration: Replace All with no matches shows status ────────────────
@@ -1270,19 +1298,19 @@ async def test_replace_all_no_matches_shows_status(tmp_path: Path) -> None:
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "nonexistent_xyz_pattern"
         ws_pane.query_one("#ws-replace", Input).value = "replacement"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Trigger Replace All — should show "No matches found"
         ws_pane._run_replace_all()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         status = ws_pane.query_one("#ws-replace-status", Label)
         assert "No matches" in str(status.render())

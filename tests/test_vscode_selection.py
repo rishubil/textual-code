@@ -49,7 +49,7 @@ def cursor_test_file(workspace: Path) -> Path:
 
 async def _get_ta(app, pilot, start=(0, 0)):
     """After entering run_test, pause and return the TextArea positioned at *start*."""
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
     ce = app.main_view.get_active_code_editor()
     assert ce is not None, "No active code editor found"
     ta = ce.editor

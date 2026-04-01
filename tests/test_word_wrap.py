@@ -76,9 +76,9 @@ async def test_c02_new_file_uses_default_word_wrap_true(workspace):
     app = make_app(workspace, light=True)
     app.default_word_wrap = True
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.word_wrap is True
@@ -88,16 +88,16 @@ async def test_c02_new_file_uses_default_word_wrap_true(workspace):
 async def test_c03_word_wrap_true_sets_soft_wrap(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.word_wrap = False
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.editor.soft_wrap is False
         editor.word_wrap = True
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.editor.soft_wrap is True
 
 
@@ -110,9 +110,9 @@ async def test_c03_word_wrap_true_sets_soft_wrap(workspace):
 async def test_d01_action_toggle_word_wrap_exists(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert hasattr(editor, "action_toggle_word_wrap")
@@ -123,17 +123,17 @@ async def test_d01_action_toggle_word_wrap_exists(workspace):
 async def test_d02_toggle_word_wrap_false_to_true_to_false(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.word_wrap is True
         editor.action_toggle_word_wrap()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.word_wrap is False
         editor.action_toggle_word_wrap()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.word_wrap is True
 
 
@@ -141,7 +141,7 @@ async def test_d02_toggle_word_wrap_false_to_true_to_false(workspace):
 async def test_d03_command_palette_has_toggle_word_wrap(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
         assert any("word wrap" in t.lower() for t in titles)
@@ -160,7 +160,7 @@ async def test_c04_existing_file_default_word_wrap_applied(workspace):
     app = make_app(workspace, open_file=f, light=True)
     app.default_word_wrap = True
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.editor.soft_wrap is True
@@ -172,9 +172,9 @@ async def test_c05_on_mount_applies_word_wrap_false(workspace):
     app = make_app(workspace, light=True)
     app.default_word_wrap = False
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.editor.soft_wrap is False

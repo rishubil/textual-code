@@ -39,7 +39,7 @@ async def test_explorer_horizontal_scrollbar_above_footer(workspace: Path) -> No
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         tree = app.query_one(FilteredDirectoryTree)
 
@@ -75,7 +75,7 @@ async def test_explorer_tree_has_constrained_height(workspace: Path) -> None:
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         tree = app.query_one(FilteredDirectoryTree)
 
@@ -105,15 +105,15 @@ async def test_search_results_horizontal_scroll(workspace: Path) -> None:
     (workspace / "wide.py").write_text(f"{long_line}\n")
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.main_view.action_find_in_files()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         pane = app.query_one(WorkspaceSearchPane)
         pane.query_one("#ws-query", Input).value = "xxx"
         pane._run_search()
         # Give threaded search worker time to finish
-        await pilot.pause(0.5)
+        await pilot.wait_for_scheduled_animations()
 
         results_tree = app.query_one("#ws-results", Tree)
 

@@ -40,7 +40,7 @@ def undo_test_file(workspace: Path) -> Path:
 
 async def _get_ta(app, pilot, start=(0, 0)):
     """After entering run_test, pause and return the TextArea positioned at *start*."""
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
     ce = app.main_view.get_active_code_editor()
     assert ce is not None, "No active code editor found"
     ta = ce.editor
@@ -676,7 +676,7 @@ async def test_undo_paste_isolated_batch(workspace: Path):
         # Paste 'XYZ' via clipboard
         app.copy_to_clipboard("XYZ")
         await pilot.press("ctrl+v")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == "abXYZ"
 
         # Move and type more
@@ -705,7 +705,7 @@ async def _paste(app, pilot, text: str) -> None:
     """Copy *text* to the system clipboard and paste it via Ctrl+V."""
     app.copy_to_clipboard(text)
     await pilot.press("ctrl+v")
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
 
 
 # -- Emoji Undo Correctness (Edge Cases) ------------------------------------

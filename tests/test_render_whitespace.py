@@ -86,9 +86,9 @@ class TestCodeEditor:
     async def test_c01_code_editor_has_render_whitespace(self, workspace: Path):
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await app.main_view.action_open_code_editor()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             assert editor.render_whitespace == "none"
@@ -97,13 +97,13 @@ class TestCodeEditor:
     async def test_c02_watch_propagates_to_text_area(self, workspace: Path):
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await app.main_view.action_open_code_editor()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "all"
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert editor.editor._render_whitespace == "all"
 
     @pytest.mark.asyncio
@@ -112,7 +112,7 @@ class TestCodeEditor:
     ):
         app = make_app(workspace, light=True, open_file=sample_py_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "trailing"
@@ -131,12 +131,12 @@ class TestMountPropagation:
         f.write_text("    code\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             # Change to "all" and verify it reaches the text area
             editor.render_whitespace = "all"
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert editor.editor._render_whitespace == "all"
             # Capture state, remove editor, and restore from state
             state = editor.capture_state()
@@ -145,12 +145,14 @@ class TestMountPropagation:
             f2 = workspace / "other.py"
             f2.write_text("x\n")
             await app.main_view.action_open_code_editor(path=f2)
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             # Switch back to the original tab
             tc = app.main_view.tabbed_content
             tc.active = state.pane_id
-            await pilot.pause()
-            await pilot.pause()  # Windows: extra pause for tab switch + remount
+            await pilot.wait_for_scheduled_animations()
+            await (
+                pilot.wait_for_scheduled_animations()
+            )  # Windows: extra pause for tab switch + remount
             restored = app.main_view.get_active_code_editor()
             assert restored is not None
             # The key assertion: text area must have the restored value
@@ -165,23 +167,23 @@ class TestCycle:
     async def test_d01_cycle_through_all_modes(self, workspace: Path):
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await app.main_view.action_open_code_editor()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             assert editor.render_whitespace == "none"
             editor.action_cycle_render_whitespace()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert editor.render_whitespace == "all"
             editor.action_cycle_render_whitespace()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert editor.render_whitespace == "boundary"
             editor.action_cycle_render_whitespace()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert editor.render_whitespace == "trailing"
             editor.action_cycle_render_whitespace()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert editor.render_whitespace == "none"
 
     @pytest.mark.asyncio
@@ -189,15 +191,15 @@ class TestCycle:
         """Setting render whitespace via app callback updates editor."""
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await app.main_view.action_open_code_editor()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             assert editor.render_whitespace == "none"
             # Simulate what the Provider callback does
             app._apply_render_whitespace("all")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert editor.render_whitespace == "all"
 
     @pytest.mark.asyncio
@@ -205,12 +207,12 @@ class TestCycle:
         """Setting render whitespace updates app default."""
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await app.main_view.action_open_code_editor()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.default_render_whitespace == "none"
             app._apply_render_whitespace("boundary")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.default_render_whitespace == "boundary"
 
     @pytest.mark.asyncio
@@ -218,10 +220,10 @@ class TestCycle:
         """Setting render whitespace without an open file shows error."""
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             # No editor open
             app._apply_render_whitespace("all")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             # default should NOT change when no editor is open
             assert app.default_render_whitespace == "none"
 
@@ -230,12 +232,12 @@ class TestCycle:
         """All 4 modes can be set via the app callback."""
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await app.main_view.action_open_code_editor()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             for mode in ("all", "boundary", "trailing", "none"):
                 app._apply_render_whitespace(mode)
-                await pilot.pause()
+                await pilot.wait_for_scheduled_animations()
                 editor = app.main_view.get_active_code_editor()
                 assert editor is not None
                 assert editor.render_whitespace == mode
@@ -253,7 +255,7 @@ class TestRendering:
         f.write_text("    code\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             # mode is "none" by default
@@ -269,11 +271,11 @@ class TestRendering:
         f.write_text("  x y\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "all"
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             ta = editor.editor
             gw = ta.gutter_width
             strip = ta._render_line(0)
@@ -290,12 +292,12 @@ class TestRendering:
         f.write_text("\tcode\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "all"
             editor.show_indentation_guides = False
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             ta = editor.editor
             gw = ta.gutter_width
             strip = ta._render_line(0)
@@ -310,12 +312,12 @@ class TestRendering:
         f.write_text("  x  \n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "trailing"
             editor.show_indentation_guides = False
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             ta = editor.editor
             gw = ta.gutter_width
             strip = ta._render_line(0)
@@ -334,12 +336,12 @@ class TestRendering:
         f.write_text("  x y  \n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "boundary"
             editor.show_indentation_guides = False
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             ta = editor.editor
             gw = ta.gutter_width
             strip = ta._render_line(0)
@@ -362,12 +364,12 @@ class TestRendering:
         f.write_text("        code\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "all"
             editor.show_indentation_guides = True
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             ta = editor.editor
             gw = ta.gutter_width
             strip = ta._render_line(0)
@@ -390,11 +392,11 @@ class TestRendering:
         f.write_text("\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "all"
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             ta = editor.editor
             gw = ta.gutter_width
             strip = ta._render_line(0)
@@ -407,11 +409,11 @@ class TestRendering:
         f.write_text("code\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "trailing"
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             ta = editor.editor
             gw = ta.gutter_width
             strip = ta._render_line(0)
@@ -424,12 +426,12 @@ class TestRendering:
         f.write_text("\t    code\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "all"
             editor.show_indentation_guides = False
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             ta = editor.editor
             gw = ta.gutter_width
             strip = ta._render_line(0)
@@ -454,14 +456,14 @@ class TestRendering:
         f.write_text(content)
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test(size=(80, 24)) as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "all"
             editor.show_indentation_guides = False
             ta = editor.editor
             ta.soft_wrap = False
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             gw = ta.gutter_width
 
             # -- At scroll_x = 0: leading spaces at cols 0-3 should be marked
@@ -472,8 +474,10 @@ class TestRendering:
 
             # -- Scroll right by 10 columns
             ta.scroll_x = 10
-            await pilot.pause()
-            await pilot.pause()  # Windows: extra pause for scroll render update
+            await pilot.wait_for_scheduled_animations()
+            await (
+                pilot.wait_for_scheduled_animations()
+            )  # Windows: extra pause for scroll render update
             strip_at_10 = ta._render_line(0)
             positions_at_10 = _find_whitespace_positions(strip_at_10, gw)
             # Viewport cols 0-4 now map to doc cols 10-14 (all 'a' chars)
@@ -496,14 +500,14 @@ class TestRendering:
         f.write_text(content)
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test(size=(80, 24)) as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "trailing"
             editor.show_indentation_guides = False
             ta = editor.editor
             ta.soft_wrap = False
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             gw = ta.gutter_width
 
             # At scroll_x=0: find trailing marker positions
@@ -516,9 +520,11 @@ class TestRendering:
             # Scroll right by a small amount (within max_scroll_x bounds)
             scroll_amount = 3
             ta.scroll_x = scroll_amount
-            await pilot.pause()
-            await pilot.pause()
-            await pilot.pause()  # Windows: extra pause for scroll render update
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
+            await (
+                pilot.wait_for_scheduled_animations()
+            )  # Windows: extra pause for scroll render update
             strip_after = ta._render_line(0)
             markers_after = _find_whitespace_positions(strip_after, gw)
 
@@ -542,7 +548,7 @@ class TestRendering:
         f.write_text("    \n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.show_indentation_guides = False
@@ -551,7 +557,7 @@ class TestRendering:
 
             for mode in ("all", "boundary", "trailing"):
                 editor.render_whitespace = mode
-                await pilot.pause()
+                await pilot.wait_for_scheduled_animations()
                 strip = ta._render_line(0)
                 positions = _find_whitespace_positions(strip, gw)
                 assert len(positions) == 4, (
@@ -574,7 +580,7 @@ class TestRendering:
         f.write_text("    code\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -593,17 +599,17 @@ class TestRendering:
         f.write_text("    x\n    y\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.render_whitespace = "all"
             editor.show_indentation_guides = False
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             ta = editor.editor
             # Focus the textarea so cursor_line_style is applied
             ta.focus()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             # Cursor is on line 0 by default
             assert ta.cursor_location[0] == 0
 

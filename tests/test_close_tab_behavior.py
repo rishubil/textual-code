@@ -46,8 +46,10 @@ async def _open_n_files(app, pilot, workspace: Path, count: int) -> list[str]:
         pane_id = await main.open_code_editor_pane(path=f)
         tc = main.tabbed_content
         main._safe_activate_tab(tc, pane_id)
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy editor mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy editor mount
         pane_ids.append(pane_id)
     return pane_ids
 
@@ -79,14 +81,14 @@ async def test_close_last_activates_previous(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 5)
         assert _tab_count(app) == 5
         assert _active_pane(app) == pane_ids[4]  # file5 is active
 
         # Close file5 (rightmost) → file4 should activate
         await app.main_view.action_close_code_editor(pane_ids[4])
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 4
         assert _active_pane(app) == pane_ids[3]
 
@@ -98,19 +100,23 @@ async def test_close_first_activates_next_right(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 3)
         tc = app.main_view.tabbed_content
         # Activate file1 (first tab)
         tc.active = pane_ids[0]
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for tab switch + lazy mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for tab switch + lazy mount
         assert _active_pane(app) == pane_ids[0]
 
         # Close file1 → file2 should activate (next to the right)
         await app.main_view.action_close_code_editor(pane_ids[0])
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for close + next tab activation
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for close + next tab activation
         assert _tab_count(app) == 2
         assert _active_pane(app) == pane_ids[1]
 
@@ -122,17 +128,17 @@ async def test_close_middle_activates_next_right(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 5)
         tc = app.main_view.tabbed_content
         # Activate file3 (middle tab)
         tc.active = pane_ids[2]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _active_pane(app) == pane_ids[2]
 
         # Close file3 → file4 should activate (slides into file3's position)
         await app.main_view.action_close_code_editor(pane_ids[2])
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 4
         assert _active_pane(app) == pane_ids[3]
 
@@ -145,43 +151,43 @@ async def test_close_sequential_position_based(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 5)
         tc = app.main_view.tabbed_content
         assert _tab_count(app) == 5
 
         # 1. Close file5 (rightmost) → file4 activates
         await app.main_view.action_close_code_editor(pane_ids[4])
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 4
         assert _active_pane(app) == pane_ids[3]
 
         # 2. Activate file1, close file1 → file2 activates (next to right)
         tc.active = pane_ids[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_close_code_editor(pane_ids[0])
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 3
         assert _active_pane(app) == pane_ids[1]
 
         # 3. Remaining: [file2, file3, file4]
         #    Activate file3 (middle), close → file4 activates (next right)
         tc.active = pane_ids[2]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_close_code_editor(pane_ids[2])
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 2
         assert _active_pane(app) == pane_ids[3]
 
         # 4. Close file4 → file2 activates (only one left)
         await app.main_view.action_close_code_editor(pane_ids[3])
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 1
         assert _active_pane(app) == pane_ids[1]
 
         # 5. Close file2 → no active editor, group empty
         await app.main_view.action_close_code_editor(pane_ids[1])
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 0
 
 
@@ -194,14 +200,16 @@ async def test_close_only_tab_leaves_no_active_editor(workspace: Path):
     f.write_text("# solo\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 1
         pane_id = _active_pane(app)
         assert pane_id is not None
 
         await app.main_view.action_close_code_editor(pane_id)
-        await pilot.pause()
-        await pilot.pause()  # extra pause for async pane removal
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # extra pause for async pane removal
         assert _tab_count(app) == 0
         assert app.main_view.get_active_code_editor() is None
 
@@ -217,13 +225,15 @@ async def test_close_all_editors_empties_group(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await _open_n_files(app, pilot, workspace, 3)
         assert _tab_count(app) == 3
 
         await app.main_view.action_close_all_editors()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for close all completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for close all completion
         assert len(app.main_view.opened_pane_ids) == 0
 
 
@@ -239,7 +249,7 @@ async def test_close_preserves_remaining_tab_order(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 5)
         tc = app.main_view.tabbed_content
         assert isinstance(tc, DraggableTabbedContent)
@@ -248,10 +258,12 @@ async def test_close_preserves_remaining_tab_order(workspace: Path):
 
         # Activate file3 and close it
         tc.active = pane_ids[2]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_close_code_editor(pane_ids[2])
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for tab close + reorder settling
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for tab close + reorder settling
 
         ordered_after = tc.get_ordered_pane_ids()
         expected = [pane_ids[0], pane_ids[1], pane_ids[3], pane_ids[4]]
@@ -269,23 +281,23 @@ async def test_close_inactive_tab_keeps_active_unchanged(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 4)
         tc = app.main_view.tabbed_content
         # Activate file2
         tc.active = pane_ids[1]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _active_pane(app) == pane_ids[1]
 
         # Close file4 (not active) — file2 should remain active
         await app.main_view.action_close_code_editor(pane_ids[3])
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 3
         assert _active_pane(app) == pane_ids[1]
 
         # Close file1 (not active) — file2 should remain active
         await app.main_view.action_close_code_editor(pane_ids[0])
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 2
         assert _active_pane(app) == pane_ids[1]
 
@@ -308,20 +320,20 @@ async def test_close_dirty_editor_cancel_keeps_editor(workspace: Path):
     f.write_text("original\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "modified\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Close the dirty editor
         await pilot.press("ctrl+w")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, UnsavedChangeModalScreen)
 
         # Press Cancel
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Editor should still be open and unchanged
         assert _tab_count(app) == 1
@@ -340,18 +352,18 @@ async def test_close_dirty_editor_dont_save_closes_tab(workspace: Path):
     f.write_text("original\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "modified\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("ctrl+w")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, UnsavedChangeModalScreen)
 
         await pilot.click("#dont_save")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Editor should be closed and file content unchanged on disk
         assert _tab_count(app) == 0
@@ -368,18 +380,18 @@ async def test_close_dirty_editor_save_closes_and_persists(workspace: Path):
     f.write_text("original\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "saved content\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("ctrl+w")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, UnsavedChangeModalScreen)
 
         await pilot.click("#save")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Editor should be closed and file content updated on disk
         assert _tab_count(app) == 0
@@ -405,9 +417,9 @@ async def test_close_all_dirty_cancel_stops_all(workspace: Path):
     f2.write_text("clean2\n")
     app = make_app(workspace, light=True, open_file=f1)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.open_code_editor_pane(path=f2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 2
 
         # Make the first file dirty
@@ -418,20 +430,20 @@ async def test_close_all_dirty_cancel_stops_all(workspace: Path):
         assert isinstance(tc, DraggableTabbedContent)
         pane_ids = tc.get_ordered_pane_ids()
         tc.active = pane_ids[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "dirty!\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Close all editors
         await app.main_view.action_close_all_editors()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, UnsavedChangeModalScreen)
 
         # Cancel — all editors stay
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 2
 
 
@@ -446,9 +458,9 @@ async def test_close_all_dirty_dont_save_closes_all(workspace: Path):
     f2.write_text("clean2\n")
     app = make_app(workspace, light=True, open_file=f1)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.open_code_editor_pane(path=f2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 2
 
         # Make f1 dirty
@@ -456,20 +468,20 @@ async def test_close_all_dirty_dont_save_closes_all(workspace: Path):
         assert isinstance(tc, DraggableTabbedContent)
         pane_ids = tc.get_ordered_pane_ids()
         tc.active = pane_ids[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "dirty!\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Close all editors
         await app.main_view.action_close_all_editors()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Modal should appear for dirty editor
         assert isinstance(app.screen, UnsavedChangeModalScreen)
         await pilot.click("#dont_save")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # All editors should be closed
         assert len(app.main_view.opened_pane_ids) == 0
@@ -495,7 +507,7 @@ async def test_dirty_state_detected_across_splits(workspace: Path):
     f2.write_text("clean2\n")
     app = make_app(workspace, light=True, open_file=f1)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Initially clean
@@ -503,9 +515,9 @@ async def test_dirty_state_detected_across_splits(workspace: Path):
 
         # Open f2 in a split
         await app.main_view.open_code_editor_pane(path=f2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Make f1 dirty (in the original split)
         tc = main.tabbed_content
@@ -513,11 +525,11 @@ async def test_dirty_state_detected_across_splits(workspace: Path):
         pane_ids = tc.get_ordered_pane_ids()
         assert pane_ids, "Expected at least one pane after split"
         tc.active = pane_ids[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = main.get_active_code_editor()
         assert editor is not None, "Expected active editor after activating pane"
         editor.text = "dirty in split 1\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # has_unsaved_pane() should detect dirty state across splits
         assert main.has_unsaved_pane() is True
@@ -538,7 +550,7 @@ async def test_find_editor_by_path_in_active_leaf(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Open 3 files
@@ -550,11 +562,11 @@ async def test_find_editor_by_path_in_active_leaf(workspace: Path):
         f3.write_text("# find3\n")
 
         pane1 = await main.open_code_editor_pane(path=f1)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane2 = await main.open_code_editor_pane(path=f2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane3 = await main.open_code_editor_pane(path=f3)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Find by path — should return correct pane IDs
         assert main.pane_id_from_path(f1) == pane1
@@ -571,7 +583,7 @@ async def test_find_editor_path_not_found_returns_none(workspace: Path):
     f.write_text("# exists\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         not_open = workspace / "not_open.py"
@@ -591,14 +603,14 @@ async def test_find_editor_by_path_across_splits(workspace: Path):
     f2.write_text("# right\n")
     app = make_app(workspace, light=True, open_file=f1)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Split right and open f2 in the right leaf
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await main.open_code_editor_pane(path=f2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(main._split_root)
         assert len(leaves) == 2
@@ -642,7 +654,7 @@ async def test_new_tabs_sequential_when_last_is_active(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 4)
         tc = app.main_view.tabbed_content
         assert isinstance(tc, DraggableTabbedContent)
@@ -659,21 +671,21 @@ async def test_new_tab_opens_after_active_tab(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 3)
         tc = app.main_view.tabbed_content
         assert isinstance(tc, DraggableTabbedContent)
 
         # Activate the first tab (index 0)
         tc.active = pane_ids[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _active_pane(app) == pane_ids[0]
 
         # Open a 4th file — should appear AFTER pane_ids[0], not at end
         f4 = workspace / "file4.py"
         f4.write_text("# file4\n")
         pane4 = await app.main_view.open_code_editor_pane(path=f4)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ordered = tc.get_ordered_pane_ids()
         # New tab inserted after active tab (pane_ids[0])
@@ -688,33 +700,33 @@ async def test_new_tab_opens_after_active_when_middle_tab_active(workspace: Path
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 3)
         tc = app.main_view.tabbed_content
         assert isinstance(tc, DraggableTabbedContent)
 
         # Activate first tab
         tc.active = pane_ids[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open D — should go after A: [A, D, B, C]
         f4 = workspace / "file4.py"
         f4.write_text("# file4\n")
         pane4 = await app.main_view.open_code_editor_pane(path=f4)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ordered = tc.get_ordered_pane_ids()
         assert ordered == [pane_ids[0], pane4, pane_ids[1], pane_ids[2]]
 
         # Activate last tab (C)
         tc.active = pane_ids[2]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open E — should go after C: [A, D, B, C, E]
         f5 = workspace / "file5.py"
         f5.write_text("# file5\n")
         pane5 = await app.main_view.open_code_editor_pane(path=f5)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ordered = tc.get_ordered_pane_ids()
         assert ordered == [pane_ids[0], pane4, pane_ids[1], pane_ids[2], pane5]
@@ -732,16 +744,16 @@ async def test_close_others_keeps_active_only(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 5)
         tc = app.main_view.tabbed_content
         # Activate file3 (middle tab)
         tc.active = pane_ids[2]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _active_pane(app) == pane_ids[2]
 
         await app.main_view.action_close_other_editors()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert _tab_count(app) == 1
         assert _active_pane(app) == pane_ids[2]
@@ -753,12 +765,12 @@ async def test_close_others_with_single_tab_is_noop(workspace: Path):
     f.write_text("# solo\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_id = _active_pane(app)
         assert _tab_count(app) == 1
 
         await app.main_view.action_close_other_editors()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert _tab_count(app) == 1
         assert _active_pane(app) == pane_id
@@ -773,24 +785,24 @@ async def test_close_others_preserves_dirty_unmounted_editors(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 3)
         tc = app.main_view.tabbed_content
 
         # Activate file1 and make it dirty
         tc.active = pane_ids[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "dirty!\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Activate file2 (the one to keep)
         tc.active = pane_ids[1]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_close_other_editors()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # file1 (dirty, unmounted) is preserved; file3 (clean) is closed
         assert _tab_count(app) == 2
@@ -812,16 +824,16 @@ async def test_close_right_removes_tabs_to_right(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 5)
         tc = app.main_view.tabbed_content
         assert isinstance(tc, DraggableTabbedContent)
         # Activate file2
         tc.active = pane_ids[1]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_close_editors_to_the_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert _tab_count(app) == 2
         assert _active_pane(app) == pane_ids[1]
@@ -832,13 +844,13 @@ async def test_close_right_from_last_tab_is_noop(workspace: Path):
     """Close to the Right from the last tab is a no-op."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 3)
         # file3 is already active (last opened)
         assert _active_pane(app) == pane_ids[2]
 
         await app.main_view.action_close_editors_to_the_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert _tab_count(app) == 3
 
@@ -850,25 +862,25 @@ async def test_close_right_preserves_dirty_unmounted_editors(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 3)
         tc = app.main_view.tabbed_content
         assert isinstance(tc, DraggableTabbedContent)
 
         # Make file3 (rightmost) dirty
         tc.active = pane_ids[2]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "dirty!\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Activate file1
         tc.active = pane_ids[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_close_editors_to_the_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # file2 (clean) closed; file3 (dirty, unmounted) preserved
         assert _tab_count(app) == 2
@@ -889,16 +901,16 @@ async def test_close_left_removes_tabs_to_left(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 5)
         tc = app.main_view.tabbed_content
         assert isinstance(tc, DraggableTabbedContent)
         # Activate file4
         tc.active = pane_ids[3]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_close_editors_to_the_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert _tab_count(app) == 2
         assert _active_pane(app) == pane_ids[3]
@@ -909,15 +921,15 @@ async def test_close_left_from_first_tab_is_noop(workspace: Path):
     """Close to the Left from the first tab is a no-op."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 3)
         tc = app.main_view.tabbed_content
         # Activate file1 (first tab)
         tc.active = pane_ids[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_close_editors_to_the_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert _tab_count(app) == 3
 
@@ -929,25 +941,25 @@ async def test_close_left_preserves_dirty_unmounted_editors(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 3)
         tc = app.main_view.tabbed_content
         assert isinstance(tc, DraggableTabbedContent)
 
         # Make file1 (leftmost) dirty
         tc.active = pane_ids[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "dirty!\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Activate file3
         tc.active = pane_ids[2]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_close_editors_to_the_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # file2 (clean) closed; file1 (dirty, unmounted) preserved
         assert _tab_count(app) == 2
@@ -968,20 +980,20 @@ async def test_close_saved_skips_dirty_tabs(workspace: Path):
     """
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 3)
         tc = app.main_view.tabbed_content
 
         # Make file2 dirty
         tc.active = pane_ids[1]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "dirty!\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_close_saved_editors()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert _tab_count(app) == 1
         assert _active_pane(app) == pane_ids[1]
@@ -991,12 +1003,12 @@ async def test_close_saved_all_clean_closes_all(workspace: Path):
     """Close Saved with all clean tabs closes everything."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await _open_n_files(app, pilot, workspace, 3)
         assert _tab_count(app) == 3
 
         await app.main_view.action_close_saved_editors()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert _tab_count(app) == 0
 
@@ -1005,30 +1017,36 @@ async def test_close_saved_all_dirty_is_noop(workspace: Path):
     """Close Saved with all dirty tabs is a no-op."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 2)
         tc = app.main_view.tabbed_content
 
         # Make both dirty
         tc.active = pane_ids[0]
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for tab switch + lazy mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for tab switch + lazy mount
         editor1 = app.main_view.get_active_code_editor()
         assert editor1 is not None
         editor1.text = "dirty1!\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         tc.active = pane_ids[1]
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for tab switch + lazy mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for tab switch + lazy mount
         editor2 = app.main_view.get_active_code_editor()
         assert editor2 is not None
         editor2.text = "dirty2!\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_close_saved_editors()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for async close operation
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for async close operation
 
         assert _tab_count(app) == 2
 
@@ -1037,20 +1055,20 @@ async def test_close_saved_no_modal_shown(workspace: Path):
     """Close Saved never shows an unsaved changes modal."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 2)
         tc = app.main_view.tabbed_content
 
         # Make file1 dirty
         tc.active = pane_ids[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "dirty!\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_close_saved_editors()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # file2 (clean) closed, file1 (dirty) remains, no modal
         assert _tab_count(app) == 1
@@ -1075,16 +1093,16 @@ async def test_close_others_does_not_affect_other_splits(workspace: Path):
     f3.write_text("# right2\n")
     app = make_app(workspace, light=True, open_file=f1)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Split right and open files in the new split
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         p2 = await main.open_code_editor_pane(path=f2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await main.open_code_editor_pane(path=f3)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(main._split_root)
         assert len(leaves) == 2
@@ -1092,11 +1110,11 @@ async def test_close_others_does_not_affect_other_splits(workspace: Path):
         # Activate p2 in right split
         tc = main.tabbed_content
         tc.active = p2
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Close Others in right split — should only close p3
         await main.action_close_other_editors()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Right split: only p2 remains
         right_count = len(tc.get_ordered_pane_ids())

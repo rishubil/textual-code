@@ -74,18 +74,18 @@ async def _focus_tree_and_wait(pilot, app) -> Explorer:
     Tree starts with cursor_line=-1 (no selection) by default.
     """
     # Wait for initial tree load
-    await pilot.pause()
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
+    await pilot.wait_for_scheduled_animations()
 
     assert app.sidebar is not None
     explorer = app.sidebar.query_one(Explorer)
     tree = explorer.directory_tree
     tree.focus()
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
 
     # Initialize cursor at first visible node
     tree.cursor_line = 0
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
     return explorer
 
 
@@ -118,7 +118,7 @@ async def test_cursor_down_traverses_visible_nodes(
         ]
         for expected_path in expected_order:
             await pilot.press("down")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert _get_cursor_path(explorer) == expected_path, (
                 f"Expected cursor at {expected_path.name}, "
                 f"got {_get_cursor_path(explorer)}"
@@ -141,7 +141,7 @@ async def test_cursor_up_traverses_visible_nodes(
         # Move to the last node first
         for _ in range(4):
             await pilot.press("down")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["gamma"]
 
         # Now move back up
@@ -153,7 +153,7 @@ async def test_cursor_up_traverses_visible_nodes(
         ]
         for expected_path in expected_reverse:
             await pilot.press("up")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert _get_cursor_path(explorer) == expected_path
 
 
@@ -178,7 +178,7 @@ async def test_cursor_down_skips_collapsed_subtree(
 
         # Down should skip dir_a's children and go to dir_b
         await pilot.press("down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["dir_b"]
 
 
@@ -202,14 +202,16 @@ async def test_enter_expands_directory(workspace: Path, nav_tree: dict[str, Path
 
         # Enter expands the directory
         await pilot.press("enter")
-        await pilot.pause()
-        await pilot.pause()  # extra pause for async directory load
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # extra pause for async directory load
 
         assert node.is_expanded
 
         # Children are now visible — down should go to a1.py
         await pilot.press("down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["a1"]
 
 
@@ -233,13 +235,13 @@ async def test_space_toggles_expand_collapse(
 
         # Space → expand
         await pilot.press("space")
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         assert node.is_expanded
 
         # Space again → collapse
         await pilot.press("space")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert not node.is_expanded
 
 
@@ -262,8 +264,8 @@ async def test_depth_first_traversal_through_expanded_tree(
         # Expand dir_a
         assert _get_cursor_path(explorer) == nav_tree["dir_a"]
         await pilot.press("enter")
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Traverse down through expanded tree
         expected_order = [
@@ -276,7 +278,7 @@ async def test_depth_first_traversal_through_expanded_tree(
         ]
         for expected_path in expected_order:
             await pilot.press("down")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert _get_cursor_path(explorer) == expected_path, (
                 f"Expected {expected_path.name}, got {_get_cursor_path(explorer)}"
             )
@@ -297,15 +299,15 @@ async def test_enter_on_file_opens_in_editor(
 
         # Navigate to alpha.py (skip dir_a, dir_b)
         await pilot.press("down")  # dir_b
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("down")  # alpha.py
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["alpha"]
 
         # Press Enter to open file
         await pilot.press("enter")
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # File should now be open in the editor
         main_view = app.main_view
@@ -327,15 +329,15 @@ async def test_shift_left_moves_to_parent(workspace: Path, nav_tree: dict[str, P
 
         # Expand dir_a and move to a1.py
         await pilot.press("enter")  # expand dir_a
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("down")  # a1.py
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["a1"]
 
         # Shift+Left should go back to parent (dir_a)
         await pilot.press("shift+left")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["dir_a"]
 
 
@@ -354,13 +356,13 @@ async def test_shift_down_moves_to_next_sibling(
 
         # Expand dir_a and stay on dir_a
         await pilot.press("enter")  # expand dir_a
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["dir_a"]
 
         # Shift+Down should jump to dir_b (next sibling), skipping a1/a2
         await pilot.press("shift+down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["dir_b"]
 
 
@@ -379,12 +381,12 @@ async def test_shift_up_moves_to_previous_sibling(
 
         # Move to dir_b
         await pilot.press("down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["dir_b"]
 
         # Shift+Up should go to dir_a (previous sibling)
         await pilot.press("shift+up")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["dir_a"]
 
 
@@ -407,32 +409,32 @@ async def test_multi_level_expansion_and_traversal(
 
         # Move to dir_b and expand it
         await pilot.press("down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["dir_b"]
         await pilot.press("enter")  # expand dir_b
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Directories come first: sub_b/ before b1.py
         await pilot.press("down")  # sub_b (directory first)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["sub_b"]
 
         await pilot.press("enter")  # expand sub_b
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Now traverse from sub_b down
         await pilot.press("down")  # deep.py (sub_b's child)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["deep"]
 
         await pilot.press("down")  # b1.py (dir_b's file child)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["b1"]
 
         await pilot.press("down")  # alpha.py (top-level)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["alpha"]
 
 
@@ -451,7 +453,7 @@ async def test_cursor_stays_at_top_boundary(workspace: Path, nav_tree: dict[str,
 
         # Press up at the top — cursor should stay
         await pilot.press("up")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["dir_a"]
 
 
@@ -466,10 +468,10 @@ async def test_cursor_stays_at_bottom_boundary(
         # Navigate to the last node
         for _ in range(4):
             await pilot.press("down")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["gamma"]
 
         # Press down at the bottom — cursor should stay
         await pilot.press("down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["gamma"]

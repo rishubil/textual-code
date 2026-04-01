@@ -104,8 +104,10 @@ async def test_file_load_detects_utf8(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         encoding = app.code_editor.encoding
 
     assert encoding == "utf-8"
@@ -118,8 +120,10 @@ async def test_file_load_detects_utf8_bom(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         encoding = app.code_editor.encoding
 
     assert encoding == "utf-8-sig"
@@ -132,8 +136,10 @@ async def test_file_load_detects_utf16(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         encoding = app.code_editor.encoding
 
     assert encoding == "utf-16"
@@ -146,8 +152,10 @@ async def test_file_load_detects_latin1(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         encoding = app.code_editor.encoding
 
     assert encoding == "latin-1"
@@ -160,8 +168,10 @@ async def test_file_load_bom_not_in_text(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         text = app.code_editor.text
 
     assert not text.startswith("\ufeff")
@@ -174,8 +184,10 @@ async def test_file_load_latin1_readable(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         text = app.code_editor.text
 
     assert "élève" in text
@@ -193,16 +205,18 @@ async def test_change_encoding_updates_reactive(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         editor.action_change_encoding()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.screen.query_one(Select).value = "latin-1"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         encoding = app.screen_stack[0].query_one(CodeEditor).encoding
 
@@ -216,15 +230,17 @@ async def test_change_encoding_cancel_no_change(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         editor.action_change_encoding()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         encoding = app.screen_stack[0].query_one(CodeEditor).encoding
 
@@ -240,9 +256,9 @@ async def test_encoding_button_opens_modal(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#encoding_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, ChangeEncodingModalScreen)
 
 
@@ -258,19 +274,21 @@ async def test_save_writes_utf8_bom_bytes(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         editor.action_change_encoding()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one(Select).value = "utf-8-sig"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor = app.screen_stack[0].query_one(CodeEditor)
         editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     saved = f.read_bytes()
     assert saved.startswith(b"\xef\xbb\xbf")
@@ -284,22 +302,24 @@ async def test_save_writes_latin1_bytes(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
 
         # Change encoding to latin-1
         from textual.widgets import Select
 
         editor.action_change_encoding()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one(Select).value = "latin-1"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor = app.screen_stack[0].query_one(CodeEditor)
         editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     saved = f.read_bytes()
     assert saved == "élève\n".encode("latin-1")
@@ -312,11 +332,13 @@ async def test_save_utf16_roundtrip(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     saved = f.read_bytes()
     # UTF-16 encoded files always start with a BOM
@@ -333,17 +355,19 @@ async def test_save_as_preserves_encoding(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.encoding == "utf-8-sig"
 
         editor.action_save_as()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.screen.query_one(Input).value = str(new_path)
         await pilot.click("#save")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     saved = new_path.read_bytes()
     assert saved.startswith(b"\xef\xbb\xbf")
@@ -361,7 +385,7 @@ async def test_footer_shows_utf8_label(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         btn = app.query_one("#encoding_btn", Button)
         label = str(btn.label)
 
@@ -377,7 +401,7 @@ async def test_footer_shows_utf8_bom_label(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         btn = app.query_one("#encoding_btn", Button)
         label = str(btn.label)
 
@@ -393,7 +417,7 @@ async def test_footer_shows_latin1_label(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         btn = app.query_one("#encoding_btn", Button)
         label = str(btn.label)
 
@@ -419,7 +443,7 @@ async def test_encoding_cmd_no_editor(tmp_path: Path, monkeypatch: pytest.Monkey
 
         monkeypatch.setattr(tc_app, "notify", capture_notify)
         tc_app.action_change_encoding()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert any("error" in n for n in notified)
 
@@ -434,9 +458,9 @@ async def test_encoding_cmd_with_editor(tmp_path: Path):
 
     tc_app = make_app(tmp_path, open_file=f, light=True)
     async with tc_app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         tc_app.action_change_encoding()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(tc_app.screen, ChangeEncodingModalScreen)
 
 
@@ -467,12 +491,12 @@ async def test_encoding_modal_can_select_gbk(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_encoding()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one(Select).value = "gbk"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         encoding = app.screen_stack[0].query_one(CodeEditor).encoding
 
     assert encoding == "gbk"
@@ -487,12 +511,12 @@ async def test_encoding_modal_can_select_shift_jis(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_encoding()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one(Select).value = "shift_jis"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         encoding = app.screen_stack[0].query_one(CodeEditor).encoding
 
     assert encoding == "shift_jis"
@@ -507,12 +531,12 @@ async def test_encoding_modal_can_select_euc_kr(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_encoding()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one(Select).value = "euc_kr"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         encoding = app.screen_stack[0].query_one(CodeEditor).encoding
 
     assert encoding == "euc_kr"
@@ -527,12 +551,12 @@ async def test_encoding_modal_can_select_cp1251(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_encoding()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one(Select).value = "cp1251"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         encoding = app.screen_stack[0].query_one(CodeEditor).encoding
 
     assert encoding == "cp1251"
@@ -551,8 +575,10 @@ async def test_file_load_detects_gbk(tmp_path: Path):
 
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         encoding = app.code_editor.encoding
 
     assert encoding in ("gbk", "gb2312", "gb18030")
@@ -569,9 +595,9 @@ async def test_footer_encoding_modal_no_save_level(tmp_path: Path):
     f.write_text("hello")
     app = _EncodingTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_encoding()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert isinstance(app.screen, ChangeEncodingModalScreen)
         assert len(app.screen.query("#save_level")) == 0

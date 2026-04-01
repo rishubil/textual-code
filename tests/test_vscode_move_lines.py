@@ -45,7 +45,7 @@ def move_lines_file(workspace: Path) -> Path:
 
 async def _get_ta(app, pilot):
     """After entering run_test, pause and return the TextArea."""
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
     ce = app.main_view.get_active_code_editor()
     assert ce is not None, "No active code editor found"
     return ce.editor

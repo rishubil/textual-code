@@ -125,7 +125,7 @@ async def test_sidebar_resize_modal_cancel_returns_cancelled():
     app = _SidebarResizeApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -139,7 +139,7 @@ async def test_sidebar_resize_modal_submit_returns_value():
         await pilot.click(input_widget)
         await pilot.press("3", "0")
         await pilot.click("#submit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -153,7 +153,7 @@ async def test_sidebar_resize_modal_enter_submits():
         await pilot.click(input_widget)
         await pilot.press("2", "5", "%")
         await pilot.press("enter")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -166,16 +166,16 @@ async def test_sidebar_resize_modal_enter_submits():
 async def test_sidebar_resize_absolute_changes_width(workspace):
     app = make_app(workspace)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_resize_sidebar()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Type absolute value and submit
         input_widget = app.screen.query_one("#value")
         await pilot.click(input_widget)
         await pilot.press("3", "0")
         await pilot.click("#submit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # sidebar width should be set to 30
         assert app.sidebar is not None
@@ -186,18 +186,18 @@ async def test_sidebar_resize_absolute_changes_width(workspace):
 async def test_sidebar_resize_relative_plus_changes_width(workspace):
     app = make_app(workspace)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         initial_width = app.sidebar.size.width
 
         app.action_resize_sidebar()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = app.screen.query_one("#value")
         await pilot.click(input_widget)
         await pilot.press("+", "5")
         await pilot.click("#submit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar.styles.width is not None
         assert app.sidebar.styles.width.value == initial_width + 5
@@ -206,18 +206,18 @@ async def test_sidebar_resize_relative_plus_changes_width(workspace):
 async def test_sidebar_resize_relative_minus_changes_width(workspace):
     app = make_app(workspace)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         initial_width = app.sidebar.size.width
 
         app.action_resize_sidebar()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = app.screen.query_one("#value")
         await pilot.click(input_widget)
         await pilot.press("-", "3")
         await pilot.click("#submit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar.styles.width is not None
         assert app.sidebar.styles.width.value == initial_width - 3
@@ -226,16 +226,16 @@ async def test_sidebar_resize_relative_minus_changes_width(workspace):
 async def test_sidebar_resize_percentage_changes_width(workspace):
     app = make_app(workspace)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.action_resize_sidebar()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = app.screen.query_one("#value")
         await pilot.click(input_widget)
         await pilot.press("3", "0", "%")
         await pilot.click("#submit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Width should be set as percentage (numeric value = 30)
         assert app.sidebar is not None
@@ -249,18 +249,18 @@ async def test_sidebar_resize_percentage_changes_width(workspace):
 async def test_sidebar_resize_invalid_shows_error_and_keeps_width(workspace):
     app = make_app(workspace)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         initial_width = app.sidebar.size.width
 
         app.action_resize_sidebar()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = app.screen.query_one("#value")
         await pilot.click(input_widget)
         await pilot.press("a", "b", "c")
         await pilot.click("#submit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Width should be unchanged
         assert app.sidebar.size.width == initial_width
@@ -269,15 +269,15 @@ async def test_sidebar_resize_invalid_shows_error_and_keeps_width(workspace):
 async def test_sidebar_resize_cancel_keeps_width(workspace):
     app = make_app(workspace)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         initial_width = app.sidebar.size.width
 
         app.action_resize_sidebar()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Width should be unchanged
         assert app.sidebar.size.width == initial_width

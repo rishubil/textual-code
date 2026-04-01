@@ -101,9 +101,11 @@ class TestBackgroundGitStatusLoading:
         config = tmp_path / "settings.toml"
         app = make_app(ws, user_config_path=config)
         async with app.run_test() as pilot:
-            await pilot.pause()
-            await pilot.pause()
-            await pilot.pause()  # allow background worker to complete
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
+            await (
+                pilot.wait_for_scheduled_animations()
+            )  # allow background worker to complete
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree._bg_loading_started is True
@@ -120,8 +122,8 @@ class TestBackgroundGitStatusLoading:
             tree = app.sidebar.explorer.directory_tree
             # bg_loading_started should be True immediately after mount
             assert tree._bg_loading_started is True
-            await pilot.pause()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
 
 
 # ── Lazy gitignore loading tests ─────────────────────────────────────────────

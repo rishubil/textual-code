@@ -24,11 +24,11 @@ async def test_ctrl_a_selects_all_in_find_input(workspace: Path):
     f.write_text("hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("h", "e", "l", "l", "o")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         find_input = app.focused
         assert isinstance(find_input, Input), f"Expected Input, got {type(find_input)}"
@@ -37,7 +37,7 @@ async def test_ctrl_a_selects_all_in_find_input(workspace: Path):
         # Ctrl+A should select all, then typing replaces everything
         await pilot.press("ctrl+a")
         await pilot.press("x")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert find_input.value == "x", (
             f"Expected 'x' (Ctrl+A selected all, replaced), got '{find_input.value}'"
         )
@@ -52,21 +52,21 @@ async def test_ctrl_a_selects_all_in_workspace_search(workspace: Path):
     f.write_text("hello world\n")
     app = make_app(workspace, open_file=f)  # full app (sidebar needed)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Open workspace search via shortcut
         await pilot.press("ctrl+shift+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         ws_input = app.focused
         assert isinstance(ws_input, Input), f"Expected Input, got {type(ws_input)}"
 
         await pilot.press("h", "e", "l", "l", "o")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ws_input.value == "hello"
 
         await pilot.press("ctrl+a")
         await pilot.press("x")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ws_input.value == "x", (
             f"Expected 'x' (Ctrl+A selected all, then replaced), got '{ws_input.value}'"
         )
@@ -81,11 +81,11 @@ async def test_ctrl_d_no_action_in_find_input(workspace: Path):
     f.write_text("hello world\nhello again\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("h", "e", "l", "l", "o")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         find_input = app.focused
         assert isinstance(find_input, Input), f"Expected Input, got {type(find_input)}"
@@ -93,7 +93,7 @@ async def test_ctrl_d_no_action_in_find_input(workspace: Path):
 
         # Ctrl+D should do nothing — text should remain unchanged
         await pilot.press("ctrl+d")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert find_input.value == "hello", (
             f"Expected 'hello' (no change), got '{find_input.value}'"
         )
@@ -108,12 +108,12 @@ async def test_ctrl_a_still_works_in_editor(workspace: Path):
     f.write_text("line1\nline2\nline3\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         text_area = editor.editor
 
         # Ctrl+A should select all text in the editor
         await pilot.press("ctrl+a")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert text_area.selected_text == "line1\nline2\nline3\n"

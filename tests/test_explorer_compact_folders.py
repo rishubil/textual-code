@@ -203,8 +203,8 @@ class TestCompactFolderIntegration:
 
         app = make_app(workspace)
         async with app.run_test(size=(120, 40)) as pilot:
-            await pilot.pause()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
 
             assert app.sidebar is not None
             explorer = app.sidebar.query_one(Explorer)
@@ -231,8 +231,8 @@ class TestCompactFolderIntegration:
 
         app = make_app(workspace, open_file=f_top)
         async with app.run_test(size=(120, 40)) as pilot:
-            await pilot.pause()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
 
             assert app.sidebar is not None
             explorer = app.sidebar.query_one(Explorer)
@@ -241,7 +241,7 @@ class TestCompactFolderIntegration:
             await app.main_view.action_open_code_editor(f_nested)
             # Poll until cursor reaches the target file.
             for _ in range(50):
-                await pilot.pause()
+                await pilot.wait_for_scheduled_animations()
                 node = explorer.directory_tree.cursor_node
                 if (
                     node is not None
