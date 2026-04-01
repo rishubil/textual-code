@@ -215,11 +215,8 @@ class _FileRow(Horizontal, can_focus=False):
     _FileRow {
         height: 1;
         width: 1fr;
-        &.-cursor {
-            background: $accent-darken-2;
-        }
         &:hover {
-            background: $surface-lighten-1;
+            background: $block-hover-background;
         }
     }
     """
@@ -259,11 +256,8 @@ class _MatchRow(Horizontal, can_focus=False):
     _MatchRow {
         height: 1;
         width: 1fr;
-        &.-cursor {
-            background: $accent-darken-2;
-        }
         &:hover {
-            background: $surface-lighten-1;
+            background: $block-hover-background;
         }
     }
     """
@@ -315,6 +309,19 @@ class CheckboxTree(VerticalScroll, can_focus=True, can_focus_children=False):
     CheckboxTree {
         height: 1fr;
         scrollbar-size-vertical: 1;
+
+        .-cursor {
+            background: $block-cursor-blurred-background;
+            text-style: $block-cursor-blurred-text-style;
+        }
+        &:focus {
+            background-tint: $foreground 5%;
+            .-cursor {
+                color: $block-cursor-foreground;
+                background: $block-cursor-background;
+                text-style: $block-cursor-text-style;
+            }
+        }
     }
     CheckboxTree Static.indent-spacer {
         width: 5;

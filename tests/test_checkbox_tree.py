@@ -526,6 +526,42 @@ async def test_cursor_highlight_persists_on_blur() -> None:
         assert second_match.has_class("-cursor")
 
 
+@pytest.mark.asyncio
+async def test_cursor_color_differs_between_focus_and_blur() -> None:
+    """Cursor row uses different background when tree is focused vs blurred.
+
+    Focused: $block-cursor-background (bright)
+    Blurred: $block-cursor-blurred-background (dim)
+    """
+    async with _FocusCycleApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        from textual.widgets import Input
+
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        tree.focus()
+        await pilot.pause()
+
+        first_file = tree.file_rows()[0]
+        tree._set_cursor(first_file)
+        await pilot.pause()
+
+        # When tree is focused, cursor row should have focused styling
+        assert first_file.has_class("-cursor")
+        focused_bg = first_file.styles.background
+
+        # Move focus away
+        pilot.app.query_one("#after", Input).focus()
+        await pilot.pause()
+
+        # Cursor row should still be highlighted but with blurred styling
+        assert first_file.has_class("-cursor")
+        blurred_bg = first_file.styles.background
+
+        # The two backgrounds should differ
+        assert focused_bg != blurred_bg, (
+            f"Focused bg ({focused_bg}) should differ from blurred bg ({blurred_bg})"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Replace preview truncation warning test
 # ---------------------------------------------------------------------------
