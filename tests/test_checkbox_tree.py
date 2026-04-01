@@ -590,6 +590,134 @@ async def test_label_click_moves_cursor() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Left/Right arrow key tests (expand/collapse + parent/child navigation)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_left_on_expanded_file_collapses() -> None:
+    """Left arrow on an expanded file row collapses it."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        tree.focus()
+        await pilot.pause()
+
+        first_file = tree.file_rows()[0]
+        tree._set_cursor(first_file)
+        await pilot.pause()
+
+        # File is expanded by default
+        from textual_code.widgets.checkbox_tree import _ExpandToggle
+
+        assert first_file.query_one(_ExpandToggle).expanded
+
+        await pilot.press("left")
+        await pilot.pause()
+
+        # Should collapse
+        assert not first_file.query_one(_ExpandToggle).expanded
+        # Cursor stays on file row
+        assert first_file.has_class("-cursor")
+
+
+@pytest.mark.asyncio
+async def test_left_on_collapsed_file_does_nothing() -> None:
+    """Left arrow on already-collapsed file row stays put."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        tree.focus()
+        await pilot.pause()
+
+        first_file = tree.file_rows()[0]
+        tree._set_cursor(first_file)
+        tree.collapse_all()
+        await pilot.pause()
+
+        await pilot.press("left")
+        await pilot.pause()
+
+        # Still on same row, still collapsed
+        assert first_file.has_class("-cursor")
+
+
+@pytest.mark.asyncio
+async def test_left_on_match_moves_to_parent_file() -> None:
+    """Left arrow on a match row moves cursor to its parent file row."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        tree.focus()
+        await pilot.pause()
+
+        first_file = tree.file_rows()[0]
+        first_match = tree.match_rows_for(first_file)[0]
+        tree._set_cursor(first_match)
+        await pilot.pause()
+
+        await pilot.press("left")
+        await pilot.pause()
+
+        assert first_file.has_class("-cursor")
+        assert not first_match.has_class("-cursor")
+
+
+@pytest.mark.asyncio
+async def test_right_on_collapsed_file_expands() -> None:
+    """Right arrow on a collapsed file row expands it."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        tree.focus()
+        await pilot.pause()
+
+        first_file = tree.file_rows()[0]
+        tree._set_cursor(first_file)
+        tree.collapse_all()
+        await pilot.pause()
+
+        from textual_code.widgets.checkbox_tree import _ExpandToggle
+
+        assert not first_file.query_one(_ExpandToggle).expanded
+
+        await pilot.press("right")
+        await pilot.pause()
+
+        assert first_file.query_one(_ExpandToggle).expanded
+
+
+@pytest.mark.asyncio
+async def test_right_on_expanded_file_moves_to_first_child() -> None:
+    """Right arrow on an already-expanded file row moves to first match."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        tree.focus()
+        await pilot.pause()
+
+        first_file = tree.file_rows()[0]
+        tree._set_cursor(first_file)
+        await pilot.pause()
+
+        await pilot.press("right")
+        await pilot.pause()
+
+        first_match = tree.match_rows_for(first_file)[0]
+        assert first_match.has_class("-cursor")
+
+
+# ---------------------------------------------------------------------------
+# Ctrl+Left/Right scroll tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ctrl_arrow_bindings_exist() -> None:
+    """Ctrl+Left and Ctrl+Right bindings are registered."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        bindings = {b.key for b in tree.BINDINGS}
+        assert "ctrl+left" in bindings
+        assert "ctrl+right" in bindings
+
+
+# ---------------------------------------------------------------------------
 # Replace preview truncation warning test
 # ---------------------------------------------------------------------------
 

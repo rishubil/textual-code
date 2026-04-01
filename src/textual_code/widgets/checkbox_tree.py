@@ -338,6 +338,10 @@ class CheckboxTree(VerticalScroll, can_focus=True, can_focus_children=False):
         Binding("pagedown", "page_down", "Page Down", show=False),
         Binding("space", "toggle_cursor_check", "Toggle", show=False),
         Binding("enter", "select_cursor_node", "Select", show=False),
+        Binding("left", "cursor_left", "Collapse/Parent", show=False),
+        Binding("right", "cursor_right", "Expand/Child", show=False),
+        Binding("ctrl+left", "scroll_left", "Scroll Left", show=False),
+        Binding("ctrl+right", "scroll_right", "Scroll Right", show=False),
     ]
 
     @dataclass
@@ -589,6 +593,38 @@ class CheckboxTree(VerticalScroll, can_focus=True, can_focus_children=False):
             self.post_message(
                 self.NodeSelected(file_path=file_path, line_number=line_number)
             )
+
+    def action_cursor_left(self) -> None:
+        """Collapse file row, or move cursor to parent file from a match row."""
+        row = self._last_focused_row
+        if isinstance(row, _FileRow):
+            toggle = row.query_one(_ExpandToggle)
+            if toggle.expanded:
+                toggle.expanded = False
+                for mr in row._match_rows:
+                    mr.display = False
+        elif isinstance(row, _MatchRow):
+            self._set_cursor(row._parent_file_row)
+
+    def action_cursor_right(self) -> None:
+        """Expand file row, or move cursor to first child match."""
+        row = self._last_focused_row
+        if isinstance(row, _FileRow):
+            toggle = row.query_one(_ExpandToggle)
+            if not toggle.expanded:
+                toggle.expanded = True
+                for mr in row._match_rows:
+                    mr.display = True
+            elif row._match_rows:
+                self._set_cursor(row._match_rows[0])
+
+    def action_scroll_left(self) -> None:
+        """Scroll the tree view horizontally to the left."""
+        self.scroll_left(animate=False)
+
+    def action_scroll_right(self) -> None:
+        """Scroll the tree view horizontally to the right."""
+        self.scroll_right(animate=False)
 
     # ── Focus memory ─────────────────────────────────────────────────────
 
