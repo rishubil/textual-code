@@ -196,11 +196,17 @@ def _compute_line_changes(
     return changes
 
 
-def _get_git_head_content(path: Path) -> str | None:
+def _get_git_head_content(path: Path, encoding: str = "utf-8") -> str | None:
     """Get the HEAD version of a file from git.
 
     Uses ``git rev-parse --show-toplevel`` to detect the git root
     independently of the workspace path.
+
+    Args:
+        path: Path to the file whose HEAD content to retrieve.
+        encoding: Encoding to use when decoding ``git show`` output.
+            Should match the file's detected encoding (e.g. ``"latin-1"``,
+            ``"euc_kr"``).  Defaults to ``"utf-8"``.
 
     Returns None when:
     - git binary not found
@@ -238,7 +244,7 @@ def _get_git_head_content(path: Path) -> str | None:
             [_git_bin, "show", f"HEAD:{rel_path}"],
             capture_output=True,
             text=True,
-            encoding="utf-8",
+            encoding=encoding,
             errors="replace",
             cwd=str(git_root),
             timeout=5,
@@ -251,8 +257,8 @@ def _get_git_head_content(path: Path) -> str | None:
     except subprocess.TimeoutExpired:
         log.warning("git diff gutter: timed out for %s", path)
         return None
-    except (OSError, ValueError) as e:
-        log.debug("git diff gutter: error: %s", e)
+    except (OSError, ValueError, LookupError) as e:
+        log.debug("git diff gutter: error (encoding=%s): %s", encoding, e)
         return None
 
 
@@ -1421,7 +1427,7 @@ class CodeEditor(Static):
         app = self.app
         if hasattr(app, "default_show_git_status") and not app.default_show_git_status:
             return None
-        head_content = _get_git_head_content(self.path)
+        head_content = _get_git_head_content(self.path, encoding=self.encoding)
         if head_content is None:
             return None
         return head_content.splitlines()

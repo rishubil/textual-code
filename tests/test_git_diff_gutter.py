@@ -9,7 +9,13 @@ import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
-from tests.conftest import _GIT_TEST_ENV, init_git_repo, make_app, requires_git
+from tests.conftest import (
+    _GIT_TEST_ENV,
+    git_add_commit,
+    init_git_repo,
+    make_app,
+    requires_git,
+)
 from textual_code.widgets.code_editor import (
     LineChangeType,
     _compute_line_changes,
@@ -232,6 +238,91 @@ class TestGetGitHeadContent:
             assert call_kwargs.get("errors") == "replace", (
                 f"subprocess.run call {i} missing errors='replace': {call_kwargs}"
             )
+
+    @requires_git
+    def test_b07_returns_latin1_content(self, tmp_path: Path):
+        """Returns correct content for files committed in Latin-1 encoding."""
+        init_git_repo(tmp_path)
+        committed = tmp_path / "committed.py"
+        # Latin-1 characters: e-acute, a-grave, n-tilde, u-umlaut
+        text = "# caf\u00e9 r\u00e9sum\u00e9\nprint('\u00e0\u00f1\u00fc')\n"
+        committed.write_bytes(text.encode("latin-1"))
+        git_add_commit(tmp_path, "latin1 file")
+        result = _get_git_head_content(committed, encoding="latin-1")
+        assert result is not None
+        assert "caf\u00e9" in result
+        assert "r\u00e9sum\u00e9" in result
+        assert "\u00e0\u00f1\u00fc" in result
+
+    @requires_git
+    def test_b08_returns_euc_kr_content(self, tmp_path: Path):
+        """Returns correct content for files committed in EUC-KR encoding."""
+        init_git_repo(tmp_path)
+        committed = tmp_path / "committed.py"
+        korean = "\ud55c\uad6d\uc5b4"  # "Korean" in Korean
+        text = f"# {korean}\n"
+        committed.write_bytes(text.encode("euc_kr"))
+        git_add_commit(tmp_path, "euc-kr file")
+        result = _get_git_head_content(committed, encoding="euc_kr")
+        assert result is not None
+        assert korean in result
+
+    @requires_git
+    def test_b10_git_show_uses_file_encoding(self, tmp_path: Path):
+        """git rev-parse uses UTF-8; git show uses the provided encoding."""
+        init_git_repo(tmp_path)
+        committed = tmp_path / "committed.py"
+        calls: list[dict] = []
+        original_run = subprocess.run
+
+        def spy_run(*args, **kwargs):
+            calls.append(kwargs)
+            return original_run(*args, **kwargs)
+
+        with patch(
+            "textual_code.widgets.code_editor.subprocess.run", side_effect=spy_run
+        ):
+            _get_git_head_content(committed, encoding="latin-1")
+
+        assert len(calls) >= 2, "Expected at least 2 subprocess.run calls"
+        # First call (git rev-parse) stays UTF-8
+        assert calls[0].get("encoding") == "utf-8"
+        assert calls[0].get("errors") == "replace"
+        # Second call (git show) uses the provided encoding
+        assert calls[1].get("encoding") == "latin-1"
+        assert calls[1].get("errors") == "replace"
+
+    @requires_git
+    async def test_b11_fetch_head_lines_passes_encoding(self, tmp_path: Path):
+        """_fetch_head_lines passes self.encoding to _get_git_head_content."""
+        from textual_code.widgets.code_editor import CodeEditor
+
+        init_git_repo(tmp_path)
+        committed = tmp_path / "committed.py"
+
+        captured_kwargs: list[dict] = []
+        original_fn = _get_git_head_content
+
+        def spy_fn(*args, **kwargs):
+            captured_kwargs.append(kwargs)
+            return original_fn(*args, **kwargs)
+
+        app = make_app(tmp_path, open_file=committed, light=True)
+        async with app.run_test() as pilot:
+            await pilot.wait_for_scheduled_animations()
+            editors = list(app.query(CodeEditor))
+            assert editors, "Expected at least one CodeEditor"
+            editor = editors[0]
+            editor.encoding = "latin-1"
+
+            with patch(
+                "textual_code.widgets.code_editor._get_git_head_content",
+                side_effect=spy_fn,
+            ):
+                editor._fetch_head_lines()
+
+            assert len(captured_kwargs) >= 1
+            assert captured_kwargs[0].get("encoding") == "latin-1"
 
 
 # ── Editor integration tests ────────────────────────────────────────────────

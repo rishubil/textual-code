@@ -211,7 +211,9 @@ internal Textual APIs. Snapshot tests guard against breakage on Textual updates.
 ### Data flow: background fetch, synchronous recompute
 
 1. `on_mount` triggers `_refresh_git_diff()` (`@work(thread=True, exclusive=True)`)
-2. The worker runs `git show HEAD:<path>` in a background thread
+2. The worker runs `git show HEAD:<path>` in a background thread, decoding with the
+   file's detected encoding (`self.encoding`) so that non-UTF-8 files (Latin-1, EUC-KR,
+   etc.) produce correct diff indicators
 3. `call_from_thread` delivers `head_lines` to `_apply_git_diff` on the main thread
 4. `_recompute_git_diff()` diffs `head_lines` vs current editor text
 5. `set_line_changes()` stores the result, clears `_line_cache`, and refreshes

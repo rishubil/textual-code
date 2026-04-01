@@ -80,6 +80,19 @@ def init_git_repo(workspace: Path) -> None:
     run(["git", "commit", "-m", "init"], env=git_env)
 
 
+def git_add_commit(workspace: Path, message: str = "update") -> None:
+    """Stage all changes and commit with a deterministic timestamp."""
+    git_env = {**os.environ, **_GIT_TEST_ENV, "HOME": str(workspace)}
+
+    def run(args):
+        return subprocess.run(
+            args, cwd=workspace, check=True, capture_output=True, env=git_env
+        )
+
+    run(["git", "add", "."])
+    run(["git", "commit", "-m", message])
+
+
 # pytest-textual-snapshot 1.0.0 sets _file_extension (underscore prefix) but
 # syrupy 5.x looks at file_extension (no prefix), so snapshots fall back to
 # ".raw".  Patch the correct attribute so snap_compare produces ".svg" files.
