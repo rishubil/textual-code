@@ -395,6 +395,14 @@ class WorkspaceSearchPane(Static):
         elif event.button.id == "ws-replace-all":
             self._run_replace_all()
 
+    @on(Checkbox.Changed, "#ws-regex")
+    @on(Checkbox.Changed, "#ws-case-sensitive")
+    @on(Checkbox.Changed, "#ws-gitignore")
+    def _on_search_option_changed(self) -> None:
+        """Clear stale results when search options change."""
+        checkbox_tree = self.query_one("#ws-results", CheckboxTree)
+        checkbox_tree.clear()
+
     @on(Input.Submitted, "#ws-query")
     @on(Input.Submitted, "#ws-include")
     @on(Input.Submitted, "#ws-exclude")
