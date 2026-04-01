@@ -333,11 +333,11 @@ async def test_preview_update_is_debounced(workspace: Path, md_file: Path):
             editor.text = "# Two"
             editor.text = "# Three"
 
-            # Wait for debounce timer (0.3s) to fire and call update
+            # Wait for debounce timer (0.3s) to fire and update to complete
             await wait_for_condition(
                 pilot,
-                lambda: call_count >= 1,
-                msg="Debounce timer did not fire",
+                lambda: md_widget._markdown == "# Three",
+                msg="Debounce timer did not fire or update did not complete",
             )
 
         # With debounce, update should be called once (not three times)

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import make_app
+from tests.conftest import make_app, wait_for_condition
 
 
 @pytest.fixture(autouse=True)
@@ -278,9 +278,10 @@ async def test_file_search_opens_selected_file(
         # Type to search for "alpha"
         await pilot.press("a", "l", "p", "h", "a")
         # Wait for background fuzzy matching worker to complete
-        await pilot.wait_for_scheduled_animations()
         ol = app.screen.query_one("#path-search-results", OptionList)
-        assert ol.option_count >= 1, "No search results found"
+        await wait_for_condition(
+            pilot, lambda: ol.option_count >= 1, msg="No search results found"
+        )
         # Select the highlighted option
         await pilot.press("enter")
         await pilot.wait_for_scheduled_animations()
@@ -314,9 +315,13 @@ async def test_path_search_modal_search_without_cache(
         )
         await pilot.wait_for_scheduled_animations()
         await pilot.press("a", "l", "p", "h", "a")
-        await pilot.wait_for_scheduled_animations()
+        # Wait for background scan + fuzzy matching worker to complete
         ol = app.screen.query_one("#path-search-results", OptionList)
-        assert ol.option_count >= 1, "No search results when cache is None"
+        await wait_for_condition(
+            pilot,
+            lambda: ol.option_count >= 1,
+            msg="No search results when cache is None",
+        )
 
 
 # ── Cycle 3: Generation counter race condition fix ────────────────────────────
@@ -384,12 +389,15 @@ async def test_cache_hit_on_second_open(workspace: Path, sample_files: list[Path
                 cache_key="files",
             )
         )
-        await pilot.wait_for_scheduled_animations()
+        # Wait for background scan to populate cache
+        await wait_for_condition(
+            pilot,
+            lambda: (workspace, "files") in PathSearchModal._cache,
+            msg="Cache not populated after first open",
+        )
         # Dismiss
         await pilot.press("escape")
         await pilot.wait_for_scheduled_animations()
-        # Verify cache was populated
-        assert (workspace, "files") in PathSearchModal._cache
         # Second open — should hit cache
         app.push_screen(
             PathSearchModal(
@@ -443,9 +451,13 @@ async def test_dirty_cache_rescan_no_duplicates(
                 cache_key="files",
             )
         )
-        # Wait for scan to complete
+        # Wait for modal to mount
         await pilot.wait_for_scheduled_animations()
+        # Wait for background scan worker to complete
         ol = app.screen.query_one("#path-search-results", OptionList)
+        await wait_for_condition(
+            pilot, lambda: ol.option_count > 0, msg="Scan did not populate results"
+        )
         # Count should equal unique files, not doubled
         displayed = [
             str(ol.get_option_at_index(i).prompt) for i in range(ol.option_count)
@@ -746,9 +758,13 @@ async def test_rapidfuzz_used_for_large_file_list(workspace: Path):
         await pilot.wait_for_scheduled_animations()
         # Type to search
         await pilot.press("f", "i", "l", "e", "_", "0", "0", "5")
-        await pilot.wait_for_scheduled_animations()
+        # Wait for background fuzzy matching worker to complete
         ol = app.screen.query_one("#path-search-results", OptionList)
-        assert ol.option_count >= 1, "rapidfuzz path should return results"
+        await wait_for_condition(
+            pilot,
+            lambda: ol.option_count >= 1,
+            msg="rapidfuzz path should return results",
+        )
         # Top result should contain the query
         option = ol.get_option_at_index(0)
         assert "file_005" in str(option.prompt).lower()
@@ -780,9 +796,11 @@ async def test_rapidfuzz_prefers_filename_match(workspace: Path):
         )
         await pilot.wait_for_scheduled_animations()
         await pilot.press("t", "a", "r", "g", "e", "t")
-        await pilot.wait_for_scheduled_animations()
+        # Wait for background fuzzy matching worker to complete
         ol = app.screen.query_one("#path-search-results", OptionList)
-        assert ol.option_count >= 1
+        await wait_for_condition(
+            pilot, lambda: ol.option_count >= 1, msg="No search results for 'target'"
+        )
         # "target.py" should be the top result (filename match)
         top_text = str(ol.get_option_at_index(0).prompt).lower()
         assert "target.py" in top_text, (
