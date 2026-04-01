@@ -558,9 +558,9 @@ def test_replace_at_positions_skipped_count() -> None:
 
 
 def test_preview_selected_replace_no_truncation(tmp_path: Path) -> None:
-    # Create many files
+    # Create many files — use write_bytes to avoid Windows line-ending conversion
     for i in range(150):
-        (tmp_path / f"file_{i:03d}.txt").write_text("hello world\n")
+        (tmp_path / f"file_{i:03d}.txt").write_bytes(b"hello world\n")
 
     results = [
         WorkspaceSearchResult(
@@ -583,8 +583,9 @@ def test_preview_selected_replace_no_truncation(tmp_path: Path) -> None:
 
 def test_preview_selected_replace_generates_diff(tmp_path: Path) -> None:
     f = tmp_path / "test.txt"
-    f.write_text("hello world\nhello again\n")
-    file_hash = hashlib.sha256(b"hello world\nhello again\n").hexdigest()
+    content = b"hello world\nhello again\n"
+    f.write_bytes(content)
+    file_hash = hashlib.sha256(content).hexdigest()
 
     results = [
         WorkspaceSearchResult(

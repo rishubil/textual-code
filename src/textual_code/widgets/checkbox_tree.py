@@ -402,9 +402,9 @@ class CheckboxTree(VerticalScroll):
             matches = list(file_results)
             count = len(matches)
             try:
-                relative = file_path.relative_to(workspace_path)
+                relative = file_path.relative_to(workspace_path).as_posix()
             except ValueError:
-                relative = file_path
+                relative = str(file_path)
             suffix = "match" if count == 1 else "matches"
             first_line = matches[0].line_number
             label = f"{relative} ({count} {suffix})"
@@ -604,17 +604,18 @@ class CheckboxTree(VerticalScroll):
             self._last_focused_row = focused
             focused.add_class("-cursor")
 
-    def on_focus(self) -> None:
-        """Restore focus to the last-focused row when the tree regains focus."""
+    def focus(self, scroll_visible: bool = True) -> None:
+        """Override to redirect focus to the last-focused row."""
         row = self._last_focused_row
         if row is not None and row.display and row.is_attached:
-            row.focus()
-            row.scroll_visible()
+            row.focus(scroll_visible=scroll_visible)
             return
         # Fallback: focus the first visible row
         visible = self._visible_rows()
         if visible:
-            visible[0].focus()
+            visible[0].focus(scroll_visible=scroll_visible)
+            return
+        super().focus(scroll_visible=scroll_visible)
 
     # ── Checkbox synchronization (central handler) ────────────────────────
 
