@@ -64,6 +64,10 @@ class WorkspaceSearchPane(Static):
             )
         yield Label("", id="ws-replace-status")
         yield CheckboxTree(id="ws-results")
+        yield Label(
+            "↑↓ Navigate  ←→ Fold  Space Check  Enter Open",
+            id="ws-key-hints",
+        )
 
     # ── Responsive labels ──────────────────────────────────────────────────────
 

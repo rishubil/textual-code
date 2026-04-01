@@ -186,10 +186,9 @@ class _NodeLabel(Static):
 
     DEFAULT_CSS = """
     _NodeLabel {
-        width: 1fr;
+        width: auto;
         height: 1;
         text-wrap: nowrap;
-        text-overflow: ellipsis;
     }
     """
 
@@ -214,7 +213,8 @@ class _FileRow(Horizontal, can_focus=False):
     DEFAULT_CSS = """
     _FileRow {
         height: 1;
-        width: 1fr;
+        width: auto;
+        min-width: 100%;
         &:hover {
             background: $block-hover-background;
         }
@@ -255,7 +255,8 @@ class _MatchRow(Horizontal, can_focus=False):
     DEFAULT_CSS = """
     _MatchRow {
         height: 1;
-        width: 1fr;
+        width: auto;
+        min-width: 100%;
         &:hover {
             background: $block-hover-background;
         }
@@ -308,7 +309,9 @@ class CheckboxTree(VerticalScroll, can_focus=True, can_focus_children=False):
     DEFAULT_CSS = """
     CheckboxTree {
         height: 1fr;
+        overflow-x: auto;
         scrollbar-size-vertical: 1;
+        scrollbar-size-horizontal: 1;
 
         .-cursor {
             background: $block-cursor-blurred-background;

@@ -897,6 +897,14 @@ WorkspaceSearchPane #ws-results {
     overflow-x: auto;
 }
 
+WorkspaceSearchPane #ws-key-hints {
+    height: 1;
+    width: 1fr;
+    color: $text-muted;
+    text-style: dim;
+    text-align: center;
+}
+
 /* Draggable tab visual feedback */
 Tab.-dragging {
     background: $accent;

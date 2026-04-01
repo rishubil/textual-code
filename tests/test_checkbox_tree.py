@@ -707,14 +707,60 @@ async def test_right_on_expanded_file_moves_to_first_child() -> None:
 # ---------------------------------------------------------------------------
 
 
+_LONG_RESULTS = _make_results(
+    _WS,
+    {
+        "src/very_long_directory_name/extremely_long_file_name_that_exceeds_width.py": [
+            (1, "x" * 200, 0, 1),
+        ],
+    },
+)
+
+
 @pytest.mark.asyncio
-async def test_ctrl_arrow_bindings_exist() -> None:
-    """Ctrl+Left and Ctrl+Right bindings are registered."""
-    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+async def test_horizontal_scroll_with_long_content() -> None:
+    """CheckboxTree supports horizontal scrolling for long file names."""
+    async with _TreeApp(_LONG_RESULTS, _WS).run_test(size=(30, 10)) as pilot:
         tree = pilot.app.query_one("#tree", CheckboxTree)
-        bindings = {b.key for b in tree.BINDINGS}
-        assert "ctrl+left" in bindings
-        assert "ctrl+right" in bindings
+        tree.focus()
+        await pilot.pause()
+
+        # Virtual width should exceed visible width
+        assert tree.virtual_size.width > tree.size.width
+
+        # Ctrl+Right should scroll right
+        await pilot.press("ctrl+right")
+        await pilot.pause()
+        assert tree.scroll_offset.x > 0
+
+
+# ---------------------------------------------------------------------------
+# Sidebar key hints test
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_sidebar_search_key_hints() -> None:
+    """WorkspaceSearchPane displays key hints below the tree."""
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    ws = Path("/tmp/ws_hints")
+    ws.mkdir(exist_ok=True)
+    (ws / "f.txt").write_bytes(b"x\n")
+
+    app = make_app(ws)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await pilot.press("ctrl+shift+f")
+        await pilot.wait_for_scheduled_animations()
+
+        pane = app.query_one(WorkspaceSearchPane)
+        from textual.widgets import Label
+
+        hints = pane.query_one("#ws-key-hints", Label)
+        text = hints.render().plain
+        assert "Navigate" in text
 
 
 # ---------------------------------------------------------------------------
