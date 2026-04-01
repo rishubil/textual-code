@@ -174,11 +174,13 @@ async def test_preview_no_update_when_tab_closed(workspace: Path, md_file: Path)
         app.main_view._preview_pane_ids.pop(md_file, None)
         await pilot.wait_for_scheduled_animations()
 
-        # Text change should not raise
+        # Text change should not raise even after debounce timer fires
         editor = app.main_view._get_active_code_editor_in_split("left")
         assert editor is not None
         editor.text = "# Changed\n"
+        # Give the debounce timer (0.3s) time to fire — must not raise
         await pilot.wait_for_scheduled_animations()
+        await pilot.pause(delay=0.5)
         # No exception means pass
 
 

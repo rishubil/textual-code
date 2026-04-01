@@ -352,10 +352,12 @@ async def test_stale_search_results_discarded(
         assert isinstance(modal, PathSearchModal)
         # Type to get results
         await pilot.press("a", "l", "p", "h", "a")
-        await pilot.wait_for_scheduled_animations()
+        # Wait for background fuzzy matching worker to complete
         ol = modal.query_one("#path-search-results", OptionList)
+        await wait_for_condition(
+            pilot, lambda: ol.option_count >= 1, msg="No search results found"
+        )
         current_count = ol.option_count
-        assert current_count >= 1
         # Simulate a stale _apply_results call with wrong generation
         stale_gen = modal._search_generation - 1
         modal._apply_results("alpha", stale_gen, [])
