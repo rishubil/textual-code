@@ -27,11 +27,11 @@ async def test_select_all_btn_exists_in_find_bar(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
         btn = bar.query_one("#select_all_btn")
         assert btn is not None
@@ -45,15 +45,15 @@ async def test_select_all_creates_multi_cursors(workspace: Path):
     f = await _open_file(workspace, "foo bar\nfoo baz\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o")
         await pilot.click("#select_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Primary selection at first match
         assert editor.editor.selection.start == (0, 0)
@@ -68,15 +68,15 @@ async def test_select_all_bar_stays_open(workspace: Path):
     f = await _open_file(workspace, "foo bar\nfoo baz\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o")
         await pilot.click("#select_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         bar = editor.query_one(FindReplaceBar)
         assert bar.display
@@ -89,15 +89,15 @@ async def test_select_all_focuses_editor(workspace: Path):
     f = await _open_file(workspace, "foo bar\nfoo baz\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o")
         await pilot.click("#select_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.focused == editor.query_one(MultiCursorTextArea)
 
@@ -110,15 +110,15 @@ async def test_select_all_single_match(workspace: Path):
     f = await _open_file(workspace, "foo bar baz\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o")
         await pilot.click("#select_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.selection.start == (0, 0)
         assert editor.editor.selection.end == (0, 3)
@@ -135,21 +135,21 @@ async def test_select_all_regex_mode(workspace: Path):
     f = await _open_file(workspace, "hello\nhallo\nhullo\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
 
         # Enable regex
         bar.query_one("#use_regex", Checkbox).value = True
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("h", ".", "l", "l", "o")
         await pilot.click("#select_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # All 3 matches: primary + 2 extra cursors
         assert len(editor.editor.extra_cursors) == 2
@@ -165,21 +165,21 @@ async def test_select_all_case_insensitive(workspace: Path):
     f = await _open_file(workspace, "foo Foo FOO\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
 
         # Uncheck case_sensitive
         bar.query_one("#case_sensitive", Checkbox).value = False
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o")
         await pilot.click("#select_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # All 3 matches: primary + 2 extra cursors
         assert len(editor.editor.extra_cursors) == 2
@@ -193,15 +193,15 @@ async def test_select_all_no_matches(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#find_input")
         await pilot.press("z", "z", "z")
         await pilot.click("#select_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.extra_cursors == []
 
@@ -214,16 +214,16 @@ async def test_select_all_empty_query_is_noop(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         original_sel = editor.editor.selection
 
         await pilot.click("#select_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.selection == original_sel
         assert editor.editor.extra_cursors == []
@@ -239,21 +239,21 @@ async def test_select_all_invalid_regex(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
 
         # Enable regex
         bar.query_one("#use_regex", Checkbox).value = True
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("[", "i", "n", "v", "a", "l", "i", "d")
         await pilot.click("#select_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # No crash, no cursors changed
         assert editor.editor.extra_cursors == []
@@ -267,22 +267,22 @@ async def test_select_all_resets_find_offset(workspace: Path):
     f = await _open_file(workspace, "foo bar\nfoo baz\nfoo qux\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o")
 
         # Find Next to advance _find_offset
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._find_offset is not None
 
         # Select All should reset _find_offset
         await pilot.click("#select_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._find_offset is None
 
         # All 3 matches should be selected

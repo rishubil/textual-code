@@ -105,12 +105,12 @@ async def test_get_query_text_uses_selection(workspace: Path, occ_file: Path):
 
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Select "foo" (row=0, col=0 to row=0, col=3)
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._get_query_text() == "foo"
 
 
@@ -120,12 +120,12 @@ async def test_get_query_text_uses_word_under_cursor(workspace: Path, occ_file: 
 
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Cursor in "foo" with no selection
         editor.editor.selection = Selection(start=(0, 1), end=(0, 1))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._get_query_text() == "foo"
 
 
@@ -135,12 +135,12 @@ async def test_get_query_text_empty_on_whitespace(workspace: Path, occ_file: Pat
 
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Cursor on space between "foo" and "bar"
         editor.editor.selection = Selection(start=(0, 3), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._get_query_text() == ""
 
 
@@ -153,15 +153,15 @@ async def test_select_all_occurrences_multiple_matches(workspace: Path, occ_file
 
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Select "foo" first to use as query
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_all_occurrences()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Primary selection should be at (0,0)-(0,3)
         assert editor.editor.selection.start == (0, 0)
@@ -179,14 +179,14 @@ async def test_select_all_occurrences_single_match(
 
     app = make_app(workspace, open_file=single_occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_all_occurrences()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.selection.start == (0, 0)
         assert editor.editor.selection.end == (0, 3)
@@ -201,17 +201,17 @@ async def test_select_all_occurrences_empty_query_is_noop(
 
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Cursor on space → empty query
         editor.editor.selection = Selection(start=(0, 3), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         original_sel = editor.editor.selection
 
         editor.action_select_all_occurrences()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Selection should be unchanged
         assert editor.editor.selection == original_sel
@@ -226,14 +226,14 @@ async def test_select_all_occurrences_extra_cursor_count(
 
     app = make_app(workspace, open_file=multi_occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_all_occurrences()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert len(editor.editor.extra_cursors) == 2
 
@@ -246,20 +246,20 @@ async def test_select_all_occurrences_clears_previous_cursors(
 
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Add a stale cursor
         editor.editor.add_cursor((0, 5))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(editor.editor.extra_cursors) == 1
 
         # Now select all "foo"
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_all_occurrences()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Only the cursors from the new selection should remain
         assert (0, 5) not in editor.editor.extra_cursors
@@ -279,14 +279,14 @@ async def test_select_all_occurrences_case_insensitive_from_selection(
     f.write_text("foo Foo FOO\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_all_occurrences()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # All 3 case variants matched (case-insensitive)
         assert len(editor.editor.extra_cursors) == 2
@@ -300,14 +300,14 @@ async def test_select_all_occurrences_multiline(
 
     app = make_app(workspace, open_file=multiline_occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.selection = Selection(start=(0, 0), end=(0, 5))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_all_occurrences()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # "hello" appears twice (line 0 and line 1)
         assert len(editor.editor.extra_cursors) == 1
@@ -324,15 +324,15 @@ async def test_select_all_occurrences_regex_special_chars(
 
     app = make_app(workspace, open_file=special_chars_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Select "a.b" literally
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_all_occurrences()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Only literal "a.b" matches (2 times), not "axb"
         assert len(editor.editor.extra_cursors) == 1
@@ -346,15 +346,15 @@ async def test_select_all_occurrences_word_under_cursor(
 
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Cursor in "hello" on line 0 (no selection)
         editor.editor.selection = Selection(start=(0, 2), end=(0, 2))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_all_occurrences()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # "hello" appears on lines 0 and 1 → 1 extra cursor at end of match
         assert len(editor.editor.extra_cursors) == 1
@@ -367,15 +367,15 @@ async def test_ctrl_shift_l_triggers_select_all(workspace: Path, occ_file: Path)
 
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Select "foo"
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("ctrl+shift+l")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Both "foo" occurrences should be selected
         assert editor.editor.selection.start == (0, 0)
@@ -386,7 +386,7 @@ async def test_select_all_occurrences_cmd_no_file(workspace: Path):
     """Command palette action when no file is open → error notify, no crash."""
     app = make_app(workspace, open_file=None, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Should not raise an exception
         app.action_select_all_occurrences_cmd()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()

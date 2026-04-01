@@ -18,15 +18,15 @@ async def test_double_ctrl_q_force_quits_with_unsaved(
     """Double Ctrl+Q exits even when there are unsaved changes."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "unsaved change\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("ctrl+q")
         await pilot.press("ctrl+q")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     # If force-quit worked, the app exited cleanly despite unsaved changes.
     # (Without force-quit, action_quit would show UnsavedChangeQuitModalScreen
@@ -40,14 +40,14 @@ async def test_single_ctrl_q_with_unsaved_shows_modal(
     """Single Ctrl+Q with unsaved changes should show the modal, not force-quit."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "unsaved\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("ctrl+q")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # The modal should be displayed, not force-quit
         assert isinstance(app.screen, UnsavedChangeQuitModalScreen)
@@ -57,9 +57,9 @@ async def test_ctrl_q_records_timestamp(workspace: Path):
     """Ctrl+Q should update the _last_ctrl_q_time timestamp."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app._last_ctrl_q_time == 0.0
         await pilot.press("ctrl+q")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
     # Ctrl+Q sets the timestamp before triggering action_quit
     assert app._last_ctrl_q_time > 0

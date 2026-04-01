@@ -49,7 +49,7 @@ def sort_test_file(workspace: Path) -> Path:
 
 async def _get_ta(app, pilot):
     """After entering run_test, pause and return the TextArea."""
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
     ce = app.main_view.get_active_code_editor()
     assert ce is not None, "No active code editor found"
     return ce.editor
@@ -69,7 +69,7 @@ async def test_noop_single_line_selection(workspace: Path, sort_test_file: Path)
         ta.selection = sel
         original = ta.text
         ta.action_sort_lines_ascending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == original, "Single-line selection should be a no-op"
         assert ta.selection == sel, "Selection should be unchanged"
 
@@ -92,7 +92,7 @@ async def test_noop_selection_ends_at_col0_next_line(
         ta.selection = sel
         original = ta.text
         ta.action_sort_lines_ascending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == original, (
             "Selection ending at col 0 of next line should be single-line no-op"
         )
@@ -115,7 +115,7 @@ async def test_sort_two_lines_ascending(workspace: Path, sort_test_file: Path):
         ta = await _get_ta(app, pilot)
         ta.selection = Selection((2, 2), (3, 1))
         ta.action_sort_lines_ascending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines == ["first", "second line", "fourth line", "third line", "fifth"]
         # VSCode: Selection(3,3, 4,1) → 0-based: (2,2)→(3,0)
@@ -136,7 +136,7 @@ async def test_sort_first_4_lines_ascending(workspace: Path, sort_test_file: Pat
         ta = await _get_ta(app, pilot)
         ta.selection = Selection((0, 0), (4, 0))
         ta.action_sort_lines_ascending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines == ["first", "fourth line", "second line", "third line", "fifth"]
         # VSCode: Selection(1,1, 5,1) → 0-based: (0,0)→(4,0) unchanged
@@ -157,7 +157,7 @@ async def test_sort_all_lines_ascending(workspace: Path, sort_test_file: Path):
         ta = await _get_ta(app, pilot)
         ta.selection = Selection((0, 0), (4, 5))
         ta.action_sort_lines_ascending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines == ["fifth", "first", "fourth line", "second line", "third line"]
         # VSCode: Selection(1,1, 5,11) → 0-based: (0,0)→(4,10)
@@ -177,7 +177,7 @@ async def test_sort_first_4_lines_descending(workspace: Path, sort_test_file: Pa
         ta = await _get_ta(app, pilot)
         ta.selection = Selection((0, 0), (4, 0))
         ta.action_sort_lines_descending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines == ["third line", "second line", "fourth line", "first", "fifth"]
         # VSCode: Selection(1,1, 5,1) → 0-based: (0,0)→(4,0) unchanged
@@ -198,7 +198,7 @@ async def test_sort_all_lines_descending(workspace: Path, sort_test_file: Path):
         ta = await _get_ta(app, pilot)
         ta.selection = Selection((0, 0), (4, 5))
         ta.action_sort_lines_descending()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         lines = ta.text.split("\n")
         assert lines == ["third line", "second line", "fourth line", "first", "fifth"]
         # VSCode: Selection(1,1, 5,6) → 0-based: (0,0)→(4,5) unchanged

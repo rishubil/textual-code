@@ -250,15 +250,15 @@ class TestEditorGitGutterIntegration:
 
         app = make_app(tmp_path, open_file=committed, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
             editors = list(app.query(CodeEditor))
             assert len(editors) > 0
             editor = editors[0]
             # Wait for the background git diff worker
-            await pilot.pause()
-            await pilot.pause()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
             # Indicators should be set
             line_changes = editor.editor._line_changes
             assert len(line_changes) > 0
@@ -276,9 +276,9 @@ class TestEditorGitGutterIntegration:
 
         app = make_app(tmp_path, open_file=newfile, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
-            await pilot.pause()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
             from textual_code.widgets.code_editor import CodeEditor
 
             editors = list(app.query(CodeEditor))

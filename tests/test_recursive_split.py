@@ -41,20 +41,20 @@ async def test_three_way_horizontal_split(workspace, py_file, py_file2, py_file3
     """Splitting twice horizontally creates 3 leaves."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # First split
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(all_leaves(app.main_view._split_root)) == 2
 
         # Open file2 in the second split
         await app.main_view.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Second split: should create a 3rd leaf
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 3
@@ -71,17 +71,17 @@ async def test_close_middle_split_collapses_correctly(
     """Closing the middle split in a 3-way split preserves the outer two."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Create 3-way split
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=py_file3)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 3
@@ -90,7 +90,7 @@ async def test_close_middle_split_collapses_correctly(
         middle_leaf = leaves[1]
         app.main_view._active_leaf_id = middle_leaf.leaf_id
         await app.main_view.action_close_editor_group()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves_after = all_leaves(app.main_view._split_root)
         assert len(leaves_after) == 2
@@ -103,9 +103,9 @@ async def test_focus_next_split(workspace, py_file):
     """action_focus_next_group moves to the next leaf."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         # Active should be leaf 1 (just created by split_right)
@@ -113,7 +113,7 @@ async def test_focus_next_split(workspace, py_file):
 
         # Focus next should wrap to leaf 0
         app.main_view.action_focus_next_group()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.main_view._active_leaf_id == leaves[0].leaf_id
 
 
@@ -121,9 +121,9 @@ async def test_focus_prev_split(workspace, py_file):
     """action_focus_previous_group moves to the previous leaf."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         # Active should be leaf 1
@@ -131,7 +131,7 @@ async def test_focus_prev_split(workspace, py_file):
 
         # Focus prev should go to leaf 0
         app.main_view.action_focus_previous_group()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.main_view._active_leaf_id == leaves[0].leaf_id
 
 
@@ -139,15 +139,15 @@ async def test_focus_cycle_three_splits(workspace, py_file, py_file2, py_file3):
     """Focus cycles through 3 splits correctly."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Create 3-way split
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 3
@@ -157,17 +157,17 @@ async def test_focus_cycle_three_splits(workspace, py_file, py_file2, py_file3):
 
         # Next wraps to leaf 0
         app.main_view.action_focus_next_group()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.main_view._active_leaf_id == leaves[0].leaf_id
 
         # Next goes to leaf 1
         app.main_view.action_focus_next_group()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.main_view._active_leaf_id == leaves[1].leaf_id
 
         # Next goes to leaf 2
         app.main_view.action_focus_next_group()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.main_view._active_leaf_id == leaves[2].leaf_id
 
 
@@ -178,9 +178,9 @@ async def test_split_down_creates_vertical_split(workspace, py_file):
     """action_split_down creates a vertical split."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_down()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 2
@@ -202,13 +202,13 @@ async def test_close_tab_in_3way_split_no_crash(workspace, py_file, py_file2, py
     """
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Create 3-way horizontal split: each split_right copies the active file
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 3
@@ -221,7 +221,7 @@ async def test_close_tab_in_3way_split_no_crash(workspace, py_file, py_file2, py
 
         # Close via action_close_code_editor (the actual crash path)
         await app.main_view.action_close_code_editor(pane_id)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Should have 2 leaves now, no crash
         remaining = all_leaves(app.main_view._split_root)
@@ -236,16 +236,16 @@ async def test_close_tab_nested_split_no_crash(workspace, py_file, py_file2):
     """
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Split down (vertical) → leaf_0 (top), leaf_1 (bottom)
         await app.main_view.action_split_down()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(all_leaves(app.main_view._split_root)) == 2
 
         # In leaf_1, split right (horizontal) → leaf_0 (top), [leaf_1, leaf_2] (bottom)
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 3
@@ -255,7 +255,7 @@ async def test_close_tab_nested_split_no_crash(workspace, py_file, py_file2):
         app.main_view._active_leaf_id = last_leaf.leaf_id
         pane_id = next(iter(last_leaf.pane_ids))
         await app.main_view.action_close_code_editor(pane_id)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Should have 2 leaves now, and remaining widgets are queryable
         remaining = all_leaves(app.main_view._split_root)
@@ -272,9 +272,9 @@ async def test_clicking_split_changes_active_leaf(workspace, py_file, py_file2):
     """Clicking in a split panel changes the active leaf."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         # Active is now leaf 1 (right)
@@ -285,7 +285,7 @@ async def test_clicking_split_changes_active_leaf(workspace, py_file, py_file2):
             f"#{leaves[0].leaf_id}", DraggableTabbedContent
         )
         await pilot.click(left_dtc)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.main_view._active_leaf_id == leaves[0].leaf_id
 
@@ -301,15 +301,15 @@ async def test_split_down_then_right_has_nonzero_width(workspace, py_file):
     """
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Split down (vertical)
         await app.main_view.action_split_down()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Split right in the bottom pane (horizontal)
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 3
@@ -328,11 +328,11 @@ async def test_split_right_focuses_new_leaf(workspace, py_file):
     """After split_right, _active_leaf_id and DOM focus should be on the new leaf."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Split right
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 2
@@ -351,18 +351,18 @@ async def test_split_right_then_split_down_splits_new_leaf(workspace, py_file):
     """split_right → split_down should split the RIGHT leaf (not the left)."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Split right → 2 leaves
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 2
         right_leaf_id = leaves[1].leaf_id
 
         # Split down (should split the right leaf, not the left)
         await app.main_view.action_split_down()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 3
@@ -382,11 +382,11 @@ async def test_close_first_leaf_collapses_to_single(workspace, py_file):
     """2-way split: closing the first (left) leaf should collapse to 1 leaf."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Split right
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 2
@@ -398,7 +398,7 @@ async def test_close_first_leaf_collapses_to_single(workspace, py_file):
                 pane_id, auto_close_split=False
             )
         await app.main_view._auto_close_split_if_empty()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Should collapse to 1 leaf
         remaining = all_leaves(app.main_view._split_root)
@@ -409,17 +409,17 @@ async def test_close_middle_leaf_in_3way(workspace, py_file, py_file2, py_file3)
     """3-way split: closing middle leaf keeps 2 leaves."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Create 3-way split
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=py_file3)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         assert len(leaves) == 3
@@ -432,7 +432,7 @@ async def test_close_middle_leaf_in_3way(workspace, py_file, py_file2, py_file3)
                 pane_id, auto_close_split=False
             )
         await app.main_view._auto_close_split_if_empty()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         remaining = all_leaves(app.main_view._split_root)
         assert len(remaining) == 2
@@ -442,10 +442,10 @@ async def test_close_empty_first_leaf_picks_nearest_active(workspace, py_file):
     """When the active first leaf is closed, active moves to the nearest leaf."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         first_leaf = leaves[0]
@@ -457,7 +457,7 @@ async def test_close_empty_first_leaf_picks_nearest_active(workspace, py_file):
                 pane_id, auto_close_split=False
             )
         await app.main_view._auto_close_split_if_empty()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         remaining = all_leaves(app.main_view._split_root)
         assert len(remaining) == 1
@@ -491,24 +491,24 @@ async def test_split_left_in_complex_grid_mounts_in_correct_container(
     """
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(180, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         mv = app.main_view
 
         # Build layout: split right → [left, D]
         await mv.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         d_leaf = all_leaves(mv._split_root)[1]  # D is on the right
 
         # Focus left, split down → left becomes [top, C]
         mv._set_active_leaf(all_leaves(mv._split_root)[0])
         await mv.action_split_down()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Focus top-left, split right → top becomes [A, B]
         top_left = all_leaves(mv._split_root)[0]
         mv._set_active_leaf(top_left)
         await mv.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Now layout: root(H) → [vert([horiz([A,B]), C]), D]
         leaves_before = all_leaves(mv._split_root)
@@ -517,7 +517,7 @@ async def test_split_left_in_complex_grid_mounts_in_correct_container(
         # Focus D and split left
         mv._set_active_leaf(d_leaf)
         await mv.action_split_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves_after = all_leaves(mv._split_root)
         assert len(leaves_after) == 5
@@ -564,18 +564,18 @@ async def test_split_up_with_branch_sibling_vertical(workspace: Path, py_file: P
     """
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         mv = app.main_view
 
         # Build layout: split down → [top, C]
         await mv.action_split_down()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Focus top, split right → top becomes [A, B]
         top = all_leaves(mv._split_root)[0]
         mv._set_active_leaf(top)
         await mv.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Now layout: root(V) → [horiz([A, B]), C]
         leaves_before = all_leaves(mv._split_root)
@@ -586,7 +586,7 @@ async def test_split_up_with_branch_sibling_vertical(workspace: Path, py_file: P
         # sibling = children[0] = horiz([A,B]) → BranchNode depth 1
         mv._set_active_leaf(c_leaf)
         await mv.action_split_up()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves_after = all_leaves(mv._split_root)
         assert len(leaves_after) == 4  # A, B, E, C

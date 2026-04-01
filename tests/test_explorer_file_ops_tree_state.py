@@ -39,8 +39,8 @@ async def test_rename_file_reflected_in_tree(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -52,18 +52,18 @@ async def test_rename_file_reflected_in_tree(workspace: Path):
         # Rename via explorer message flow
         explorer = app.sidebar.explorer
         explorer.post_message(Explorer.FileRenameRequested(explorer=explorer, path=f))
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert isinstance(app.screen, RenameModalScreen)
         inp = app.screen.query_one(Input)
         inp.value = "renamed.py"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#rename")
 
         # Wait for tree reload
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # Tree should show new name, not old name
         names_after = get_tree_child_labels(tree)
@@ -83,8 +83,8 @@ async def test_rename_directory_children_accessible_by_new_path(workspace: Path)
 
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -94,17 +94,17 @@ async def test_rename_directory_children_accessible_by_new_path(workspace: Path)
         explorer.post_message(
             Explorer.FileRenameRequested(explorer=explorer, path=old_dir)
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert isinstance(app.screen, RenameModalScreen)
         inp = app.screen.query_one(Input)
         inp.value = "new_dir"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#rename")
 
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # Tree should show new_dir, not old_dir
         names = get_tree_child_labels(tree)
@@ -116,8 +116,8 @@ async def test_rename_directory_children_accessible_by_new_path(workspace: Path)
         new_dir_node = find_tree_node_by_path(tree, new_dir)
         assert new_dir_node is not None
         new_dir_node.expand()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         new_child = new_dir / "child.py"
         child_node = find_tree_node_by_path(tree, new_child)
@@ -140,8 +140,8 @@ async def test_move_file_reflected_in_tree(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -156,7 +156,7 @@ async def test_move_file_reflected_in_tree(workspace: Path):
         )
 
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # moveme.py should no longer be at root level
         root_names_after = get_tree_child_labels(tree)
@@ -166,8 +166,8 @@ async def test_move_file_reflected_in_tree(workspace: Path):
         dest_node = find_tree_node_by_path(tree, dest_dir)
         assert dest_node is not None
         dest_node.expand()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         moved_file = dest_dir / "moveme.py"
         moved_node = find_tree_node_by_path(tree, moved_file)
@@ -191,8 +191,8 @@ async def test_move_directory_subtree_reflected_in_tree(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -203,7 +203,7 @@ async def test_move_directory_subtree_reflected_in_tree(workspace: Path):
         )
 
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # src_dir should be gone from root
         root_names = get_tree_child_labels(tree)
@@ -213,15 +213,15 @@ async def test_move_directory_subtree_reflected_in_tree(workspace: Path):
         dest_node = find_tree_node_by_path(tree, dest)
         assert dest_node is not None
         dest_node.expand()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         moved_src = dest / "src_dir"
         moved_src_node = find_tree_node_by_path(tree, moved_src)
         assert moved_src_node is not None
         moved_src_node.expand()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         moved_index = moved_src / "index.py"
         index_node = find_tree_node_by_path(tree, moved_index)
@@ -243,8 +243,8 @@ async def test_select_file_case_sensitive(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
@@ -253,7 +253,7 @@ async def test_select_file_case_sensitive(workspace: Path):
         # Correct case: should find the file
         explorer.select_file(f)
         for _ in range(5):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         cursor = tree.cursor_node
         assert cursor is not None
@@ -264,7 +264,7 @@ async def test_select_file_case_sensitive(workspace: Path):
         wrong_case = workspace / "casesensitive.py"
         explorer.select_file(wrong_case)
         for _ in range(5):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # Cursor should still be on the original file (unchanged)
         cursor_after = tree.cursor_node
@@ -287,8 +287,8 @@ async def test_external_file_deletion_reflected_after_refresh(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -307,7 +307,7 @@ async def test_external_file_deletion_reflected_after_refresh(workspace: Path):
         # Trigger poll and wait for reload
         tree._poll_workspace_change()
         for _ in range(5):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # File should be gone from tree
         names_after = get_tree_child_labels(tree)
@@ -326,8 +326,8 @@ async def test_external_directory_deletion_reflected_after_refresh(workspace: Pa
 
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -345,7 +345,7 @@ async def test_external_directory_deletion_reflected_after_refresh(workspace: Pa
         # Trigger poll and wait for reload
         tree._poll_workspace_change()
         for _ in range(5):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         names_after = get_tree_child_labels(tree)
         assert "external_dir" not in names_after
@@ -365,8 +365,8 @@ async def test_create_file_appears_in_correct_sort_position(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -379,7 +379,7 @@ async def test_create_file_appears_in_correct_sort_position(workspace: Path):
         app.post_message(TextualCode.CreateFileOrDirRequested(path=beta, is_dir=False))
 
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # beta.py should appear between alpha.py and gamma.py
         names_after = get_tree_child_labels(tree)
@@ -395,8 +395,8 @@ async def test_create_directory_appears_before_files(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         tree = app.sidebar.explorer.directory_tree
@@ -412,7 +412,7 @@ async def test_create_directory_appears_before_files(workspace: Path):
         )
 
         for _ in range(10):
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         names_after = get_tree_child_labels(tree)
         assert names_after == ["zzz_dir", "aaa.py"]

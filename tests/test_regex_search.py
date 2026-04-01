@@ -90,27 +90,35 @@ async def test_regex_find_matches_dot_pattern(workspace: Path, regex_file: Path)
     """Pattern he.lo selects 'hello'."""
     app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for find bar rendering
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for find bar rendering
 
         from textual.widgets import Checkbox
 
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
-        await pilot.pause()  # Windows: extra pause for checkbox state change
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for checkbox state change
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", ".", "l", "o")
-        await pilot.pause()  # Windows: extra pause for key presses
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for key presses
         await pilot.click("#next_match")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for regex find + selection update
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for regex find + selection update
 
         sel = editor.editor.selection
         assert sel.start == (0, 0)
@@ -121,14 +129,14 @@ async def test_regex_find_no_match_shows_warning(workspace: Path, regex_file: Pa
     """No-match regex → cursor does not move (not found)."""
     app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         original_location = editor.editor.cursor_location
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         from textual.widgets import Checkbox
 
@@ -139,7 +147,7 @@ async def test_regex_find_no_match_shows_warning(workspace: Path, regex_file: Pa
         await pilot.click(input_widget)
         await pilot.press("x", "y", "z", ".", "+")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.cursor_location == original_location
 
@@ -148,16 +156,16 @@ async def test_regex_find_wrap_around(workspace: Path, regex_file: Path):
     """Regex search from end of file → finds first match via wrap-around."""
     app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Move cursor to last line
         editor.editor.cursor_location = (2, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         from textual.widgets import Checkbox
 
@@ -168,7 +176,7 @@ async def test_regex_find_wrap_around(workspace: Path, regex_file: Path):
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # wrap-around → first 'hello' at (0, 0)
@@ -180,14 +188,14 @@ async def test_invalid_regex_find_shows_error(workspace: Path, regex_file: Path)
     """Invalid regex → error notification, no crash."""
     app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         original_location = editor.editor.cursor_location
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         from textual.widgets import Checkbox
 
@@ -199,7 +207,7 @@ async def test_invalid_regex_find_shows_error(workspace: Path, regex_file: Path)
         # "[unclosed" → re.error
         await pilot.press("[")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # no crash + cursor unchanged
         assert editor.editor.cursor_location == original_location
@@ -210,26 +218,28 @@ async def test_regex_find_case_insensitive_inline(workspace: Path, regex_file: P
     # regex_file: "hello world\nHELLO WORLD\nfoo123 bar456\n"
     app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Move cursor past first 'hello' to find second 'HELLO'
         editor.editor.cursor_location = (1, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         from textual.widgets import Checkbox
 
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
-        await pilot.pause()  # Windows: extra pause for checkbox state change
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for checkbox state change
 
         input_widget = editor.query_one("#find_input", Input)
         input_widget.value = "(?i)hello"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#next_match")
         # Windows: wait for regex find + selection update to complete
         await wait_for_condition(
@@ -248,19 +258,19 @@ async def test_plain_find_regression(workspace: Path, regex_file: Path):
     """Without checking use_regex → plain string search works as before."""
     app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # do not check use_regex
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         assert sel.start == (0, 0)
@@ -274,24 +284,28 @@ async def test_regex_replace_all_basic(workspace: Path, regex_file: Path):
     r"""\d+ → replace all occurrences with [NUM]."""
     app = make_app(workspace, open_file=regex_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         from textual.widgets import Checkbox
 
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
-        await pilot.pause()  # Windows: extra pause for checkbox state change
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for checkbox state change
 
         await pilot.click("#find_input")
         await pilot.press("\\", "d", "+")
         await pilot.click("#replace_input")
         await pilot.press("[", "N", "U", "M", "]")
-        await pilot.pause()  # Windows: extra pause for key presses to propagate
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for key presses to propagate
         await pilot.click("#replace_all_btn")
         # Windows: wait for regex replace all to complete
         await wait_for_condition(
@@ -309,19 +323,23 @@ async def test_regex_replace_all_capture_group(workspace: Path):
     f.write_text("hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_replace()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for replace bar rendering
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for replace bar rendering
 
         from textual.widgets import Checkbox
 
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
-        await pilot.pause()  # Windows: extra pause for checkbox state change
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for checkbox state change
 
         await pilot.click("#find_input")
         # pattern: (\w+)
@@ -329,10 +347,14 @@ async def test_regex_replace_all_capture_group(workspace: Path):
         await pilot.click("#replace_input")
         # replacement: [\1]
         await pilot.press("[", "\\", "1", "]")
-        await pilot.pause()  # Windows: extra pause for key presses
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for key presses
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for regex replace all completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for regex replace all completion
 
         assert "[hello]" in editor.text
         assert "[world]" in editor.text
@@ -343,12 +365,12 @@ async def test_invalid_regex_replace_all_error(workspace: Path, regex_file: Path
     app = make_app(workspace, open_file=regex_file, light=True)
     original_text = regex_file.read_text(encoding="utf-8")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         from textual.widgets import Checkbox
 
@@ -360,7 +382,7 @@ async def test_invalid_regex_replace_all_error(workspace: Path, regex_file: Path
         await pilot.click("#replace_input")
         await pilot.press("x")
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # text unchanged
         assert editor.text == original_text
@@ -375,7 +397,7 @@ async def test_regex_replace_single_match_replaces(workspace: Path):
     f.write_text("foo123 foo456\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -383,26 +405,34 @@ async def test_regex_replace_single_match_replaces(workspace: Path):
         from textual.widgets.text_area import Selection
 
         editor.editor.selection = Selection(start=(0, 0), end=(0, 6))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_replace()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for replace bar rendering
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for replace bar rendering
 
         from textual.widgets import Checkbox
 
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
-        await pilot.pause()  # Windows: extra pause for checkbox state change
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for checkbox state change
 
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o", "\\", "d", "+")
         await pilot.click("#replace_input")
         await pilot.press("X")
-        await pilot.pause()  # Windows: extra pause for key presses
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for key presses
         await pilot.click("#replace_btn")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for regex replace + next match
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for regex replace + next match
 
         # foo123 → X, then foo456 is selected
         assert "X" in editor.text
@@ -415,31 +445,43 @@ async def test_regex_replace_single_no_match_finds(workspace: Path):
     f.write_text("hello foo123\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # cursor at start with no selection (selected_text != "foo\d+")
         editor.action_replace()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for replace bar rendering
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for replace bar rendering
 
         from textual.widgets import Checkbox
 
         checkbox = editor.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
-        await pilot.pause()  # Windows: extra pause for checkbox state change
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for checkbox state change
 
         await pilot.click("#find_input")
-        await pilot.pause()  # Windows: extra pause for input focus
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for input focus
         await pilot.press("f", "o", "o", "\\", "d", "+")
         await pilot.click("#replace_input")
-        await pilot.pause()  # Windows: extra pause for input focus
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for input focus
         await pilot.press("X")
-        await pilot.pause()  # Windows: extra pause for key presses
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for key presses
         await pilot.click("#replace_btn")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for replace + next match
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for replace + next match
 
         sel = editor.editor.selection
         # foo123 at (0, 6)–(0, 12) should be selected
@@ -454,12 +496,12 @@ async def test_invalid_regex_replace_single_error(workspace: Path, regex_file: P
     app = make_app(workspace, open_file=regex_file, light=True)
     original_text = regex_file.read_text(encoding="utf-8")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         from textual.widgets import Checkbox
 
@@ -471,7 +513,7 @@ async def test_invalid_regex_replace_single_error(workspace: Path, regex_file: P
         await pilot.click("#replace_input")
         await pilot.press("x")
         await pilot.click("#replace_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # text unchanged
         assert editor.text == original_text

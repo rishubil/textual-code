@@ -22,7 +22,7 @@ async def test_single_footer_in_app(workspace: Path, sample_py_file: Path):
     """G-01: app.query(CodeEditorFooter) returns exactly one widget."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footers = app.query(CodeEditorFooter)
         assert len(footers) == 1
 
@@ -36,7 +36,7 @@ async def test_footer_parent_is_main_view(workspace: Path, sample_py_file: Path)
 
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.query_one(CodeEditorFooter)
         assert isinstance(footer.parent, MainView)
 
@@ -50,9 +50,9 @@ async def test_one_footer_with_two_open_files(
     """G-03: two open tabs still yield only one CodeEditorFooter."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(sample_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.query(CodeEditorFooter)) == 1
 
 
@@ -63,7 +63,7 @@ async def test_footer_shows_active_editor_path(workspace: Path, sample_py_file: 
     """G-04: global footer path label contains the active file's path."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(240, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.query_one(CodeEditorFooter)
         assert str(sample_py_file) in str(footer.path_view.content)
 
@@ -77,16 +77,18 @@ async def test_footer_updates_on_tab_switch(
     """G-05: switching tab updates global footer to new active editor's path."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(240, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(sample_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Switch back to the py tab
         py_pane_id = app.main_view.pane_id_from_path(sample_py_file)
         assert py_pane_id is not None
         app.main_view.left_tabbed_content.active = py_pane_id
-        await pilot.pause()
-        await pilot.pause()  # extra cycle for footer reactive update after tab switch
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # extra cycle for footer reactive update after tab switch
 
         footer = app.query_one(CodeEditorFooter)
         assert str(sample_py_file) in str(footer.path_view.content)
@@ -99,11 +101,11 @@ async def test_footer_updates_on_cursor_move(workspace: Path, multiline_file: Pa
     """G-06: moving cursor updates the footer's cursor button."""
     app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.cursor_location = (3, 5)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.query_one(CodeEditorFooter)
         assert "Ln 4, Col 6" in str(footer.cursor_button.label)
 
@@ -117,9 +119,9 @@ async def test_footer_cursor_btn_click_opens_goto_modal(
     """G-07: clicking the global footer's #cursor_btn opens GotoLineModalScreen."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("CodeEditorFooter #cursor_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, GotoLineModalScreen)
 
 
@@ -132,12 +134,12 @@ async def test_footer_updates_on_split_switch(
     """G-08: switching focus to the right split shows right editor's path."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(240, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Create a split and open the json file in the new split
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(sample_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         footer = app.query_one(CodeEditorFooter)
         assert str(sample_json_file) in str(footer.path_view.content)
@@ -150,11 +152,11 @@ async def test_footer_shows_cursor_count(workspace: Path, multiline_file: Path):
     """G-09: add_cursor() causes the footer to show '[2]'."""
     app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.add_cursor((1, 0))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.query_one(CodeEditorFooter)
         assert "[2]" in str(footer.cursor_button.label)
 
@@ -168,9 +170,9 @@ async def test_footer_resets_when_last_editor_closed(
     """G-10: after the last editor is closed the footer shows empty path and 'plain'."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+w")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.query_one(CodeEditorFooter)
         assert str(footer.path_view.content) == ""
         assert "plain" in str(footer.language_button.label)
@@ -190,8 +192,10 @@ async def test_footer_buttons_auto_size_to_content(
     """
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()  # extra cycle for button layout to settle
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # extra cycle for button layout to settle
         footer = app.query_one(CodeEditorFooter)
         # sample_py_file: LF endings on Linux/macOS, CRLF on Windows
         # Formula: region.width = label_len + 4 (pad + internal button pad each side)
@@ -211,15 +215,17 @@ async def test_footer_path_widens_when_button_label_shortens(
     """G-12: switching line_ending CRLF→LF frees 2 cells; path column absorbs them."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.query_one(CodeEditorFooter)
         footer.line_ending = "crlf"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         path_crlf = footer.path_view.region.width
 
         footer.line_ending = "lf"
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for layout recalculation
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for layout recalculation
         path_lf = footer.path_view.region.width
 
         # CRLF=8 cells, LF=6 cells → path must be 2 wider when showing LF
@@ -235,8 +241,10 @@ async def test_footer_path_shrinks_first_on_narrow_screen(
     """G-13: on a narrow screen buttons maintain content width; path absorbs surplus."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test(size=(70, 40)) as pilot:
-        await pilot.pause()
-        await pilot.pause()  # extra cycle for layout to settle after resize
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # extra cycle for layout to settle after resize
         footer = app.query_one(CodeEditorFooter)
         assert footer.line_ending_button.region.width == _LINE_ENDING_WIDTH
         assert footer.encoding_button.region.width == 9
@@ -254,7 +262,7 @@ async def test_footer_path_ellipsis_on_very_long_path(workspace: Path, tmp_path:
     long_file.touch()
     app = make_app(workspace, open_file=long_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.query_one(CodeEditorFooter)
         content = str(footer.path_view.content)
         assert content.startswith("...")
@@ -272,7 +280,7 @@ async def test_footer_path_ellipsis_has_dim_style(workspace: Path, tmp_path: Pat
     long_file.touch()
     app = make_app(workspace, open_file=long_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.query_one(CodeEditorFooter)
         content = footer.path_view.content
         # Must be a Rich Text object (not plain str) to carry style information
@@ -289,13 +297,13 @@ async def test_footer_cursor_btn_capped_width(workspace: Path, multiline_file: P
     """G-15: cursor_btn never exceeds max-width=28 even with many cursors."""
     app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Add many cursors to force long label
         for row in range(1, 5):
             editor.editor.add_cursor((row, 0))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.query_one(CodeEditorFooter)
         assert footer.cursor_button.region.width <= 28
 
@@ -319,17 +327,17 @@ async def test_footer_buttons_resize_on_tab_switch(workspace: Path):
 
     app = make_app(workspace, open_file=file_a, light=True)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open second tab — set long language and CRLF line ending
         await app.main_view.action_open_code_editor(file_b)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor_b = app.main_view.get_active_code_editor()
         assert editor_b is not None
         editor_b.language = "dockerfile"
         editor_b.line_ending = "crlf"
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         footer = app.query_one(CodeEditorFooter)
 
@@ -337,21 +345,21 @@ async def test_footer_buttons_resize_on_tab_switch(workspace: Path):
         pane_a = app.main_view.pane_id_from_path(file_a)
         assert pane_a is not None
         app.main_view.left_tabbed_content.active = pane_a
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         editor_a = app.main_view.get_active_code_editor()
         assert editor_a is not None
         editor_a.language = "c"
         editor_a.line_ending = "lf"
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Switch back to the dockerfile/CRLF tab
         pane_b = app.main_view.pane_id_from_path(file_b)
         assert pane_b is not None
         app.main_view.left_tabbed_content.active = pane_b
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Language button must accommodate "dockerfile" (10 chars + padding)
         lang_label = str(footer.language_button.label)
@@ -373,8 +381,8 @@ async def test_footer_buttons_resize_on_tab_switch(workspace: Path):
 
         # Switch back to tab A — language is "c", verifies button shrinks too
         app.main_view.left_tabbed_content.active = pane_a
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         c_label = str(footer.language_button.label)
         c_width = footer.language_button.region.width

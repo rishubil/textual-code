@@ -81,15 +81,15 @@ async def test_ctrl_d_no_selection_selects_word(workspace: Path, occ_file: Path)
 
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Cursor inside "foo" at (0, 1), no selection
         editor.editor.selection = Selection(start=(0, 1), end=(0, 1))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Primary selection should now cover "foo"
         assert editor.editor.selection.start == (0, 0)
@@ -104,15 +104,15 @@ async def test_ctrl_d_with_selection_adds_cursor(workspace: Path, occ_file: Path
 
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Primary selection covers first "foo"
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Extra cursor added at end of second "foo" (line 1, col 3), with selection
         assert (1, 3) in editor.editor.extra_cursors
@@ -127,21 +127,21 @@ async def test_ctrl_d_twice_adds_two_cursors(workspace: Path, three_occ_file: Pa
     # positions: (0,0), (0,8), (1,0)
     app = make_app(workspace, open_file=three_occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Primary selection: first "foo"
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(editor.editor.extra_cursors) == 1
         # second "foo" at (0,8)-(0,11)
         assert editor.editor.extra_anchors == [(0, 8)]
 
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(editor.editor.extra_cursors) == 2
         # third "foo" at (1,0)-(1,3)
         assert editor.editor.extra_anchors == [(0, 8), (1, 0)]
@@ -153,22 +153,22 @@ async def test_ctrl_d_all_selected_notification(workspace: Path, occ_file: Path)
 
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Select first "foo"
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # First Ctrl+D: adds second "foo" cursor
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(editor.editor.extra_cursors) == 1
 
         # Second Ctrl+D: wraps around — should notify (no crash, no new cursor)
         before_count = len(editor.editor.extra_cursors)
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Cursor count should not increase further
         assert len(editor.editor.extra_cursors) == before_count
 
@@ -179,16 +179,16 @@ async def test_ctrl_d_no_selection_non_word(workspace: Path, occ_file: Path):
 
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Cursor on space between "foo" and "bar" at col 3
         editor.editor.selection = Selection(start=(0, 3), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         original_sel = editor.editor.selection
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Selection unchanged, no extra cursors
         assert editor.editor.selection == original_sel
@@ -203,16 +203,16 @@ async def test_ctrl_d_single_occurrence_notification(
 
     app = make_app(workspace, open_file=single_occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Select the only "foo"
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Ctrl+D on single occurrence: wrap-around hits primary selection → notify
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Still no extra cursors (all already selected)
         assert editor.editor.extra_cursors == []
@@ -224,15 +224,15 @@ async def test_ctrl_d_binding(workspace: Path, occ_file: Path):
 
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Select first "foo"
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("ctrl+d")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Extra cursor added at end of second "foo" (line 1, col 3), with selection
         assert (1, 3) in editor.editor.extra_cursors
@@ -247,15 +247,15 @@ async def test_ctrl_d_extra_cursor_has_selection(workspace: Path, occ_file: Path
     # first "foo": (0,0)-(0,3), second "foo": (1,0)-(1,3)
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Primary selection covers first "foo"
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Extra cursor at end of second "foo", anchor at its start
         assert editor.editor.extra_cursors == [(1, 3)]
@@ -269,15 +269,15 @@ async def test_ctrl_d_reverse_selection_adds_cursor(workspace: Path, occ_file: P
     # occ_file: "foo bar\nfoo baz\nqux\n"
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Reverse selection: dragged from (0,3) to (0,0) — selects "foo" right-to-left
         editor.editor.selection = Selection(start=(0, 3), end=(0, 0))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Reverse: cursor at start of second "foo" (1,0), anchor at end (1,3)
         assert editor.editor.extra_cursors == [(1, 0)]
@@ -291,21 +291,21 @@ async def test_ctrl_d_reverse_selection_wrap_around(workspace: Path, occ_file: P
     # occ_file: "foo bar\nfoo baz\nqux\n" — 2 "foo"s
     app = make_app(workspace, open_file=occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Reverse selection on first "foo"
         editor.editor.selection = Selection(start=(0, 3), end=(0, 0))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # First Ctrl+D: adds second "foo"
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(editor.editor.extra_cursors) == 1
 
         # Second Ctrl+D: should wrap around and notify (not add duplicate)
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(editor.editor.extra_cursors) == 1  # no new cursor
 
 
@@ -317,22 +317,22 @@ async def test_ctrl_d_reverse_selection_twice(workspace: Path, three_occ_file: P
     # positions: (0,0), (0,8), (1,0)
     app = make_app(workspace, open_file=three_occ_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # Reverse selection on first "foo"
         editor.editor.selection = Selection(start=(0, 3), end=(0, 0))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(editor.editor.extra_cursors) == 1
         # Reverse: cursor at start (0,8), anchor at end (0,11)
         assert editor.editor.extra_cursors == [(0, 8)]
         assert editor.editor.extra_anchors == [(0, 11)]
 
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(editor.editor.extra_cursors) == 2
         # Reverse: cursors at starts, anchors at ends
         assert editor.editor.extra_cursors == [(0, 8), (1, 0)]
@@ -372,20 +372,20 @@ async def test_ctrl_d_scrolls_to_new_cursor(
 
     app = make_app(workspace, open_file=long_file_with_occurrences, light=True)
     async with app.run_test(size=(80, 10)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         ta = editor.editor
 
         # Select "target" on line 0
         ta.selection = Selection(start=(0, 0), end=(0, 6))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert ta.scroll_y == 0
 
         # Ctrl+D: should find "target" at line 80 and scroll to it
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert len(ta.extra_cursors) == 1
         # Viewport should have scrolled to make line 80 visible
@@ -400,20 +400,20 @@ async def test_ctrl_d_on_screen_does_not_scroll(
 
     app = make_app(workspace, open_file=short_file_with_occurrences, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         ta = editor.editor
 
         # Select "target" on line 0
         ta.selection = Selection(start=(0, 0), end=(0, 6))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert ta.scroll_y == 0
 
         # Ctrl+D: "target" at line 3 is already visible
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert len(ta.extra_cursors) == 1
         assert ta.scroll_y == 0
@@ -427,14 +427,14 @@ async def test_ctrl_d_wrap_around_scrolls(
 
     app = make_app(workspace, open_file=long_file_with_occurrences, light=True)
     async with app.run_test(size=(80, 10)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         ta = editor.editor
 
         # Select "target" at line 80 (second occurrence) as primary
         ta.selection = Selection(start=(80, 0), end=(80, 6))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Scroll should be near line 80
         scroll_before = ta.scroll_y
@@ -442,7 +442,7 @@ async def test_ctrl_d_wrap_around_scrolls(
 
         # Ctrl+D wraps around to line 0
         editor.action_select_next_occurrence()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert len(ta.extra_cursors) == 1
         # Viewport should have scrolled back toward top
@@ -453,7 +453,7 @@ async def test_ctrl_d_cmd_no_file(workspace: Path):
     """Command palette action when no file open → no crash."""
     app = make_app(workspace, open_file=None, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Should not raise an exception
         app.action_add_next_occurrence_cmd()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()

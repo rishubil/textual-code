@@ -33,7 +33,7 @@ async def _setup_editor(
     app = make_app(workspace, light=True, open_file=f)
     ctx = app.run_test()
     pilot = await ctx.__aenter__()
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
     ce = app.main_view.get_active_code_editor()
     assert ce is not None
     ta = ce.editor
@@ -80,7 +80,7 @@ async def test_delete_word_left_single_cursor(
     try:
         ta.selection = Selection.cursor(cursor)
         ta.action_delete_word_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == expected_text
         assert ta.cursor_location == expected_cursor
     finally:
@@ -93,7 +93,7 @@ async def test_delete_word_left_at_line_start_merges(workspace: Path):
     try:
         ta.selection = Selection.cursor((1, 0))
         ta.action_delete_word_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == "helloworld"
         assert ta.cursor_location == (0, 5)
     finally:
@@ -106,7 +106,7 @@ async def test_delete_word_left_with_selection_deletes_selection(workspace: Path
     try:
         ta.selection = Selection((0, 2), (0, 8))
         ta.action_delete_word_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == "herld"
         assert ta.cursor_location == (0, 2)
     finally:
@@ -153,7 +153,7 @@ async def test_delete_word_right_single_cursor(
     try:
         ta.selection = Selection.cursor(cursor)
         ta.action_delete_word_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == expected_text
         assert ta.cursor_location == expected_cursor
     finally:
@@ -166,7 +166,7 @@ async def test_delete_word_right_at_line_end_merges(workspace: Path):
     try:
         ta.selection = Selection.cursor((0, 5))
         ta.action_delete_word_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == "helloworld"
         assert ta.cursor_location == (0, 5)
     finally:
@@ -179,7 +179,7 @@ async def test_delete_word_right_with_selection_deletes_selection(workspace: Pat
     try:
         ta.selection = Selection((0, 2), (0, 8))
         ta.action_delete_word_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == "herld"
         assert ta.cursor_location == (0, 2)
     finally:
@@ -198,7 +198,7 @@ async def test_delete_word_left_multi_cursor_same_line(workspace: Path):
         ta._extra_cursors = [(0, 3)]
         ta._extra_anchors = [(0, 3)]
         ta.action_delete_word_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # "aaa" deleted (0→3), "bbb" deleted (4→7), two spaces remain
         assert ta.text == "  ccc"
     finally:
@@ -214,7 +214,7 @@ async def test_delete_word_left_multi_cursor_different_lines(workspace: Path):
         ta._extra_cursors = [(1, 7)]
         ta._extra_anchors = [(1, 7)]
         ta.action_delete_word_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == "hello \nfoo "
     finally:
         await ctx.__aexit__(None, None, None)
@@ -232,7 +232,7 @@ async def test_delete_word_right_multi_cursor_same_line(workspace: Path):
         ta._extra_cursors = [(0, 4)]
         ta._extra_anchors = [(0, 4)]
         ta.action_delete_word_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # "aaa" deleted (0→3), "bbb" deleted (4→7) → " ccc"
         assert ta.text == "  ccc"
     finally:
@@ -248,7 +248,7 @@ async def test_delete_word_right_multi_cursor_different_lines(workspace: Path):
         ta._extra_cursors = [(1, 0)]
         ta._extra_anchors = [(1, 0)]
         ta.action_delete_word_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == " world\n bar"
     finally:
         await ctx.__aexit__(None, None, None)
@@ -263,7 +263,7 @@ async def test_delete_word_left_empty_document(workspace: Path):
     try:
         ta.selection = Selection.cursor((0, 0))
         ta.action_delete_word_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == ""
     finally:
         await ctx.__aexit__(None, None, None)
@@ -275,7 +275,7 @@ async def test_delete_word_right_empty_document(workspace: Path):
     try:
         ta.selection = Selection.cursor((0, 0))
         ta.action_delete_word_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == ""
     finally:
         await ctx.__aexit__(None, None, None)
@@ -287,7 +287,7 @@ async def test_delete_word_left_whitespace_only(workspace: Path):
     try:
         ta.selection = Selection.cursor((0, 3))
         ta.action_delete_word_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.text == ""
         assert ta.cursor_location == (0, 0)
     finally:

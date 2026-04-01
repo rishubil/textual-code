@@ -54,7 +54,7 @@ class TestTabLabelThreshold:
         async with app.run_test(size=(120, 40)) as pilot:
             assert app.sidebar is not None
             app.sidebar.styles.width = _TAB_ICON_ONLY_THRESHOLD
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             labels = await _get_tab_labels(app)
             for pane_id, (full, _icon) in _TAB_LABELS.items():
                 assert labels[pane_id] == full, (
@@ -66,8 +66,8 @@ class TestTabLabelThreshold:
         async with app.run_test(size=(120, 40)) as pilot:
             assert app.sidebar is not None
             app.sidebar.styles.width = _TAB_ICON_ONLY_THRESHOLD - 1
-            await pilot.pause()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
             labels = await _get_tab_labels(app)
             for pane_id, (_full, icon) in _TAB_LABELS.items():
                 assert labels[pane_id] == icon, (
@@ -83,8 +83,8 @@ class TestButtonLabelThreshold:
         async with app.run_test(size=(120, 40)) as pilot:
             assert app.sidebar is not None
             app.sidebar.styles.width = _BTN_ICON_ONLY_THRESHOLD
-            await pilot.pause()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
             search, replace = await _get_button_labels(app)
             assert "Search" in search
             assert "Replace All" in replace
@@ -94,7 +94,7 @@ class TestButtonLabelThreshold:
         async with app.run_test(size=(120, 40)) as pilot:
             assert app.sidebar is not None
             app.sidebar.styles.width = _BTN_ICON_ONLY_THRESHOLD - 1
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             search, replace = await _get_button_labels(app)
             assert search.strip() in ("🔍",)
             assert replace.strip() in ("🔄",)
@@ -105,8 +105,8 @@ class TestButtonLabelThreshold:
         async with app.run_test(size=(120, 40)) as pilot:
             assert app.sidebar is not None
             app.sidebar.styles.width = _BTN_ICON_ONLY_THRESHOLD
-            await pilot.pause()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             wsp = app.sidebar.workspace_search
             for btn_id, (full, _icon) in _BTN_LABELS.items():
@@ -123,7 +123,7 @@ class TestButtonLabelThreshold:
         async with app.run_test(size=(120, 40)) as pilot:
             assert app.sidebar is not None
             app.sidebar.styles.width = _BTN_ICON_ONLY_THRESHOLD - 1
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             wsp = app.sidebar.workspace_search
             for btn_id, (_full, icon) in _BTN_LABELS.items():
@@ -138,7 +138,7 @@ class TestButtonLabelThreshold:
         """Icon-only min-width after initial mount (default sidebar < threshold)."""
         app = make_app(ws)
         async with app.run_test(size=(120, 40)) as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             wsp = app.sidebar.workspace_search
             for btn_id, (_full, icon) in _BTN_LABELS.items():
@@ -157,11 +157,11 @@ class TestButtonLabelThreshold:
 
 async def _open_find_bar(pilot, app):
     """Open find bar via Ctrl+F and return the FindReplaceBar widget."""
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
     editor = app.main_view.get_active_code_editor()
     assert editor is not None
     await pilot.press("ctrl+f")
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
     return editor.query_one(FindReplaceBar)
 
 

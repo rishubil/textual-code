@@ -24,7 +24,7 @@ async def test_file_mtime_set_on_open(workspace: Path, sample_py_file: Path):
     """T-01: _file_mtime is set when a file is opened."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor._file_mtime is not None
@@ -35,14 +35,14 @@ async def test_file_mtime_updated_after_save(workspace: Path, sample_py_file: Pa
     """T-02: _file_mtime is updated after saving."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Modify and save
         editor.text = "modified content\n"
         await pilot.press("ctrl+s")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor._file_mtime is not None
         assert editor._file_mtime == sample_py_file.stat().st_mtime
@@ -53,7 +53,7 @@ async def test_file_mtime_none_for_untitled(workspace: Path):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor._file_mtime is None
@@ -66,7 +66,7 @@ async def test_reload_file_updates_editor_text(workspace: Path, sample_py_file: 
     """T-04: _reload_file() loads the latest content from disk."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -74,7 +74,7 @@ async def test_reload_file_updates_editor_text(workspace: Path, sample_py_file: 
         sample_py_file.write_text("externally changed\n", encoding="utf-8")
 
         editor._reload_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text == "externally changed\n"
 
@@ -83,7 +83,7 @@ async def test_reload_file_clears_unsaved_state(workspace: Path, sample_py_file:
     """T-05: After _reload_file(), text == initial_text (no unsaved changes)."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -91,7 +91,7 @@ async def test_reload_file_clears_unsaved_state(workspace: Path, sample_py_file:
         sample_py_file.write_text("disk content\n", encoding="utf-8")
 
         editor._reload_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text == editor.initial_text
         assert "*" not in editor.title
@@ -101,7 +101,7 @@ async def test_reload_file_updates_mtime(workspace: Path, sample_py_file: Path):
     """T-06: _reload_file() updates _file_mtime to the latest mtime."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -111,7 +111,7 @@ async def test_reload_file_updates_mtime(workspace: Path, sample_py_file: Path):
         new_mtime = sample_py_file.stat().st_mtime
 
         editor._reload_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor._file_mtime == new_mtime
 
@@ -125,7 +125,7 @@ async def test_auto_reload_when_no_unsaved_changes(
     """T-07: When file changes externally and no unsaved changes, auto-reload occurs."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.text == editor.initial_text  # no unsaved changes
@@ -136,7 +136,7 @@ async def test_auto_reload_when_no_unsaved_changes(
         editor._file_mtime -= 1.0
 
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text == "auto reloaded content\n"
 
@@ -147,13 +147,13 @@ async def test_no_auto_reload_when_unsaved_changes_exist(
     """T-08: When file changes externally and unsaved changes exist, only notify."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Make unsaved change in editor
         editor.text = "unsaved editor change\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.text != editor.initial_text
 
         # Simulate external file change
@@ -162,7 +162,7 @@ async def test_no_auto_reload_when_unsaved_changes_exist(
         editor._file_mtime -= 1.0
 
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Should NOT have reloaded — editor text still has the unsaved change
         assert editor.text == "unsaved editor change\n"
@@ -174,14 +174,14 @@ async def test_poll_does_nothing_without_mtime_change(
     """T-09: _poll_file_change() does nothing if mtime hasn't changed."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         original_text = editor.text
         # Do NOT change file or mtime
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text == original_text
 
@@ -195,7 +195,7 @@ async def test_action_revert_file_no_unsaved_reloads_directly(
     """T-10: action_revert_file() with no unsaved changes reloads without modal."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.text == editor.initial_text
@@ -203,7 +203,7 @@ async def test_action_revert_file_no_unsaved_reloads_directly(
         sample_py_file.write_text("manually reloaded\n", encoding="utf-8")
 
         editor.action_revert_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # No modal should appear
         assert not isinstance(app.screen, DiscardAndReloadModalScreen)
@@ -216,21 +216,21 @@ async def test_action_revert_file_with_unsaved_shows_modal(
     """T-11: action_revert_file() with unsaved changes shows DiscardAndReloadModal."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.text = "unsaved\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_revert_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert isinstance(app.screen, DiscardAndReloadModalScreen)
 
         # Confirm reload
         await pilot.click("#reload")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text == "print('hello')\n"
 
@@ -240,13 +240,13 @@ async def test_action_revert_file_no_path_shows_error(workspace: Path):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.path is None
 
         editor.action_revert_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # No modal should appear
         assert not isinstance(app.screen, DiscardAndReloadModalScreen)
@@ -261,13 +261,13 @@ async def test_save_no_external_change_saves_directly(
     """T-13: action_save() with no external change saves without modal."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.text = "no external change\n"
         await pilot.press("ctrl+s")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # No overwrite modal
         assert not isinstance(app.screen, OverwriteConfirmModalScreen)
@@ -280,19 +280,19 @@ async def test_save_external_change_shows_overwrite_modal(
     """T-14: action_save() when external change exists shows OverwriteConfirmModal."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.text = "editor changes\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Simulate external file change by bumping the mtime tracker
         assert editor._file_mtime is not None
         editor._file_mtime -= 1.0
 
         editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert isinstance(app.screen, OverwriteConfirmModalScreen)
 
@@ -303,21 +303,21 @@ async def test_save_overwrite_confirmed_writes_file(
     """T-15: Confirming overwrite in the modal saves the editor content to disk."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.text = "overwrite confirmed\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor._file_mtime is not None
         editor._file_mtime -= 1.0
 
         editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#overwrite")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert sample_py_file.read_text(encoding="utf-8") == "overwrite confirmed\n"
 
@@ -328,22 +328,22 @@ async def test_save_overwrite_cancelled_does_not_write(
     """T-16: Cancelling the overwrite modal does NOT write to disk."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         original_disk_content = sample_py_file.read_text(encoding="utf-8")
         editor.text = "should not be written\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor._file_mtime is not None
         editor._file_mtime -= 1.0
 
         editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert sample_py_file.read_text(encoding="utf-8") == original_disk_content
 
@@ -355,17 +355,17 @@ async def test_reload_preserves_cursor_position(workspace: Path, multiline_file:
     """F-01: _reload_file() restores cursor position when file content unchanged."""
     app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Set cursor to row 4, col 3
         editor.editor.cursor_location = (4, 3)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Reload with same content
         editor._reload_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.cursor_location == (4, 3)
 
@@ -376,18 +376,18 @@ async def test_reload_clamps_cursor_row_when_file_shrinks(
     """F-02: _reload_file() clamps cursor row when file shrinks."""
     app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Set cursor to row 8 (9th line of 10-line file)
         editor.editor.cursor_location = (8, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Replace file with only 3 lines
         multiline_file.write_text("line1\nline2\nline3\n", encoding="utf-8")
         editor._reload_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         row, _col = editor.editor.cursor_location
         # "line1\nline2\nline3\n" → document has 4 lines (including trailing empty line)
@@ -401,18 +401,18 @@ async def test_reload_clamps_cursor_col_when_line_shrinks(
     """F-03: _reload_file() clamps cursor col when line becomes shorter."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # sample_py_file: "print('hello')\n" — line length 14 chars
         editor.editor.cursor_location = (0, 12)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Replace with shorter content
         sample_py_file.write_text("hi\n", encoding="utf-8")
         editor._reload_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         _row, col = editor.editor.cursor_location
         assert col == 2  # clamped to len("hi")
@@ -424,13 +424,13 @@ async def test_auto_reload_preserves_cursor_position(
     """F-04: _poll_file_change() auto-reload also preserves cursor position."""
     app = make_app(workspace, open_file=multiline_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Set cursor to (3, 2)
         editor.editor.cursor_location = (3, 2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Simulate external file change (same content, just bump mtime)
         multiline_file.write_text(
@@ -440,7 +440,7 @@ async def test_auto_reload_preserves_cursor_position(
         editor._file_mtime -= 1.0
 
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.cursor_location == (3, 2)
 
@@ -452,20 +452,20 @@ async def test_toast_shown_once_on_first_poll(workspace: Path, sample_py_file: P
     """G-01: External change + unsaved → first poll sets notification reference."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Make unsaved change and simulate external file change
         editor.text = "unsaved\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         sample_py_file.write_text("external\n", encoding="utf-8")
         assert editor._file_mtime is not None
         editor._file_mtime -= 1.0
 
         assert editor._external_change_notification is None
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor._external_change_notification is not None
 
@@ -476,26 +476,26 @@ async def test_toast_not_repeated_on_subsequent_polls(
     """G-02: External change + unsaved → poll 3 times → same notification reference."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.text = "unsaved\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         sample_py_file.write_text("external\n", encoding="utf-8")
         assert editor._file_mtime is not None
         editor._file_mtime -= 1.0
 
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         first_notification = editor._external_change_notification
         assert first_notification is not None
 
         # Poll two more times — same notification object, no new one created
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor._external_change_notification is first_notification
 
@@ -504,24 +504,24 @@ async def test_notification_cleared_after_reload(workspace: Path, sample_py_file
     """G-03: After reload, notification is None and removed from app._notifications."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.text = "unsaved\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         sample_py_file.write_text("external\n", encoding="utf-8")
         assert editor._file_mtime is not None
         editor._file_mtime -= 1.0
 
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         notification = editor._external_change_notification
         assert notification is not None
 
         # Reload dismisses the notification
         editor._reload_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._external_change_notification is None
         assert notification not in app._notifications
 
@@ -529,9 +529,9 @@ async def test_notification_cleared_after_reload(workspace: Path, sample_py_file
         sample_py_file.write_text("external2\n", encoding="utf-8")
         editor._file_mtime -= 1.0
         editor.text = "unsaved2\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._external_change_notification is not None
 
 
@@ -539,24 +539,24 @@ async def test_notification_cleared_after_save(workspace: Path, sample_py_file: 
     """G-04: After save, notification is None and removed from app._notifications."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.text = "unsaved\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         sample_py_file.write_text("external\n", encoding="utf-8")
         assert editor._file_mtime is not None
         editor._file_mtime -= 1.0
 
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         notification = editor._external_change_notification
         assert notification is not None
 
         # Save dismisses the notification
         editor._write_to_disk()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._external_change_notification is None
         assert notification not in app._notifications
 
@@ -567,33 +567,33 @@ async def test_new_notification_after_reload_then_change(
     """G-05: After reload clears notification, new external change shows new one."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # First cycle: external change + unsaved → notification shown
         editor.text = "unsaved\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         sample_py_file.write_text("external\n", encoding="utf-8")
         assert editor._file_mtime is not None
         editor._file_mtime -= 1.0
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         first_notification = editor._external_change_notification
         assert first_notification is not None
 
         # Reload clears it
         editor._reload_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._external_change_notification is None
 
         # Second cycle: new external change → new notification (different object)
         sample_py_file.write_text("external2\n", encoding="utf-8")
         editor._file_mtime -= 1.0
         editor.text = "unsaved2\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         second_notification = editor._external_change_notification
         assert second_notification is not None
         assert second_notification is not first_notification
@@ -605,33 +605,33 @@ async def test_new_notification_after_save_then_change(
     """G-06: After save clears notification, new external change shows new one."""
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # First cycle: external change + unsaved → notification shown
         editor.text = "unsaved\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         sample_py_file.write_text("external\n", encoding="utf-8")
         assert editor._file_mtime is not None
         editor._file_mtime -= 1.0
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         first_notification = editor._external_change_notification
         assert first_notification is not None
 
         # Save clears it
         editor._write_to_disk()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._external_change_notification is None
 
         # Second cycle: new external change → new notification (different object)
         sample_py_file.write_text("external2\n", encoding="utf-8")
         editor._file_mtime -= 1.0
         editor.text = "unsaved2\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor._poll_file_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         second_notification = editor._external_change_notification
         assert second_notification is not None
         assert second_notification is not first_notification

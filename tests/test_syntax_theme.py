@@ -109,9 +109,9 @@ async def test_new_editor_uses_default_syntax_theme(workspace):
     app = make_app(workspace, light=True)
     app.default_syntax_theme = "dracula"
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.syntax_theme == "dracula"
@@ -121,9 +121,9 @@ async def test_new_editor_uses_default_syntax_theme(workspace):
 async def test_new_editor_default_theme_is_monokai(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.syntax_theme == "monokai"
@@ -139,12 +139,12 @@ async def test_all_editors_update_when_theme_changes(workspace):
     """Setting app.default_syntax_theme and updating all editors works."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Open two editors
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Simulate what action_change_syntax_theme does
         from textual_code.widgets.code_editor import CodeEditor
@@ -153,7 +153,7 @@ async def test_all_editors_update_when_theme_changes(workspace):
         for editor in app.query(CodeEditor):
             editor.syntax_theme = "github_light"
 
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         for editor in app.query(CodeEditor):
             assert editor.syntax_theme == "github_light"
 
@@ -167,9 +167,9 @@ async def test_all_editors_update_when_theme_changes(workspace):
 async def test_code_editor_syntax_theme_property(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # getter
@@ -191,7 +191,7 @@ async def test_app_loads_syntax_theme_from_project_config(workspace):
     proj.write_text('[editor]\nsyntax_theme = "vscode_dark"\n')
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.default_syntax_theme == "vscode_dark"
 
 
@@ -225,9 +225,9 @@ async def test_action_change_syntax_theme_save_level_user(workspace):
         workspace_path=workspace, with_open_file=None, user_config_path=cfg
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_change_syntax_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         from textual_code.modals import ChangeSyntaxThemeModalScreen
 
         assert isinstance(app.screen, ChangeSyntaxThemeModalScreen)
@@ -236,7 +236,7 @@ async def test_action_change_syntax_theme_save_level_user(workspace):
                 is_cancelled=False, theme="dracula", save_level="user"
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.default_syntax_theme == "dracula"
         assert cfg.exists()
         loaded = load_editor_settings(workspace, user_config_path=cfg)
@@ -252,9 +252,9 @@ async def test_action_change_syntax_theme_save_level_project(workspace):
         workspace_path=workspace, with_open_file=None, user_config_path=cfg
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_change_syntax_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         from textual_code.modals import ChangeSyntaxThemeModalScreen
 
         assert isinstance(app.screen, ChangeSyntaxThemeModalScreen)
@@ -263,7 +263,7 @@ async def test_action_change_syntax_theme_save_level_project(workspace):
                 is_cancelled=False, theme="dracula", save_level="project"
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert proj.exists()
         loaded = load_editor_settings(workspace, user_config_path=cfg)
         assert loaded["syntax_theme"] == "dracula"
@@ -277,14 +277,14 @@ async def test_action_change_syntax_theme_cancel(workspace):
     )
     original = app.default_syntax_theme
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_change_syntax_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         from textual_code.modals import ChangeSyntaxThemeModalScreen
 
         assert isinstance(app.screen, ChangeSyntaxThemeModalScreen)
         app.screen.dismiss(ChangeSyntaxThemeModalResult(is_cancelled=True, theme=None))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.default_syntax_theme == original
         assert not cfg.exists()
 
@@ -300,16 +300,16 @@ async def test_syntax_theme_live_preview_on_select_change(workspace):
     (workspace / "hello.py").write_text("print('hello')\n")
     app = make_app(workspace, open_file=workspace / "hello.py", light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.query_one(CodeEditor)
         assert editor.syntax_theme == "monokai"
         app.action_change_syntax_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         assert isinstance(modal, ChangeSyntaxThemeModalScreen)
         select = modal.query_one("#theme", Select)
         select.value = "dracula"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # All editors should preview the new theme
         for ed in app.query(CodeEditor):
             assert ed.syntax_theme == "dracula"
@@ -321,20 +321,20 @@ async def test_syntax_theme_preview_reverts_on_cancel(workspace):
     (workspace / "hello.py").write_text("print('hello')\n")
     app = make_app(workspace, open_file=workspace / "hello.py", light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_change_syntax_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         assert isinstance(modal, ChangeSyntaxThemeModalScreen)
         select = modal.query_one("#theme", Select)
         select.value = "dracula"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Verify preview was applied
         for ed in app.query(CodeEditor):
             assert ed.syntax_theme == "dracula"
         # Cancel should revert (use action_cancel to trigger revert logic)
         modal.action_cancel()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         for ed in app.query(CodeEditor):
             assert ed.syntax_theme == "monokai"
 
@@ -345,19 +345,19 @@ async def test_syntax_theme_preview_reverts_on_escape(workspace):
     (workspace / "hello.py").write_text("print('hello')\n")
     app = make_app(workspace, open_file=workspace / "hello.py", light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_change_syntax_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         select = modal.query_one("#theme", Select)
         select.value = "dracula"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Verify preview was applied
         for ed in app.query(CodeEditor):
             assert ed.syntax_theme == "dracula"
         # Escape should revert
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         for ed in app.query(CodeEditor):
             assert ed.syntax_theme == "monokai"
 
@@ -373,13 +373,13 @@ async def test_syntax_theme_preview_then_apply_persists(workspace):
         user_config_path=cfg,
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_change_syntax_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         select = modal.query_one("#theme", Select)
         select.value = "dracula"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Theme previewed before Apply
         for ed in app.query(CodeEditor):
             assert ed.syntax_theme == "dracula"
@@ -388,7 +388,7 @@ async def test_syntax_theme_preview_then_apply_persists(workspace):
                 is_cancelled=False, theme="dracula", save_level="user"
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         for ed in app.query(CodeEditor):
             assert ed.syntax_theme == "dracula"
         loaded = load_editor_settings(workspace, user_config_path=cfg)
@@ -401,13 +401,13 @@ async def test_syntax_theme_preview_ignores_blank(workspace):
     (workspace / "hello.py").write_text("print('hello')\n")
     app = make_app(workspace, open_file=workspace / "hello.py", light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_change_syntax_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         select = modal.query_one("#theme", Select)
         # Post a Changed message with BLANK directly (can't set via .value)
         select.post_message(Select.Changed(select, Select.BLANK))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         for ed in app.query(CodeEditor):
             assert ed.syntax_theme == "monokai"

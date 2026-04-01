@@ -37,11 +37,11 @@ def replace_file(workspace: Path) -> Path:
 async def test_ctrl_h_opens_replace_bar(workspace: Path, replace_file: Path):
     app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         await pilot.press("ctrl+h")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
         assert bar.display
         assert bar.replace_mode
@@ -51,9 +51,9 @@ async def test_ctrl_h_with_no_open_file_does_nothing(workspace: Path):
     """Ctrl+H when no file is open does nothing."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+h")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is None
 
@@ -67,19 +67,19 @@ async def test_replace_all_replaces_all_occurrences(
     """Replace All changes every occurrence of the find_query."""
     app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#replace_input")
         await pilot.press("h", "i")
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert "hi world" in editor.text
         assert "hi textual" in editor.text
@@ -90,19 +90,19 @@ async def test_replace_all_no_match_shows_warning(workspace: Path, replace_file:
     """Replace All with no match shows a warning and leaves text unchanged."""
     app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         original_text = editor.text
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("z", "z", "z", "n", "o", "t", "f", "o", "u", "n", "d")
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text == original_text
 
@@ -113,17 +113,17 @@ async def test_replace_all_empty_find_query_does_nothing(
     """Replace All with empty find_query does nothing."""
     app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         original_text = editor.text
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Leave find_input empty, click Replace All
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text == original_text
 
@@ -134,19 +134,19 @@ async def test_replace_all_count_notification(workspace: Path):
     f.write_text("aaa bbb aaa ccc aaa\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("a", "a", "a")
         await pilot.click("#replace_input")
         await pilot.press("X")
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text.count("aaa") == 0
         assert editor.text.count("X") == 3
@@ -163,7 +163,7 @@ async def test_replace_single_selection_matches_replaces_and_finds_next(
     # two 'hello': (0,0)–(0,5) and (1,0)–(1,5)
     app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -171,17 +171,17 @@ async def test_replace_single_selection_matches_replaces_and_finds_next(
 
         # Select the first 'hello'
         editor.editor.selection = Selection(start=(0, 0), end=(0, 5))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#replace_input")
         await pilot.press("h", "i")
         await pilot.click("#replace_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # First hello replaced with "hi"
         assert editor.text.startswith("hi world")
@@ -203,24 +203,24 @@ async def test_replace_single_selection_no_match_finds_next(
     # replace_file: "hello world\nhello textual\nfoo bar\n"
     app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         original_text = editor.text
         # Cursor at start, nothing selected → selection won't match "hello"
         editor.editor.cursor_location = (0, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#replace_input")
         await pilot.press("h", "i")
         await pilot.click("#replace_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Text should be unchanged (no replacement done)
         assert editor.text == original_text
@@ -239,7 +239,7 @@ async def test_replace_cancel_leaves_text_unchanged(
     """Closing the replace bar leaves text and cursor unchanged."""
     app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -247,12 +247,12 @@ async def test_replace_cancel_leaves_text_unchanged(
         original_location = editor.editor.cursor_location
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#close_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text == original_text
         assert editor.editor.cursor_location == original_location
@@ -265,9 +265,9 @@ async def test_replace_cmd_with_no_open_file_does_not_open_bar(workspace: Path):
     """action_replace_cmd when no file is open does nothing."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_replace_cmd()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is None
 
@@ -281,19 +281,19 @@ async def test_replace_all_is_case_sensitive(workspace: Path):
     f.write_text("Hello hello HELLO\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")  # lowercase
         await pilot.click("#replace_input")
         await pilot.press("X")
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Only lowercase 'hello' replaced
         assert "Hello" in editor.text
@@ -310,20 +310,22 @@ async def test_replace_all_marks_file_as_unsaved(workspace: Path):
     f.write_text("foo foo foo\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o")
         await pilot.click("#replace_input")
         await pilot.press("b", "a", "r")
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for replace all completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for replace all completion
 
         assert editor.text != editor.initial_text
 
@@ -337,18 +339,18 @@ async def test_replace_all_empty_replacement_deletes_occurrences(workspace: Path
     f.write_text("foo bar foo baz foo\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o")
         # leave replace_input empty
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert "foo" not in editor.text
         assert "bar" in editor.text
@@ -364,19 +366,19 @@ async def test_replace_all_single_occurrence(workspace: Path):
     f.write_text("only one match here\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("m", "a", "t", "c", "h")
         await pilot.click("#replace_input")
         await pilot.press("f", "o", "u", "n", "d")
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert "found" in editor.text
         assert "match" not in editor.text
@@ -394,20 +396,22 @@ async def test_replace_all_replacement_contains_search_string(workspace: Path):
     f.write_text("aa aa\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("a", "a")
         await pilot.click("#replace_input")
         await pilot.press("a", "a", "a")
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for replace all completion
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for replace all completion
 
         # "aa aa" → "aaa aaa"
         assert editor.text == "aaa aaa\n"
@@ -422,19 +426,19 @@ async def test_replace_all_multiline_file(workspace: Path):
     f.write_text("line one\nline two\nline three\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("l", "i", "n", "e")
         await pilot.click("#replace_input")
         await pilot.press("r", "o", "w")
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text == "row one\nrow two\nrow three\n"
 
@@ -448,7 +452,7 @@ async def test_replace_single_last_occurrence_no_next_selected(workspace: Path):
     f.write_text("foo bar\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -456,17 +460,17 @@ async def test_replace_single_last_occurrence_no_next_selected(workspace: Path):
 
         # Select the only 'foo'
         editor.editor.selection = Selection(start=(0, 0), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o")
         await pilot.click("#replace_input")
         await pilot.press("b", "a", "z")
         await pilot.click("#replace_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Replacement happened, no 'foo' left
         assert editor.text == "baz bar\n"
@@ -482,26 +486,30 @@ async def test_replace_single_only_one_match_no_next(workspace: Path):
     f.write_text("unique word here\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         from textual.widgets.text_area import Selection
 
         editor.editor.selection = Selection(start=(0, 0), end=(0, 6))  # "unique"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         find_input = editor.query_one("#find_input", Input)
         find_input.value = "unique"
         replace_input = editor.query_one("#replace_input", Input)
         replace_input.value = "common"
-        await pilot.pause()  # Windows: extra pause for input value changes
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for input value changes
         await pilot.click("#replace_btn")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for replace action
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for replace action
 
         assert "common" in editor.text
         assert "unique" not in editor.text
@@ -517,7 +525,7 @@ async def test_replace_single_sequential_advances(workspace: Path):
     f.write_text("aa bb aa cc aa\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
@@ -525,16 +533,16 @@ async def test_replace_single_sequential_advances(workspace: Path):
 
         # ── call 1: select first "aa" → replaces, advances to second "aa" ──
         editor.editor.selection = Selection(start=(0, 0), end=(0, 2))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#find_input")
         await pilot.press("a", "a")
         await pilot.click("#replace_input")
         await pilot.press("X", "X")
         await pilot.click("#replace_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # First "aa" replaced with "XX"; second "aa" selected
         assert editor.text.startswith("XX bb")
@@ -553,7 +561,7 @@ async def test_replace_single_sequential_advances(workspace: Path):
         await pilot.press("backspace", "backspace")
         await pilot.press("a", "a")
         await pilot.click("#replace_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Two "aa" replaced; one "aa" remaining
         assert editor.text.count("aa") == 1
@@ -569,25 +577,25 @@ async def test_replace_single_wraps_around_find(workspace: Path):
     f.write_text("foo bar\nbaz qux\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Place cursor at end of file (after all 'foo' occurrences)
         editor.editor.cursor_location = (1, 7)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         original_text = editor.text
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o")
         await pilot.click("#replace_input")
         await pilot.press("z", "a", "p")
         await pilot.click("#replace_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # No replacement (selection didn't match); but 'foo' at (0,0) selected via wrap
         assert editor.text == original_text
@@ -604,30 +612,30 @@ async def test_replace_single_on_untitled_file(workspace: Path):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.editor.focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         for ch in "hello hello":
             await pilot.press(ch)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         from textual.widgets.text_area import Selection
 
         editor.editor.selection = Selection(start=(0, 0), end=(0, 5))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#replace_input")
         await pilot.press("h", "i")
         await pilot.click("#replace_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text.startswith("hi")
         assert "hello" in editor.text  # second occurrence still exists
@@ -642,11 +650,11 @@ async def test_replace_cmd_opens_bar_when_file_open(
     """action_replace_cmd opens FindReplaceBar in replace mode when a file is open."""
     app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         app.action_replace_cmd()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
         assert bar.display
         assert bar.replace_mode
@@ -661,20 +669,20 @@ async def test_replace_single_no_match_anywhere_shows_warning(
     """Replace single when find_query doesn't exist at all shows a warning."""
     app = make_app(workspace, light=True, open_file=replace_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         original_text = editor.text
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("z", "z", "z", "n", "o", "t", "h", "e", "r", "e")
         await pilot.click("#replace_input")
         await pilot.press("X")
         await pilot.click("#replace_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text == original_text

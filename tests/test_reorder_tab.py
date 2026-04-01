@@ -65,13 +65,13 @@ async def test_reorder_tab_right(
     """Move active tab one position one position to the right."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open two more files → tabs: [py_file, py_file2, py_file3]
         await app.main_view.action_open_code_editor(py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(py_file3)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         tc = app.main_view.tabbed_content
         order_before = get_tab_order(tc)
@@ -79,12 +79,12 @@ async def test_reorder_tab_right(
 
         # Activate first tab
         tc.active = order_before[0]
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         first_pane_id = order_before[0]
 
         # Move right
         app.main_view.action_reorder_tab_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         order_after = get_tab_order(tc)
         # First tab should now be at index 1
@@ -102,12 +102,12 @@ async def test_reorder_tab_left(
     """Move active tab one position one position to the left."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_open_code_editor(py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(py_file3)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         tc = app.main_view.tabbed_content
         order_before = get_tab_order(tc)
@@ -115,11 +115,11 @@ async def test_reorder_tab_left(
 
         # Activate last tab
         tc.active = last_pane_id
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Move left
         app.main_view.action_reorder_tab_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         order_after = get_tab_order(tc)
         # Last tab should now be at index 1
@@ -134,10 +134,10 @@ async def test_reorder_tab_right_at_end(workspace: Path, py_file: Path, py_file2
     """Forward at the last position is a no-op."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_open_code_editor(py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         tc = app.main_view.tabbed_content
         order_before = get_tab_order(tc)
@@ -145,11 +145,11 @@ async def test_reorder_tab_right_at_end(workspace: Path, py_file: Path, py_file2
 
         # Activate last tab
         tc.active = last_pane_id
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Move right — should be no-op
         app.main_view.action_reorder_tab_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert get_tab_order(tc) == order_before
 
@@ -160,10 +160,10 @@ async def test_reorder_tab_left_at_start(
     """Backward at the first position is a no-op."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.main_view.action_open_code_editor(py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         tc = app.main_view.tabbed_content
         order_before = get_tab_order(tc)
@@ -171,11 +171,11 @@ async def test_reorder_tab_left_at_start(
 
         # Activate first tab
         tc.active = first_pane_id
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Move left — should be no-op
         app.main_view.action_reorder_tab_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert get_tab_order(tc) == order_before
 
@@ -187,18 +187,18 @@ async def test_reorder_tab_single_tab(workspace: Path, py_file: Path):
     """Reorder is a no-op when only one tab is open."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         tc = app.main_view.tabbed_content
         order_before = get_tab_order(tc)
         assert len(order_before) == 1
 
         app.main_view.action_reorder_tab_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert get_tab_order(tc) == order_before
 
         app.main_view.action_reorder_tab_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert get_tab_order(tc) == order_before
 
 
@@ -211,13 +211,13 @@ async def test_reorder_markdown_preview_tab(
     """MarkdownPreviewPane tabs can also be reordered."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open markdown file, then open its preview
         await app.main_view.action_open_code_editor(md_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         tc = app.main_view.tabbed_content
         order_before = get_tab_order(tc)
@@ -230,7 +230,7 @@ async def test_reorder_markdown_preview_tab(
 
         # Move left
         app.main_view.action_reorder_tab_left()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         order_after = get_tab_order(tc)
         # Preview tab should now be at index 1
@@ -244,7 +244,7 @@ async def test_reorder_commands_registered(workspace: Path, py_file: Path):
     """Reorder tab commands are registered in get_system_commands."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         cmds = {cmd.title for cmd in app.get_system_commands(app.screen)}
 
         assert "Reorder Tab Right" in cmds

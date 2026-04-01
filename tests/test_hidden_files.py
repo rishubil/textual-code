@@ -158,12 +158,12 @@ class TestExplorerIntegration:
 
         app = make_app(ws, user_config_path=config)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             tree = app.sidebar.explorer.directory_tree
             assert tree.show_hidden_files is True
 
             # Toggle off
             app.action_toggle_hidden_files()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert tree.show_hidden_files is False

@@ -57,7 +57,7 @@ def test_a04_invalid_value_defaults_to_absolute(tmp_path):
 async def test_b01_footer_absolute_by_default(workspace, sample_py_file):
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.main_view.query_one(CodeEditorFooter)
         assert footer.path_display_mode == "absolute"
         assert str(sample_py_file) in footer.path_view._raw
@@ -67,10 +67,10 @@ async def test_b01_footer_absolute_by_default(workspace, sample_py_file):
 async def test_b02_toggle_to_relative(workspace, sample_py_file):
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.main_view.query_one(CodeEditorFooter)
         footer.path_display_mode = "relative"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert footer.path_view._raw == "hello.py"
 
 
@@ -78,12 +78,12 @@ async def test_b02_toggle_to_relative(workspace, sample_py_file):
 async def test_b03_toggle_back_to_absolute(workspace, sample_py_file):
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.main_view.query_one(CodeEditorFooter)
         footer.path_display_mode = "relative"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer.path_display_mode = "absolute"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert footer.path_view._raw == str(sample_py_file)
 
 
@@ -96,10 +96,10 @@ async def test_b04_relative_outside_workspace_fallback(workspace):
         outside_file.write_text("# outside\n")
         app = make_app(workspace, open_file=outside_file, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             footer = app.main_view.query_one(CodeEditorFooter)
             footer.path_display_mode = "relative"
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             # Falls back to absolute since file is outside workspace
             assert footer.path_view._raw == str(outside_file)
 
@@ -112,7 +112,7 @@ async def test_b05_config_loads_relative_mode(tmp_path):
     sample.write_text("# test\n")
     app = make_app(tmp_path, open_file=sample, user_config_path=config_path, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.main_view.query_one(CodeEditorFooter)
         assert footer.path_display_mode == "relative"
         assert footer.path_view._raw == "test.py"
@@ -126,16 +126,16 @@ async def test_b06_tab_switch_preserves_mode(workspace):
     file2.write_text("# b\n")
     app = make_app(workspace, open_file=file1, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         footer = app.main_view.query_one(CodeEditorFooter)
         footer.path_display_mode = "relative"
         app.default_path_display_mode = "relative"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert footer.path_view._raw == "a.py"
         # Open second file
         await app.main_view.action_open_code_editor(path=file2, focus=True)
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         assert footer.path_display_mode == "relative"
         assert footer.path_view._raw == "b.py"
 
@@ -149,7 +149,7 @@ async def test_b06_tab_switch_preserves_mode(workspace):
 async def test_c01_system_command_exists(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
         assert "Toggle Path Display Mode" in titles
@@ -160,10 +160,10 @@ async def test_c02_toggle_saves_to_config(tmp_path):
     config_path = tmp_path / "settings.toml"
     app = make_app(tmp_path, user_config_path=config_path, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.default_path_display_mode == "absolute"
         app.action_toggle_path_display_mode()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.default_path_display_mode == "relative"
         # Verify saved to config
         settings = load_editor_settings(tmp_path, user_config_path=config_path)

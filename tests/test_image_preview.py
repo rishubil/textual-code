@@ -84,7 +84,7 @@ async def test_image_file_shows_preview(workspace: Path, image_file: Path):
 
     app = make_app(workspace, open_file=image_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main_view = app.main_view
         pane_ids = list(main_view.opened_pane_ids)
         assert len(pane_ids) == 1
@@ -101,15 +101,15 @@ async def test_image_file_open_twice_single_tab(workspace: Path, image_file: Pat
     """Opening the same image file twice creates only one tab."""
     app = make_app(workspace, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main_view = app.main_view
 
         await main_view.open_code_editor_pane(image_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         count_after_first = len(main_view.opened_pane_ids)
 
         await main_view.open_code_editor_pane(image_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         count_after_second = len(main_view.opened_pane_ids)
 
         assert count_after_first == count_after_second
@@ -123,7 +123,7 @@ async def test_uppercase_extension_recognized(
 
     app = make_app(workspace, open_file=uppercase_image_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main_view = app.main_view
         pane_ids = list(main_view.opened_pane_ids)
         tc = main_view.tabbed_content
@@ -163,7 +163,7 @@ async def test_non_image_binary_still_shows_notice(workspace: Path):
     f.write_bytes(b"\x00\x01\x02\x03" * 100)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main_view = app.main_view
         pane_ids = list(main_view.opened_pane_ids)
         tc = main_view.tabbed_content
@@ -186,7 +186,7 @@ async def test_large_image_shows_too_large_notice(workspace: Path, monkeypatch):
     png = make_png(workspace / "big.png")
     app = make_app(workspace, open_file=png, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main_view = app.main_view
         pane_ids = list(main_view.opened_pane_ids)
         tc = main_view.tabbed_content

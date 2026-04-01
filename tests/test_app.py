@@ -27,7 +27,7 @@ from textual_code.widgets.sidebar import Sidebar
 async def test_app_composes_with_sidebar_mainview_footer(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.query_one(Sidebar) is not None
         assert app.query_one(MainView) is not None
         assert app.query_one(Footer) is not None
@@ -36,14 +36,14 @@ async def test_app_composes_with_sidebar_mainview_footer(workspace: Path):
 async def test_app_starts_without_open_file(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == 0
 
 
 async def test_app_opens_initial_file_on_start(workspace: Path, sample_py_file: Path):
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == 1
 
 
@@ -53,11 +53,11 @@ async def test_app_opens_initial_file_on_start(workspace: Path, sample_py_file: 
 async def test_ctrl_n_opens_new_empty_editor(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == 0
 
         await pilot.press("ctrl+n")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == 1
 
         editor = app.main_view.get_active_code_editor()
@@ -68,11 +68,11 @@ async def test_ctrl_n_opens_new_empty_editor(workspace: Path):
 async def test_ctrl_n_opens_multiple_editors(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+n")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+n")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == 2
 
 
@@ -82,11 +82,11 @@ async def test_ctrl_n_opens_multiple_editors(workspace: Path):
 async def test_open_file_requested_opens_editor(workspace: Path, sample_py_file: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == 0
 
         app.post_message(TextualCode.OpenFileRequested(path=sample_py_file))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == 1
 
 
@@ -97,11 +97,11 @@ async def test_create_file_creates_on_disk(workspace: Path):
     new_file = workspace / "created.py"
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(
             TextualCode.CreateFileOrDirRequested(path=new_file, is_dir=False)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert new_file.exists()
     assert new_file.is_file()
@@ -111,11 +111,11 @@ async def test_create_file_opens_tab(workspace: Path):
     new_file = workspace / "created.py"
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(
             TextualCode.CreateFileOrDirRequested(path=new_file, is_dir=False)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == 1
 
 
@@ -123,11 +123,11 @@ async def test_create_directory_creates_on_disk(workspace: Path):
     new_dir = workspace / "subdir" / "nested"
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(
             TextualCode.CreateFileOrDirRequested(path=new_dir, is_dir=True)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert new_dir.exists()
     assert new_dir.is_dir()
@@ -137,11 +137,11 @@ async def test_create_directory_does_not_open_tab(workspace: Path):
     new_dir = workspace / "mydir"
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(
             TextualCode.CreateFileOrDirRequested(path=new_dir, is_dir=True)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == 0
 
 
@@ -159,11 +159,11 @@ async def test_create_existing_file_shows_notification(
     monkeypatch.setattr(app, "notify", capture_notify)
 
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.post_message(
             TextualCode.CreateFileOrDirRequested(path=sample_py_file, is_dir=False)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert any("already exists" in n for n in notifications)
 
@@ -174,22 +174,22 @@ async def test_create_existing_file_shows_notification(
 async def test_quit_without_unsaved_exits(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.action_quit()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
 
 async def test_quit_with_unsaved_shows_modal(workspace: Path, sample_py_file: Path):
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "unsaved change\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.action_quit()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, UnsavedChangeQuitModalScreen)
 
 
@@ -198,16 +198,16 @@ async def test_quit_with_unsaved_quit_button_exits(
 ):
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.text = "unsaved\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await app.action_quit()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#quit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
 
 # ── Close all files ──────────────────────────────────────────────────────────
@@ -216,12 +216,14 @@ async def test_quit_with_unsaved_quit_button_exits(
 async def test_close_all_files_via_app_action(workspace: Path, sample_py_file: Path):
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == 1
 
         app.action_close_all_editors_cmd()
-        await pilot.pause()
-        await pilot.pause()  # call_next + post_message chain needs two cycles
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # call_next + post_message chain needs two cycles
         assert len(app.main_view.opened_pane_ids) == 0
 
 
@@ -231,7 +233,7 @@ async def test_close_all_files_via_app_action(workspace: Path, sample_py_file: P
 async def test_sidebar_visible_by_default(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         assert app.sidebar.display is True
 
@@ -239,12 +241,12 @@ async def test_sidebar_visible_by_default(workspace: Path):
 async def test_ctrl_b_hides_sidebar(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         assert app.sidebar.display is True
 
         await pilot.press("ctrl+b")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         assert app.sidebar.display is False
 
@@ -252,15 +254,15 @@ async def test_ctrl_b_hides_sidebar(workspace: Path):
 async def test_ctrl_b_toggles_sidebar_back(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("ctrl+b")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         assert app.sidebar.display is False
 
         await pilot.press("ctrl+b")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         assert app.sidebar.display is True
 
@@ -268,15 +270,15 @@ async def test_ctrl_b_toggles_sidebar_back(workspace: Path):
 async def test_toggle_sidebar_action(workspace: Path):
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.action_toggle_sidebar()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         assert app.sidebar.display is False
 
         app.action_toggle_sidebar()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         assert app.sidebar.display is True
 
@@ -289,9 +291,9 @@ async def test_change_language_cmd_no_editor_opens_no_modal(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_change_language()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert not isinstance(app.screen, ChangeLanguageModalScreen)
 
 
@@ -302,11 +304,11 @@ async def test_change_language_cmd_with_editor_opens_modal(
 
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_change_language()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, ChangeLanguageModalScreen)
 
 
@@ -318,9 +320,9 @@ async def test_goto_line_cmd_no_editor_opens_no_modal(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_goto_line_cmd()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert not isinstance(app.screen, GotoLineModalScreen)
 
 
@@ -329,9 +331,9 @@ async def test_ctrl_g_no_editor_opens_no_modal(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+g")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert not isinstance(app.screen, GotoLineModalScreen)
 
 
@@ -342,10 +344,10 @@ async def test_ctrl_b_three_times_ends_visible(workspace: Path):
     """3 toggles → odd count → sidebar hidden."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         for _ in range(3):
             await pilot.press("ctrl+b")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         assert app.sidebar.display is False
 
@@ -354,10 +356,10 @@ async def test_ctrl_b_four_times_ends_visible(workspace: Path):
     """4 toggles → even count → sidebar visible again."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         for _ in range(4):
             await pilot.press("ctrl+b")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         assert app.sidebar.display is True
 
@@ -368,19 +370,19 @@ async def test_toggle_sidebar_with_file_open_preserves_editor(
     """Toggling sidebar while a file is open does not affect editor content."""
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         original_text = editor.text
 
         await pilot.press("ctrl+b")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         assert app.sidebar.display is False
         assert editor.text == original_text
 
         await pilot.press("ctrl+b")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         assert app.sidebar.display is True
         assert editor.text == original_text
@@ -408,11 +410,11 @@ async def test_footer_shortcut_order_is_deterministic(
 
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         descriptions = _footer_descriptions(app)
         expected = [
@@ -438,21 +440,25 @@ async def test_footer_order_stable_across_focus(workspace: Path, sample_py_file:
     """Footer order is consistent when focus moves between editor and sidebar."""
     app = make_app(workspace, open_file=sample_py_file)  # with sidebar
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Focus editor
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.focus()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for focus change + footer update
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for focus change + footer update
         editor_descs = _footer_descriptions(app)
 
         # Focus sidebar
         sidebar = app.sidebar
         assert sidebar is not None
         sidebar.focus()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for focus change + footer update
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for focus change + footer update
         sidebar_descs = _footer_descriptions(app)
 
         # Editor-focused: full set of shortcuts
@@ -480,8 +486,8 @@ async def test_footer_shortcut_order_empty_app(workspace: Path):
     """Footer shows bindings in correct order when no file is open."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         descriptions = _footer_descriptions(app)
         # Even without a file, MainView is in the DOM so its bindings appear.
         # Verify exact order matches the full expected set.
@@ -621,13 +627,15 @@ async def test_footer_order_differs_by_area(workspace: Path, sample_py_file: Pat
 
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Focus editor
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.focus()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for focus + footer key rendering
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for focus + footer key rendering
         editor_descs = _footer_descriptions(app)
 
         # Focus explorer tree directly
@@ -635,8 +643,10 @@ async def test_footer_order_differs_by_area(workspace: Path, sample_py_file: Pat
         assert sidebar is not None
         tree = sidebar.explorer.query_one(FilteredDirectoryTree)
         tree.focus()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for focus change + footer update
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for focus change + footer update
         explorer_descs = _footer_descriptions(app)
 
         # Editor should have save, find etc.
@@ -653,12 +663,14 @@ async def test_footer_default_order_per_area(workspace: Path, sample_py_file: Pa
     """Default footer order uses DEFAULT_ACTION_ORDERS per area."""
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.focus()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for focus + footer key rendering
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for focus + footer key rendering
         editor_descs = _footer_descriptions(app)
         # Default editor order starts with Save
         assert editor_descs[0] == "Save"
@@ -676,7 +688,7 @@ async def test_set_footer_order_for_area_persists(
     config.touch()
     app = make_app(workspace, open_file=sample_py_file, user_config_path=config)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.set_footer_order(["find", "save"], area="editor")
         kb_path = config.with_name("keybindings.toml")
         loaded = load_footer_orders(kb_path)
@@ -696,16 +708,16 @@ async def test_command_palette_blocked_while_modal_is_active(
 
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_goto_line()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, GotoLineModalScreen)
 
         await pilot.press("ctrl+p")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert isinstance(app.screen, GotoLineModalScreen)
         assert not CommandPalette.is_open(app)
@@ -721,14 +733,14 @@ async def test_command_palette_blocked_while_path_search_modal_is_active(
 
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.action_open_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, PathSearchModal)
 
         await pilot.press("ctrl+p")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert isinstance(app.screen, PathSearchModal)
         assert not CommandPalette.is_open(app)
@@ -741,15 +753,15 @@ async def test_save_screenshot_writes_svg_file(workspace: Path):
     """action_save_screenshot opens modal and writes an SVG file."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Invoke the real action, which opens the save screenshot modal
         app.action_save_screenshot()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Click save to submit the default timestamped filename
         await pilot.click("#save")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     svg_files = list(workspace.glob("screenshot_*.svg"))
     assert len(svg_files) == 1
@@ -761,21 +773,21 @@ async def test_save_screenshot_relative_path_resolves_to_workspace(workspace: Pa
     """Relative path typed in the modal resolves against workspace_path."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Invoke the real action
         app.action_save_screenshot()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Clear the default filename and type a relative subdirectory path
         from textual.widgets import Input
 
         input_widget = app.screen.query_one("#path", Input)
         input_widget.value = "subdir/shot.svg"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#save")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     output = workspace / "subdir" / "shot.svg"
     assert output.exists()
@@ -802,7 +814,7 @@ async def test_save_screenshot_error_on_invalid_path(
     monkeypatch.setattr(app, "notify", capture_notify)
 
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Create a read-only directory (0o555 = read+execute, no write)
         readonly_dir = workspace / "readonly"
@@ -812,17 +824,17 @@ async def test_save_screenshot_error_on_invalid_path(
         try:
             # Invoke the real action
             app.action_save_screenshot()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Set path to a location inside the read-only directory
             from textual.widgets import Input
 
             input_widget = app.screen.query_one("#path", Input)
             input_widget.value = "readonly/subdir/fail.svg"
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.click("#save")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
         finally:
             # Restore permissions so tmp_path cleanup succeeds
             readonly_dir.chmod(0o755)

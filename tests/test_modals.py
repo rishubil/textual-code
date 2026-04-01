@@ -62,7 +62,7 @@ async def test_save_as_modal_save_button():
         await pilot.click(input_widget)
         await pilot.press("t", "e", "s", "t", ".", "t", "x", "t")
         await pilot.click("#save")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -73,7 +73,7 @@ async def test_save_as_modal_cancel_button():
     app = _SaveAsApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -87,7 +87,7 @@ async def test_save_as_modal_enter_submits():
         await pilot.click(input_widget)
         await pilot.press("m", "y", ".", "p", "y")
         await pilot.press("enter")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -98,7 +98,7 @@ async def test_save_as_modal_escape_dismisses():
     app = _SaveAsApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -111,7 +111,7 @@ async def test_save_as_modal_escape_dismisses_with_input_focused():
         await pilot.click(app.screen.query_one("#path"))
         await pilot.press("t", "e", "s", "t")
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -139,7 +139,7 @@ async def test_unsaved_change_modal_save_button():
     app = _UnsavedChangeApp()
     async with app.run_test() as pilot:
         await pilot.click("#save")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -150,7 +150,7 @@ async def test_unsaved_change_modal_dont_save_button():
     app = _UnsavedChangeApp()
     async with app.run_test() as pilot:
         await pilot.click("#dont_save")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -161,7 +161,7 @@ async def test_unsaved_change_modal_cancel_button():
     app = _UnsavedChangeApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -173,7 +173,7 @@ async def test_unsaved_change_modal_escape_does_not_dismiss():
     app = _UnsavedChangeApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is None
 
@@ -200,7 +200,7 @@ async def test_unsaved_quit_modal_quit_button():
     app = _UnsavedQuitApp()
     async with app.run_test() as pilot:
         await pilot.click("#quit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.should_quit is True
@@ -210,7 +210,7 @@ async def test_unsaved_quit_modal_cancel_button():
     app = _UnsavedQuitApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.should_quit is False
@@ -221,7 +221,7 @@ async def test_unsaved_quit_modal_escape_does_not_dismiss():
     app = _UnsavedQuitApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is None
 
@@ -251,7 +251,7 @@ async def test_delete_modal_delete_button(tmp_path):
     app = _DeleteFileApp(f)
     async with app.run_test() as pilot:
         await pilot.click("#delete")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -264,7 +264,7 @@ async def test_delete_modal_cancel_button(tmp_path):
     app = _DeleteFileApp(f)
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -276,7 +276,7 @@ async def test_delete_modal_shows_file_path(tmp_path):
     f.write_text("content")
     app = _DeleteFileApp(f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         message_label = app.screen.query_one("#message", Label)
         assert str(f) in str(message_label.content)
 
@@ -287,7 +287,7 @@ async def test_delete_modal_file_title_contains_file(tmp_path):
     f.write_text("content")
     app = _DeleteFileApp(f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         title_label = app.screen.query_one("#title", Label)
         title_text = str(title_label.content)
         assert "file" in title_text.lower()
@@ -300,7 +300,7 @@ async def test_delete_modal_file_warning_cannot_be_undone(tmp_path):
     f.write_text("content")
     app = _DeleteFileApp(f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         warning_label = app.screen.query_one("#warning", Label)
         assert "cannot be undone" in str(warning_label.content).lower()
 
@@ -311,7 +311,7 @@ async def test_delete_modal_directory_title_contains_directory_and_contents(tmp_
     d.mkdir()
     app = _DeleteFileApp(d)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         title_label = app.screen.query_one("#title", Label)
         title_text = str(title_label.content).lower()
         assert "directory" in title_text
@@ -324,7 +324,7 @@ async def test_delete_modal_directory_warning_cannot_be_undone(tmp_path):
     d.mkdir()
     app = _DeleteFileApp(d)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         warning_label = app.screen.query_one("#warning", Label)
         assert "cannot be undone" in str(warning_label.content).lower()
 
@@ -336,7 +336,7 @@ async def test_delete_modal_escape_does_not_dismiss(tmp_path):
     app = _DeleteFileApp(f)
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is None
 
@@ -366,7 +366,7 @@ async def test_goto_line_modal_goto_button():
         await pilot.click(input_widget)
         await pilot.press("5")
         await pilot.click("#goto")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -377,7 +377,7 @@ async def test_goto_line_modal_cancel_button():
     app = _GotoLineApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -391,7 +391,7 @@ async def test_goto_line_modal_enter_submits():
         await pilot.click(input_widget)
         await pilot.press("3", ":", "7")
         await pilot.press("enter")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -402,7 +402,7 @@ async def test_goto_line_modal_escape_dismisses():
     app = _GotoLineApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -415,7 +415,7 @@ async def test_goto_line_modal_escape_dismisses_with_input_focused():
         await pilot.click(app.screen.query_one("#location"))
         await pilot.press("5")
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -456,7 +456,7 @@ async def test_change_language_modal_apply_returns_language():
     async with app.run_test() as pilot:
         app.screen.query_one(Select).value = "python"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -467,7 +467,7 @@ async def test_change_language_modal_cancel_returns_cancelled():
     app = _ChangeLanguageApp(languages=["python"], current_language="python")
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -481,7 +481,7 @@ async def test_change_language_modal_plain_returns_none_language():
     async with app.run_test() as pilot:
         app.screen.query_one(Select).value = "plain"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -493,7 +493,7 @@ async def test_change_language_modal_initial_plain_when_no_language():
 
     app = _ChangeLanguageApp(languages=["python", "rust"], current_language=None)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         select = app.screen.query_one(Select)
         assert select.value == "plain"
 
@@ -503,7 +503,7 @@ async def test_change_language_modal_initial_value_is_current_language():
 
     app = _ChangeLanguageApp(languages=["python", "rust"], current_language="rust")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         select = app.screen.query_one(Select)
         assert select.value == "rust"
 
@@ -512,7 +512,7 @@ async def test_change_language_modal_escape_dismisses():
     app = _ChangeLanguageApp(languages=["python"], current_language="python")
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -546,7 +546,7 @@ async def test_find_modal_find_button_returns_query():
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#find")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -557,7 +557,7 @@ async def test_find_modal_cancel_button_returns_cancelled():
     app = _FindApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -571,7 +571,7 @@ async def test_find_modal_enter_submits():
         await pilot.click(input_widget)
         await pilot.press("f", "o", "o")
         await pilot.press("enter")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -583,7 +583,7 @@ async def test_find_modal_empty_query_allowed():
     app = _FindApp()
     async with app.run_test() as pilot:
         await pilot.click("#find")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -594,7 +594,7 @@ async def test_find_modal_escape_dismisses():
     app = _FindApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -607,7 +607,7 @@ async def test_find_modal_escape_dismisses_with_input_focused():
         await pilot.click(app.screen.query_one("#query"))
         await pilot.press("h", "i")
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -641,7 +641,7 @@ async def test_replace_modal_replace_button_returns_action_replace():
         await pilot.click("#replace_text")
         await pilot.press("b", "a", "r")
         await pilot.click("#replace")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -658,7 +658,7 @@ async def test_replace_modal_replace_all_button_returns_action_replace_all():
         await pilot.click("#replace_text")
         await pilot.press("h", "i")
         await pilot.click("#replace_all")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -671,7 +671,7 @@ async def test_replace_modal_cancel_returns_cancelled():
     app = _ReplaceApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -688,7 +688,7 @@ async def test_replace_modal_empty_replace_text_returns_empty_string():
         await pilot.press("f", "o", "o")
         # leave replace_text empty
         await pilot.click("#replace")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.replace_text == ""
@@ -698,7 +698,7 @@ async def test_replace_modal_escape_dismisses():
     app = _ReplaceApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -711,7 +711,7 @@ async def test_replace_modal_escape_dismisses_with_input_focused():
         await pilot.click(app.screen.query_one("#find_query"))
         await pilot.press("f", "o", "o")
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -726,7 +726,7 @@ async def test_find_modal_has_use_regex_checkbox():
 
     app = _FindApp()
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         checkbox = app.screen.query_one("#use_regex", Checkbox)
         assert checkbox is not None
 
@@ -736,7 +736,7 @@ async def test_find_modal_use_regex_false_by_default():
     app = _FindApp()
     async with app.run_test() as pilot:
         await pilot.click("#find")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.use_regex is False
@@ -751,7 +751,7 @@ async def test_find_modal_use_regex_true_when_checked():
         checkbox = app.screen.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
         await pilot.click("#find")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.use_regex is True
@@ -766,7 +766,7 @@ async def test_replace_modal_has_use_regex_checkbox():
 
     app = _ReplaceApp()
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         checkbox = app.screen.query_one("#use_regex", Checkbox)
         assert checkbox is not None
 
@@ -776,7 +776,7 @@ async def test_replace_modal_use_regex_false_by_default():
     app = _ReplaceApp()
     async with app.run_test() as pilot:
         await pilot.click("#replace")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.use_regex is False
@@ -791,7 +791,7 @@ async def test_replace_modal_use_regex_true_when_checked():
         checkbox = app.screen.query_one("#use_regex", Checkbox)
         await pilot.click(checkbox)
         await pilot.click("#replace")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.use_regex is True
@@ -823,7 +823,7 @@ async def test_change_indent_modal_has_type_select():
 
     app = _ChangeIndentApp()
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         select = app.screen.query_one("#indent_type", Select)
         assert select is not None
 
@@ -834,7 +834,7 @@ async def test_change_indent_modal_has_size_input():
 
     app = _ChangeIndentApp()
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         inp = app.screen.query_one("#indent_size", Input)
         assert inp is not None
 
@@ -848,7 +848,7 @@ async def test_change_indent_modal_apply_returns_spaces_4():
         app.screen.query_one("#indent_type", Select).value = "spaces"
         app.screen.query_one("#indent_size", Input).value = "4"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -865,7 +865,7 @@ async def test_change_indent_modal_apply_returns_tabs():
         app.screen.query_one("#indent_type", Select).value = "tabs"
         app.screen.query_one("#indent_size", Input).value = "2"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -878,7 +878,7 @@ async def test_change_indent_modal_cancel_returns_cancelled():
     app = _ChangeIndentApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -890,7 +890,7 @@ async def test_change_indent_modal_escape_dismisses():
     app = _ChangeIndentApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -928,7 +928,7 @@ async def test_change_line_ending_modal_has_select():
 
     app = _ChangeLineEndingApp()
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         select = app.screen.query_one("#line_ending", Select)
         assert select is not None
 
@@ -941,7 +941,7 @@ async def test_change_line_ending_modal_apply_returns_lf():
     async with app.run_test() as pilot:
         app.screen.query_one("#line_ending", Select).value = "lf"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -956,7 +956,7 @@ async def test_change_line_ending_modal_apply_returns_crlf():
     async with app.run_test() as pilot:
         app.screen.query_one("#line_ending", Select).value = "crlf"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -968,7 +968,7 @@ async def test_change_line_ending_modal_cancel_returns_cancelled():
     app = _ChangeLineEndingApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -981,7 +981,7 @@ async def test_change_line_ending_modal_initial_value_is_current():
 
     app = _ChangeLineEndingApp(current_line_ending="crlf")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         select = app.screen.query_one("#line_ending", Select)
         assert select.value == "crlf"
 
@@ -990,7 +990,7 @@ async def test_change_line_ending_modal_escape_dismisses():
     app = _ChangeLineEndingApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1042,7 +1042,7 @@ async def test_rename_modal_rename_button():
 
         app.screen.query_one(Input).value = "world.py"
         await pilot.click("#rename")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -1053,7 +1053,7 @@ async def test_rename_modal_cancel_button():
     app = _RenameApp("hello.py")
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1067,7 +1067,7 @@ async def test_rename_modal_enter_submits():
 
         app.screen.query_one(Input).value = "renamed.py"
         await pilot.press("enter")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -1087,7 +1087,7 @@ async def test_rename_modal_escape_dismisses():
     app = _RenameApp("hello.py")
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1101,7 +1101,7 @@ async def test_rename_modal_escape_dismisses_with_input_focused():
 
         await pilot.click(app.screen.query_one(Input))
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1147,7 +1147,7 @@ async def test_replace_all_confirm_modal_replace_button():
     )
     async with app.run_test() as pilot:
         await pilot.click("#replace-all")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -1163,7 +1163,7 @@ async def test_replace_all_confirm_modal_cancel_button():
     )
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1178,7 +1178,7 @@ async def test_replace_all_confirm_modal_shows_summary():
         preview=_make_preview(),
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         message = app.screen.query_one("#message", Label)
         text = str(message.content)
         assert "5" in text
@@ -1195,7 +1195,7 @@ async def test_replace_all_confirm_modal_shows_preview():
         preview=_make_preview(),
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         preview = app.screen.query_one("#preview", Label)
         text = str(preview.content)
         assert "- hello world" in text
@@ -1211,7 +1211,7 @@ async def test_replace_all_confirm_modal_truncated():
         preview=_make_preview(),
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         message = app.screen.query_one("#message", Label)
         text = str(message.content)
         assert "500+" in text
@@ -1228,7 +1228,7 @@ async def test_replace_all_confirm_modal_escape_does_not_dismiss():
     )
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is None
 
@@ -1255,7 +1255,7 @@ async def test_change_encoding_modal_escape_dismisses():
     app = _ChangeEncodingApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1284,7 +1284,7 @@ async def test_change_syntax_theme_modal_escape_dismisses():
     app = _ChangeSyntaxThemeApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1313,7 +1313,7 @@ async def test_change_word_wrap_modal_escape_dismisses():
     app = _ChangeWordWrapApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1342,7 +1342,7 @@ async def test_change_ui_theme_modal_escape_dismisses():
     app = _ChangeUIThemeApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1371,7 +1371,7 @@ async def test_sidebar_resize_modal_escape_dismisses():
     app = _SidebarResizeApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1400,7 +1400,7 @@ async def test_split_resize_modal_escape_dismisses():
     app = _SplitResizeApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1430,7 +1430,7 @@ async def test_overwrite_confirm_modal_escape_does_not_dismiss():
     app = _OverwriteConfirmApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is None
 
@@ -1458,7 +1458,7 @@ async def test_discard_and_reload_modal_escape_does_not_dismiss():
     app = _DiscardAndReloadApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is None
 
@@ -1494,7 +1494,7 @@ async def test_shortcut_settings_escape_dismisses():
     app = _ShortcutSettingsApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1533,7 +1533,7 @@ async def test_footer_config_escape_dismisses():
     app = _FooterConfigApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1570,7 +1570,7 @@ async def test_show_shortcuts_escape_dismisses():
     app = _ShowShortcutsApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is None
 
@@ -1601,7 +1601,7 @@ async def test_save_screenshot_modal_save_button():
     app = _SaveScreenshotApp()
     async with app.run_test() as pilot:
         await pilot.click("#save")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -1612,7 +1612,7 @@ async def test_save_screenshot_modal_cancel_button():
     app = _SaveScreenshotApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -1625,7 +1625,7 @@ async def test_save_screenshot_modal_enter_submits():
         input_widget = app.screen.query_one("#path")
         await pilot.click(input_widget)
         await pilot.press("enter")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -1636,7 +1636,7 @@ async def test_save_screenshot_modal_escape_dismisses():
     app = _SaveScreenshotApp()
     async with app.run_test() as pilot:
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True

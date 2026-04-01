@@ -132,16 +132,16 @@ async def test_change_indent_modal_apply_spaces():
 
     app = _IndentTestApp(text="\thello\n\tworld")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.code_editor
 
         editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.screen.query_one("#indent_type", Select).value = "spaces"
         app.screen.query_one("#indent_size", Input).value = "4"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         final_text = app.screen_stack[0].query_one(CodeEditor).text
 
@@ -155,16 +155,16 @@ async def test_change_indent_modal_apply_tabs():
 
     app = _IndentTestApp(text="    hello\n    world")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.code_editor
 
         editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.screen.query_one("#indent_type", Select).value = "tabs"
         app.screen.query_one("#indent_size", Input).value = "4"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         final_text = app.screen_stack[0].query_one(CodeEditor).text
 
@@ -177,14 +177,14 @@ async def test_change_indent_cancel_no_change():
     original = "\thello\n\tworld"
     app = _IndentTestApp(text=original)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.code_editor
 
         editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         final_text = app.screen_stack[0].query_one(CodeEditor).text
 
@@ -197,16 +197,16 @@ async def test_change_indent_updates_textarea_settings():
 
     app = _IndentTestApp(text="\thello")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.code_editor
 
         editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.screen.query_one("#indent_type", Select).value = "spaces"
         app.screen.query_one("#indent_size", Input).value = "2"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         code_editor = app.screen_stack[0].query_one(CodeEditor)
         textarea = code_editor.query_one(TextArea)
@@ -226,7 +226,7 @@ async def test_footer_shows_default_indent():
 
     app = _IndentTestApp()
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         btn = app.query_one("#indent_btn", Button)
         label = str(btn.label)
     assert label == "4 Spaces"
@@ -238,13 +238,13 @@ async def test_footer_shows_tabs_after_change():
 
     app = _IndentTestApp(text="    hello\n    world")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one("#indent_type", Select).value = "tabs"
         app.screen.query_one("#indent_size", Input).value = "4"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         btn = app.screen_stack[0].query_one("#indent_btn", Button)
         label = str(btn.label)
     assert label == "Tabs"
@@ -256,13 +256,13 @@ async def test_footer_shows_2_spaces_after_change():
 
     app = _IndentTestApp()
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one("#indent_type", Select).value = "spaces"
         app.screen.query_one("#indent_size", Input).value = "2"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         btn = app.screen_stack[0].query_one("#indent_btn", Button)
         label = str(btn.label)
     assert label == "2 Spaces"
@@ -274,9 +274,9 @@ async def test_indent_button_opens_modal():
 
     app = _IndentTestApp()
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#indent_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, ChangeIndentModalScreen)
 
 
@@ -286,13 +286,13 @@ async def test_change_indent_updates_editor_reactives():
 
     app = _IndentTestApp(text="\thello")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one("#indent_type", Select).value = "spaces"
         app.screen.query_one("#indent_size", Input).value = "2"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ce = app.screen_stack[0].query_one(CodeEditor)
     assert ce.indent_type == "spaces"
     assert ce.indent_size == 2
@@ -304,13 +304,13 @@ async def test_change_indent_custom_size_3():
 
     app = _IndentTestApp(text="\thello\n\tworld")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one("#indent_type", Select).value = "spaces"
         app.screen.query_one("#indent_size", Input).value = "3"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         final_text = app.screen_stack[0].query_one(CodeEditor).text
 
     assert "   hello" in final_text  # 3 spaces
@@ -323,13 +323,13 @@ async def test_change_indent_custom_size_6():
 
     app = _IndentTestApp(text="\thello")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one("#indent_type", Select).value = "spaces"
         app.screen.query_one("#indent_size", Input).value = "6"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         final_text = app.screen_stack[0].query_one(CodeEditor).text
 
     assert "      hello" in final_text  # 6 spaces
@@ -343,13 +343,13 @@ async def test_change_indent_invalid_size_zero():
 
     app = _IndentTestApp(text="\thello")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one("#indent_type", Select).value = "spaces"
         app.screen.query_one("#indent_size", Input).value = "0"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Modal should still be open because input is invalid
         assert isinstance(app.screen, ChangeIndentModalScreen)
 
@@ -362,13 +362,13 @@ async def test_change_indent_invalid_size_negative():
 
     app = _IndentTestApp(text="\thello")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one("#indent_type", Select).value = "spaces"
         app.screen.query_one("#indent_size", Input).value = "-1"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, ChangeIndentModalScreen)
 
 
@@ -380,13 +380,13 @@ async def test_change_indent_invalid_size_text():
 
     app = _IndentTestApp(text="\thello")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one("#indent_type", Select).value = "spaces"
         app.screen.query_one("#indent_size", Input).value = "abc"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, ChangeIndentModalScreen)
 
 
@@ -396,18 +396,18 @@ async def test_change_indent_modal_prepopulates_current_values():
 
     app = _IndentTestApp()
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Apply custom 3-space indent first
         app.code_editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.query_one("#indent_type", Select).value = "spaces"
         app.screen.query_one("#indent_size", Input).value = "3"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open modal again and check pre-populated values
         app.screen_stack[0].query_one(CodeEditor).action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         indent_type = app.screen.query_one("#indent_type", Select).value
         indent_size_val = app.screen.query_one("#indent_size", Input).value
 
@@ -433,7 +433,7 @@ async def test_change_indent_cmd_no_editor_notifies(
 
         monkeypatch.setattr(tc_app, "notify", capture_notify)
         tc_app.action_change_indentation()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert any("error" in n for n in notified)
 
@@ -457,16 +457,16 @@ async def test_tab_no_selection_inserts_spaces(workspace: Path):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.selection = Selection(start=(0, 0), end=(0, 0))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("tab")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.text.startswith("    ")
 
@@ -482,14 +482,14 @@ async def test_tab_multi_line_selection_indents_all(workspace: Path):
     f.write_text("def foo():\n    pass\n    return\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.selection = Selection(start=(0, 0), end=(1, 4))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("tab")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         lines = editor.editor.text.split("\n")
         assert lines[0].startswith("    def foo():")
@@ -507,15 +507,15 @@ async def test_tab_selection_end_col0_excludes_last_row(workspace: Path):
     f.write_text("def foo():\n    pass\n    return\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         original_lines = editor.editor.text.split("\n")
         editor.editor.selection = Selection(start=(0, 0), end=(1, 0))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("tab")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         lines = editor.editor.text.split("\n")
         assert lines[0].startswith("    ")
@@ -533,14 +533,14 @@ async def test_shift_tab_removes_leading_spaces(workspace: Path):
     f.write_text("def foo():\n    pass\n    return\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.selection = Selection(start=(1, 4), end=(1, 4))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("shift+tab")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         lines = editor.editor.text.split("\n")
         assert lines[1] == "pass"
@@ -557,14 +557,14 @@ async def test_shift_tab_multi_line_dedents_all(workspace: Path):
     f.write_text("def foo():\n    pass\n    return\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.selection = Selection(start=(1, 0), end=(2, 6))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("shift+tab")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         lines = editor.editor.text.split("\n")
         assert lines[1] == "pass"
@@ -582,15 +582,15 @@ async def test_shift_tab_no_leading_spaces_noop(workspace: Path):
     f.write_text("def foo():\n    pass\n    return\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         original_text = editor.editor.text
         editor.editor.selection = Selection(start=(0, 3), end=(0, 3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("shift+tab")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.text == original_text
 
@@ -612,15 +612,15 @@ async def test_tab_respects_indent_size_2(tmp_path: Path):
 
     app = make_app(tmp_path, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.indent_size == 2
         editor.editor.selection = Selection(start=(0, 0), end=(0, 0))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("tab")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.text.startswith("  x = 1")
 
@@ -639,14 +639,14 @@ async def test_shift_tab_respects_indent_size_2(tmp_path: Path):
 
     app = make_app(tmp_path, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.selection = Selection(start=(0, 4), end=(0, 4))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("shift+tab")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Should remove only 2 spaces (not 4)
         assert editor.editor.text.startswith("  x = 1")
@@ -666,15 +666,15 @@ async def test_tab_inserts_tab_char_when_indent_type_tabs(tmp_path: Path):
 
     app = make_app(tmp_path, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.indent_type == "tabs"
         editor.editor.selection = Selection(start=(0, 0), end=(0, 0))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("tab")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.text.startswith("\tx = 1")
 
@@ -693,14 +693,14 @@ async def test_shift_tab_removes_tab_char(tmp_path: Path):
 
     app = make_app(tmp_path, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.editor.selection = Selection(start=(0, 1), end=(0, 1))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.press("shift+tab")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.text.startswith("x = 1")
 
@@ -715,13 +715,13 @@ async def test_indent_size_reactive_syncs_to_textarea(tmp_path: Path):
 
     app = make_app(tmp_path, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.editor.indent_width == 4
 
         editor.indent_size = 2
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.indent_width == 2
 
@@ -735,9 +735,9 @@ async def test_footer_indent_modal_no_save_level():
 
     app = _IndentTestApp()
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_change_indent()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert isinstance(app.screen, ChangeIndentModalScreen)
         assert len(app.screen.query("#save_level")) == 0

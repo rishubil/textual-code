@@ -108,10 +108,13 @@ rel_paths = [p.relative_to(root).as_posix() for p in paths]
 assert "src/main.py" in rel_paths  # True on all platforms
 ```
 
-## `pilot.pause()`: When Required and When Redundant
+## `wait_for_scheduled_animations()` as the Default Settling Call
 
-`pilot.press()` internally calls `_wait_for_screen()`, which processes pending widget
-events and settles the screen. `pilot.pause()` does the same plus `wait_for_idle(0)`.
+All tests use `pilot.wait_for_scheduled_animations()` instead of `pilot.pause()` for
+event-loop settling.  `wait_for_scheduled_animations()` is strictly more thorough — it
+calls `_wait_for_screen()` twice, waits for the animator to complete, and does a full
+`wait_for_idle()`.  In contrast, `pilot.pause()` only calls `_wait_for_screen()` once
+plus `wait_for_idle(0)`.
 
 ### Required after
 
@@ -119,20 +122,27 @@ events and settles the screen. `pilot.pause()` does the same plus `wait_for_idle
 |-----------|-----|
 | `editor.text = "..."` | Reactive property change — watchers need a cycle |
 | `action_*()` calls | Actions often schedule deferred work via `call_next` |
-| `app.run_test()` entry | First pause waits for full app mount |
-| `pilot.pause(0.5)` | Explicit delay for animations or async workers |
+| `app.run_test()` entry | First call waits for full app mount |
 
 ### Not required after
 
 | Situation | Why |
 |-----------|-----|
 | `await pilot.press("a")` then assert | `press()` already waited |
-| Two consecutive `pause()` calls | Second is redundant (unless comment explains why) |
+| Two consecutive calls | Second is redundant (unless comment explains why) |
 
-### Windows: extra `pilot.pause()` often needed
+### When `pilot.pause(delay=...)` is still needed
+
+Use `pilot.pause(delay=X)` (with a real-time delay) only when waiting for wall-clock
+operations like debounce timers or async workers.  Prefer `wait_for_condition()` from
+`conftest.py` which combines `wait_for_scheduled_animations()` with a delay-based
+retry loop.
+
+### Windows: extra settling often needed
 
 On Windows the event loop processes tab switches, style changes, and modal pushes
-slower than on Linux/macOS. A single `pilot.pause()` is frequently insufficient after:
+slower than on Linux/macOS. A single `wait_for_scheduled_animations()` is frequently
+insufficient after:
 
 - `tc.active = pane_id` (tab switch + lazy mount/unmount)
 - `styles.width = ...` (layout recalculation + reactive watchers)
@@ -144,12 +154,12 @@ slower than on Linux/macOS. A single `pilot.pause()` is frequently insufficient 
 - `pilot.click("#use_regex")` (checkbox reactive state change)
 - `widget.focus()` (focus change + footer/explorer sync)
 
-Add a second `await pilot.pause()` with a comment explaining why.
+Add a second `await pilot.wait_for_scheduled_animations()` with a comment explaining why.
 
 ### Guideline
 
-If removing a `pause()` makes a test flaky, add it back with a comment explaining why.
-Never leave two consecutive bare `pause()` calls without justification.
+If removing a settling call makes a test flaky, add it back with a comment explaining why.
+Never leave two consecutive bare calls without justification.
 
 ## `editor.text` Direct Assignment vs `pilot.press()`: Race Condition Warning
 
@@ -160,24 +170,24 @@ update the rendered content of the underlying `TextArea` widget.
 
 ```python
 editor.text = "modified\n"
-await pilot.pause()
+await pilot.wait_for_scheduled_animations()
 assert editor.title.endswith("*")  # reactive metadata only
 ```
 
 ### Dangerous: when `has_unsaved_pane()` must return True
 
-After `pilot.pause()`, Textual may process `TextArea.Changed` and overwrite
+After settling, Textual may process `TextArea.Changed` and overwrite
 `editor.text` with the original content, causing `has_unsaved_pane()` to return False.
 
 ```python
 # BAD — race condition
 editor.text = "modified\n"
-await pilot.pause()
+await pilot.wait_for_scheduled_animations()
 app.action_quit()  # modal may not appear
 
 # GOOD — full TextArea flow
 await pilot.press("x")
-await pilot.pause()
+await pilot.wait_for_scheduled_animations()
 app.action_quit()  # modal appears reliably
 ```
 
@@ -199,11 +209,11 @@ for ch in "search term":
 
 # FAST — one event-loop cycle total
 input_widget.value = "search term"
-await pilot.pause()
+await pilot.wait_for_scheduled_animations()
 ```
 
 `Input.value` is a Textual reactive property. Setting it directly fires `Input.Changed`
-just like typing would. Add `await pilot.pause()` after assignment to let watchers run.
+just like typing would. Add `await pilot.wait_for_scheduled_animations()` after assignment to let watchers run.
 
 **Keep `pilot.press()` when**: the test verifies the typing process itself (e.g. autocomplete,
 incremental search, key-by-key validation).
@@ -382,7 +392,7 @@ finishes loading.  Use polling with re-trigger:
 explorer = app.sidebar.query_one(Explorer)
 await app.main_view.action_open_code_editor(nested_file)
 for attempt in range(100):
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
     node = explorer.directory_tree.cursor_node
     if node is not None and node.data is not None and node.data.path == nested_file:
         break
@@ -412,7 +422,7 @@ from `conftest.py` instead of accessing `editor.text` directly:
 from tests.conftest import set_editor_text
 
 set_editor_text(app.main_view, py_pane_id, "new content\n")
-await pilot.pause()
+await pilot.wait_for_scheduled_animations()
 ```
 
 `set_editor_text` updates the mounted editor's `text` reactive (if the editor is in the

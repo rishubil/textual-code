@@ -61,7 +61,7 @@ async def test_split_container_horizontal_children():
     root = BranchNode(direction="horizontal", children=[a, b], ratios=[0.5, 0.5])
     app = _SplitContainerApp(root)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         sc = app.query_one(SplitContainer)
         children = list(sc.children)
         # child[0]=DTC, child[1]=handle, child[2]=DTC
@@ -78,7 +78,7 @@ async def test_split_container_vertical_children():
     root = BranchNode(direction="vertical", children=[a, b], ratios=[0.5, 0.5])
     app = _SplitContainerApp(root)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         sc = app.query_one(SplitContainer)
         assert sc.has_class("split-vertical")
         assert not sc.has_class("split-horizontal")
@@ -90,7 +90,7 @@ async def test_split_container_horizontal_css_class():
     root = BranchNode(direction="horizontal", children=[a, b], ratios=[0.5, 0.5])
     app = _SplitContainerApp(root)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         sc = app.query_one(SplitContainer)
         assert sc.has_class("split-horizontal")
         assert not sc.has_class("split-vertical")
@@ -104,7 +104,7 @@ async def test_split_container_three_children():
     root = BranchNode(direction="horizontal", children=[a, b, c], ratios=[1 / 3] * 3)
     app = _SplitContainerApp(root)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         sc = app.query_one(SplitContainer)
         children = list(sc.children)
         # DTC, handle, DTC, handle, DTC
@@ -124,7 +124,7 @@ async def test_split_resize_handle_child_index():
     root = BranchNode(direction="horizontal", children=[a, b, c], ratios=[1 / 3] * 3)
     app = _SplitContainerApp(root)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         handles = list(app.query(SplitResizeHandle))
         assert len(handles) == 2
         assert handles[0].child_index == 0

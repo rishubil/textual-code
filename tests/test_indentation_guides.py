@@ -58,9 +58,9 @@ class TestCodeEditor:
     async def test_c01_code_editor_has_show_indentation_guides(self, workspace: Path):
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await app.main_view.action_open_code_editor()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             assert editor.show_indentation_guides is True
@@ -69,13 +69,13 @@ class TestCodeEditor:
     async def test_c02_watch_propagates_to_text_area(self, workspace: Path):
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await app.main_view.action_open_code_editor()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.show_indentation_guides = False
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert editor.editor._show_indentation_guides is False
 
     @pytest.mark.asyncio
@@ -84,7 +84,7 @@ class TestCodeEditor:
     ):
         app = make_app(workspace, light=True, open_file=sample_py_file)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.show_indentation_guides = False
@@ -100,31 +100,31 @@ class TestToggle:
     async def test_d01_toggle_flips_value(self, workspace: Path):
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await app.main_view.action_open_code_editor()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             assert editor.show_indentation_guides is True
             editor.action_toggle_indentation_guides()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert editor.show_indentation_guides is False
             editor.action_toggle_indentation_guides()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert editor.show_indentation_guides is True
 
     @pytest.mark.asyncio
     async def test_d02_toggle_via_app_cmd(self, workspace: Path):
         app = make_app(workspace, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             await app.main_view.action_open_code_editor()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             assert editor.show_indentation_guides is True
             app.action_toggle_indentation_guides()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert editor.show_indentation_guides is False
 
 
@@ -161,7 +161,7 @@ class TestRendering:
         f.write_text("x = 1\ny = 2\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -176,7 +176,7 @@ class TestRendering:
         f.write_text("    code\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -192,7 +192,7 @@ class TestRendering:
         f.write_text("        code\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -208,7 +208,7 @@ class TestRendering:
         f.write_text("            code\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -224,11 +224,11 @@ class TestRendering:
         f.write_text("        code\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.show_indentation_guides = False
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             ta = editor.editor
             gw = ta.gutter_width
             strip = ta._render_line(0)
@@ -241,7 +241,7 @@ class TestRendering:
         f.write_text("\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -256,7 +256,7 @@ class TestRendering:
         f.write_text("  code\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -281,7 +281,7 @@ class TestRendering:
         f.write_text(text)
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -305,12 +305,12 @@ class TestRendering:
         f.write_text(content)
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test(size=(80, 24)) as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
             ta.soft_wrap = False
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             gw = ta.gutter_width
 
             # At scroll_x=0: guides at doc cols 0 and 4
@@ -346,7 +346,7 @@ class TestRendering:
         f.write_text("        code\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -364,15 +364,15 @@ class TestRendering:
         f.write_text("        x\n        y\n")
         app = make_app(workspace, light=True, open_file=f)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             editor.show_indentation_guides = True
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             ta = editor.editor
             ta.focus()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert ta.cursor_location[0] == 0
 
             gw = ta.gutter_width

@@ -32,11 +32,11 @@ async def test_ctrl_f_shows_bar_find_mode(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         await pilot.press("ctrl+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
         assert bar.display
         assert not bar.replace_mode
@@ -47,11 +47,11 @@ async def test_ctrl_h_shows_bar_replace_mode(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         await pilot.press("ctrl+h")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
         assert bar.display
         assert bar.replace_mode
@@ -62,14 +62,14 @@ async def test_escape_closes_bar(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # focus is on find_input
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
         assert not bar.display
 
@@ -79,13 +79,13 @@ async def test_close_btn_hides_bar(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#close_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
         assert not bar.display
 
@@ -97,13 +97,13 @@ async def test_close_returns_focus_to_textarea(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#close_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.focused == editor.query_one(MultiCursorTextArea)
 
 
@@ -115,11 +115,11 @@ async def test_replace_row_hidden_in_find_mode(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         replace_row = editor.query_one("#replace_row")
         assert not replace_row.display
 
@@ -129,11 +129,11 @@ async def test_replace_row_visible_in_replace_mode(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         replace_row = editor.query_one("#replace_row")
         assert replace_row.display
 
@@ -143,15 +143,15 @@ async def test_ctrl_h_after_ctrl_f_switches_to_replace_mode(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         await pilot.press("ctrl+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
         assert not bar.replace_mode
         await pilot.press("ctrl+h")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert bar.replace_mode
 
 
@@ -163,15 +163,15 @@ async def test_find_next_button_selects_match(workspace: Path):
     f = await _open_file(workspace, "hello world\nhello again\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         sel = editor.editor.selection
         assert sel.start == (0, 0)
         assert sel.end == (0, 5)
@@ -182,15 +182,15 @@ async def test_find_next_enter_key_selects_match(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.press("enter")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         sel = editor.editor.selection
         assert sel.start == (0, 0)
         assert sel.end == (0, 5)
@@ -201,27 +201,33 @@ async def test_sequential_find_stays_open(workspace: Path):
     f = await _open_file(workspace, "aa bb aa cc aa\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_find()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for find bar rendering
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for find bar rendering
         await pilot.click("#find_input")
-        await pilot.pause()  # Windows: extra pause for focus to settle on find input
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for focus to settle on find input
         await pilot.press("a", "a")
-        await pilot.pause()  # Windows: extra pause for key presses
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for key presses
 
         await pilot.click("#next_match")
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
         assert bar.display
         first_sel = editor.editor.selection.start
 
         await pilot.click("#next_match")
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         assert bar.display
         second_sel = editor.editor.selection.start
 
@@ -234,14 +240,14 @@ async def test_find_next_empty_query_does_nothing(workspace: Path):
     f = await _open_file(workspace, "hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         original = editor.editor.cursor_location
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.editor.cursor_location == original
 
 
@@ -253,17 +259,17 @@ async def test_replace_all_btn_replaces_all(workspace: Path):
     f = await _open_file(workspace, "foo bar foo baz\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#find_input")
         await pilot.press("f", "o", "o")
         await pilot.click("#replace_input")
         await pilot.press("X")
         await pilot.click("#replace_all_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert "foo" not in editor.text
         assert editor.text.count("X") == 2
 
@@ -273,23 +279,23 @@ async def test_replace_btn_selection_matches_replaces_and_finds_next(workspace: 
     f = await _open_file(workspace, "hello hello\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         from textual.widgets.text_area import Selection
 
         editor.editor.selection = Selection(start=(0, 0), end=(0, 5))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#replace_input")
         await pilot.press("h", "i")
         await pilot.click("#replace_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.text.startswith("hi")
         assert "hello" in editor.text  # second occurrence remains
@@ -300,22 +306,22 @@ async def test_replace_btn_no_selection_match_finds_next(workspace: Path):
     f = await _open_file(workspace, "hello world\nhello again\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         original_text = editor.text
         editor.editor.cursor_location = (0, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#replace_input")
         await pilot.press("h", "i")
         await pilot.click("#replace_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # text unchanged but 'hello' selected
         assert editor.text == original_text
@@ -334,22 +340,22 @@ async def test_case_insensitive_find_via_bar(workspace: Path):
     f = await _open_file(workspace, "HELLO world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
 
         # Uncheck case_sensitive
         bar.query_one("#case_sensitive", Checkbox).value = False
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         assert sel.start == (0, 0)
@@ -363,17 +369,19 @@ async def test_regex_on_disables_case_sensitive_checkbox(workspace: Path):
     f = await _open_file(workspace, "hello\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
 
         await pilot.click("#use_regex")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for checkbox click state propagation
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for checkbox click state propagation
 
         case_cb = bar.query_one("#case_sensitive", Checkbox)
         assert case_cb.disabled
@@ -384,19 +392,19 @@ async def test_replace_enter_key_triggers_replace(workspace: Path):
     f = await _open_file(workspace, "hello hello\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Open replace mode
         editor.action_replace()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Type find query and find next to select the first match
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify match is selected
         sel = editor.editor.selection
@@ -407,7 +415,7 @@ async def test_replace_enter_key_triggers_replace(workspace: Path):
         await pilot.click("#replace_input")
         await pilot.press("h", "i")
         await pilot.press("enter")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # First "hello" should be replaced with "hi"
         assert editor.text.startswith("hi")
@@ -421,18 +429,18 @@ async def test_regex_on_get_case_sensitive_always_true(workspace: Path):
     f = await _open_file(workspace, "hello\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
 
         # Uncheck case_sensitive, then turn regex on
         bar.query_one("#case_sensitive", Checkbox).value = False
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#use_regex")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert bar._get_case_sensitive() is True

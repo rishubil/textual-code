@@ -23,16 +23,16 @@ async def test_footer_labels_correct_after_tab_switch(
     """After switching tabs, the footer shows the new editor's metadata."""
     app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=sample_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Switch back to py tab
         tc = app.main_view.tabbed_content
         py_pane_id = app.main_view._active_leaf.opened_files[sample_py_file]
         tc.active = py_pane_id
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         footer = app.main_view.query_one(CodeEditorFooter)
         assert footer.path == sample_py_file
@@ -40,8 +40,8 @@ async def test_footer_labels_correct_after_tab_switch(
         # Switch to json tab
         json_pane_id = app.main_view._active_leaf.opened_files[sample_json_file]
         tc.active = json_pane_id
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         footer = app.main_view.query_one(CodeEditorFooter)
         assert footer.path == sample_json_file
@@ -60,9 +60,9 @@ async def test_only_active_editor_polled_with_multiple_tabs(
     """With N tabs open, only the active editor's poll methods are called."""
     app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=sample_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Get both editors
         main = app.main_view
@@ -72,8 +72,8 @@ async def test_only_active_editor_polled_with_multiple_tabs(
 
         # Make py tab active (json tab becomes unmounted)
         tc.active = py_pane_id
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # py is active and mounted; json is unmounted (in _editor_states)
         py_editor = tc.get_pane(py_pane_id).query_one(CodeEditor)
@@ -108,10 +108,12 @@ async def test_only_active_tab_has_code_editor_mounted(
     """After tab switch, only the active tab has a mounted CodeEditor."""
     app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=sample_json_file)
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for tab open + lazy unmount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for tab open + lazy unmount
 
         main = app.main_view
         tc = main.tabbed_content
@@ -128,8 +130,8 @@ async def test_only_active_tab_has_code_editor_mounted(
 
         # Switch to py tab
         tc.active = py_pane_id
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Now py should have editor, json should not
         assert len(py_pane.query(CodeEditor)) == 1, (
@@ -146,7 +148,7 @@ async def test_editor_state_restored_after_tab_switch(
     """After switching away and back, cursor position and text are restored."""
     app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         main = app.main_view
         tc = main.tabbed_content
@@ -154,7 +156,7 @@ async def test_editor_state_restored_after_tab_switch(
 
         # Type something in py editor
         await pilot.press("x")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Get the text from the py editor before switching
         py_pane = tc.get_pane(py_pane_id)
@@ -162,12 +164,12 @@ async def test_editor_state_restored_after_tab_switch(
 
         # Open json tab (switches away from py)
         await app.main_view.action_open_code_editor(path=sample_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Switch back to py
         tc.active = py_pane_id
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # py editor should be restored with same text
         py_editor = tc.get_pane(py_pane_id).query_one(CodeEditor)
@@ -180,17 +182,17 @@ async def test_has_unsaved_pane_detects_unmounted_editor_changes(
     """has_unsaved_pane() returns True even when the modified editor is unmounted."""
     app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         main = app.main_view
 
         # Modify py editor
         await pilot.press("x")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open json tab (py editor gets unmounted)
         await main.action_open_code_editor(path=sample_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # py editor is now unmounted, but has_unsaved_pane() should still return True
         assert main.has_unsaved_pane() is True
@@ -209,13 +211,13 @@ async def test_dom_widget_count_constant_with_multiple_tabs(
 
     app = make_app(workspace, light=True, open_file=files[0])
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         count_1 = len(list(app.query("*")))
 
         for f in files[1:]:
             await app.main_view.action_open_code_editor(path=f)
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         count_5 = len(list(app.query("*")))
 
@@ -232,7 +234,7 @@ async def test_state_capture_and_restore(workspace: Path, sample_py_file: Path):
     """EditorState captures all fields and CodeEditor.from_state restores them."""
     app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
@@ -258,11 +260,11 @@ async def test_binary_tab_not_lazily_unmounted(workspace: Path):
 
     app = make_app(workspace, light=True, open_file=bin_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         main = app.main_view
         await main.action_open_code_editor(path=py_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         bin_pane_id = main._active_leaf.opened_files[bin_file]
         tc = main.tabbed_content
@@ -283,21 +285,21 @@ async def test_save_all_saves_unmounted_editors(
     """action_save_all() saves editors that are currently unmounted."""
     app = make_app(workspace, light=True, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         main = app.main_view
 
         # Modify py editor
         await pilot.press("x")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open json tab (py editor gets unmounted)
         await main.action_open_code_editor(path=sample_json_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Save all
         main.action_save_all()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # py file should have been saved (its unsaved state is gone)
         assert main.has_unsaved_pane() is False
@@ -324,7 +326,7 @@ async def test_custom_language_tab_survives_lazy_remount(
 
     app = make_app(workspace, light=True, open_file=custom_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         main = app.main_view
         tc = main.tabbed_content
@@ -337,8 +339,8 @@ async def test_custom_language_tab_survives_lazy_remount(
 
         # Open a second tab (triggers lazy unmount of custom-language tab)
         await main.action_open_code_editor(path=sample_py_file)
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify custom-language tab is unmounted
         custom_pane = tc.get_pane(custom_pane_id)
@@ -346,8 +348,8 @@ async def test_custom_language_tab_survives_lazy_remount(
 
         # Switch back to custom-language tab — crash point before fix
         tc.active = custom_pane_id
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify editor is restored correctly
         restored = main.get_active_code_editor()

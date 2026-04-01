@@ -137,9 +137,9 @@ async def test_new_file_uses_custom_default(workspace, attr, value, editor_attr)
     app = make_app(workspace, light=True)
     setattr(app, attr, value)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert getattr(editor, editor_attr) == value
@@ -156,7 +156,7 @@ async def test_app_loads_project_config_on_startup(workspace):
     proj.write_text('[editor]\nline_ending = "crlf"\n')
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.default_line_ending == "crlf"
 
 
@@ -199,7 +199,7 @@ async def test_existing_file_ignores_app_defaults(workspace):
     # its own detected settings (not app defaults)
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         # file.py has no editorconfig, so detection applies: spaces + 4
@@ -217,16 +217,16 @@ async def test_existing_file_ignores_app_defaults(workspace):
 async def test_changing_defaults_only_affects_new_files(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         first = app.main_view.get_active_code_editor()
         assert first is not None
         first_indent = first.indent_type  # should be "spaces"
 
         app.default_indent_type = "tabs"
         await app.main_view.action_open_code_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # get second editor (find one that is tabs)
         second = app.main_view.get_active_code_editor()
         assert second is not None
@@ -296,15 +296,15 @@ async def test_action_set_default_indentation_saves_to_project(workspace):
 
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_set_default_indentation()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.screen.query_one("#indent_type", Select).value = "tabs"
         app.screen.query_one("#indent_size", Input).value = "2"
         app.screen.query_one("#save_level", Select).value = "project"
         await pilot.click("#apply")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     proj_cfg = workspace / ".textual-code.toml"
     assert proj_cfg.exists()
@@ -437,7 +437,7 @@ async def test_app_shows_toast_on_invalid_config(tmp_path):
     ws.mkdir()
     app = make_app(ws, user_config_path=cfg, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         warning_notifications = [
             n
             for n in app._notifications

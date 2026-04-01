@@ -205,13 +205,13 @@ class TestCtrlLeftWithSelection:
         )
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((4, 1), (4, 1))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+left")
 
@@ -243,7 +243,7 @@ class TestCtrlLeftMultiCursor:
         f.write_text("\n".join(self.LINES) + "\n")
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -251,10 +251,10 @@ class TestCtrlLeftMultiCursor:
             # Place primary at line 4 col 20, extra at line 5 col 20
             ta.selection = Selection((4, 20), (4, 20))
             ta.add_cursor((5, 20))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+left")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Both cursors should have moved left by one word
             primary = ta.cursor_location
@@ -361,13 +361,13 @@ class TestCtrlRightWithSelection:
         f.write_text("    \tMy First Line\t \n")
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((0, 0), (0, 0))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+right")
 

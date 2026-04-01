@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import make_app
+from tests.conftest import make_app, wait_for_condition
 from textual_code.widgets.markdown_preview import (
     MARKDOWN_EXTENSIONS,
     MarkdownPreviewPane,
@@ -37,10 +37,10 @@ async def test_preview_tab_opens_for_markdown_file(workspace: Path, md_file: Pat
     """Opening preview for a markdown file adds a new pane."""
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         initial_count = len(app.main_view.opened_pane_ids)
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == initial_count + 1
 
 
@@ -51,10 +51,10 @@ async def test_preview_tab_not_opened_for_non_markdown(workspace: Path, py_file:
     """Opening preview for a .py file is a no-op."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         initial_count = len(app.main_view.opened_pane_ids)
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == initial_count
 
 
@@ -65,10 +65,10 @@ async def test_preview_tab_not_opened_without_open_file(workspace: Path):
     """Opening preview with no editor open is a no-op."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         initial_count = len(app.main_view.opened_pane_ids)
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == initial_count
 
 
@@ -79,12 +79,12 @@ async def test_preview_tab_switch_to_existing(workspace: Path, md_file: Path):
     """Calling open preview twice does not create a duplicate tab."""
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         count_after_first = len(app.main_view.opened_pane_ids)
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == count_after_first
 
 
@@ -95,9 +95,9 @@ async def test_preview_tab_title(workspace: Path, md_file: Path):
     """Preview tab label includes 'Preview:' and the filename."""
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_id = app.main_view._preview_pane_ids[md_file]
         tc = app.main_view._tc_for_pane(pane_id)
         assert tc is not None
@@ -113,10 +113,10 @@ async def test_ctrl_shift_m_opens_tab(workspace: Path, md_file: Path):
     """Ctrl+Shift+M opens a markdown preview tab."""
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         initial_count = len(app.main_view.opened_pane_ids)
         await pilot.press("ctrl+shift+m")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(app.main_view.opened_pane_ids) == initial_count + 1
 
 
@@ -129,13 +129,13 @@ async def test_preview_tab_updates_on_text_change(workspace: Path, md_file: Path
 
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Get editor reference before opening preview (focus shifts after)
         editor = app.main_view._get_active_code_editor_in_split("left")
         assert editor is not None
 
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         pane_id = app.main_view._preview_pane_ids[md_file]
         tc = app.main_view._tc_for_pane(pane_id)
@@ -145,8 +145,12 @@ async def test_preview_tab_updates_on_text_change(workspace: Path, md_file: Path
 
         new_text = "# Updated\n\nNew content\n"
         editor.text = new_text
-        # Wait for debounce timer to fire
-        await pilot.pause(delay=0.5)
+        # Wait for debounce timer (0.3s) to fire and update preview
+        await wait_for_condition(
+            pilot,
+            lambda: md_widget._markdown == new_text,
+            msg="Preview did not update after debounce",
+        )
 
         assert md_widget._markdown == new_text
 
@@ -158,9 +162,9 @@ async def test_preview_no_update_when_tab_closed(workspace: Path, md_file: Path)
     """After the preview tab is closed, text changes do not cause errors."""
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         pane_id = app.main_view._preview_pane_ids.get(md_file)
         assert pane_id is not None
@@ -168,13 +172,13 @@ async def test_preview_no_update_when_tab_closed(workspace: Path, md_file: Path)
         # Close the preview tab manually
         await app.main_view.close_pane(pane_id)
         app.main_view._preview_pane_ids.pop(md_file, None)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Text change should not raise
         editor = app.main_view._get_active_code_editor_in_split("left")
         assert editor is not None
         editor.text = "# Changed\n"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # No exception means pass
 
 
@@ -185,13 +189,13 @@ async def test_preview_tab_closes_with_source(workspace: Path, md_file: Path):
     """Closing the source editor also closes the preview tab."""
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Capture source editor reference before preview tab steals focus
         editor = app.main_view._get_active_code_editor_in_split("left")
         assert editor is not None
 
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         preview_pane_id = app.main_view._preview_pane_ids.get(md_file)
         assert preview_pane_id is not None
@@ -199,8 +203,8 @@ async def test_preview_tab_closes_with_source(workspace: Path, md_file: Path):
 
         # Close via CodeEditor.action_close() to trigger on_code_editor_closed
         editor.action_close()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert not app.main_view.is_opened_pane(preview_pane_id)
         assert md_file not in app.main_view._preview_pane_ids
@@ -213,9 +217,9 @@ async def test_ctrl_w_closes_preview_tab(workspace: Path, md_file: Path):
     """Ctrl+W closes a focused preview tab."""
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         preview_pane_id = app.main_view._preview_pane_ids.get(md_file)
         assert preview_pane_id is not None
@@ -223,9 +227,9 @@ async def test_ctrl_w_closes_preview_tab(workspace: Path, md_file: Path):
 
         # Focus the preview tab then close via action_close
         app.main_view.focus_pane(preview_pane_id)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_close_editor()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert not app.main_view.is_opened_pane(preview_pane_id)
 
@@ -237,15 +241,15 @@ async def test_preview_tab_and_split_coexist(workspace: Path, md_file: Path):
     """Preview tab works correctly alongside a split view."""
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Go back to left split and open preview
         app.main_view.action_focus_left_split()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert md_file in app.main_view._preview_pane_ids
         preview_pane_id = app.main_view._preview_pane_ids[md_file]
@@ -261,13 +265,13 @@ async def test_clicking_preview_pane_updates_active_leaf(
     """Clicking on MarkdownPreviewPane gives it focus."""
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Get editor reference before preview steals focus
         editor = app.main_view._get_active_code_editor_in_split("left")
         assert editor is not None
 
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         preview_pane_id = app.main_view._preview_pane_ids[md_file]
         tc = app.main_view._tc_for_pane(preview_pane_id)
@@ -275,16 +279,16 @@ async def test_clicking_preview_pane_updates_active_leaf(
 
         # Activate the preview tab so it's visible
         tc.active = preview_pane_id
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Focus the editor (simulates user clicking away from preview)
         editor.focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Click on the preview pane content
         preview = tc.get_pane(preview_pane_id).query_one(MarkdownPreviewPane)
         await pilot.click(MarkdownPreviewPane)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # The preview pane should have received focus
         assert preview.has_focus
@@ -301,12 +305,12 @@ async def test_preview_update_is_debounced(workspace: Path, md_file: Path):
 
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view._get_active_code_editor_in_split("left")
         assert editor is not None
 
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         pane_id = app.main_view._preview_pane_ids[md_file]
         tc = app.main_view._tc_for_pane(pane_id)
@@ -329,8 +333,12 @@ async def test_preview_update_is_debounced(workspace: Path, md_file: Path):
             editor.text = "# Two"
             editor.text = "# Three"
 
-            # Wait for debounce to fire
-            await pilot.pause(delay=0.5)
+            # Wait for debounce timer (0.3s) to fire and call update
+            await wait_for_condition(
+                pilot,
+                lambda: call_count >= 1,
+                msg="Debounce timer did not fire",
+            )
 
         # With debounce, update should be called once (not three times)
         assert call_count == 1, f"Expected 1 update call, got {call_count}"
@@ -346,17 +354,17 @@ async def test_preview_tab_focus_resets_footer(workspace: Path, md_file: Path):
 
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Footer should have editor info initially
         footer = app.main_view.query_one(CodeEditorFooter)
         assert footer.path is not None
 
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         preview_pane_id = app.main_view._preview_pane_ids[md_file]
         app.main_view.focus_pane(preview_pane_id)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Footer should be reset since preview pane has no code editor
         assert footer.path is None
@@ -369,9 +377,9 @@ async def test_preview_focus_does_not_shift_content(workspace: Path, md_file: Pa
     """Focus highlight must use outline (not border) so content doesn't shift."""
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         preview_pane_id = app.main_view._preview_pane_ids[md_file]
         tc = app.main_view._tc_for_pane(preview_pane_id)
@@ -383,7 +391,7 @@ async def test_preview_focus_does_not_shift_content(workspace: Path, md_file: Pa
 
         # Focus the preview pane
         preview.focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert preview.has_focus
 
         # Content size must not change (outline doesn't consume space)
@@ -401,9 +409,9 @@ async def test_preview_tab_receives_focus_on_open(workspace: Path, md_file: Path
     """Opening a preview tab should give focus to the MarkdownPreviewPane."""
     app = make_app(workspace, open_file=md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         preview_pane_id = app.main_view._preview_pane_ids[md_file]
         tc = app.main_view._tc_for_pane(preview_pane_id)
@@ -501,9 +509,9 @@ async def test_markdown_widget_renders_with_space(workspace: Path):
 
     app = make_app(workspace, open_file=bold_md_file, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_markdown_preview()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         pane_id = app.main_view._preview_pane_ids[bold_md_file]
         tc = app.main_view._tc_for_pane(pane_id)

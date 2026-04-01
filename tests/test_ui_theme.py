@@ -89,7 +89,7 @@ def test_action_change_ui_theme_exists(tmp_path):
 async def test_app_applies_ui_theme_on_startup(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.theme == "textual-dark"
 
 
@@ -112,7 +112,7 @@ async def test_app_loads_ui_theme_from_config(workspace):
         workspace_path=workspace, with_open_file=None, user_config_path=cfg
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.default_ui_theme == "nord"
         assert app.theme == "nord"
 
@@ -129,16 +129,16 @@ async def test_action_change_ui_theme_applies_and_saves(workspace):
         workspace_path=workspace, with_open_file=None, user_config_path=cfg
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_change_ui_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, ChangeUIThemeModalScreen)
         app.screen.dismiss(
             ChangeUIThemeModalResult(
                 is_cancelled=False, theme="nord", save_level="user"
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.theme == "nord"
         assert app.default_ui_theme == "nord"
         loaded = load_editor_settings(workspace, user_config_path=cfg)
@@ -153,15 +153,15 @@ async def test_action_change_ui_theme_save_level_user(workspace):
         workspace_path=workspace, with_open_file=None, user_config_path=cfg
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_change_ui_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.dismiss(
             ChangeUIThemeModalResult(
                 is_cancelled=False, theme="nord", save_level="user"
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert cfg.exists()
         loaded = load_editor_settings(workspace, user_config_path=cfg)
         assert loaded["ui_theme"] == "nord"
@@ -177,15 +177,15 @@ async def test_action_change_ui_theme_save_level_project(workspace):
         workspace_path=workspace, with_open_file=None, user_config_path=cfg
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_change_ui_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.screen.dismiss(
             ChangeUIThemeModalResult(
                 is_cancelled=False, theme="nord", save_level="project"
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert proj.exists()
         loaded = load_editor_settings(workspace, user_config_path=cfg)
         assert loaded["ui_theme"] == "nord"
@@ -195,7 +195,7 @@ async def test_action_change_ui_theme_save_level_project(workspace):
 async def test_builtin_theme_command_removed(workspace):
     app = TextualCode(workspace_path=workspace, with_open_file=None)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         cmds = list(app.get_system_commands(app.screen))
         titles = [c.title for c in cmds]
         assert "Theme" not in titles
@@ -208,13 +208,13 @@ async def test_action_change_ui_theme_cancel_leaves_theme(workspace):
         workspace_path=workspace, with_open_file=None, user_config_path=cfg
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         original_theme = app.theme
         app.action_change_ui_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, ChangeUIThemeModalScreen)
         app.screen.dismiss(ChangeUIThemeModalResult(is_cancelled=True, theme=None))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.theme == original_theme
 
 
@@ -245,16 +245,16 @@ async def test_ui_theme_live_preview_on_select_change(workspace):
     """Changing the theme Select immediately previews the theme."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.theme == "textual-dark"
         app.action_change_ui_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         assert isinstance(modal, ChangeUIThemeModalScreen)
         # Simulate selecting a different theme
         select = modal.query_one("#theme", Select)
         select.value = "nord"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Theme should be applied immediately as a preview
         assert app.theme == "nord"
 
@@ -264,19 +264,19 @@ async def test_ui_theme_preview_reverts_on_cancel(workspace):
     """Cancelling after preview reverts to the original theme."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.theme == "textual-dark"
         app.action_change_ui_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         assert isinstance(modal, ChangeUIThemeModalScreen)
         select = modal.query_one("#theme", Select)
         select.value = "nord"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.theme == "nord"
         # Cancel should revert (use action_cancel to trigger revert logic)
         modal.action_cancel()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.theme == "textual-dark"
 
 
@@ -285,18 +285,18 @@ async def test_ui_theme_preview_reverts_on_escape(workspace):
     """Pressing Escape after preview reverts to the original theme."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.theme == "textual-dark"
         app.action_change_ui_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         select = modal.query_one("#theme", Select)
         select.value = "nord"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.theme == "nord"
         # Escape should revert
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.theme == "textual-dark"
 
 
@@ -308,13 +308,13 @@ async def test_ui_theme_preview_then_apply_persists(workspace):
         workspace_path=workspace, with_open_file=None, user_config_path=cfg
     )
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_change_ui_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         select = modal.query_one("#theme", Select)
         select.value = "nord"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Theme previewed before Apply
         assert app.theme == "nord"
         modal.dismiss(
@@ -322,7 +322,7 @@ async def test_ui_theme_preview_then_apply_persists(workspace):
                 is_cancelled=False, theme="nord", save_level="user"
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.theme == "nord"
         loaded = load_editor_settings(workspace, user_config_path=cfg)
         assert loaded["ui_theme"] == "nord"
@@ -333,13 +333,13 @@ async def test_ui_theme_preview_ignores_blank(workspace):
     """Select.BLANK value should not change the theme."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         original = app.theme
         app.action_change_ui_theme()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         modal = app.screen
         select = modal.query_one("#theme", Select)
         # Post a Changed message with BLANK directly (can't set via .value)
         select.post_message(Select.Changed(select, Select.BLANK))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.theme == original

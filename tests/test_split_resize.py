@@ -133,7 +133,7 @@ async def test_split_resize_modal_cancel_returns_cancelled():
     app = _SplitResizeApp()
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is True
@@ -147,7 +147,7 @@ async def test_split_resize_modal_submit_returns_value():
         await pilot.click(input_widget)
         await pilot.press("5", "0")
         await pilot.click("#submit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -161,7 +161,7 @@ async def test_split_resize_modal_enter_submits():
         await pilot.click(input_widget)
         await pilot.press("4", "0", "%")
         await pilot.press("enter")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -184,18 +184,18 @@ def py_file(workspace: Path) -> Path:
 async def test_resize_split_absolute_changes_width(workspace, py_file):
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.action_resize_split()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = app.screen.query_one("#value")
         await pilot.click(input_widget)
         await pilot.press("4", "0")
         await pilot.click("#submit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
@@ -207,22 +207,22 @@ async def test_resize_split_absolute_changes_width(workspace, py_file):
 async def test_resize_split_relative_plus_changes_width(workspace, py_file):
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
         initial_width = first_dtc.size.width
 
         app.action_resize_split()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = app.screen.query_one("#value")
         await pilot.click(input_widget)
         await pilot.press("+", "5")
         await pilot.click("#submit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         width = first_dtc.styles.width
         assert width is not None
@@ -232,18 +232,18 @@ async def test_resize_split_relative_plus_changes_width(workspace, py_file):
 async def test_resize_split_percentage_changes_width(workspace, py_file):
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.action_resize_split()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = app.screen.query_one("#value")
         await pilot.click(input_widget)
         await pilot.press("4", "0", "%")
         await pilot.click("#submit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
@@ -255,22 +255,22 @@ async def test_resize_split_percentage_changes_width(workspace, py_file):
 async def test_resize_split_invalid_shows_error(workspace, py_file):
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
         initial_width = first_dtc.size.width
 
         app.action_resize_split()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = app.screen.query_one("#value")
         await pilot.click(input_widget)
         await pilot.press("a", "b", "c")
         await pilot.click("#submit")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Width should be unchanged
         assert first_dtc.size.width == initial_width
@@ -279,19 +279,19 @@ async def test_resize_split_invalid_shows_error(workspace, py_file):
 async def test_resize_split_cancel_keeps_width(workspace, py_file):
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await app.main_view.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(app.main_view._split_root)
         first_dtc = app.main_view.query_one(f"#{leaves[0].leaf_id}")
         initial_width = first_dtc.size.width
 
         app.action_resize_split()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#cancel")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Width should be unchanged
         assert first_dtc.size.width == initial_width
@@ -301,11 +301,11 @@ async def test_resize_split_no_split_visible_shows_error(workspace, py_file):
     """Resize split command is a no-op (shows error) when split is not visible."""
     app = make_app(workspace, open_file=py_file, light=True)
     async with app.run_test(size=(120, 30)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.main_view._split_visible is False
 
         app.action_resize_split()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # No modal pushed — still on the main screen only
         assert len(app.screen_stack) == 1

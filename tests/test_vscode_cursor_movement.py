@@ -54,7 +54,7 @@ async def _setup(workspace, cursor_test_file, start=(0, 0)):
 
 async def _get_ta(app, pilot, start=(0, 0)):
     """After entering run_test, pause and return the TextArea."""
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
     ce = app.main_view.get_active_code_editor()
     assert ce is not None, "No active code editor found"
     ta = ce.editor
@@ -562,7 +562,7 @@ async def test_move_left_with_emoji(workspace: Path, emoji_test_file: Path):
     """VSCode: 'move left with surrogate pair' — left from after emoji."""
     app = make_app(workspace, light=True, open_file=emoji_test_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ce = app.main_view.get_active_code_editor()
         assert ce is not None, "No active code editor found"
         ta = ce.editor
@@ -576,7 +576,7 @@ async def test_move_right_with_emoji(workspace: Path, emoji_test_file: Path):
     """VSCode: 'move right with surrogate pair' — right from before emoji."""
     app = make_app(workspace, light=True, open_file=emoji_test_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ce = app.main_view.get_active_code_editor()
         assert ce is not None, "No active code editor found"
         ta = ce.editor

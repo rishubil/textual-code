@@ -60,16 +60,16 @@ async def test_drag_left_to_right_moves_pane(
     """Moving a pane from left to right appears in right _pane_ids."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Open a second file in left so it doesn't become empty after move
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open right split
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Focus left split to select source pane
         main._active_split = "left"
@@ -77,7 +77,7 @@ async def test_drag_left_to_right_moves_pane(
 
         # Move source pane to right split
         new_pane_id = await main._move_pane_to_split(source_pane_id, "right")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert new_pane_id is not None
         assert new_pane_id in main._pane_ids["right"]
@@ -90,15 +90,15 @@ async def test_drag_right_to_left_moves_pane(
     """Moving a pane from right to left appears in left _pane_ids."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Open right split with a different file
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main._active_split = "right"
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         right_panes = [
             p
@@ -110,7 +110,7 @@ async def test_drag_right_to_left_moves_pane(
 
         # Move right pane to left
         new_pane_id = await main._move_pane_to_split(source_pane_id, "left")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert new_pane_id is not None
         assert new_pane_id in main._pane_ids["left"]
@@ -123,7 +123,7 @@ async def test_drag_cross_split_preserves_unsaved_content(
     """Unsaved content in the editor survives a cross-split move."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Modify the editor without saving
@@ -133,11 +133,11 @@ async def test_drag_cross_split_preserves_unsaved_content(
         pane = tc.get_pane(source_pane_id)
         editor = pane.query_one(CodeEditor)
         editor.replace_editor_text("unsaved content")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Move to right split
         new_pane_id = await main._move_pane_to_split(source_pane_id, "right")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert new_pane_id is not None
         dest_leaves = all_leaves(main._split_root)
@@ -154,21 +154,21 @@ async def test_drag_cross_split_closes_right_split_when_empty(
     """Moving the last tab from right to left collapses the right split."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Open right split with one file (py_file2)
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main._active_split = "right"
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Close the py_file copy that action_split_right opened (keep only py_file2)
         py_file_right_id = main._opened_files["right"].get(py_file)
         if py_file_right_id:
             await main.action_close_code_editor(py_file_right_id)
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
         # Confirm right split has exactly one pane (py_file2)
         right_pane_id = main._opened_files["right"].get(py_file2)
@@ -177,7 +177,7 @@ async def test_drag_cross_split_closes_right_split_when_empty(
 
         # Move that pane to left split via helper
         new_pane_id = await main._move_pane_to_split(right_pane_id, "left")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert new_pane_id is not None
         assert main._split_visible is False
@@ -189,19 +189,19 @@ async def test_drag_cross_split_duplicate_file_focuses_existing(
     """If the file is already open in the destination split, don't duplicate it."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Open a second file in left so it doesn't become empty after move
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open same file in right split too
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main._active_split = "right"
         await main.action_open_code_editor(path=py_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         right_tab_count_before = len(main._pane_ids["right"])
 
@@ -210,7 +210,7 @@ async def test_drag_cross_split_duplicate_file_focuses_existing(
 
         # Try to move left pane (py_file) to right, but py_file already open there
         new_pane_id = await main._move_pane_to_split(left_pane_id, "right")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Source pane closed, but no new pane added
         assert len(main._pane_ids["right"]) == right_tab_count_before
@@ -229,13 +229,13 @@ async def test_drop_target_highlight_during_cross_split_drag(
     """Dragging a tab over the other split adds -drop-target class to it."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(main._split_root)
         left_dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
@@ -251,7 +251,7 @@ async def test_drop_target_highlight_during_cross_split_drag(
         drag_y = drag_region.y + drag_region.height // 2
         drag_offset = (drag_x - left_dtc.region.x, drag_y - left_dtc.region.y)
         await pilot.mouse_down(left_dtc, offset=drag_offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Move past threshold
         second_tab = left_tabs[1]
@@ -261,7 +261,7 @@ async def test_drop_target_highlight_during_cross_split_drag(
             left_dtc,
             offset=(mid_x - left_dtc.region.x, mid_y - left_dtc.region.y),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert left_dtc._dragging
 
         # Move cursor over right split tab bar
@@ -273,7 +273,7 @@ async def test_drop_target_highlight_during_cross_split_drag(
             left_dtc,
             offset=(drop_x - left_dtc.region.x, drop_y - left_dtc.region.y),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Right DTC overlay should have -visible class
         assert _highlight_is_mode(app, right_dtc.id, "full")
@@ -285,7 +285,7 @@ async def test_drop_target_highlight_during_cross_split_drag(
             left_dtc,
             offset=(drop_x - left_dtc.region.x, drop_y - left_dtc.region.y),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # After mouse_up, overlay should be hidden
         assert not _highlight_is_mode(app, right_dtc.id, "full")
@@ -297,13 +297,13 @@ async def test_drop_target_removed_when_cursor_returns_to_source(
     """Moving cursor back to source split removes -drop-target from sibling."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(main._split_root)
         left_dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
@@ -319,7 +319,7 @@ async def test_drop_target_removed_when_cursor_returns_to_source(
         drag_y = drag_region.y + drag_region.height // 2
         drag_offset = (drag_x - left_dtc.region.x, drag_y - left_dtc.region.y)
         await pilot.mouse_down(left_dtc, offset=drag_offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Exceed threshold
         second_tab = left_tabs[1]
@@ -329,7 +329,7 @@ async def test_drop_target_removed_when_cursor_returns_to_source(
             left_dtc,
             offset=(mid_x - left_dtc.region.x, mid_y - left_dtc.region.y),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert left_dtc._dragging
 
         # Move to right split
@@ -341,7 +341,7 @@ async def test_drop_target_removed_when_cursor_returns_to_source(
             left_dtc,
             offset=(drop_x - left_dtc.region.x, drop_y - left_dtc.region.y),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert _highlight_is_mode(app, right_dtc.id, "full")
 
         # Move back to source (left) split
@@ -349,14 +349,14 @@ async def test_drop_target_removed_when_cursor_returns_to_source(
             left_dtc,
             offset=(mid_x - left_dtc.region.x, mid_y - left_dtc.region.y),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # overlay should be hidden on right
         assert not _highlight_is_mode(app, right_dtc.id, "full")
 
         # Cleanup
         await pilot.mouse_up(left_dtc, offset=drag_offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
 
 async def test_no_drop_target_in_single_split(
@@ -365,11 +365,11 @@ async def test_no_drop_target_in_single_split(
     """In single split mode, no -drop-target class is applied during drag."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(main._split_root)
         dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
@@ -382,21 +382,21 @@ async def test_no_drop_target_in_single_split(
         drag_offset = (drag_x - dtc.region.x, drag_y - dtc.region.y)
 
         await pilot.mouse_down(dtc, offset=drag_offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Exceed threshold
         second_tab = tabs[1]
         mid_x = second_tab.region.x + second_tab.region.width // 2
         mid_y = second_tab.region.y + second_tab.region.height // 2
         await pilot.hover(dtc, offset=(mid_x - dtc.region.x, mid_y - dtc.region.y))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert dtc._dragging
 
         # No overlay -visible should be set on self
         assert not _highlight_is_mode(app, dtc.id, "full")
 
         await pilot.mouse_up(dtc, offset=(mid_x - dtc.region.x, mid_y - dtc.region.y))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
 
 # ── E2E drag test ─────────────────────────────────────────────────────────────
@@ -408,16 +408,16 @@ async def test_e2e_drag_tab_left_to_right(
     """E2E: drag a tab from left split into right split's tab bar."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Open a second file in the left split so the split doesn't become empty
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open right split (any file)
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Right split should now be visible and have a tab
         assert main._split_visible is True
@@ -453,7 +453,7 @@ async def test_e2e_drag_tab_left_to_right(
 
         # mouse_down on first left tab
         await pilot.mouse_down(left_dtc, offset=drag_offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # hover within left_dtc to exceed drag threshold and trigger capture_mouse()
         second_left_tab = left_tabs[1] if len(left_tabs) > 1 else left_tabs[0]
@@ -464,7 +464,7 @@ async def test_e2e_drag_tab_left_to_right(
             intermediate_y - left_dtc.region.y,
         )
         await pilot.hover(left_dtc, offset=intermediate_offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert left_dtc._dragging, (
             "Expected _dragging to be True after threshold exceeded"
@@ -476,7 +476,7 @@ async def test_e2e_drag_tab_left_to_right(
             drop_screen[1] - left_dtc.region.y,
         )
         await pilot.mouse_up(left_dtc, offset=drop_offset_from_left)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Right split should have gained a tab; left split unchanged or lost one
         assert (
@@ -501,12 +501,12 @@ async def test_drag_markdown_preview_to_other_split(
     """Moving a markdown preview pane to another split should not crash."""
     app = make_app(workspace, open_file=md_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Open a second file so the source split isn't empty after move
         await main.action_open_code_editor(path=py_file)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open markdown preview for the .md file
         # Focus the md editor first
@@ -515,12 +515,12 @@ async def test_drag_markdown_preview_to_other_split(
         md_pane_id = source_leaf.opened_files[md_file]
         tc = main.query_one(f"#{source_leaf.leaf_id}", DraggableTabbedContent)
         tc.active = md_pane_id
-        await pilot.pause()
-        await pilot.pause()  # wait for lazy editor remount
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()  # wait for lazy editor remount
 
         await main.action_open_markdown_preview()
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify preview was created
         assert md_file in main._preview_pane_ids
@@ -529,8 +529,8 @@ async def test_drag_markdown_preview_to_other_split(
 
         # Move preview pane to right split
         new_pane_id = await main._move_pane_to_split(preview_pane_id, "right")
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify move succeeded
         assert new_pane_id is not None
@@ -560,9 +560,9 @@ async def _setup_two_splits(pilot, workspace, py_file, py_file2):
     """Open two files in left, split right. Return (main, left_dtc, right_dtc)."""
     main = pilot.app.main_view
     await main.action_open_code_editor(path=py_file2)
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
     await main.action_split_right()
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
 
     leaves = all_leaves(main._split_root)
     left_dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
@@ -579,7 +579,7 @@ async def _start_drag(pilot, dtc):
     drag_y = drag_region.y + drag_region.height // 2
     drag_offset = (drag_x - dtc.region.x, drag_y - dtc.region.y)
     await pilot.mouse_down(dtc, offset=drag_offset)
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
 
     # Move to second tab to exceed drag threshold
     if len(tabs) > 1:
@@ -587,7 +587,7 @@ async def _start_drag(pilot, dtc):
         mid_x = second.region.x + second.region.width // 2
         mid_y = second.region.y + second.region.height // 2
         await pilot.hover(dtc, offset=(mid_x - dtc.region.x, mid_y - dtc.region.y))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert dtc._dragging
 
@@ -598,7 +598,7 @@ async def test_e2e_drag_tab_drop_on_content_area(
     """Dropping a tab onto the content area (not tab bar) of another split moves it."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main, left_dtc, right_dtc = await _setup_two_splits(
             pilot, workspace, py_file, py_file2
         )
@@ -615,7 +615,7 @@ async def test_e2e_drag_tab_drop_on_content_area(
         drop_offset = (content_x - left_dtc.region.x, content_y - left_dtc.region.y)
 
         await pilot.mouse_up(left_dtc, offset=drop_offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Tab should have moved: left lost one OR right gained one
         assert (
@@ -630,7 +630,7 @@ async def test_drop_on_own_content_area_is_noop(
     """Dropping a tab onto own content area (not another split) is a no-op."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main, left_dtc, right_dtc = await _setup_two_splits(
             pilot, workspace, py_file, py_file2
         )
@@ -647,7 +647,7 @@ async def test_drop_on_own_content_area_is_noop(
         drop_offset = (content_x - left_dtc.region.x, content_y - left_dtc.region.y)
 
         await pilot.mouse_up(left_dtc, offset=drop_offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # No change
         assert list(main._pane_ids["left"]) == left_pane_ids_before
@@ -660,10 +660,10 @@ async def test_drop_outside_any_split_is_noop(
     """Dropping a tab outside any DTC (e.g. sidebar area) is a no-op."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(main._split_root)
         dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
@@ -675,7 +675,7 @@ async def test_drop_outside_any_split_is_noop(
         # Drop on far left (sidebar area, x=1)
         drop_offset = (1 - dtc.region.x, 10 - dtc.region.y)
         await pilot.mouse_up(dtc, offset=drop_offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # No change
         assert list(main._pane_ids["left"]) == left_pane_ids_before
@@ -688,7 +688,7 @@ async def test_drop_highlight_classes_on_dtc(workspace: Path, py_file: Path):
     """DTC does not have drop highlight classes by default."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
         leaves = all_leaves(main._split_root)
         dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
@@ -705,25 +705,25 @@ async def test_e2e_drag_tab_three_way_split(
 
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(160, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Open second file in left
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Split right
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open third file in right
         main._active_split = "right"
         await main.action_open_code_editor(path=py_file3)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Split right again to create 3-way
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(main._split_root)
         assert len(leaves) >= 3, f"Expected 3+ leaves, got {len(leaves)}"
@@ -743,13 +743,13 @@ async def test_in_edge_zone_rejects_outside_region(
     """_in_edge_zone must return False when cursor is outside the DTC region."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(main._split_root)
         left_dtc = main.query_one(f"#{leaves[0].leaf_id}", DraggableTabbedContent)
@@ -771,7 +771,7 @@ async def test_edge_highlight_not_shown_when_cursor_over_other_dtc(
     """Source DTC edge highlight must NOT show when cursor is over target DTC."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main, left_dtc, right_dtc = await _setup_two_splits(
             pilot, workspace, py_file, py_file2
         )
@@ -786,7 +786,7 @@ async def test_edge_highlight_not_shown_when_cursor_over_other_dtc(
             left_dtc,
             offset=(target_x - left_dtc.region.x, target_y - left_dtc.region.y),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Source DTC must NOT have edge overlay
         assert not _highlight_is_mode(app, left_dtc.id, "edge-right")
@@ -796,7 +796,7 @@ async def test_edge_highlight_not_shown_when_cursor_over_other_dtc(
             left_dtc,
             offset=(target_x - left_dtc.region.x, target_y - left_dtc.region.y),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
 
 async def test_e2e_drag_tab_three_way_split_correct_target(
@@ -808,25 +808,25 @@ async def test_e2e_drag_tab_three_way_split_correct_target(
 
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(180, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # A has py_file + py_file2
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Split right → creates B
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open py_file3 in B, then split right → creates C
         leaves = all_leaves(main._split_root)
         b_leaf = leaves[-1]
         main._active_leaf_id = b_leaf.leaf_id
         await main.action_open_code_editor(path=py_file3)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(main._split_root)
         assert len(leaves) >= 3, f"Expected 3+ leaves, got {len(leaves)}"
@@ -847,7 +847,7 @@ async def test_e2e_drag_tab_three_way_split_correct_target(
             dtc_a,
             offset=(drop_x - dtc_a.region.x, drop_y - dtc_a.region.y),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Tab must arrive in C (the last leaf)
         leaves_after = all_leaves(main._split_root)
@@ -868,25 +868,25 @@ async def test_e2e_drag_tab_mixed_nested_split(
 
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(160, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # A has py_file + py_file2
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Split right → creates B (horizontal)
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # In B, open py_file3, then split down → creates C (vertical)
         leaves = all_leaves(main._split_root)
         b_leaf = leaves[-1]
         main._active_leaf_id = b_leaf.leaf_id
         await main.action_open_code_editor(path=py_file3)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await main.action_split_down()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         leaves = all_leaves(main._split_root)
         assert len(leaves) >= 3, f"Expected 3+ leaves, got {len(leaves)}"
@@ -908,7 +908,7 @@ async def test_e2e_drag_tab_mixed_nested_split(
             dtc_a,
             offset=(drop_x - dtc_a.region.x, drop_y - dtc_a.region.y),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Tab must arrive in C
         leaves_after = all_leaves(main._split_root)
@@ -929,31 +929,31 @@ async def test_drag_cross_split_focuses_moved_tab(
     """action_move_editor_to_next_group focuses the destination pane."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Open second file so left isn't empty after move
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Open right split
         await main.action_split_right()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Focus left split, select py_file
         leaves = all_leaves(main._split_root)
         left_leaf = leaves[0]
         main._set_active_leaf(left_leaf)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         pane_id = main._opened_files["left"][py_file]
         tc_left = main.query_one(f"#{left_leaf.leaf_id}", DraggableTabbedContent)
         tc_left.active = pane_id
-        await pilot.pause()
-        await pilot.pause()  # wait for lazy editor remount
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()  # wait for lazy editor remount
 
         # Move to right via action
         await main.action_move_editor_to_next_group()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Find where py_file landed
         leaves = all_leaves(main._split_root)
@@ -971,7 +971,7 @@ async def test_drag_mouse_cross_split_focuses_moved_tab(
     """E2E mouse drag from left to right focuses the moved tab in dest."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(120, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main, left_dtc, right_dtc = await _setup_two_splits(
             pilot, workspace, py_file, py_file2
         )
@@ -1000,7 +1000,7 @@ async def test_drag_mouse_cross_split_focuses_moved_tab(
             left_dtc,
             offset=(drop_x - left_dtc.region.x, drop_y - left_dtc.region.y),
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify focus is on destination leaf with moved tab
         leaves = all_leaves(main._split_root)
@@ -1021,12 +1021,12 @@ async def test_drag_edge_zone_new_split_focuses_moved_tab(
     """Edge zone drag (TabMovedToOtherSplit with no target) focuses the new split."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Open second file so left isn't empty after edge drag
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert main._split_visible is False
 
         leaves = all_leaves(main._split_root)
@@ -1039,8 +1039,8 @@ async def test_drag_edge_zone_new_split_focuses_moved_tab(
                 pane_id, None, False, split_direction="right"
             )
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # Split should be created
         assert main._split_visible is True
@@ -1070,11 +1070,11 @@ async def _edge_zone_split_test(workspace, py_file, py_file2, direction):
 
     app = make_app(workspace, open_file=py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert main._split_visible is False
 
         leaves = all_leaves(main._split_root)
@@ -1086,8 +1086,8 @@ async def _edge_zone_split_test(workspace, py_file, py_file2, direction):
                 pane_id, None, False, split_direction=direction
             )
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         assert main._split_visible is True
         root = main._split_root
@@ -1138,19 +1138,19 @@ async def _edge_zone_split_from_existing_split_test(
     sub-split, NOT move the tab to the adjacent existing pane."""
     app = make_app(workspace, open_file=py_file)
     async with app.run_test(size=(160, 40)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         main = app.main_view
 
         # Open a second file so source pane has 2 tabs
         await main.action_open_code_editor(path=py_file2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Create initial split
         if initial_split_dir == "horizontal":
             await main.action_split_right()
         else:
             await main.action_split_down()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert main._split_visible is True
         leaves_before = all_leaves(main._split_root)
@@ -1173,8 +1173,8 @@ async def _edge_zone_split_from_existing_split_test(
                 pane_id, None, False, split_direction=edge_direction
             )
         )
-        await pilot.pause()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # A new split should be created (3 leaves total)
         leaves_after = all_leaves(main._split_root)

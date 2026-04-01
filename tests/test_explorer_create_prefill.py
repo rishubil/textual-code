@@ -20,7 +20,7 @@ async def test_selected_dir_relative_for_directory(workspace: Path):
     subdir.mkdir()
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         # Move cursor down to find the "src" directory node
@@ -29,7 +29,7 @@ async def test_selected_dir_relative_for_directory(workspace: Path):
             if node.data and node.data.path == subdir:
                 tree.move_cursor(node)
                 break
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert explorer._get_selected_dir_relative() == "src/"
 
 
@@ -41,7 +41,7 @@ async def test_selected_dir_relative_for_file(workspace: Path):
     pyfile.write_text("# main\n")
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         tree = explorer.directory_tree
@@ -49,13 +49,13 @@ async def test_selected_dir_relative_for_file(workspace: Path):
         for node in tree.root.children:
             if node.data and node.data.path == subdir:
                 node.expand()
-                await pilot.pause()
+                await pilot.wait_for_scheduled_animations()
                 for child in node.children:
                     if child.data and child.data.path == pyfile:
                         tree.move_cursor(child)
                         break
                 break
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert explorer._get_selected_dir_relative() == "src/"
 
 
@@ -64,7 +64,7 @@ async def test_selected_dir_relative_for_root(workspace: Path):
     (workspace / "hello.py").write_text("# hello\n")
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         # cursor_node at root level file should give parent = workspace root → ""
@@ -73,7 +73,7 @@ async def test_selected_dir_relative_for_root(workspace: Path):
             if node.data and node.data.path == workspace / "hello.py":
                 tree.move_cursor(node)
                 break
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # File in root → parent is workspace → should return ""
         assert explorer._get_selected_dir_relative() == ""
 
@@ -82,13 +82,13 @@ async def test_selected_dir_relative_no_selection(workspace: Path):
     """When no node is selected, returns empty string."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         # Force cursor_node to None for testing
         tree = explorer.directory_tree
         tree.cursor_line = -1
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert explorer._get_selected_dir_relative() == ""
 
 
@@ -101,7 +101,7 @@ async def test_create_file_prefills_selected_folder(workspace: Path):
     subdir.mkdir()
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         tree = explorer.directory_tree
@@ -111,13 +111,13 @@ async def test_create_file_prefills_selected_folder(workspace: Path):
             if node.data and node.data.path == subdir:
                 tree.move_cursor(node)
                 break
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Focus the directory tree and press Ctrl+N
         tree.focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+n")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify CommandPalette opened with pre-filled value
         assert isinstance(app.screen, CommandPalette)
@@ -131,7 +131,7 @@ async def test_create_directory_prefills_selected_folder(workspace: Path):
     subdir.mkdir()
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         tree = explorer.directory_tree
@@ -141,13 +141,13 @@ async def test_create_directory_prefills_selected_folder(workspace: Path):
             if node.data and node.data.path == subdir:
                 tree.move_cursor(node)
                 break
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Focus the directory tree and press Ctrl+D
         tree.focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+d")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Verify CommandPalette opened with pre-filled value
         assert isinstance(app.screen, CommandPalette)
@@ -160,7 +160,7 @@ async def test_create_file_no_prefill_at_root(workspace: Path):
     (workspace / "hello.py").write_text("# hello\n")
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         tree = explorer.directory_tree
@@ -170,12 +170,12 @@ async def test_create_file_no_prefill_at_root(workspace: Path):
             if node.data and node.data.path == workspace / "hello.py":
                 tree.move_cursor(node)
                 break
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         tree.focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.press("ctrl+n")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert isinstance(app.screen, CommandPalette)
         inp = app.screen.query_one(CommandInput)
@@ -192,7 +192,7 @@ async def test_create_file_prefills_from_editor_focus(workspace: Path):
     (subdir / "main.py").write_text("# main\n")
     app = make_app(workspace, open_file=subdir / "main.py")
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         tree = explorer.directory_tree
@@ -202,17 +202,17 @@ async def test_create_file_prefills_from_editor_focus(workspace: Path):
             if node.data and node.data.path == subdir:
                 tree.move_cursor(node)
                 break
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Focus is on the editor, not the explorer
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         editor.focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Trigger create file via app action (as command palette would)
         await app.action_new_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert isinstance(app.screen, CommandPalette)
         inp = app.screen.query_one(CommandInput)

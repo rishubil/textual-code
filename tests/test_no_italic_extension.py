@@ -73,7 +73,7 @@ class TestNoItalicExtension:
             (ws / fn).write_text("content\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             _assert_no_italic(app.sidebar.explorer.directory_tree, app, filenames)
 
@@ -87,7 +87,7 @@ class TestNoItalicExtension:
             (ws / fn).write_text("content\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             _assert_no_italic(app.sidebar.explorer.directory_tree, app, filenames)
 
@@ -101,7 +101,7 @@ class TestNoItalicExtension:
             (ws / fn).write_text("content\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             _assert_no_italic(app.sidebar.explorer.directory_tree, app, filenames)
 
@@ -116,7 +116,7 @@ class TestNoItalicExtension:
             (ws / dn / "dummy.txt").write_text("x\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             _assert_no_italic(app.sidebar.explorer.directory_tree, app, dirnames)
 
@@ -130,7 +130,7 @@ class TestNoItalicExtension:
         (ws / "app.py").write_text("print('hi')\n")
         app = make_app(ws)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             assert app.sidebar is not None
             _assert_no_italic(
                 app.sidebar.explorer.directory_tree, app, ["debug.log", "app.py"]

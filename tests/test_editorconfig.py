@@ -293,8 +293,10 @@ async def test_T23_indent_style_space(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         assert app.code_editor.indent_type == "spaces"
 
 
@@ -307,8 +309,10 @@ async def test_T24_indent_style_tab_with_tab_width(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.indent_type == "tabs"
         assert editor.indent_size == 2
@@ -323,8 +327,10 @@ async def test_T25_indent_size_tab_uses_tab_width(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         assert app.code_editor.indent_size == 4
 
 
@@ -337,8 +343,10 @@ async def test_T26_charset_utf8_bom(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         assert app.code_editor.encoding == "utf-8-sig"
 
 
@@ -351,8 +359,10 @@ async def test_T27_charset_latin1(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         assert app.code_editor.encoding == "latin-1"
 
 
@@ -365,8 +375,10 @@ async def test_T28_end_of_line_crlf(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         assert app.code_editor.line_ending == "crlf"
 
 
@@ -381,8 +393,10 @@ async def test_T29_no_editorconfig_keeps_auto_detect(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         # Without .editorconfig, default values remain (auto-detect from content
         # is not implemented for indent_type, so defaults stay)
@@ -405,8 +419,10 @@ async def test_T30_editorconfig_overrides_auto_detect(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.indent_type == "tabs"
         assert editor.indent_size == 4
@@ -423,7 +439,7 @@ async def test_T31_indent_style_unset_keeps_default(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Default indent_type is "spaces"
         assert app.code_editor.indent_type == "spaces"
 
@@ -437,8 +453,10 @@ async def test_T32_unsupported_indent_size_ignored(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         # indent_size 3 is not in (2, 4, 8) → ignored, default 4 stays
         assert app.code_editor.indent_size == 4
 
@@ -455,9 +473,9 @@ async def test_T33_insert_final_newline_true_adds_newline(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert f.read_bytes() == b"x = 1\n"
 
@@ -471,9 +489,9 @@ async def test_T34_insert_final_newline_true_already_has_newline(tmp_path: Path)
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert f.read_bytes() == b"x = 1\n"
 
@@ -487,9 +505,9 @@ async def test_T35_insert_final_newline_false_removes_newline(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert f.read_bytes() == b"x = 1"
 
@@ -503,9 +521,9 @@ async def test_T36_insert_final_newline_true_empty_file(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert f.read_bytes() == b""
 
@@ -519,9 +537,9 @@ async def test_T37_trim_trailing_whitespace_true(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert f.read_bytes() == b"  x = 1\n  y = 2\n"
 
@@ -535,9 +553,9 @@ async def test_T38_trim_trailing_whitespace_false_no_change(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert f.read_bytes() == b"x = 1   \n"
 
@@ -553,9 +571,9 @@ async def test_T39_trim_and_insert_final_newline_combined(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert f.read_bytes() == b"x = 1\ny = 2\n"
 
@@ -569,9 +587,9 @@ async def test_T40_insert_final_newline_unset_no_change(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert f.read_bytes() == b"x = 1"
 
@@ -585,9 +603,9 @@ async def test_T41_editor_text_updated_after_trim_on_save(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         saved_text = app.code_editor.text
 
     assert saved_text == "x = 1\n"
@@ -602,9 +620,9 @@ async def test_T42_initial_text_matches_text_after_save(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         text = app.code_editor.text
         initial_text = app.code_editor.initial_text
 
@@ -620,9 +638,9 @@ async def test_T43_insert_final_newline_with_crlf(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert f.read_bytes() == b"x = 1\r\n"
 
@@ -636,9 +654,9 @@ async def test_T44_insert_final_newline_false_empty_file(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert f.read_bytes() == b""
 
@@ -654,9 +672,9 @@ async def test_T45_trim_and_insert_final_newline_false_combined(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.code_editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert f.read_bytes() == b"x = 1\ny = 2"
 
@@ -677,20 +695,22 @@ async def test_T46_textarea_updated_when_user_adds_trailing_ws(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         textarea = editor.editor
 
         # Simulate user typing: insert trailing spaces via TextArea
         textarea.move_cursor_relative(columns=999, rows=0)
         textarea.insert("   ")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert textarea.text == "x = 1   \n"
 
         # Save — trim should revert to "x = 1\n"
         editor.action_save()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # The actual TextArea widget must reflect the trimmed content
         textarea_text = textarea.text
@@ -718,8 +738,10 @@ async def test_G01_modify_indent_style_detected(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.indent_type == "spaces"
 
@@ -728,7 +750,7 @@ async def test_G01_modify_indent_style_detected(tmp_path: Path):
         _bump_ec_mtimes(editor)
 
         editor._poll_editorconfig_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.indent_type == "tabs"
 
 
@@ -741,8 +763,10 @@ async def test_G02_modify_indent_size_detected(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.indent_size == 2
 
@@ -750,7 +774,7 @@ async def test_G02_modify_indent_size_detected(tmp_path: Path):
         _bump_ec_mtimes(editor)
 
         editor._poll_editorconfig_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.indent_size == 8
 
 
@@ -763,8 +787,10 @@ async def test_G03_modify_trim_trailing_whitespace(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor._trim_trailing_whitespace is True
 
@@ -772,7 +798,7 @@ async def test_G03_modify_trim_trailing_whitespace(tmp_path: Path):
         _bump_ec_mtimes(editor)
 
         editor._poll_editorconfig_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._trim_trailing_whitespace is False
 
 
@@ -785,8 +811,10 @@ async def test_G04_modify_insert_final_newline(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor._insert_final_newline is True
 
@@ -794,7 +822,7 @@ async def test_G04_modify_insert_final_newline(tmp_path: Path):
         _bump_ec_mtimes(editor)
 
         editor._poll_editorconfig_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._insert_final_newline is False
 
 
@@ -807,8 +835,10 @@ async def test_G05_charset_not_reapplied(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.encoding == "utf-8"
 
@@ -816,7 +846,7 @@ async def test_G05_charset_not_reapplied(tmp_path: Path):
         _bump_ec_mtimes(editor)
 
         editor._poll_editorconfig_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # encoding must NOT change on reload
         assert editor.encoding == "utf-8"
 
@@ -830,8 +860,10 @@ async def test_G06_end_of_line_not_reapplied(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.line_ending == "lf"
 
@@ -839,7 +871,7 @@ async def test_G06_end_of_line_not_reapplied(tmp_path: Path):
         _bump_ec_mtimes(editor)
 
         editor._poll_editorconfig_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.line_ending == "lf"
 
 
@@ -850,8 +882,10 @@ async def test_G07_new_editorconfig_appears(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.indent_type == "spaces"  # default
 
@@ -861,7 +895,7 @@ async def test_G07_new_editorconfig_appears(tmp_path: Path):
         # Stored mtime is None; current is now a float → change detected
 
         editor._poll_editorconfig_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.indent_type == "tabs"
 
 
@@ -876,8 +910,10 @@ async def test_G08_editorconfig_deleted_resets_save_settings(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor._trim_trailing_whitespace is True
         assert editor._insert_final_newline is True
@@ -887,7 +923,7 @@ async def test_G08_editorconfig_deleted_resets_save_settings(tmp_path: Path):
         _bump_ec_mtimes(editor)
 
         editor._poll_editorconfig_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor._trim_trailing_whitespace is None
         assert editor._insert_final_newline is None
 
@@ -901,14 +937,16 @@ async def test_G09_no_mtime_change_is_noop(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.indent_type == "spaces"
 
         # Do NOT modify .editorconfig or bump mtimes
         editor._poll_editorconfig_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.indent_type == "spaces"
 
 
@@ -923,8 +961,10 @@ async def test_G10_parent_editorconfig_modified(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.indent_size == 2
 
@@ -932,7 +972,7 @@ async def test_G10_parent_editorconfig_modified(tmp_path: Path):
         _bump_ec_mtimes(editor)
 
         editor._poll_editorconfig_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert editor.indent_size == 8
 
 
@@ -940,12 +980,14 @@ async def test_G11_untitled_file_poll_noop(tmp_path: Path):
     """G-11: Untitled file (path=None) → poll does nothing."""
     app = _EditorConfigTestApp(path=None)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         # Should not raise any error
         editor._poll_editorconfig_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
 
 async def test_G12_property_removed_indent_stays(tmp_path: Path):
@@ -957,8 +999,10 @@ async def test_G12_property_removed_indent_stays(tmp_path: Path):
 
     app = _EditorConfigTestApp(path=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for lazy widget mount
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for lazy widget mount
         editor = app.code_editor
         assert editor.indent_type == "tabs"
         assert editor.indent_size == 8
@@ -968,7 +1012,7 @@ async def test_G12_property_removed_indent_stays(tmp_path: Path):
         _bump_ec_mtimes(editor)
 
         editor._poll_editorconfig_change()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # indent_type and indent_size stay at their current values
         assert editor.indent_type == "tabs"
         assert editor.indent_size == 8

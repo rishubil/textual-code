@@ -46,11 +46,11 @@ def search_file(workspace: Path) -> Path:
 async def test_ctrl_f_opens_find_bar(workspace: Path, search_file: Path):
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         await pilot.press("ctrl+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
         assert bar.display
         assert not bar.replace_mode
@@ -63,18 +63,18 @@ async def test_find_selects_first_match_from_start(workspace: Path, search_file:
     """Searching for 'hello' from the start selects the first 'hello'."""
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # 'hello' is at (0, 0)–(0, 5)
@@ -88,22 +88,22 @@ async def test_find_from_cursor_finds_next_occurrence(
     """When cursor is past the first match, the second occurrence is selected."""
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Move cursor past first 'hello' (row=0, col=6 — after 'hello ')
         editor.editor.cursor_location = (0, 6)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # second 'hello' is at (1, 0)–(1, 5)
@@ -115,22 +115,22 @@ async def test_find_wraps_around_to_beginning(workspace: Path, search_file: Path
     """When no match exists after cursor, wraps to the first match in file."""
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Move cursor to last line so 'hello' only appears before cursor
         editor.editor.cursor_location = (2, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # wraps around: first 'hello' at (0, 0)–(0, 5)
@@ -142,20 +142,20 @@ async def test_find_no_match_does_not_change_cursor(workspace: Path, search_file
     """When query is not found anywhere, cursor stays put."""
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         original_location = editor.editor.cursor_location
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("z", "z", "z", "n", "o", "t", "f", "o", "u", "n", "d")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.cursor_location == original_location
 
@@ -164,19 +164,19 @@ async def test_find_cancel_keeps_cursor(workspace: Path, search_file: Path):
     """Closing the find bar leaves the cursor unchanged."""
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.editor.cursor_location = (1, 3)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         original_location = editor.editor.cursor_location
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         await pilot.click("#close_btn")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.cursor_location == original_location
 
@@ -185,17 +185,17 @@ async def test_find_empty_query_does_nothing(workspace: Path, search_file: Path)
     """Submitting an empty query does not move the cursor."""
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         original_location = editor.editor.cursor_location
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Submit with empty input
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.cursor_location == original_location
 
@@ -206,18 +206,18 @@ async def test_find_multiline_match(workspace: Path):
     f.write_text("def foo():\n    return 42\ndef bar():\n    return 0\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("r", "e", "t", "u", "r", "n")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # 'return' first appears at (1, 4)–(1, 10)
@@ -271,20 +271,20 @@ async def test_find_is_case_sensitive_no_match(workspace: Path, search_file: Pat
     """'Hello' (capital H) is not found in a file that only has 'hello'."""
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         original_location = editor.editor.cursor_location
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("H", "e", "l", "l", "o")  # capital H
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.editor.cursor_location == original_location
 
@@ -295,18 +295,18 @@ async def test_find_is_case_sensitive_exact_match(workspace: Path):
     f.write_text("Hello World\nhello world\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("H", "e", "l", "l", "o")  # capital H
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # 'Hello' at (0, 0)–(0, 5)
@@ -324,22 +324,22 @@ async def test_find_cursor_inside_match_skips_to_next(
     # search_file: "hello world\nhello textual\nfoo bar\n"
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Place cursor at col 2 — inside the first 'hello'
         editor.editor.cursor_location = (0, 2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # Skips first 'hello' (starts at 0), finds second 'hello' at (1, 0)
@@ -355,18 +355,18 @@ async def test_find_single_char_query(workspace: Path, search_file: Path):
     # search_file: "hello world\nhello textual\nfoo bar\n"
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         assert sel.start == (0, 0)
@@ -381,19 +381,23 @@ async def test_find_multiword_query(workspace: Path, search_file: Path):
     # search_file first line: "hello world"
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input", Input)
         input_widget.value = "hello world"
-        await pilot.pause()  # Windows: extra pause for input value change
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for input value change
         await pilot.click("#next_match")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for find result + selection update
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for find result + selection update
 
         sel = editor.editor.selection
         assert sel.start == (0, 0)
@@ -409,19 +413,23 @@ async def test_find_match_at_end_of_file(workspace: Path):
     f.write_text("line one\nfind me")  # no trailing newline
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input", Input)
         input_widget.value = "find me"
-        await pilot.pause()  # Windows: extra pause for input value change
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for input value change
         await pilot.click("#next_match")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for find result + selection update
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for find result + selection update
 
         sel = editor.editor.selection
         # "find me" is on row 1, cols 0–7
@@ -438,18 +446,18 @@ async def test_find_in_single_line_file(workspace: Path):
     f.write_text("abcdefgh")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("d", "e", "f")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         assert sel.start == (0, 3)
@@ -462,22 +470,22 @@ async def test_find_wrap_in_single_line_file(workspace: Path):
     f.write_text("abc abc abc")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Place cursor after the last 'abc'
         editor.editor.cursor_location = (0, 9)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("a", "b", "c")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # last 'abc' starts at col 8, but cursor is at 9 → wraps → first 'abc' at col 0
@@ -494,19 +502,23 @@ async def test_find_file_without_trailing_newline(workspace: Path):
     f.write_text("first line\nsecond line")  # no trailing \n
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input", Input)
         input_widget.value = "second"
-        await pilot.pause()  # Windows: extra pause for input value change
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for input value change
         await pilot.click("#next_match")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for find result + selection update
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for find result + selection update
 
         sel = editor.editor.selection
         assert sel.start == (1, 0)
@@ -524,30 +536,40 @@ async def test_find_sequential_opens_finds_next_each_time(
     # Two 'hello': (0,0)–(0,5) and (1,0)–(1,5)
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Open bar and type query
         editor.action_find()
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for find bar rendering
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for find bar rendering
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
-        await pilot.pause()  # Windows: extra pause for input focus
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for input focus
         await pilot.press("h", "e", "l", "l", "o")
-        await pilot.pause()  # Windows: extra pause for key presses
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for key presses
 
         # First click: finds 'hello' at (0, 0)
         await pilot.click("#next_match")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for find + selection update
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for find + selection update
         assert editor.editor.selection.start == (0, 0)
 
         # Second click: searches from end of selection (0,5) → finds (1, 0)
         await pilot.click("#next_match")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for find + selection update
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for find + selection update
         assert editor.editor.selection.start == (1, 0)
         assert editor.editor.selection.end == (1, 5)
 
@@ -560,29 +582,29 @@ async def test_find_works_on_untitled_file(workspace: Path):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.press("ctrl+n")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Type content into the TextArea so text reactive is set
         editor.editor.focus()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         for ch in "hello world":
             await pilot.press(ch)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Move cursor back to start before searching
         editor.editor.cursor_location = (0, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("w", "o", "r", "l", "d")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         assert sel.start[1] == 6  # 'world' starts at col 6 in "hello world"
@@ -595,18 +617,18 @@ async def test_find_enter_key_submits(workspace: Path, search_file: Path):
     """Pressing Enter in the query input triggers the find."""
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("f", "o", "o")
         await pilot.press("enter")  # submit via Enter, not button click
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # 'foo' is on row 2, col 0
@@ -621,10 +643,10 @@ async def test_ctrl_f_with_no_open_file_opens_no_bar(workspace: Path):
     """Ctrl+F when no file is open does not open a FindReplaceBar."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # No file opened — no CodeEditor, so no FindReplaceBar visible
         await pilot.press("ctrl+f")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is None
 
@@ -633,9 +655,9 @@ async def test_find_cmd_with_no_open_file_does_nothing(workspace: Path):
     """action_find_cmd when no file is open does not crash."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_find_cmd()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is None
 
@@ -650,19 +672,23 @@ async def test_find_entire_file_content_as_query(workspace: Path):
     f.write_text(content)
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input", Input)
         input_widget.value = content
-        await pilot.pause()  # Windows: extra pause for input value change
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for input value change
         await pilot.click("#next_match")
-        await pilot.pause()
-        await pilot.pause()  # Windows: extra pause for find result + selection update
+        await pilot.wait_for_scheduled_animations()
+        await (
+            pilot.wait_for_scheduled_animations()
+        )  # Windows: extra pause for find result + selection update
 
         sel = editor.editor.selection
         assert sel.start == (0, 0)
@@ -678,23 +704,23 @@ async def test_case_insensitive_find_selects_uppercase_match(workspace: Path):
     f.write_text("HELLO world\nhello\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         bar = editor.query_one(FindReplaceBar)
 
         # Uncheck case_sensitive checkbox
         case_cb = bar.query_one("#case_sensitive", Checkbox)
         case_cb.value = False
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # "HELLO" at (0, 0)-(0, 5) should be selected first
@@ -708,17 +734,17 @@ async def test_case_sensitive_find_does_not_match_different_case(workspace: Path
     f.write_text("HELLO world\n")
     app = make_app(workspace, light=True, open_file=f)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         await pilot.click("#find_input")
         await pilot.press("h", "e", "l", "l", "o")
         await pilot.click("#next_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # No selection change since "hello" != "HELLO" (case-sensitive default)
         sel = editor.editor.selection
@@ -774,16 +800,16 @@ async def test_find_previous_selects_previous_match(workspace: Path, search_file
     # search_file: "hello world\nhello textual\nfoo bar\n"
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Place cursor after second 'hello' (row=1, col=5)
         editor.editor.cursor_location = (1, 5)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
@@ -791,7 +817,7 @@ async def test_find_previous_selects_previous_match(workspace: Path, search_file
 
         # Click prev_match button
         await pilot.click("#prev_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # Should find 'hello' at (0, 0)-(0, 5) — the previous match
@@ -804,23 +830,23 @@ async def test_find_previous_wraps_to_last_match(workspace: Path, search_file: P
     # search_file: "hello world\nhello textual\nfoo bar\n"
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Cursor at start
         editor.editor.cursor_location = (0, 0)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
         await pilot.press("h", "e", "l", "l", "o")
 
         await pilot.click("#prev_match")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # Wraps to last 'hello' at (1, 0)-(1, 5)
@@ -832,16 +858,16 @@ async def test_find_previous_shift_enter(workspace: Path, search_file: Path):
     """Shift+Enter in find input triggers find previous."""
     app = make_app(workspace, light=True, open_file=search_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Place cursor at end of file
         editor.editor.cursor_location = (2, 7)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         editor.action_find()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         input_widget = editor.query_one("#find_input")
         await pilot.click(input_widget)
@@ -849,7 +875,7 @@ async def test_find_previous_shift_enter(workspace: Path, search_file: Path):
 
         # Shift+Enter should find previous
         await pilot.press("shift+enter")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         sel = editor.editor.selection
         # Should find 'hello' at (1, 0)-(1, 5) — the last match before cursor

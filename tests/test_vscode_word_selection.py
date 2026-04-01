@@ -44,14 +44,14 @@ class TestWordSelectLeft:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Place cursor at end of 'world' (row=0, col=11)
             ta.selection = Selection((0, 11), (0, 11))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+left")
 
@@ -66,13 +66,13 @@ class TestWordSelectLeft:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((0, 11), (0, 11))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+left")
             await pilot.press("ctrl+shift+left")
@@ -88,14 +88,14 @@ class TestWordSelectLeft:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Cursor in middle of 'world' (col=8)
             ta.selection = Selection((0, 8), (0, 8))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+left")
 
@@ -109,14 +109,14 @@ class TestWordSelectLeft:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Cursor at start of line 1
             ta.selection = Selection((1, 0), (1, 0))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+left")
 
@@ -131,13 +131,13 @@ class TestWordSelectLeft:
         f.write_text("abc def\nghi\n")
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((1, 3), (1, 3))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Press enough times to reach document start
             for _ in range(10):
@@ -165,13 +165,13 @@ class TestWordSelectRight:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((0, 0), (0, 0))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+right")
 
@@ -186,13 +186,13 @@ class TestWordSelectRight:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((0, 0), (0, 0))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+right")
             await pilot.press("ctrl+shift+right")
@@ -208,13 +208,13 @@ class TestWordSelectRight:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((0, 3), (0, 3))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+right")
 
@@ -228,14 +228,14 @@ class TestWordSelectRight:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Cursor at end of line 0
             ta.selection = Selection((0, 15), (0, 15))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+right")
 
@@ -250,13 +250,13 @@ class TestWordSelectRight:
         f.write_text("abc def\nghi")
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((0, 0), (0, 0))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             for _ in range(10):
                 await pilot.press("ctrl+shift+right")
@@ -283,13 +283,13 @@ class TestWordSelectDotSeparated:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((0, 14), (0, 14))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # First press: select 'test'
             await pilot.press("ctrl+shift+left")
@@ -304,13 +304,13 @@ class TestWordSelectDotSeparated:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((0, 0), (0, 0))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # First press: select 'this'
             await pilot.press("ctrl+shift+right")
@@ -334,14 +334,14 @@ class TestWordSelectBidirectional:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Start at end of 'world' (col 11)
             ta.selection = Selection((0, 11), (0, 11))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+left")
             # Now selected 'world' backward: anchor=(0,11) cursor=(0,6)
@@ -361,13 +361,13 @@ class TestWordSelectBidirectional:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((0, 6), (0, 6))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+right")
             sel1 = ta.selection
@@ -398,7 +398,7 @@ class TestMultiCursorWordSelect:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -406,10 +406,10 @@ class TestMultiCursorWordSelect:
             # Primary at end of 'world' (0, 11), extra at end of 'bar' (1, 7)
             ta.selection = Selection((0, 11), (0, 11))
             ta.add_cursor((1, 7))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+left")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Primary selection should extend left by one word
             sel = ta.selection
@@ -427,7 +427,7 @@ class TestMultiCursorWordSelect:
         f.write_text(self.TEXT)
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
@@ -435,10 +435,10 @@ class TestMultiCursorWordSelect:
             # Primary at start of 'hello' (0, 0), extra at start of 'foo' (1, 0)
             ta.selection = Selection((0, 0), (0, 0))
             ta.add_cursor((1, 0))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+right")
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             # Primary should select forward by one word
             sel = ta.selection
@@ -462,13 +462,13 @@ class TestWordSelectEdgeCases:
         f.write_text("hello\n")
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((0, 0), (0, 0))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+left")
 
@@ -482,13 +482,13 @@ class TestWordSelectEdgeCases:
         f.write_text("hello")
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((0, 5), (0, 5))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+right")
 
@@ -502,14 +502,14 @@ class TestWordSelectEdgeCases:
         f.write_text("    hello world\n")
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Cursor at start of 'hello' (col 4)
             ta.selection = Selection((0, 4), (0, 4))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+left")
 
@@ -524,13 +524,13 @@ class TestWordSelectEdgeCases:
         f.write_text("hello   \nworld\n")
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             ta.selection = Selection((0, 0), (0, 0))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+right")
 
@@ -544,14 +544,14 @@ class TestWordSelectEdgeCases:
         f.write_text("hello\n\nworld\n")
         app = make_app(workspace, open_file=f, light=True)
         async with app.run_test() as pilot:
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
             editor = app.main_view.get_active_code_editor()
             assert editor is not None
             ta = editor.editor
 
             # Cursor on empty line (1, 0)
             ta.selection = Selection((1, 0), (1, 0))
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
 
             await pilot.press("ctrl+shift+left")
 

@@ -87,13 +87,13 @@ async def test_file_move_requested_opens_command_palette(
     """Posting FileMoveRequested directly → PathSearchModal opens."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, PathSearchModal)
 
 
@@ -106,7 +106,7 @@ async def test_move_file_to_directory(workspace: Path, sample_py_file: Path):
     dest_dir.mkdir()
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert sample_py_file.exists()
 
         app.post_message(
@@ -114,7 +114,7 @@ async def test_move_file_to_directory(workspace: Path, sample_py_file: Path):
                 source_path=sample_py_file, destination_dir=dest_dir
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not sample_py_file.exists()
     assert (workspace / "lib" / "hello.py").exists()
@@ -124,18 +124,18 @@ async def test_move_file_cancel_command_palette(workspace: Path, sample_py_file:
     """Pressing Escape on PathSearchModal → file unchanged."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert app.sidebar is not None
         explorer = app.sidebar.explorer
         explorer.post_message(
             Explorer.FileMoveRequested(explorer=explorer, path=sample_py_file)
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, PathSearchModal)
 
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert sample_py_file.exists()
 
@@ -146,7 +146,7 @@ async def test_move_open_file_updates_tab(workspace: Path, sample_py_file: Path)
     dest_dir.mkdir()
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.path == sample_py_file
@@ -156,7 +156,7 @@ async def test_move_open_file_updates_tab(workspace: Path, sample_py_file: Path)
                 source_path=sample_py_file, destination_dir=dest_dir
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.path == workspace / "lib" / "hello.py"
         assert "hello.py" in editor.title
@@ -170,14 +170,14 @@ async def test_move_to_existing_shows_error(workspace: Path, sample_py_file: Pat
 
     app = make_app(workspace)
     async with app.run_test(notifications=True) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.post_message(
             TextualCode.MoveDestinationSelected(
                 source_path=sample_py_file, destination_dir=dest_dir
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert sample_py_file.exists()
     assert (dest_dir / "hello.py").read_text() == "existing\n"
@@ -187,7 +187,7 @@ async def test_move_unchanged_path_noop(workspace: Path, sample_py_file: Path):
     """Selecting the same parent directory → no filesystem change."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Destination dir is the same as source's parent
         app.post_message(
@@ -195,7 +195,7 @@ async def test_move_unchanged_path_noop(workspace: Path, sample_py_file: Path):
                 source_path=sample_py_file, destination_dir=workspace
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert sample_py_file.exists()
 
@@ -214,14 +214,14 @@ async def test_move_directory(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.post_message(
             TextualCode.MoveDestinationSelected(
                 source_path=subdir, destination_dir=dest_dir
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not subdir.exists()
     assert (workspace / "dest" / "subdir").exists()
@@ -240,7 +240,7 @@ async def test_move_dir_updates_open_files(workspace: Path):
 
     app = make_app(workspace, open_file=child_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.path == child_file
@@ -250,7 +250,7 @@ async def test_move_dir_updates_open_files(workspace: Path):
                 source_path=subdir, destination_dir=dest_dir
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert editor.path == workspace / "dest" / "subdir" / "child.py"
         assert "child.py" in editor.title
@@ -263,10 +263,10 @@ async def test_move_no_cursor_no_palette(workspace: Path):
     """No cursor node → command palette does not open."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert app.sidebar is not None
         app.sidebar.explorer.action_move_node()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert not isinstance(app.screen, PathSearchModal)
 
 
@@ -281,20 +281,20 @@ async def test_move_file_preserves_unsaved_changes(
     dest_dir.mkdir()
     app = make_app(workspace, open_file=sample_py_file)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
 
         # Make the editor dirty
         editor.text = "modified content"
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.post_message(
             TextualCode.MoveDestinationSelected(
                 source_path=sample_py_file, destination_dir=dest_dir
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Path updated but content and dirty state preserved
         assert editor.path == workspace / "lib" / "hello.py"
@@ -314,14 +314,14 @@ async def test_move_outside_workspace_shows_error(
 
     app = make_app(workspace)
     async with app.run_test(notifications=True) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.post_message(
             TextualCode.MoveDestinationSelected(
                 source_path=sample_py_file, destination_dir=outside
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert sample_py_file.exists()
 
@@ -338,14 +338,14 @@ async def test_move_file_to_workspace_root(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.post_message(
             TextualCode.MoveDestinationSelected(
                 source_path=src_file, destination_dir=workspace
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not src_file.exists()
     assert (workspace / "main.py").exists()
@@ -356,14 +356,14 @@ async def test_move_file_already_in_root_noop(workspace: Path, sample_py_file: P
     """File already in workspace root → selecting root → no-op."""
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.post_message(
             TextualCode.MoveDestinationSelected(
                 source_path=sample_py_file, destination_dir=workspace
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert sample_py_file.exists()
 
@@ -380,14 +380,14 @@ async def test_move_dir_into_own_subtree_shows_error(workspace: Path):
 
     app = make_app(workspace)
     async with app.run_test(notifications=True) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.post_message(
             TextualCode.MoveDestinationSelected(
                 source_path=parent_dir, destination_dir=child_dir
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     # Directory should remain unchanged
     assert parent_dir.exists()
@@ -404,23 +404,23 @@ async def test_move_via_command_palette(workspace: Path, sample_py_file: Path):
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         # Simulate: first palette selected the source file,
         # now _handle_move_path opens PathSearchModal for destination.
         app.post_message(TextualCode.MovePathWithPaletteRequested(path=sample_py_file))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert isinstance(app.screen, PathSearchModal)
 
         # Dismiss palette and use MoveDestinationSelected directly
         await pilot.press("escape")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         app.post_message(
             TextualCode.MoveDestinationSelected(
                 source_path=sample_py_file, destination_dir=dest_dir
             )
         )
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
     assert not sample_py_file.exists()
     assert (workspace / "lib" / "hello.py").exists()

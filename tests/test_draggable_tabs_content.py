@@ -69,7 +69,7 @@ async def test_split_side_param_stored():
     """split_side kwarg is stored on the widget."""
     app = EdgeZoneApp(split_side="left")
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         assert dtc._split_side == "left"
 
@@ -78,7 +78,7 @@ async def test_split_side_right():
     """split_side='right' is stored correctly."""
     app = EdgeZoneApp(split_side="right")
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         assert dtc._split_side == "right"
 
@@ -87,7 +87,7 @@ async def test_in_edge_zone_left_right_edge_true():
     """Left split: x near right boundary → _in_edge_zone returns 'right'."""
     app = EdgeZoneApp(split_side="left")
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         # Right edge of widget
         assert (
@@ -102,7 +102,7 @@ async def test_in_edge_zone_left_center_false():
     """Left split: x at center of widget → _in_edge_zone returns None."""
     app = EdgeZoneApp(split_side="left")
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         center_x = dtc.region.x + dtc.region.width // 2
         assert (
@@ -114,7 +114,7 @@ async def test_in_edge_zone_left_edge_returns_left():
     """x near left boundary → _in_edge_zone returns 'left'."""
     app = EdgeZoneApp(split_side="right")
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         assert (
             dtc._in_edge_zone(dtc.region.x + 1, dtc.region.y + dtc.region.height // 2)
@@ -126,7 +126,7 @@ async def test_in_edge_zone_right_center_none():
     """Right split: x at center → _in_edge_zone returns None."""
     app = EdgeZoneApp(split_side="right")
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         center_x = dtc.region.x + dtc.region.width // 2
         assert (
@@ -145,7 +145,7 @@ async def _push_overlay(app, pilot):
     for dtc in dtcs:
         dtc._overlay_screen = screen
     app.push_screen(screen)
-    await pilot.pause()
+    await pilot.wait_for_scheduled_animations()
     return screen
 
 
@@ -153,7 +153,7 @@ async def test_drop_target_screen_has_transparent_background():
     """DropTargetScreen has a fully transparent background."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         screen = await _push_overlay(app, pilot)
         # Background should be transparent (RGBA with alpha=0)
         assert screen.styles.background.a == 0
@@ -163,7 +163,7 @@ async def test_drop_target_screen_creates_highlights_for_dtcs():
     """DropTargetScreen creates DropHintBox widgets for each DTC."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         screen = await _push_overlay(app, pilot)
         # One DTC → one hint box
         hints = screen.query(DropHintBox)
@@ -174,7 +174,7 @@ async def test_show_highlight_full_mode():
     """show_highlight with 'full' mode shows all 4 bars."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         screen.show_highlight(dtc.id, dtc.region, "full")
@@ -187,7 +187,7 @@ async def test_show_highlight_edge_mode():
     """show_highlight with 'edge-right' mode shows edge highlight."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         screen.show_highlight(dtc.id, dtc.region, "edge-right")
@@ -200,7 +200,7 @@ async def test_hide_highlight():
     """hide_highlight hides all bars."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         screen.show_highlight(dtc.id, dtc.region, "full")
@@ -214,7 +214,7 @@ async def test_clear_all_highlights():
     """clear_all hides all highlights."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         screen.show_highlight(dtc.id, dtc.region, "full")
@@ -228,7 +228,7 @@ async def test_show_drop_overlay_via_dtc():
     """DTC.show_drop_overlay() updates DropTargetScreen highlight."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         dtc.show_drop_overlay()
@@ -239,7 +239,7 @@ async def test_show_edge_overlay_via_dtc():
     """DTC.show_edge_overlay() updates DropTargetScreen highlight."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         dtc.show_edge_overlay("right")
@@ -250,7 +250,7 @@ async def test_hide_drop_overlay_via_dtc():
     """DTC.hide_drop_overlay() removes highlight."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         dtc.show_drop_overlay()
@@ -266,7 +266,7 @@ async def test_highlight_hint_centered_in_dtc_region():
 
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         screen.show_highlight(dtc.id, dtc.region, "full")
@@ -293,7 +293,7 @@ async def test_hide_highlight_is_idempotent():
     """Calling hide_highlight when already hidden is a no-op (cached)."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         # Never shown — hide should be a no-op
@@ -306,7 +306,7 @@ async def test_show_then_switch_mode():
     """Switching from full to edge-right mode updates correctly."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         screen.show_highlight(dtc.id, dtc.region, "full")
@@ -322,21 +322,21 @@ async def test_hint_box_label_matches_mode():
 
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         # Full mode
         screen.show_highlight(dtc.id, dtc.region, "full")
         hint = screen._highlights[dtc.id].hint
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert FULL_LABEL in str(hint.render())
         # Edge-right mode
         screen.show_highlight(dtc.id, dtc.region, "edge-right")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert EDGE_LABELS["right"] in str(hint.render())
         # Edge-down mode
         screen.show_highlight(dtc.id, dtc.region, "edge-down")
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert EDGE_LABELS["down"] in str(hint.render())
 
 
@@ -344,10 +344,10 @@ async def test_overlay_screen_no_dtc_ids():
     """DropTargetScreen with no DTC IDs has no highlights."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         screen = DropTargetScreen()
         app.push_screen(screen)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert len(screen._highlights) == 0
         assert len(screen.query(DropHintBox)) == 0
 
@@ -356,7 +356,7 @@ async def test_show_drop_overlay_noop_without_screen():
     """show_drop_overlay is a no-op when no overlay screen is pushed."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         assert dtc._overlay_screen is None
         # Should not raise
@@ -369,17 +369,17 @@ async def test_push_pop_overlay_screen_via_dtc():
     """_push_overlay_screen and _pop_overlay_screen manage screen lifecycle."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         dtc.capture_mouse()
         dtc._push_overlay_screen()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert dtc._overlay_screen is not None
         assert len(app.screen_stack) == 2
         # Mouse capture should be re-established
         assert app.mouse_captured is dtc
         dtc._pop_overlay_screen()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert dtc._overlay_screen is None
         assert len(app.screen_stack) == 1
 
@@ -396,7 +396,7 @@ async def test_mouse_event_forwarded_through_overlay():
 
     app = TwoTabApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         tabs = list(dtc.get_child_by_type(ContentTabs).query("ContentTab"))
         # Mouse down on first tab
@@ -406,7 +406,7 @@ async def test_mouse_event_forwarded_through_overlay():
             tab_region.y - dtc.region.y + tab_region.height // 2,
         )
         await pilot.mouse_down(dtc, offset=offset)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert dtc._drag_start is not None
         # Hover to second tab to trigger drag
         tab2_region = tabs[1].region
@@ -415,12 +415,12 @@ async def test_mouse_event_forwarded_through_overlay():
             tab2_region.y - dtc.region.y + tab2_region.height // 2,
         )
         await pilot.hover(dtc, offset=offset2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert dtc._dragging is True
         assert dtc._overlay_screen is not None
         # Mouse up — should be forwarded through overlay screen
         await pilot.mouse_up(dtc, offset=offset2)
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert dtc._dragging is False
         assert dtc._overlay_screen is None
 
@@ -454,7 +454,7 @@ async def test_in_edge_zone_top_edge_returns_up():
     """Cursor near top boundary → _in_edge_zone returns 'up'."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         center_x = dtc.region.x + dtc.region.width // 2
         assert dtc._in_edge_zone(center_x, dtc.region.y) == "up"
@@ -464,7 +464,7 @@ async def test_in_edge_zone_bottom_edge_returns_down():
     """Cursor near bottom boundary → _in_edge_zone returns 'down'."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         center_x = dtc.region.x + dtc.region.width // 2
         assert dtc._in_edge_zone(center_x, dtc.region.bottom - 1) == "down"
@@ -474,7 +474,7 @@ async def test_in_edge_zone_corner_picks_deeper_axis():
     """Corner: edge with deeper fractional penetration wins."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         # Right edge zone width ~12, bottom edge zone height ~3.
         # At (right - 3, bottom - 1): fraction_right = 2/12 ≈ 0.17,
@@ -491,7 +491,7 @@ async def test_in_edge_zone_small_pane():
     """Edge zone detection works with small pane dimensions."""
     app = EdgeZoneApp()
     async with app.run_test(size=(20, 10)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         # Right edge should still work on small pane
         result = dtc._in_edge_zone(
@@ -507,7 +507,7 @@ async def test_show_edge_overlay_all_directions():
     """show_edge_overlay with each direction shows the correct mode."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         for direction in ("left", "right", "up", "down"):
@@ -521,7 +521,7 @@ async def test_hint_box_positioned_near_edge():
 
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         region = dtc.region
@@ -564,7 +564,7 @@ async def test_hint_box_clamped_in_small_region():
 
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         screen = await _push_overlay(app, pilot)
         highlight = screen._highlights[dtc.id]
@@ -589,7 +589,7 @@ async def test_update_drop_target_no_crash_at_screen_edge():
     """_update_drop_target does not crash when cursor is at screen boundary."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         # Coordinates at and beyond screen edge — should not raise NoWidget
         dtc._update_drop_target(80, 12)  # x == screen width
@@ -602,7 +602,7 @@ async def test_on_mouse_down_no_crash_at_screen_edge():
     """on_mouse_down does not crash when click is at screen boundary."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         dtc.on_mouse_down(_mouse_down(dtc, 80, 12))  # should not raise
 
@@ -611,7 +611,7 @@ async def test_on_mouse_up_no_crash_at_screen_edge():
     """on_mouse_up does not crash when release is at screen boundary."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         # Set up drag state to make on_mouse_up process the event
         dtc._dragging = True
@@ -624,7 +624,7 @@ async def test_update_drop_target_negative_coordinates():
     """_update_drop_target does not crash with negative coordinates."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         dtc._update_drop_target(-1, 12)
         dtc._update_drop_target(40, -1)
@@ -635,7 +635,7 @@ async def test_update_drop_target_corner_out_of_bounds():
     """_update_drop_target does not crash at corners beyond screen bounds."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         # All four corners beyond screen
         dtc._update_drop_target(80, 24)  # bottom-right
@@ -648,7 +648,7 @@ async def test_update_drop_target_clears_existing_target_on_edge():
     """When cursor moves to screen edge, any existing drop target is cleared."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         # First call with valid coordinate to set _drop_target
         dtc._update_drop_target(40, 12)
@@ -661,7 +661,7 @@ async def test_on_mouse_down_at_screen_edge_no_drag_start():
     """Mouse down at screen edge does not initiate drag."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         assert dtc._drag_start is None
         dtc.on_mouse_down(_mouse_down(dtc, 80, 12))
@@ -674,7 +674,7 @@ async def test_on_mouse_up_at_screen_edge_with_edge_direction():
     """on_mouse_up at screen edge with an edge_direction does not crash."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         # Set up drag state with edge direction (as if dragging to edge zone)
         dtc._dragging = True
@@ -691,7 +691,7 @@ async def test_on_mouse_up_at_screen_edge_resets_drag_state():
     """on_mouse_up at screen edge properly resets all drag state."""
     app = EdgeZoneApp()
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         dtc = app.query_one("#dtc", DraggableTabbedContent)
         dtc._dragging = True
         dtc._drag_pane_id = "pane1"

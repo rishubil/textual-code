@@ -28,9 +28,9 @@ async def test_a01_open_user_settings_creates_file_if_missing(workspace, tmp_pat
     assert not user_cfg.exists()
     app = make_app(workspace, user_config_path=user_cfg, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_open_user_settings()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert user_cfg.exists()
 
 
@@ -39,9 +39,9 @@ async def test_a02_open_user_settings_opens_in_editor(workspace, tmp_path):
     user_cfg = tmp_path / "cfg" / "settings.toml"
     app = make_app(workspace, user_config_path=user_cfg, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_open_user_settings()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.path == user_cfg
@@ -58,9 +58,9 @@ async def test_b01_open_project_settings_creates_file_if_missing(workspace):
     assert not project_cfg.exists()
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_open_project_settings()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert project_cfg.exists()
 
 
@@ -69,9 +69,9 @@ async def test_b02_open_project_settings_opens_in_editor(workspace):
     project_cfg = get_project_config_path(workspace)
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_open_project_settings()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.path == project_cfg
@@ -86,7 +86,7 @@ async def test_b02_open_project_settings_opens_in_editor(workspace):
 async def test_c01_settings_commands_in_system_commands(workspace):
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         commands = list(app.get_system_commands(app.screen))
         titles = [c.title for c in commands]
         assert "Open User Settings" in titles
@@ -105,10 +105,10 @@ async def test_d01_open_user_settings_survives_oserror(workspace, tmp_path):
     user_cfg = tmp_path / "cfg" / "settings.toml"
     app = make_app(workspace, user_config_path=user_cfg, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         with patch.object(Path, "mkdir", side_effect=OSError("permission denied")):
             app.action_open_user_settings()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
         # Should not crash; no editor opened for this path
         editor = app.main_view.get_active_code_editor()
         assert editor is None or editor.path != user_cfg
@@ -119,10 +119,10 @@ async def test_d02_open_project_settings_survives_oserror(workspace):
     """action_open_project_settings notifies on I/O error instead of crashing."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         with patch.object(Path, "mkdir", side_effect=OSError("permission denied")):
             app.action_open_project_settings()
-            await pilot.pause()
+            await pilot.wait_for_scheduled_animations()
         # Should not crash
         editor = app.main_view.get_active_code_editor()
         project_cfg = get_project_config_path(workspace)
@@ -140,9 +140,9 @@ async def test_e01_open_keybindings_creates_file_if_missing(workspace, tmp_path)
     assert not user_cfg.exists()
     app = make_app(workspace, user_config_path=user_cfg, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_open_keyboard_shortcuts_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         kb_path = user_cfg.with_name("keybindings.toml")
         assert kb_path.exists()
 
@@ -152,9 +152,9 @@ async def test_e02_open_keybindings_opens_in_editor(workspace, tmp_path):
     user_cfg = tmp_path / "cfg" / "settings.toml"
     app = make_app(workspace, user_config_path=user_cfg, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         app.action_open_keyboard_shortcuts_file()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         kb_path = user_cfg.with_name("keybindings.toml")

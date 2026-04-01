@@ -80,7 +80,7 @@ async def test_double_click_selects_word(workspace: Path, word_file: Path):
     """Double-click on a word selects that full word."""
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         _ce = app.main_view.get_active_code_editor()
         assert _ce is not None
         ta = _ce.editor
@@ -88,7 +88,7 @@ async def test_double_click_selects_word(workspace: Path, word_file: Path):
         # Place cursor on 'world' (col 6 of row 0), then simulate double-click
         ta.cursor_location = (0, 6)
         ta.on_click(_make_click(chain=2))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert ta.selection == Selection((0, 6), (0, 11))
 
@@ -97,7 +97,7 @@ async def test_double_click_whitespace_no_selection(workspace: Path, word_file: 
     """Double-click on whitespace does not change selection."""
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         _ce = app.main_view.get_active_code_editor()
         assert _ce is not None
         ta = _ce.editor
@@ -106,7 +106,7 @@ async def test_double_click_whitespace_no_selection(workspace: Path, word_file: 
         ta.cursor_location = (0, 5)
         original_sel = ta.selection
         ta.on_click(_make_click(chain=2))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Selection should be unchanged (collapsed at (0,5))
         assert ta.selection == original_sel
@@ -116,7 +116,7 @@ async def test_double_click_eol_no_selection(workspace: Path, word_file: Path):
     """Double-click at EOL does not change selection."""
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         _ce = app.main_view.get_active_code_editor()
         assert _ce is not None
         ta = _ce.editor
@@ -124,7 +124,7 @@ async def test_double_click_eol_no_selection(workspace: Path, word_file: Path):
         # Place cursor at EOL
         ta.cursor_location = (0, 11)
         ta.on_click(_make_click(chain=2))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         # Selection stays collapsed at EOL
         assert ta.selection.start == ta.selection.end
@@ -134,14 +134,14 @@ async def test_triple_click_selects_line(workspace: Path, word_file: Path):
     """Triple-click on a non-empty line selects the entire line."""
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         _ce = app.main_view.get_active_code_editor()
         assert _ce is not None
         ta = _ce.editor
 
         ta.cursor_location = (0, 3)
         ta.on_click(_make_click(chain=3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert ta.selection == Selection((0, 0), (0, 11))
 
@@ -150,7 +150,7 @@ async def test_triple_click_empty_line(workspace: Path, workspace_with_empty: Pa
     """Triple-click on an empty line — cursor stays at (row, 0), no error."""
     app = make_app(workspace, open_file=workspace_with_empty, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         _ce = app.main_view.get_active_code_editor()
         assert _ce is not None
         ta = _ce.editor
@@ -158,7 +158,7 @@ async def test_triple_click_empty_line(workspace: Path, workspace_with_empty: Pa
         # Line 1 is empty
         ta.cursor_location = (1, 0)
         ta.on_click(_make_click(chain=3))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert ta.selection == Selection((1, 0), (1, 0))
 
@@ -174,7 +174,7 @@ async def test_double_click_clears_extra_cursors(workspace: Path, word_file: Pat
     """Double-click clears extra cursors and selects the word."""
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         _ce = app.main_view.get_active_code_editor()
         assert _ce is not None
         ta = _ce.editor
@@ -186,7 +186,7 @@ async def test_double_click_clears_extra_cursors(workspace: Path, word_file: Pat
         # Double-click on 'hello'
         ta.cursor_location = (0, 2)
         ta.on_click(_make_click(chain=2))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert ta.extra_cursors == []
         assert ta.selection == Selection((0, 0), (0, 5))
@@ -196,7 +196,7 @@ async def test_single_click_clears_extra_cursors(workspace: Path, word_file: Pat
     """Single click clears extra cursors."""
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         _ce = app.main_view.get_active_code_editor()
         assert _ce is not None
         ta = _ce.editor
@@ -207,7 +207,7 @@ async def test_single_click_clears_extra_cursors(workspace: Path, word_file: Pat
 
         # Simulate single click
         ta.on_click(_make_click(chain=1))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert ta.extra_cursors == []
 
@@ -218,7 +218,7 @@ async def test_single_click_clears_extra_cursors_integration(
     """Single click via pilot.click clears extra cursors (full event flow)."""
     app = make_app(workspace, open_file=word_file, light=True)
     async with app.run_test(size=(80, 24)) as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         _ce = app.main_view.get_active_code_editor()
         assert _ce is not None
         ta = _ce.editor
@@ -229,6 +229,6 @@ async def test_single_click_clears_extra_cursors_integration(
 
         # Click via pilot (triggers _on_mouse_down → on_click)
         await pilot.click(type(ta))
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
 
         assert ta.extra_cursors == []

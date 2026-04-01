@@ -42,11 +42,11 @@ async def test_uppercase_full_line(workspace: Path):
     f.write_text("hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.selection = Selection((0, 0), (0, 11))
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "HELLO WORLD"
         # Selection must be preserved (VSCode L935)
         assert ta.selection == Selection((0, 0), (0, 11))
@@ -59,11 +59,11 @@ async def test_uppercase_unicode(workspace: Path):
     f.write_text("öçşğü\n", encoding="utf-8")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.selection = Selection((0, 0), (0, 5))
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "ÖÇŞĞÜ"
         assert ta.selection == Selection((0, 0), (0, 5))
 
@@ -78,11 +78,11 @@ async def test_lowercase_full_line(workspace: Path):
     f.write_text("HELLO WORLD\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.selection = Selection((0, 0), (0, 11))
         ta.action_transform_lowercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "hello world"
         assert ta.selection == Selection((0, 0), (0, 11))
 
@@ -94,11 +94,11 @@ async def test_lowercase_unicode(workspace: Path):
     f.write_text("ÖÇŞĞÜ\n", encoding="utf-8")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.selection = Selection((0, 0), (0, 5))
         ta.action_transform_lowercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "öçşğü"
         assert ta.selection == Selection((0, 0), (0, 5))
 
@@ -113,17 +113,17 @@ async def test_uppercase_then_lowercase_round_trip(workspace: Path):
     f.write_text("hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.selection = Selection((0, 0), (0, 11))
 
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "HELLO WORLD"
 
         ta.selection = Selection((0, 0), (0, 11))
         ta.action_transform_lowercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "hello world"
 
 
@@ -137,11 +137,11 @@ async def test_uppercase_idempotent(workspace: Path):
     f.write_text("HELLO WORLD\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.selection = Selection((0, 0), (0, 11))
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "HELLO WORLD"
 
 
@@ -152,11 +152,11 @@ async def test_lowercase_idempotent(workspace: Path):
     f.write_text("hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.selection = Selection((0, 0), (0, 11))
         ta.action_transform_lowercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "hello world"
 
 
@@ -170,11 +170,11 @@ async def test_uppercase_whitespace_only_selection(workspace: Path):
     f.write_text("   \n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.selection = Selection((0, 0), (0, 3))
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "   "
 
 
@@ -185,11 +185,11 @@ async def test_uppercase_mixed_alphanumeric(workspace: Path):
     f.write_text("test123!@#abc\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.selection = Selection((0, 0), (0, 13))
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "TEST123!@#ABC"
 
 
@@ -206,11 +206,11 @@ async def test_collapsed_cursor_uppercase_word(workspace: Path):
     f.write_text("hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.cursor_location = (0, 2)
         ta.action_transform_uppercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "HELLO world"
 
 
@@ -223,11 +223,11 @@ async def test_collapsed_cursor_lowercase_word(workspace: Path):
     f.write_text("HELLO world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.cursor_location = (0, 3)
         ta.action_transform_lowercase()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "hello world"
 
 
@@ -241,11 +241,11 @@ async def test_title_case_full_line(workspace: Path):
     f.write_text("hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.selection = Selection((0, 0), (0, 11))
         ta.action_transform_title_case()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "Hello World"
         assert ta.selection == Selection((0, 0), (0, 11))
 
@@ -257,11 +257,11 @@ async def test_title_case_collapsed_cursor(workspace: Path):
     f.write_text("hello world\n")
     app = make_app(workspace, open_file=f, light=True)
     async with app.run_test() as pilot:
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         ta = await _get_ta(app)
         ta.cursor_location = (0, 2)
         ta.action_transform_title_case()
-        await pilot.pause()
+        await pilot.wait_for_scheduled_animations()
         assert ta.document.get_line(0) == "Hello world"
 
 
