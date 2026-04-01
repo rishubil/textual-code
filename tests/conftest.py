@@ -143,12 +143,14 @@ def snap_compare(snap_compare):
     """
 
     def wrapper(app, *, run_before=None, **kwargs):
+        from tests.test_snapshots import _wait_for_stable_screen
+
         async def run_before_no_blink(pilot):
             _disable_cursor_blink(pilot.app)
             if run_before is not None:
                 await run_before(pilot)
             _disable_cursor_blink(pilot.app)
-            await pilot.pause()
+            await _wait_for_stable_screen(pilot)
 
         return snap_compare(app, run_before=run_before_no_blink, **kwargs)
 
@@ -322,11 +324,11 @@ async def wait_for_condition(
 ):
     """Wait until *condition()* returns truthy, with real-time delay between retries.
 
-    ``pilot.pause()`` uses ``wait_for_idle(0)`` which monitors CPU idle time,
-    not actual async work completion.  On Windows CI, the event loop can be
-    CPU-idle while workers/mounts are still in progress, so ``pause()`` returns
-    instantly.  Using ``pilot.pause(delay=...)`` inserts a real wall-clock
-    ``asyncio.sleep()`` that gives workers and async mounts time to finish.
+    Each retry iteration first calls ``wait_for_scheduled_animations()`` to
+    drain pending messages and complete any running/scheduled animations, then
+    ``pilot.pause(delay=...)`` to insert a real wall-clock ``asyncio.sleep()``
+    that gives workers and async mounts time to finish (especially on Windows
+    CI where the event loop can be CPU-idle while work is still in progress).
 
     Args:
         pilot: The Textual Pilot instance.
@@ -353,6 +355,7 @@ async def wait_for_condition(
                 return result
         except Exception as exc:
             last_exc = exc
+        await pilot.wait_for_scheduled_animations()
         await pilot.pause(delay=delay)
     if last_exc is not None:
         raise AssertionError(msg) from last_exc
