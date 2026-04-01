@@ -519,3 +519,127 @@ async def test_replace_preview_no_warning_when_not_truncated() -> None:
         await pilot.pause()
         with pytest.raises(NoMatches):
             pilot.app.screen.query_one("#truncation-warning")
+
+
+# ---------------------------------------------------------------------------
+# expand_all / collapse_all tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_expand_all() -> None:
+    """expand_all() shows all match rows."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        await pilot.pause()
+
+        tree.collapse_all()
+        await pilot.pause()
+
+        # All match rows should be hidden
+        for fr in tree.file_rows():
+            for mr in tree.match_rows_for(fr):
+                assert mr.display is False
+
+        tree.expand_all()
+        await pilot.pause()
+
+        # All match rows should be visible
+        for fr in tree.file_rows():
+            for mr in tree.match_rows_for(fr):
+                assert mr.display is True
+
+
+@pytest.mark.asyncio
+async def test_collapse_all() -> None:
+    """collapse_all() hides all match rows."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        await pilot.pause()
+
+        tree.collapse_all()
+        await pilot.pause()
+
+        for fr in tree.file_rows():
+            for mr in tree.match_rows_for(fr):
+                assert mr.display is False
+
+
+# ---------------------------------------------------------------------------
+# cursor_node property test
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_cursor_node_property() -> None:
+    """cursor_node returns the currently focused row."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        await pilot.pause()
+
+        # Initially no cursor
+        assert tree.cursor_node is None
+
+        # Focus a row
+        first_file = tree.file_rows()[0]
+        first_file.focus()
+        await pilot.pause()
+
+        assert tree.cursor_node is first_file
+
+
+# ---------------------------------------------------------------------------
+# remove_file_row / remove_match_row tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_remove_match_row() -> None:
+    """remove_match_row() removes a single match and updates parent."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        await pilot.pause()
+
+        first_file = tree.file_rows()[0]
+        matches = tree.match_rows_for(first_file)
+        assert len(matches) == 2
+
+        tree.remove_match_row(matches[0])
+        await pilot.pause()
+
+        assert len(tree.match_rows_for(first_file)) == 1
+
+
+@pytest.mark.asyncio
+async def test_remove_only_match_removes_file() -> None:
+    """Removing the only match in a file also removes the file row."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        await pilot.pause()
+
+        # b.py has 1 match
+        second_file = tree.file_rows()[1]
+        matches = tree.match_rows_for(second_file)
+        assert len(matches) == 1
+
+        tree.remove_match_row(matches[0])
+        await pilot.pause()
+
+        # File row should also be gone
+        assert len(tree.file_rows()) == 1
+
+
+@pytest.mark.asyncio
+async def test_remove_file_row() -> None:
+    """remove_file_row() removes a file and all its matches."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        await pilot.pause()
+
+        assert len(tree.file_rows()) == 2
+        tree.remove_file_row(tree.file_rows()[0])
+        await pilot.pause()
+
+        remaining = tree.file_rows()
+        assert len(remaining) == 1
+        assert "src/b.py" in remaining[0].label_text
