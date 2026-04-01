@@ -357,6 +357,8 @@ class CheckboxTree(VerticalScroll):
         Binding("down", "focus_next_row", "Next", show=False),
         Binding("home", "focus_first_row", "First", show=False),
         Binding("end", "focus_last_row", "Last", show=False),
+        Binding("pageup", "page_up", "Page Up", show=False),
+        Binding("pagedown", "page_down", "Page Down", show=False),
     ]
 
     @dataclass
@@ -441,6 +443,29 @@ class CheckboxTree(VerticalScroll):
     def match_rows_for(self, file_row: _FileRow) -> list[_MatchRow]:
         """Return match rows belonging to a file row."""
         return list(file_row._match_rows)
+
+    @property
+    def cursor_node(self) -> _FileRow | _MatchRow | None:
+        """The currently focused row, or None if no row is focused."""
+        return self._last_focused_row
+
+    def expand_all(self) -> None:
+        """Expand all file rows to show their match rows."""
+        for fr in self._file_row_list:
+            toggle = fr.query_one(_ExpandToggle)
+            if not toggle.expanded:
+                toggle.expanded = True
+                for mr in fr._match_rows:
+                    mr.display = True
+
+    def collapse_all(self) -> None:
+        """Collapse all file rows to hide their match rows."""
+        for fr in self._file_row_list:
+            toggle = fr.query_one(_ExpandToggle)
+            if toggle.expanded:
+                toggle.expanded = False
+                for mr in fr._match_rows:
+                    mr.display = False
 
     def remove_file_row(self, file_row: _FileRow) -> None:
         """Remove a file row and all its match rows from the tree."""
@@ -544,6 +569,26 @@ class CheckboxTree(VerticalScroll):
         if visible:
             visible[-1].focus()
             visible[-1].scroll_visible()
+
+    def action_page_down(self) -> None:
+        visible = self._visible_rows()
+        if not visible:
+            return
+        page_size = max(1, self.size.height - 1)
+        idx = self._focused_index(visible)
+        target = min((idx or 0) + page_size, len(visible) - 1)
+        visible[target].focus()
+        visible[target].scroll_visible()
+
+    def action_page_up(self) -> None:
+        visible = self._visible_rows()
+        if not visible:
+            return
+        page_size = max(1, self.size.height - 1)
+        idx = self._focused_index(visible)
+        target = max((idx or 0) - page_size, 0)
+        visible[target].focus()
+        visible[target].scroll_visible()
 
     # ── Focus memory ─────────────────────────────────────────────────────
 
