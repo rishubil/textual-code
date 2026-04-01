@@ -370,6 +370,30 @@ async def test_match_row_data() -> None:
 # ---------------------------------------------------------------------------
 
 
+class _FocusCycleApp(App):
+    """App with an input before and after the CheckboxTree for focus cycling."""
+
+    CSS = """
+    CheckboxTree { height: 1fr; }
+    """
+
+    def __init__(self, results: list[WorkspaceSearchResult], workspace: Path) -> None:
+        super().__init__()
+        self._results = results
+        self._workspace = workspace
+
+    def compose(self) -> ComposeResult:
+        from textual.widgets import Input
+
+        yield Input(id="before")
+        yield CheckboxTree(id="tree")
+        yield Input(id="after")
+
+    def on_mount(self) -> None:
+        tree = self.query_one("#tree", CheckboxTree)
+        tree.populate(self._results, self._workspace)
+
+
 @pytest.mark.asyncio
 async def test_focus_restored_on_tree_refocus() -> None:
     """When the tree regains focus, the last-focused row should be restored."""
@@ -377,9 +401,11 @@ async def test_focus_restored_on_tree_refocus() -> None:
         tree = pilot.app.query_one("#tree", CheckboxTree)
         await pilot.pause()
 
-        # Focus the second match row
+        # Set virtual cursor to the second match row
+        tree.focus()
+        await pilot.pause()
         second_match = tree.match_rows_for(tree.file_rows()[0])[1]
-        second_match.focus()
+        tree._set_cursor(second_match)
         await pilot.pause()
         assert tree._last_focused_row is second_match
 
@@ -387,12 +413,51 @@ async def test_focus_restored_on_tree_refocus() -> None:
         tree.screen.set_focus(None)
         await pilot.pause()
 
-        # Re-focus the tree container
+        # Re-focus the tree container — cursor should be restored
+        tree.focus()
+        await pilot.pause()
+        assert second_match.has_class("-cursor")
+
+
+@pytest.mark.asyncio
+async def test_focus_cycle_restores_cursor_position() -> None:
+    """Tab cycling away and back restores the previously focused row, not the last.
+
+    This tests the real-world scenario: CheckboxTree rows should not appear
+    as individual focusable targets in the external focus chain (Tab/Shift+Tab).
+    Instead, focusing the CheckboxTree should always redirect to the last-focused row.
+    """
+    from textual.widgets import Input
+
+    async with _FocusCycleApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
         tree.focus()
         await pilot.pause()
 
-        # The previously focused row should be restored
-        assert pilot.app.screen.focused is second_match
+        # Move virtual cursor to the first match row
+        first_file = tree.file_rows()[0]
+        first_match = tree.match_rows_for(first_file)[0]
+        tree._set_cursor(first_match)
+        await pilot.pause()
+        assert first_match.has_class("-cursor")
+
+        # Tab to the next widget after the tree
+        await pilot.press("tab")
+        await pilot.pause()
+
+        # Should land on #after, NOT stay in the tree
+        focused = pilot.app.screen.focused
+        assert isinstance(focused, Input), (
+            f"Tab should leave tree to #after input, but focused: {focused}"
+        )
+
+        # Focus previous — should go back to CheckboxTree
+        pilot.app.screen.focus_previous()
+        await pilot.pause()
+
+        # CheckboxTree has focus, cursor highlight on first_match
+        assert pilot.app.screen.focused is tree
+        assert first_match.has_class("-cursor")
 
 
 # ---------------------------------------------------------------------------
@@ -445,8 +510,10 @@ async def test_cursor_highlight_persists_on_blur() -> None:
         tree = pilot.app.query_one("#tree", CheckboxTree)
         await pilot.pause()
 
+        tree.focus()
+        await pilot.pause()
         second_match = tree.match_rows_for(tree.file_rows()[0])[1]
-        second_match.focus()
+        tree._set_cursor(second_match)
         await pilot.pause()
 
         assert second_match.has_class("-cursor")
@@ -580,9 +647,9 @@ async def test_cursor_node_property() -> None:
         # Initially no cursor
         assert tree.cursor_node is None
 
-        # Focus a row
+        # Set cursor to a row
         first_file = tree.file_rows()[0]
-        first_file.focus()
+        tree._set_cursor(first_file)
         await pilot.pause()
 
         assert tree.cursor_node is first_file
