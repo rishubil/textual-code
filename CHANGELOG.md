@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **CI**: add Windows test job to CI — runs non-snapshot tests on `windows-latest` with Python 3.12/3.13/3.14 matrix to catch Windows-specific regressions (#180)
 - **Tabs**: directional/selective close tab commands via command palette — Close Other Editors, Close Editors to the Right, Close Editors to the Left, and Close Saved Editors; dirty unmounted editors are preserved to prevent silent data loss (#122)
+- **Search**: per-file diff preview for workspace Replace All — replaces the single-match confirmation modal with a two-panel screen showing file list (left) and unified diff (right) for each affected file; includes SHA-256 conflict detection to skip files changed between preview and apply (#157)
 
 ### Fixed
 

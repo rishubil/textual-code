@@ -1336,9 +1336,11 @@ def test_snapshot_render_whitespace(snap_compare, snapshot_workspace: Path):
     assert snap_compare(app, run_before=enable_whitespace, terminal_size=TERMINAL_SIZE)
 
 
-def test_snapshot_replace_all_confirm_modal(snap_compare, snapshot_workspace: Path):
-    """ReplaceAllConfirmModalScreen shown with preview after triggering Replace All."""
+def test_snapshot_replace_preview_screen(snap_compare, snapshot_workspace: Path):
+    """ReplacePreviewScreen shown with per-file diffs after triggering Replace All."""
     (snapshot_workspace / "hello.py").write_text("hello world\nprint('hello')\n")
+    (snapshot_workspace / "greet.py").write_text("def greet():\n    return 'hello'\n")
+    (snapshot_workspace / "readme.txt").write_text("This says hello twice: hello\n")
     app = make_app(snapshot_workspace)
 
     async def run_before(pilot):

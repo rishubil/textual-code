@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from itertools import groupby
 from pathlib import Path
 
 from rich.cells import cell_len
+from rich.markup import escape as markup_escape
 from textual import on, work
 from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -14,13 +14,12 @@ from textual.widgets import Button, Checkbox, Input, Label, Static, Tree
 from textual.worker import Worker, WorkerState
 
 from textual_code.modals import (
-    ReplaceAllConfirmModalResult,
-    ReplaceAllConfirmModalScreen,
-    ReplacePreview,
+    ReplacePreviewResult,
+    ReplacePreviewScreen,
 )
 from textual_code.search import (
-    WorkspaceSearchResponse,
-    replace_workspace,
+    apply_workspace_replace,
+    preview_workspace_replace,
     search_workspace,
 )
 
@@ -36,9 +35,6 @@ _BTN_MIN_WIDTHS = {
     btn_id: (cell_len(full) + _BTN_PADDING, cell_len(icon) + _BTN_PADDING)
     for btn_id, (full, icon) in _BTN_LABELS.items()
 }
-
-
-_REPLACE_COUNT_MAX = 500  # Must match search_workspace() default max_results
 
 
 class WorkspaceSearchPane(Static):
@@ -185,13 +181,15 @@ class WorkspaceSearchPane(Static):
                 suffix = "match" if count == 1 else "matches"
                 first_line = matches[0].line_number
                 file_node = results_tree.root.add(
-                    f"{relative} ({count} {suffix})",
+                    markup_escape(f"{relative} ({count} {suffix})"),
                     data=(file_path, first_line),
                     expand=True,
                 )
                 for match in matches:
                     file_node.add_leaf(
-                        f"{match.line_number}: {match.line_text.strip()}",
+                        markup_escape(
+                            f"{match.line_number}: {match.line_text.strip()}"
+                        ),
                         data=(file_path, match.line_number),
                     )
 
@@ -242,7 +240,7 @@ class WorkspaceSearchPane(Static):
             return
 
         show_hidden = getattr(self.app, "default_show_hidden_files", True)
-        self._count_for_replace_worker(
+        self._preview_replace_worker(
             workspace_path,
             query,
             replacement,
@@ -255,7 +253,7 @@ class WorkspaceSearchPane(Static):
         )
 
     @work(thread=True, exclusive=True, group="replace_count", exit_on_error=False)
-    def _count_for_replace_worker(
+    def _preview_replace_worker(
         self,
         workspace_path: Path,
         query: str,
@@ -267,99 +265,76 @@ class WorkspaceSearchPane(Static):
         files_to_include: str,
         files_to_exclude: str,
     ) -> None:
-        response = search_workspace(
-            workspace_path,
-            query,
-            use_regex,
-            respect_gitignore=respect_gitignore,
-            show_hidden_files=show_hidden_files,
-            case_sensitive=case_sensitive,
-            files_to_include=files_to_include,
-            files_to_exclude=files_to_exclude,
-        )
-
-        self.app.call_from_thread(
-            self._show_replace_confirm,
+        response = preview_workspace_replace(
             workspace_path,
             query,
             replacement,
             use_regex,
-            respect_gitignore,
+            respect_gitignore=respect_gitignore,
+            show_hidden_files=show_hidden_files,
+            files_to_include=files_to_include,
+            files_to_exclude=files_to_exclude,
+            case_sensitive=case_sensitive,
+        )
+
+        self.app.call_from_thread(
+            self._show_replace_preview,
+            query,
+            replacement,
+            use_regex,
             case_sensitive,
-            show_hidden_files,
-            files_to_include,
-            files_to_exclude,
             response,
         )
 
-    def _show_replace_confirm(
+    def _show_replace_preview(
         self,
-        workspace_path: Path,
         query: str,
         replacement: str,
         use_regex: bool,
-        respect_gitignore: bool,
         case_sensitive: bool,
-        show_hidden_files: bool,
-        files_to_include: str,
-        files_to_exclude: str,
-        response: WorkspaceSearchResponse,
+        response: object,
     ) -> None:
-        results = response.results
+        from textual_code.search import PreviewResponse
+
+        assert isinstance(response, PreviewResponse)
+        previews = response.previews
         status = self.query_one("#ws-replace-status", Label)
 
-        if not results:
+        if not previews:
             status.update("No matches found")
             return
 
-        files_count = len({r.file_path for r in results})
-        occurrences_count = len(results)
-        is_truncated = occurrences_count >= _REPLACE_COUNT_MAX
-
-        first = results[0]
-        flags = 0 if case_sensitive else re.IGNORECASE
-        try:
-            pattern = re.compile(query if use_regex else re.escape(query), flags)
-        except re.error:
-            return
-        preview_before = first.line_text.strip()
-        preview_after = pattern.sub(replacement, preview_before, count=1)
-
-        try:
-            preview_file = str(first.file_path.relative_to(workspace_path))
-        except ValueError:
-            preview_file = str(first.file_path)
-
-        preview = ReplacePreview(
-            file=preview_file,
-            line_num=first.line_number,
-            before=preview_before,
-            after=preview_after,
+        modal = ReplacePreviewScreen(
+            previews=previews,
+            is_truncated=response.is_truncated,
         )
 
-        modal = ReplaceAllConfirmModalScreen(
-            files_count=files_count,
-            occurrences_count=occurrences_count,
-            is_truncated=is_truncated,
-            preview=preview,
-        )
-
-        def on_result(result: ReplaceAllConfirmModalResult | None) -> None:
-            if result is None or result.is_cancelled or not result.should_replace:
+        def on_result(result: ReplacePreviewResult | None) -> None:
+            if result is None or result.is_cancelled or not result.should_apply:
                 return
-            replace_result = replace_workspace(
-                workspace_path,
+            apply_result = apply_workspace_replace(
+                previews,
                 query,
                 replacement,
                 use_regex,
-                respect_gitignore=respect_gitignore,
-                show_hidden_files=show_hidden_files,
                 case_sensitive=case_sensitive,
-                files_to_include=files_to_include,
-                files_to_exclude=files_to_exclude,
             )
-            n, f = replace_result.replacements_count, replace_result.files_modified
-            status.update(f"Replaced {n} occurrence(s) in {f} file(s)")
+            n = apply_result.replacements_count
+            f = apply_result.files_modified
+            msg = f"Replaced {n} occurrence(s) in {f} file(s)"
+            if apply_result.files_skipped > 0:
+                skipped = apply_result.files_skipped
+                msg += f" ({skipped} skipped)"
+                self.app.notify(
+                    f"Skipped: {', '.join(apply_result.skipped_files)}",
+                    severity="warning",
+                )
+            if apply_result.failed_files:
+                self.app.notify(
+                    f"Failed: {', '.join(apply_result.failed_files)}",
+                    severity="error",
+                )
+            status.update(msg)
 
         self.app.push_screen(modal, on_result)
 

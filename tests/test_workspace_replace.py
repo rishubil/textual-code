@@ -11,7 +11,12 @@ from pathlib import Path
 
 import pytest
 
-from textual_code.search import WorkspaceReplaceResult, replace_workspace
+from textual_code.search import (
+    WorkspaceReplaceResult,
+    apply_workspace_replace,
+    preview_workspace_replace,
+    replace_workspace,
+)
 
 # ---------------------------------------------------------------------------
 # Unit tests: replace_workspace()
@@ -135,6 +140,146 @@ def test_replace_preserves_other_content(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Unit tests: preview_workspace_replace()
+# ---------------------------------------------------------------------------
+
+
+def test_preview_single_file_diff(tmp_path: Path) -> None:
+    f = tmp_path / "hello.txt"
+    f.write_text("hello world\n")
+    resp = preview_workspace_replace(tmp_path, "hello", "hi")
+    assert len(resp.previews) == 1
+    p = resp.previews[0]
+    assert p.rel_path == "hello.txt"
+    assert p.replacement_count == 1
+    assert len(p.original_hash) == 64  # SHA-256 hex
+    assert any("-" in line for line in p.diff_lines)
+    assert any("+" in line for line in p.diff_lines)
+    assert not resp.is_truncated
+
+
+def test_preview_multiple_files(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("needle here\n")
+    (tmp_path / "b.txt").write_text("another needle\n")
+    (tmp_path / "c.txt").write_text("no match\n")
+    resp = preview_workspace_replace(tmp_path, "needle", "pin")
+    assert len(resp.previews) == 2
+    rel_paths = {p.rel_path for p in resp.previews}
+    assert "a.txt" in rel_paths
+    assert "b.txt" in rel_paths
+
+
+def test_preview_no_matches_yields_nothing(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("hello\n")
+    resp = preview_workspace_replace(tmp_path, "xyz", "abc")
+    assert len(resp.previews) == 0
+    assert not resp.is_truncated
+
+
+def test_preview_regex_mode(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("foo123\nbar456\n")
+    resp = preview_workspace_replace(tmp_path, r"\d+", "X", use_regex=True)
+    assert len(resp.previews) == 1
+    assert resp.previews[0].replacement_count == 2
+
+
+def test_preview_binary_file_skipped(tmp_path: Path) -> None:
+    (tmp_path / "binary.bin").write_bytes(b"\x00\x01binary data")
+    resp = preview_workspace_replace(tmp_path, "binary", "text")
+    assert len(resp.previews) == 0
+
+
+def test_preview_diff_context_lines(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("line1\nline2\nold\nline4\nline5\n")
+    resp = preview_workspace_replace(tmp_path, "old", "new")
+    assert len(resp.previews) == 1
+    diff_text = "".join(resp.previews[0].diff_lines)
+    assert "@@" in diff_text
+    assert "-old\n" in diff_text
+    assert "+new\n" in diff_text
+
+
+def test_preview_same_query_and_replacement(tmp_path: Path) -> None:
+    """When query equals replacement, no files should appear in preview."""
+    (tmp_path / "a.txt").write_text("foo bar foo\n")
+    resp = preview_workspace_replace(tmp_path, "foo", "foo")
+    assert len(resp.previews) == 0
+
+
+def test_preview_truncated_when_exceeding_max_files(tmp_path: Path) -> None:
+    for i in range(5):
+        (tmp_path / f"file{i}.txt").write_text("needle\n")
+    resp = preview_workspace_replace(tmp_path, "needle", "pin", max_files=3)
+    assert len(resp.previews) == 3
+    assert resp.is_truncated
+
+
+def test_preview_empty_query_returns_empty(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("hello\n")
+    resp = preview_workspace_replace(tmp_path, "", "x")
+    assert len(resp.previews) == 0
+
+
+def test_preview_case_insensitive(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("Hello HELLO hello\n")
+    resp = preview_workspace_replace(tmp_path, "hello", "hi", case_sensitive=False)
+    assert len(resp.previews) == 1
+    assert resp.previews[0].replacement_count == 3
+
+
+# ---------------------------------------------------------------------------
+# Unit tests: apply_workspace_replace()
+# ---------------------------------------------------------------------------
+
+
+def test_apply_replaces_files(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("hello world\n")
+    (tmp_path / "b.txt").write_text("hello again\n")
+    resp = preview_workspace_replace(tmp_path, "hello", "hi")
+    result = apply_workspace_replace(resp.previews, "hello", "hi")
+    assert result.files_modified == 2
+    assert result.replacements_count == 2
+    assert (tmp_path / "a.txt").read_text() == "hi world\n"
+    assert (tmp_path / "b.txt").read_text() == "hi again\n"
+
+
+def test_apply_hash_mismatch_skips_file(tmp_path: Path) -> None:
+    f = tmp_path / "a.txt"
+    f.write_text("hello world\n")
+    resp = preview_workspace_replace(tmp_path, "hello", "hi")
+    # Modify file after preview
+    f.write_text("modified content\n")
+    result = apply_workspace_replace(resp.previews, "hello", "hi")
+    assert result.files_modified == 0
+    assert result.files_skipped == 1
+    assert "a.txt" in result.skipped_files
+    assert f.read_text() == "modified content\n"
+
+
+def test_apply_returns_counts(tmp_path: Path) -> None:
+    (tmp_path / "a.txt").write_text("foo bar foo\n")
+    (tmp_path / "b.txt").write_text("foo baz\n")
+    resp = preview_workspace_replace(tmp_path, "foo", "qux")
+    result = apply_workspace_replace(resp.previews, "foo", "qux")
+    assert result.files_modified == 2
+    assert result.replacements_count == 3
+    assert result.files_skipped == 0
+    assert result.skipped_files == []
+    assert result.failed_files == []
+
+
+def test_apply_io_error_reports_failed(tmp_path: Path) -> None:
+    f = tmp_path / "a.txt"
+    f.write_text("hello world\n")
+    resp = preview_workspace_replace(tmp_path, "hello", "hi")
+    # Delete file to cause IO error on re-read
+    f.unlink()
+    result = apply_workspace_replace(resp.previews, "hello", "hi")
+    assert result.files_modified == 0
+    assert "a.txt" in result.failed_files
+
+
+# ---------------------------------------------------------------------------
 # Integration tests: WorkspaceSearchPane replace UI
 # ---------------------------------------------------------------------------
 
@@ -192,7 +337,7 @@ async def test_replace_all_modifies_files(tmp_path: Path) -> None:
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
         # Confirm in the modal
-        await pilot.click("#replace-all")
+        await pilot.click("#apply-all")
         await pilot.wait_for_scheduled_animations()
 
     assert f.read_text() == "hi world\n"
@@ -219,7 +364,7 @@ async def test_replace_all_updates_status_label(tmp_path: Path) -> None:
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
         # Confirm
-        await pilot.click("#replace-all")
+        await pilot.click("#apply-all")
         await pilot.wait_for_scheduled_animations()
 
         status = ws_pane.query_one("#ws-replace-status", Label)
@@ -259,7 +404,7 @@ async def test_replace_all_shows_confirmation_modal(tmp_path: Path) -> None:
     from textual.widgets import Input
 
     from tests.conftest import make_app
-    from textual_code.modals import ReplaceAllConfirmModalScreen
+    from textual_code.modals import ReplacePreviewScreen
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
     app = make_app(tmp_path)
@@ -274,7 +419,7 @@ async def test_replace_all_shows_confirmation_modal(tmp_path: Path) -> None:
         await pilot.wait_for_scheduled_animations()
 
         # Modal should be on the screen stack
-        assert isinstance(app.screen, ReplaceAllConfirmModalScreen)
+        assert isinstance(app.screen, ReplacePreviewScreen)
 
 
 @pytest.mark.asyncio
@@ -286,7 +431,7 @@ async def test_replace_all_cancel_does_not_replace(tmp_path: Path) -> None:
     from textual.widgets import Input
 
     from tests.conftest import make_app
-    from textual_code.modals import ReplaceAllConfirmModalScreen
+    from textual_code.modals import ReplacePreviewScreen
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
     app = make_app(tmp_path)
@@ -300,14 +445,14 @@ async def test_replace_all_cancel_does_not_replace(tmp_path: Path) -> None:
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
 
-        assert isinstance(app.screen, ReplaceAllConfirmModalScreen)
+        assert isinstance(app.screen, ReplacePreviewScreen)
 
         # Cancel
         await pilot.click("#cancel")
         await pilot.wait_for_scheduled_animations()
 
         # Modal should be dismissed
-        assert not isinstance(app.screen, ReplaceAllConfirmModalScreen)
+        assert not isinstance(app.screen, ReplacePreviewScreen)
 
     # File should be unchanged
     assert f.read_text() == "hello world\n"
@@ -321,7 +466,7 @@ async def test_replace_all_no_matches_shows_status_no_modal(tmp_path: Path) -> N
     from textual.widgets import Input, Label
 
     from tests.conftest import make_app
-    from textual_code.modals import ReplaceAllConfirmModalScreen
+    from textual_code.modals import ReplacePreviewScreen
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
     app = make_app(tmp_path)
@@ -336,7 +481,7 @@ async def test_replace_all_no_matches_shows_status_no_modal(tmp_path: Path) -> N
         await pilot.wait_for_scheduled_animations()
 
         # No modal should appear
-        assert not isinstance(app.screen, ReplaceAllConfirmModalScreen)
+        assert not isinstance(app.screen, ReplacePreviewScreen)
 
         # Status should show "No matches found"
         status = ws_pane.query_one("#ws-replace-status", Label)

@@ -35,7 +35,7 @@ from itertools import groupby
 from pathlib import Path
 
 import pytest
-from textual.widgets import Button, Checkbox, Input, Label, Tree
+from textual.widgets import Button, Checkbox, Input, Label, Static, Tree
 
 from tests.conftest import make_app
 from textual_code.search import (
@@ -1138,7 +1138,7 @@ async def test_replace_all_via_ui_modifies_files(tmp_path: Path) -> None:
         await pilot.wait_for_scheduled_animations()
 
         # Confirm in modal — query within the modal screen
-        replace_btn = app.screen.query_one("#replace-all", Button)
+        replace_btn = app.screen.query_one("#apply-all", Button)
         replace_btn.press()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
@@ -1230,7 +1230,7 @@ async def test_replace_all_regex_capture_groups_via_ui(
         await pilot.wait_for_scheduled_animations()
 
         # Confirm in modal
-        app.screen.query_one("#replace-all", Button).press()
+        app.screen.query_one("#apply-all", Button).press()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
 
@@ -1245,7 +1245,7 @@ async def test_replace_all_regex_capture_groups_via_ui(
 
 @pytest.mark.asyncio
 async def test_replace_all_modal_shows_preview(tmp_path: Path) -> None:
-    """Confirmation modal shows before/after preview of first match.
+    """Preview screen shows file list, occurrence count, and diff preview.
 
     Verifies that the modal displays the file path, occurrence count,
     and a diff preview of the replacement.
@@ -1263,21 +1263,22 @@ async def test_replace_all_modal_shows_preview(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-replace", Input).value = "new"
         await pilot.wait_for_scheduled_animations()
 
-        # Trigger Replace All — this opens the confirmation modal
+        # Trigger Replace All — this opens the preview screen
         ws_pane._run_replace_all()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
 
-        # Verify modal content
-        summary = app.screen.query_one("#message", Label)
-        summary_text = str(summary.render())
-        assert "2 occurrence(s)" in summary_text
-        assert "1 file(s)" in summary_text
+        # Verify title content
+        title = app.screen.query_one("#title", Label)
+        title_text = str(title.render())
+        assert "1 file(s)" in title_text
+        assert "2 occurrence(s)" in title_text
 
-        preview = app.screen.query_one("#preview", Label)
-        preview_text = str(preview.render())
-        assert "example.txt" in preview_text
+        # Verify diff content shows the file
+        diff = app.screen.query_one("#diff-content", Static)
+        diff_text = str(diff.render())
+        assert "old" in diff_text
 
         # Cancel to clean up
         app.screen.query_one("#cancel", Button).press()

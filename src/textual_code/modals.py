@@ -32,6 +32,7 @@ from textual.widgets import (
 if TYPE_CHECKING:
     from textual_code.app import TextualCode
     from textual_code.config import FooterOrders, ShortcutDisplayEntry
+    from textual_code.search import FileDiffPreview
 
 
 @dataclass
@@ -2217,78 +2218,138 @@ class PathSearchModal(ModalScreen[Path | None]):
 
 
 @dataclass
-class ReplacePreview:
-    """Preview data for the first match in a Replace All operation."""
-
-    file: str  # relative path
-    line_num: int  # 1-based
-    before: str  # original line (stripped)
-    after: str  # replaced line (stripped)
-
-
-@dataclass
-class ReplaceAllConfirmModalResult:
-    """Result of the Replace All confirmation modal."""
+class ReplacePreviewResult:
+    """Result of the Replace Preview screen."""
 
     is_cancelled: bool
-    should_replace: bool
+    should_apply: bool
 
 
-class ReplaceAllConfirmModalScreen(ModalScreen[ReplaceAllConfirmModalResult]):
-    """Confirmation modal before workspace-wide Replace All."""
+class ReplacePreviewScreen(ModalScreen[ReplacePreviewResult]):
+    """Per-file diff preview screen before workspace-wide Replace All."""
+
+    DEFAULT_CSS = """
+    ReplacePreviewScreen {
+        align: center middle;
+    }
+    ReplacePreviewScreen #dialog {
+        width: 80%;
+        height: 80%;
+        border: thick $background 80%;
+        background: $surface;
+        padding: 1 2;
+    }
+    ReplacePreviewScreen #title {
+        height: 1;
+        width: 1fr;
+        text-style: bold;
+        content-align: center middle;
+        margin-bottom: 1;
+    }
+    ReplacePreviewScreen #panels {
+        height: 1fr;
+    }
+    ReplacePreviewScreen #file-list {
+        width: 30;
+        margin-right: 1;
+    }
+    ReplacePreviewScreen #diff-view {
+        width: 1fr;
+        overflow-y: auto;
+    }
+    ReplacePreviewScreen .buttons {
+        height: 3;
+        layout: horizontal;
+    }
+    ReplacePreviewScreen .buttons Button {
+        width: 1fr;
+        margin: 0 1;
+    }
+    """
+
+    # No BINDINGS — escape must not dismiss a destructive action screen
 
     def __init__(
         self,
-        files_count: int,
-        occurrences_count: int,
-        is_truncated: bool,
-        preview: ReplacePreview,
+        previews: list[FileDiffPreview],
+        is_truncated: bool = False,
     ) -> None:
         super().__init__()
-        self.files_count = files_count
-        self.occurrences_count = occurrences_count
-        self.is_truncated = is_truncated
-        self.preview = preview
+        self._previews = previews
+        self._total_occurrences = sum(p.replacement_count for p in previews)
+        self._is_truncated = is_truncated
 
     def compose(self) -> ComposeResult:
-        occ = (
-            f"{self.occurrences_count}+"
-            if self.is_truncated
-            else str(self.occurrences_count)
-        )
-        files = f"{self.files_count}+" if self.is_truncated else str(self.files_count)
-        summary = f"{occ} occurrence(s) in {files} file(s)"
+        from textual.containers import VerticalScroll
+        from textual.widgets import Static
 
-        p = self.preview
-        preview_markup = (
-            f"{p.file}:{p.line_num}\n"
-            f"[$text-error]- {p.before}[/]\n"
-            f"[$text-success]+ {p.after}[/]"
+        files_label = (
+            f"{len(self._previews)}+"
+            if self._is_truncated
+            else str(len(self._previews))
         )
-        preview_content = Content.from_markup(preview_markup)
-
-        yield Grid(
-            Label("Replace All in Workspace", id="title"),
-            Label(summary, id="message"),
-            Label("Replace preview for first match:", id="preview-label"),
-            Label(preview_content, id="preview"),
-            Label(
-                "Are you sure you want to perform the Replace All operation?",
-                id="confirm-message",
-            ),
-            Button("Replace All", variant="warning", id="replace-all"),
-            Button("Cancel", variant="default", id="cancel"),
-            id="dialog",
+        occ_label = (
+            f"{self._total_occurrences}+"
+            if self._is_truncated
+            else str(self._total_occurrences)
+        )
+        title = (
+            f"Replace Preview \u00b7 {files_label} file(s)"
+            f" \u00b7 {occ_label} occurrence(s)"
         )
 
-    @on(Button.Pressed, "#replace-all")
-    def on_replace_all(self) -> None:
-        self.dismiss(
-            ReplaceAllConfirmModalResult(is_cancelled=False, should_replace=True)
-        )
+        items = [
+            ListItem(
+                Label(f"{p.rel_path} ({p.replacement_count})"),
+            )
+            for p in self._previews
+        ]
+
+        with Vertical(id="dialog"):
+            yield Label(title, id="title")
+            with Horizontal(id="panels"):
+                yield ListView(*items, id="file-list")
+                with VerticalScroll(id="diff-view"):
+                    yield Static("", id="diff-content")
+            with Horizontal(classes="buttons"):
+                yield Button("Cancel", variant="default", id="cancel")
+                yield Button("Apply All", variant="warning", id="apply-all")
+
+    def on_mount(self) -> None:
+        if self._previews:
+            self._show_diff(0)
+
+    def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
+        list_view = self.query_one("#file-list", ListView)
+        idx = list_view.index
+        if idx is not None and 0 <= idx < len(self._previews):
+            self._show_diff(idx)
+
+    def _show_diff(self, index: int) -> None:
+        from rich.markup import escape
+        from textual.widgets import Static
+
+        preview = self._previews[index]
+        parts: list[str] = []
+        for line in preview.diff_lines:
+            escaped = escape(line.rstrip("\n"))
+            if line.startswith(("---", "+++", "@@")):
+                parts.append(f"[$text-muted]{escaped}[/]")
+            elif line.startswith("-"):
+                parts.append(f"[$text-error]{escaped}[/]")
+            elif line.startswith("+"):
+                parts.append(f"[$text-success]{escaped}[/]")
+            else:
+                parts.append(escaped)
+
+        content = Content.from_markup("\n".join(parts))
+        diff_static = self.query_one("#diff-content", Static)
+        diff_static.update(content)
+
+    @on(Button.Pressed, "#apply-all")
+    def on_apply_all(self) -> None:
+        self.dismiss(ReplacePreviewResult(is_cancelled=False, should_apply=True))
 
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
-        self.dismiss(
-            ReplaceAllConfirmModalResult(is_cancelled=True, should_replace=False)
-        )
+        self.dismiss(ReplacePreviewResult(is_cancelled=True, should_apply=False))
