@@ -32,12 +32,15 @@ Provides project-wide text search and batch replace without leaving the editor. 
 **Replace All:**
 
 - Enter a replacement string in the "Replace with..." input and click "Replace All" or press Enter in the replace input.
-- Before replacing, a confirmation modal appears showing:
-  - The number of occurrences and files to be modified (capped at 500 matches; shows "500+" when truncated).
-  - A patch-style preview of the first match with syntax-highlighted diff (red for removed, green for added).
-- The match count runs in a background thread to keep the UI responsive. If no matches are found, a "No matches found" status is shown without opening the modal.
-- After the user confirms, the actual replacement runs synchronously and modifies files on disk directly.
-- A status line shows "Replaced N occurrence(s) in M file(s)" after completion.
+- Before replacing, a **diff preview screen** appears showing:
+  - A title bar with the number of affected files and total occurrences (shows "N+" when truncated at 100 files).
+  - A left panel listing all affected files with per-file hit counts.
+  - A right panel displaying a unified diff preview for the selected file, with syntax-highlighted additions (green) and removals (red).
+  - Selecting a different file in the left panel updates the diff view.
+- The diff preview is generated in a background thread to keep the UI responsive. If no matches are found, a "No matches found" status is shown without opening the screen.
+- Each file is hash-checked (SHA-256) before applying: if a file was modified between the preview and the apply, it is skipped and reported to the user via a notification.
+- After the user clicks "Apply All", the replacement modifies files on disk directly.
+- A status line shows "Replaced N occurrence(s) in M file(s)" after completion. Skipped or failed files are reported separately.
 - Supports regex capture groups when regex mode is enabled (e.g., replace `(\w+)` with `\1_suffix`).
 
 **Search options (checkboxes):**
@@ -77,7 +80,8 @@ Provides project-wide text search and batch replace without leaving the editor. 
 - No incremental/live search: results do not update as you type. You must press Enter or click Search.
 - Results do not auto-update when files change on disk. Re-run the search manually.
 - No search history or saved queries.
-- Replace All writes directly to disk; there is no undo for workspace-wide replacements.
+- Replace All writes directly to disk; there is no undo for workspace-wide replacements. The diff preview provides review before applying but does not support per-file opt-out.
+- Replace preview is limited to 100 files; additional matching files are indicated by a "+" suffix in the title.
 - Maximum 500 results per search.
 
 **Implementation:** `workspace_search.py`, `search.py`, `sidebar.py`, `app.py`

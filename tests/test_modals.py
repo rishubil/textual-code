@@ -24,9 +24,8 @@ from textual_code.modals import (
     OverwriteConfirmModalScreen,
     RenameModalResult,
     RenameModalScreen,
-    ReplaceAllConfirmModalResult,
-    ReplaceAllConfirmModalScreen,
-    ReplacePreview,
+    ReplacePreviewResult,
+    ReplacePreviewScreen,
     SaveAsModalResult,
     SaveAsModalScreen,
     SidebarResizeModalScreen,
@@ -1107,22 +1106,52 @@ async def test_rename_modal_escape_dismisses_with_input_focused():
     assert app.result.is_cancelled is True
 
 
-# ── ReplaceAllConfirmModalScreen ─────────────────────────────────────────────
+# ── ReplacePreviewScreen ─────────────────────────────────────────────────────
 
 
-def _make_preview() -> ReplacePreview:
-    return ReplacePreview(
-        file="src/app.py",
-        line_num=10,
-        before="hello world",
-        after="hi world",
-    )
+def _make_previews():
+    from pathlib import Path
+
+    from textual_code.search import FileDiffPreview
+
+    return [
+        FileDiffPreview(
+            file_path=Path("/tmp/src/app.py"),
+            rel_path="src/app.py",
+            original_hash="a" * 64,
+            replacement_count=3,
+            diff_lines=[
+                "--- src/app.py\n",
+                "+++ src/app.py\n",
+                "@@ -10,3 +10,3 @@\n",
+                " context line\n",
+                "-hello world\n",
+                "+hi world\n",
+                " context line\n",
+            ],
+        ),
+        FileDiffPreview(
+            file_path=Path("/tmp/src/util.py"),
+            rel_path="src/util.py",
+            original_hash="b" * 64,
+            replacement_count=2,
+            diff_lines=[
+                "--- src/util.py\n",
+                "+++ src/util.py\n",
+                "@@ -5,3 +5,3 @@\n",
+                " line\n",
+                "-old value\n",
+                "+new value\n",
+                " line\n",
+            ],
+        ),
+    ]
 
 
-class _ReplaceAllConfirmApp(App):
+class _ReplacePreviewApp(App):
     def __init__(self, **kwargs):
         super().__init__()
-        self.result: ReplaceAllConfirmModalResult | None = None
+        self.result: ReplacePreviewResult | None = None
         self.modal_kwargs = kwargs
 
     def compose(self) -> ComposeResult:
@@ -1130,36 +1159,30 @@ class _ReplaceAllConfirmApp(App):
 
     def on_mount(self) -> None:
         self.push_screen(
-            ReplaceAllConfirmModalScreen(**self.modal_kwargs),
+            ReplacePreviewScreen(**self.modal_kwargs),
             self._on_result,
         )
 
-    def _on_result(self, result: ReplaceAllConfirmModalResult | None) -> None:
+    def _on_result(self, result: ReplacePreviewResult | None) -> None:
         self.result = result
 
 
-async def test_replace_all_confirm_modal_replace_button():
-    app = _ReplaceAllConfirmApp(
-        files_count=3,
-        occurrences_count=5,
-        is_truncated=False,
-        preview=_make_preview(),
+async def test_replace_preview_screen_apply_button():
+    app = _ReplacePreviewApp(
+        previews=_make_previews(),
     )
     async with app.run_test() as pilot:
-        await pilot.click("#replace-all")
+        await pilot.click("#apply-all")
         await pilot.wait_for_scheduled_animations()
 
     assert app.result is not None
     assert app.result.is_cancelled is False
-    assert app.result.should_replace is True
+    assert app.result.should_apply is True
 
 
-async def test_replace_all_confirm_modal_cancel_button():
-    app = _ReplaceAllConfirmApp(
-        files_count=3,
-        occurrences_count=5,
-        is_truncated=False,
-        preview=_make_preview(),
+async def test_replace_preview_screen_cancel_button():
+    app = _ReplacePreviewApp(
+        previews=_make_previews(),
     )
     async with app.run_test() as pilot:
         await pilot.click("#cancel")
@@ -1167,70 +1190,91 @@ async def test_replace_all_confirm_modal_cancel_button():
 
     assert app.result is not None
     assert app.result.is_cancelled is True
-    assert app.result.should_replace is False
+    assert app.result.should_apply is False
 
 
-async def test_replace_all_confirm_modal_shows_summary():
-    app = _ReplaceAllConfirmApp(
-        files_count=3,
-        occurrences_count=5,
-        is_truncated=False,
-        preview=_make_preview(),
+async def test_replace_preview_screen_header_counts():
+    app = _ReplacePreviewApp(
+        previews=_make_previews(),
     )
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
-        message = app.screen.query_one("#message", Label)
-        text = str(message.content)
-        assert "5" in text
-        assert "3" in text
-        assert "occurrence" in text
+        title = app.screen.query_one("#title", Label)
+        text = str(title.render())
+        assert "2" in text  # 2 files
+        assert "5" in text  # 5 occurrences
         assert "file" in text
+        assert "occurrence" in text
 
 
-async def test_replace_all_confirm_modal_shows_preview():
-    app = _ReplaceAllConfirmApp(
-        files_count=1,
-        occurrences_count=1,
-        is_truncated=False,
-        preview=_make_preview(),
+async def test_replace_preview_screen_shows_file_list():
+    from textual.widgets import ListView
+
+    app = _ReplacePreviewApp(
+        previews=_make_previews(),
     )
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
-        preview = app.screen.query_one("#preview", Label)
-        text = str(preview.content)
-        assert "- hello world" in text
-        assert "+ hi world" in text
-        assert "src/app.py:10" in text
+        list_view = app.screen.query_one("#file-list", ListView)
+        assert len(list(list_view.children)) == 2
 
 
-async def test_replace_all_confirm_modal_truncated():
-    app = _ReplaceAllConfirmApp(
-        files_count=42,
-        occurrences_count=500,
-        is_truncated=True,
-        preview=_make_preview(),
+async def test_replace_preview_screen_shows_diff():
+    from textual.widgets import Static
+
+    app = _ReplacePreviewApp(
+        previews=_make_previews(),
     )
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
-        message = app.screen.query_one("#message", Label)
-        text = str(message.content)
-        assert "500+" in text
-        assert "42+" in text
+        diff = app.screen.query_one("#diff-content", Static)
+        text = str(diff.render())
+        # First file's diff should be shown by default
+        assert "hello world" in text
+        assert "hi world" in text
 
 
-async def test_replace_all_confirm_modal_escape_does_not_dismiss():
-    """Escape must NOT dismiss a destructive replace-all confirmation modal."""
-    app = _ReplaceAllConfirmApp(
-        files_count=3,
-        occurrences_count=5,
-        is_truncated=False,
-        preview=_make_preview(),
+async def test_replace_preview_screen_select_file_updates_diff():
+    from textual.widgets import ListView, Static
+
+    app = _ReplacePreviewApp(
+        previews=_make_previews(),
+    )
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        # Select second file in list
+        list_view = app.screen.query_one("#file-list", ListView)
+        list_view.index = 1
+        await pilot.wait_for_scheduled_animations()
+        diff = app.screen.query_one("#diff-content", Static)
+        text = str(diff.render())
+        assert "old value" in text
+        assert "new value" in text
+
+
+async def test_replace_preview_screen_escape_does_not_dismiss():
+    """Escape must NOT dismiss a destructive replace preview screen."""
+    app = _ReplacePreviewApp(
+        previews=_make_previews(),
     )
     async with app.run_test() as pilot:
         await pilot.press("escape")
         await pilot.wait_for_scheduled_animations()
 
     assert app.result is None
+
+
+async def test_replace_preview_screen_truncated():
+    app = _ReplacePreviewApp(
+        previews=_make_previews(),
+        is_truncated=True,
+    )
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        title = app.screen.query_one("#title", Label)
+        text = str(title.render())
+        assert "2+" in text
+        assert "5+" in text
 
 
 # ── ChangeEncodingModalScreen (Escape) ──────────────────────────────────────
