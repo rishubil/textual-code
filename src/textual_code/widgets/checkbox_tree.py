@@ -208,29 +208,21 @@ class _LabelClicked(Message):
     label: _NodeLabel
 
 
-class _FileRow(Horizontal, can_focus=True):
+class _FileRow(Horizontal, can_focus=False):
     """A file header row in the CheckboxTree."""
 
     DEFAULT_CSS = """
     _FileRow {
         height: 1;
         width: 1fr;
-        &:focus {
-            background: $accent-darken-2;
-        }
         &.-cursor {
-            background: $surface-lighten-1;
+            background: $accent-darken-2;
         }
         &:hover {
             background: $surface-lighten-1;
         }
     }
     """
-
-    BINDINGS: ClassVar[list[BindingType]] = [
-        Binding("space", "toggle_check", "Toggle", show=False),
-        Binding("enter", "select_node", "Select", show=False),
-    ]
 
     def __init__(
         self,
@@ -259,37 +251,22 @@ class _FileRow(Horizontal, can_focus=True):
         yield _InlineTriState(value=True)
         yield _NodeLabel(markup_escape(self._label_text))
 
-    def action_toggle_check(self) -> None:
-        cb = self.query_one(_InlineTriState)
-        cb.toggle()
 
-    def action_select_node(self) -> None:
-        self.post_message(_LabelClicked(self.query_one(_NodeLabel)))
-
-
-class _MatchRow(Horizontal, can_focus=True):
+class _MatchRow(Horizontal, can_focus=False):
     """A match line row in the CheckboxTree."""
 
     DEFAULT_CSS = """
     _MatchRow {
         height: 1;
         width: 1fr;
-        &:focus {
-            background: $accent-darken-2;
-        }
         &.-cursor {
-            background: $surface-lighten-1;
+            background: $accent-darken-2;
         }
         &:hover {
             background: $surface-lighten-1;
         }
     }
     """
-
-    BINDINGS: ClassVar[list[BindingType]] = [
-        Binding("space", "toggle_check", "Toggle", show=False),
-        Binding("enter", "select_node", "Select", show=False),
-    ]
 
     def __init__(
         self,
@@ -321,20 +298,13 @@ class _MatchRow(Horizontal, can_focus=True):
         yield _InlineCheckbox(value=True)
         yield _NodeLabel(markup_escape(self._label_text))
 
-    def action_toggle_check(self) -> None:
-        cb = self.query_one(_InlineCheckbox)
-        cb.toggle()
-
-    def action_select_node(self) -> None:
-        self.post_message(_LabelClicked(self.query_one(_NodeLabel)))
-
 
 # ---------------------------------------------------------------------------
 # CheckboxTree
 # ---------------------------------------------------------------------------
 
 
-class CheckboxTree(VerticalScroll):
+class CheckboxTree(VerticalScroll, can_focus=True, can_focus_children=False):
     """Scrollable tree of workspace search results with per-match checkboxes.
 
     Replaces Textual's ``Tree`` widget for ``WorkspaceSearchPane`` to enable
@@ -359,6 +329,8 @@ class CheckboxTree(VerticalScroll):
         Binding("end", "focus_last_row", "Last", show=False),
         Binding("pageup", "page_up", "Page Up", show=False),
         Binding("pagedown", "page_down", "Page Down", show=False),
+        Binding("space", "toggle_cursor_check", "Toggle", show=False),
+        Binding("enter", "select_cursor_node", "Select", show=False),
     ]
 
     @dataclass
@@ -522,7 +494,7 @@ class CheckboxTree(VerticalScroll):
                     return False
         return True
 
-    # ── Navigation actions ────────────────────────────────────────────────
+    # ── Virtual cursor (rows are not individually focusable) ────────────
 
     def _visible_rows(self) -> list[_FileRow | _MatchRow]:
         rows: list[_FileRow | _MatchRow] = []
@@ -532,91 +504,97 @@ class CheckboxTree(VerticalScroll):
                 rows.extend(fr._match_rows)
         return rows
 
-    def _focused_index(self, visible: list[_FileRow | _MatchRow]) -> int | None:
-        """Return the index of the currently focused row, or None."""
-        current = self.screen.focused
-        for i, row in enumerate(visible):
-            if row is current:
+    def _cursor_index(self, visible: list[_FileRow | _MatchRow]) -> int | None:
+        """Return the index of the current cursor row, or None."""
+        row = self._last_focused_row
+        if row is None:
+            return None
+        for i, r in enumerate(visible):
+            if r is row:
                 return i
         return None
+
+    def _set_cursor(self, row: _FileRow | _MatchRow) -> None:
+        """Move the virtual cursor to a row."""
+        if self._last_focused_row is not None and self._last_focused_row is not row:
+            self._last_focused_row.remove_class("-cursor")
+        self._last_focused_row = row
+        row.add_class("-cursor")
+        row.scroll_visible()
 
     def action_focus_next_row(self) -> None:
         visible = self._visible_rows()
         if not visible:
             return
-        idx = self._focused_index(visible)
+        idx = self._cursor_index(visible)
         next_idx = min(idx + 1, len(visible) - 1) if idx is not None else 0
-        visible[next_idx].focus()
-        visible[next_idx].scroll_visible()
+        self._set_cursor(visible[next_idx])
 
     def action_focus_previous_row(self) -> None:
         visible = self._visible_rows()
         if not visible:
             return
-        idx = self._focused_index(visible)
+        idx = self._cursor_index(visible)
         prev_idx = max(idx - 1, 0) if idx is not None else len(visible) - 1
-        visible[prev_idx].focus()
-        visible[prev_idx].scroll_visible()
+        self._set_cursor(visible[prev_idx])
 
     def action_focus_first_row(self) -> None:
         visible = self._visible_rows()
         if visible:
-            visible[0].focus()
-            visible[0].scroll_visible()
+            self._set_cursor(visible[0])
 
     def action_focus_last_row(self) -> None:
         visible = self._visible_rows()
         if visible:
-            visible[-1].focus()
-            visible[-1].scroll_visible()
+            self._set_cursor(visible[-1])
 
     def action_page_down(self) -> None:
         visible = self._visible_rows()
         if not visible:
             return
         page_size = max(1, self.size.height - 1)
-        idx = self._focused_index(visible)
+        idx = self._cursor_index(visible)
         target = min((idx or 0) + page_size, len(visible) - 1)
-        visible[target].focus()
-        visible[target].scroll_visible()
+        self._set_cursor(visible[target])
 
     def action_page_up(self) -> None:
         visible = self._visible_rows()
         if not visible:
             return
         page_size = max(1, self.size.height - 1)
-        idx = self._focused_index(visible)
+        idx = self._cursor_index(visible)
         target = max((idx or 0) - page_size, 0)
-        visible[target].focus()
-        visible[target].scroll_visible()
+        self._set_cursor(visible[target])
+
+    def action_toggle_cursor_check(self) -> None:
+        """Toggle the checkbox of the current cursor row."""
+        row = self._last_focused_row
+        if isinstance(row, _FileRow):
+            row.query_one(_InlineTriState).toggle()
+        elif isinstance(row, _MatchRow):
+            row.query_one(_InlineCheckbox).toggle()
+
+    def action_select_cursor_node(self) -> None:
+        """Select (open) the current cursor row."""
+        row = self._last_focused_row
+        if isinstance(row, (_FileRow, _MatchRow)):
+            file_path, line_number = row.data
+            self.post_message(
+                self.NodeSelected(file_path=file_path, line_number=line_number)
+            )
 
     # ── Focus memory ─────────────────────────────────────────────────────
 
-    def on_descendant_focus(self, event: object) -> None:
-        """Track which row was last focused and update cursor highlight."""
-        focused = self.screen.focused
-        if isinstance(focused, (_FileRow, _MatchRow)):
-            if (
-                self._last_focused_row is not None
-                and self._last_focused_row is not focused
-            ):
-                self._last_focused_row.remove_class("-cursor")
-            self._last_focused_row = focused
-            focused.add_class("-cursor")
-
-    def focus(self, scroll_visible: bool = True) -> CheckboxTree:
-        """Override to redirect focus to the last-focused row."""
+    def on_focus(self) -> None:
+        """When CheckboxTree receives focus, ensure cursor is visible."""
         row = self._last_focused_row
         if row is not None and row.display and row.is_attached:
-            row.focus(scroll_visible=scroll_visible)
-            return self
-        # Fallback: focus the first visible row
+            row.add_class("-cursor")
+            row.scroll_visible()
+            return
         visible = self._visible_rows()
         if visible:
-            visible[0].focus(scroll_visible=scroll_visible)
-            return self
-        super().focus(scroll_visible=scroll_visible)
-        return self
+            self._set_cursor(visible[0])
 
     # ── Checkbox synchronization (central handler) ────────────────────────
 
