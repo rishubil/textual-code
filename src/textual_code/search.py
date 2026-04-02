@@ -52,6 +52,7 @@ class WorkspaceSearchResponse:
 
     results: list[WorkspaceSearchResult] = field(default_factory=list)
     inaccessible_paths: list[str] = field(default_factory=list)
+    is_truncated: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -323,7 +324,7 @@ def search_workspace(
                     break
 
     _populate_file_hashes(results)
-    return WorkspaceSearchResponse(results=results)
+    return WorkspaceSearchResponse(results=results, is_truncated=limit_reached)
 
 
 # ---------------------------------------------------------------------------

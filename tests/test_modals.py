@@ -1205,6 +1205,7 @@ async def test_replace_preview_screen_header_counts():
         assert "5" in text  # 5 occurrences
         assert "file" in text
         assert "occurrence" in text
+        assert "+" not in text  # no truncation notation
 
 
 async def test_replace_preview_screen_shows_file_list():
@@ -1264,17 +1265,16 @@ async def test_replace_preview_screen_escape_does_not_dismiss():
     assert app.result is None
 
 
-async def test_replace_preview_screen_truncated():
+async def test_replace_preview_screen_shows_scope_info():
+    """ReplacePreviewScreen shows scope-info label with checked-only message."""
     app = _ReplacePreviewApp(
         previews=_make_previews(),
-        is_truncated=True,
     )
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
-        title = app.screen.query_one("#title", Label)
-        text = str(title.render())
-        assert "2+" in text
-        assert "5+" in text
+        scope_info = app.screen.query_one("#scope-info", Label)
+        text = str(scope_info.render())
+        assert "Only the checked matches" in text
 
 
 # ── ChangeEncodingModalScreen (Escape) ──────────────────────────────────────

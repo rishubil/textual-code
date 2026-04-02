@@ -109,6 +109,22 @@ def test_max_results_limit(tmp_path: Path) -> None:
     assert len(results) == 10
 
 
+def test_search_response_is_truncated_when_limit_reached(tmp_path: Path) -> None:
+    """is_truncated should be True when results hit max_results cap."""
+    (tmp_path / "big.txt").write_text("needle\n" * 100, encoding="utf-8")
+    response = search_workspace(tmp_path, "needle", max_results=10)
+    assert response.is_truncated is True
+    assert len(response.results) == 10
+
+
+def test_search_response_not_truncated_below_limit(tmp_path: Path) -> None:
+    """is_truncated should be False when results are below max_results."""
+    (tmp_path / "small.txt").write_text("needle\n" * 5, encoding="utf-8")
+    response = search_workspace(tmp_path, "needle", max_results=100)
+    assert response.is_truncated is False
+    assert len(response.results) == 5
+
+
 def test_invalid_regex_returns_empty(tmp_path: Path) -> None:
     (tmp_path / "a.txt").write_text("hello\n")
     results = search_workspace(tmp_path, "[invalid(", use_regex=True).results

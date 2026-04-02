@@ -2326,12 +2326,13 @@ class ReplacePreviewScreen(ModalScreen[ReplacePreviewResult]):
         width: 1fr;
         margin: 0 1;
     }
-    ReplacePreviewScreen #truncation-warning {
-        height: 1;
+    ReplacePreviewScreen #scope-info {
+        height: auto;
         width: 1fr;
-        color: $text-warning;
-        text-style: bold;
+        color: $text-muted;
+        text-style: italic;
         content-align: center middle;
+        margin-bottom: 1;
     }
     """
 
@@ -2340,30 +2341,18 @@ class ReplacePreviewScreen(ModalScreen[ReplacePreviewResult]):
     def __init__(
         self,
         previews: list[FileDiffPreview],
-        is_truncated: bool = False,
     ) -> None:
         super().__init__()
         self._previews = previews
         self._total_occurrences = sum(p.replacement_count for p in previews)
-        self._is_truncated = is_truncated
 
     def compose(self) -> ComposeResult:
         from textual.containers import VerticalScroll
         from textual.widgets import Static
 
-        files_label = (
-            f"{len(self._previews)}+"
-            if self._is_truncated
-            else str(len(self._previews))
-        )
-        occ_label = (
-            f"{self._total_occurrences}+"
-            if self._is_truncated
-            else str(self._total_occurrences)
-        )
         title = (
-            f"Replace Preview \u00b7 {files_label} file(s)"
-            f" \u00b7 {occ_label} occurrence(s)"
+            f"Replace Preview \u00b7 {len(self._previews)} file(s)"
+            f" \u00b7 {self._total_occurrences} occurrence(s)"
         )
 
         items = [
@@ -2379,11 +2368,11 @@ class ReplacePreviewScreen(ModalScreen[ReplacePreviewResult]):
                 yield ListView(*items, id="file-list")
                 with VerticalScroll(id="diff-view"):
                     yield Static("", id="diff-content")
-            if self._is_truncated:
-                yield Label(
-                    "⚠ More files will be modified than shown in this preview.",
-                    id="truncation-warning",
-                )
+            yield Label(
+                "Only the checked matches will be modified. "
+                "Unchecked items will not be changed.",
+                id="scope-info",
+            )
             with Horizontal(classes="buttons"):
                 yield Button("Cancel", variant="default", id="cancel")
                 yield Button("Apply All", variant="warning", id="apply-all")
