@@ -2057,6 +2057,7 @@ class CodeEditor(Static):
             if count == 0:
                 self.notify(f"'{find_query}' not found", severity="warning")
                 return
+            # Replacement uses Python re.sub() syntax (\1, \2), not VSCode $1.
             new_text = pattern.sub(replacement, self.text)
         except re.error as e:
             self.notify(f"Invalid regex: {e}", severity="error")

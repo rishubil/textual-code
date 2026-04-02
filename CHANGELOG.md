@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Search**: show `\1` backreference hint on Replace input when regex mode is active — placeholder changes to "Replace with... (\\1 for groups)" on both the in-editor Find/Replace bar and the workspace Search panel, helping VSCode users discover the correct Python `re.sub()` syntax (#168)
 - **Editor**: warn before opening very large files — shows a confirmation dialog when a file exceeds the configurable `large_file_threshold` (default 5 MB) with options to open normally, open without syntax highlighting, or cancel; prevents the UI from freezing on multi-megabyte files (#183)
 - **CI**: add Windows test job to CI — runs non-snapshot tests on `windows-latest` with Python 3.12/3.13/3.14 matrix to catch Windows-specific regressions (#180)
 - **Tabs**: directional/selective close tab commands via command palette — Close Other Editors, Close Editors to the Right, Close Editors to the Left, and Close Saved Editors; dirty unmounted editors are preserved to prevent silent data loss (#122)

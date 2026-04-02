@@ -674,3 +674,55 @@ def test_apply_selected_replace_hash_mismatch(tmp_path: Path) -> None:
     assert result.files_modified == 0
     # File should be unchanged
     assert f.read_text() == "hello world\n"
+
+
+# ---------------------------------------------------------------------------
+# Integration tests: regex hint on replace input
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_workspace_regex_hint_shown_on_replace_input(tmp_path: Path) -> None:
+    """Toggling regex on updates workspace replace input placeholder."""
+    from textual.widgets import Checkbox, Input
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        replace_input = ws_pane.query_one("#ws-replace", Input)
+
+        # Default placeholder
+        assert replace_input.placeholder == "Replace with..."
+
+        # Toggle regex on
+        ws_pane.query_one("#ws-regex", Checkbox).value = True
+        await pilot.wait_for_scheduled_animations()
+
+        assert replace_input.placeholder == "Replace with... (\\1 for groups)"
+
+
+@pytest.mark.asyncio
+async def test_workspace_regex_hint_hidden_when_regex_off(tmp_path: Path) -> None:
+    """Toggling regex off reverts workspace replace input placeholder."""
+    from textual.widgets import Checkbox, Input
+
+    from tests.conftest import make_app
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    app = make_app(tmp_path)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        ws_pane = app.query_one(WorkspaceSearchPane)
+        replace_input = ws_pane.query_one("#ws-replace", Input)
+
+        # Toggle regex on then off
+        ws_pane.query_one("#ws-regex", Checkbox).value = True
+        await pilot.wait_for_scheduled_animations()
+        ws_pane.query_one("#ws-regex", Checkbox).value = False
+        await pilot.wait_for_scheduled_animations()
+
+        assert replace_input.placeholder == "Replace with..."

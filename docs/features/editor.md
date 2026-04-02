@@ -328,7 +328,7 @@ Pressing `Shift+Enter` in the find input or clicking the `↑` (Prev) button sea
 
 The `.*` checkbox enables full Python regex pattern matching. When regex is on, the find query is compiled as-is (not escaped). Invalid regex patterns produce an error notification ("Invalid regex: ...").
 
-In replace mode, regex capture groups are supported in the replacement string (e.g., `\1`, `\2`).
+In replace mode, regex capture groups are supported in the replacement string (e.g., `\1`, `\2`). When regex is active, the Replace input placeholder changes to "Replace with... (\\1 for groups)" to indicate the backreference syntax.
 
 ### Case Sensitivity: toggle via `Aa` checkbox
 
