@@ -17,6 +17,7 @@ Covers:
 
 import pytest
 
+from tests.conftest import make_app
 from textual_code.app import MainView, TextualCode, _apply_custom_keybindings
 from textual_code.config import (
     FooterOrders,
@@ -29,8 +30,6 @@ from textual_code.config import (
     save_keybindings_file,
 )
 from textual_code.modals import RebindKeyScreen, RebindResult, ShowShortcutsScreen
-
-from .conftest import make_app
 
 # ---------------------------------------------------------------------------
 # Group 1: Config

@@ -15,14 +15,13 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import get_style_color_at, make_app, wait_for_condition
 from textual_code.app import TextualCode
 from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
     EDITOR_KEYS,
     load_editor_settings,
 )
-
-from .conftest import get_style_color_at, make_app, wait_for_condition
 
 # ── Group A: config layer ────────────────────────────────────────────────────
 

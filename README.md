@@ -119,8 +119,8 @@ uv run pytest tests/ -n $(( $(nproc) * 2 )) -m "not serial"
 uv run pytest tests/ -m serial
 
 # Update snapshots after UI changes
-uv run pytest tests/test_snapshots.py --snapshot-update
+uv run pytest tests/snapshots/test_snapshots.py --snapshot-update
 
 # Single file
-uv run pytest tests/test_code_editor.py
+uv run pytest tests/editor/test_code_editor.py
 ```

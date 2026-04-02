@@ -14,6 +14,7 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.conftest import make_app
 from textual_code.app import TextualCode
 from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
@@ -23,8 +24,6 @@ from textual_code.config import (
     save_project_editor_settings,
     save_user_editor_settings,
 )
-
-from .conftest import make_app
 
 # ---------------------------------------------------------------------------
 # Group 1: config.py unit tests

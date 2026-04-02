@@ -11,14 +11,13 @@ Covers:
 
 import pytest
 
+from tests.conftest import make_app
 from textual_code.app import TextualCode
 from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
     load_editor_settings,
     save_user_editor_settings,
 )
-
-from .conftest import make_app
 
 # ---------------------------------------------------------------------------
 # Group A: config.py unit tests

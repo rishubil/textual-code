@@ -13,6 +13,7 @@ Covers:
 import pytest
 from textual.widgets import Select
 
+from tests.conftest import make_app
 from textual_code.app import TextualCode
 from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
@@ -23,8 +24,6 @@ from textual_code.modals import (
     ChangeUIThemeModalResult,
     ChangeUIThemeModalScreen,
 )
-
-from .conftest import make_app
 
 # ---------------------------------------------------------------------------
 # Group 1: Import and basic structure
