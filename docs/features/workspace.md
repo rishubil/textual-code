@@ -22,6 +22,7 @@ Provides project-wide text search and batch replace without leaving the editor. 
 - While the search is running, the results list shows a pulsating dots loading indicator (Textual's built-in `LoadingIndicator`).
 - Results are capped at 500 matches (`max_results=500`).
 - Each result shows `relative/path:line_number  line content`.
+- After search completes, a **summary label** appears above the results tree showing the total count: `"N files, M matches"`. When the 500-match cap is reached, both counts display a `+` suffix (e.g., `"20+ files, 500+ matches"`). Singular forms are used when appropriate (`"1 file, 1 match"`). The summary is cleared when a new search starts, search options change, or a replace operation completes.
 - If no matches are found, "No results" is displayed. If the worker errors unexpectedly, "Search failed" is shown.
 - If some directories are inaccessible (e.g., permission denied), they are silently skipped and partial results are still displayed.
 
@@ -38,10 +39,10 @@ Provides project-wide text search and batch replace without leaving the editor. 
 
 - Enter a replacement string in the "Replace with..." input and click "Replace All" or press Enter in the replace input.
 - **When all matches are selected** (default), Replace All operates on the entire workspace (including matches beyond the 500-result display cap). A **diff preview screen** appears showing:
-  - A title bar with the number of affected files and total occurrences (shows "N+" when truncated at 100 files).
+  - A title bar with the number of affected files and total occurrences.
   - A left panel listing affected files with per-file hit counts.
   - A right panel displaying a unified diff preview for the selected file, with syntax-highlighted additions (green) and removals (red).
-  - A warning message at the bottom if more files will be modified than shown in the preview.
+  - A scope-info message clarifying that only checked matches will be modified.
 - **When some matches are deselected**, Replace All operates only on selected matches. The preview shows **all** selected files without truncation so the user sees exactly what will change.
 - The diff preview is generated in a background thread to keep the UI responsive. If no matches are found, a "No matches found" status is shown without opening the screen.
 - Each file is hash-checked (SHA-256) before applying: if a file was modified between the search and the replace, it is skipped.

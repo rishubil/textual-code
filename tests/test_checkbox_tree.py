@@ -793,13 +793,241 @@ async def test_sidebar_search_key_hints(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Replace preview truncation warning test
+# Search summary label tests
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_replace_preview_shows_truncation_warning() -> None:
-    """ReplacePreviewScreen shows warning when is_truncated is True."""
+async def test_search_summary_label_shows_counts(tmp_path: Path) -> None:
+    """Summary label shows file count and match count after search."""
+    from textual.widgets import Label
+
+    from tests.conftest import make_app
+    from textual_code.search import WorkspaceSearchResponse
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    ws = tmp_path / "ws_summary"
+    ws.mkdir(exist_ok=True)
+    (ws / "f.txt").write_bytes(b"x\n")
+
+    results = [
+        WorkspaceSearchResult(
+            file_path=Path("/a.txt"),
+            line_number=1,
+            line_text="hello",
+            match_start=0,
+            match_end=5,
+        ),
+        WorkspaceSearchResult(
+            file_path=Path("/a.txt"),
+            line_number=2,
+            line_text="hello",
+            match_start=0,
+            match_end=5,
+        ),
+        WorkspaceSearchResult(
+            file_path=Path("/b.txt"),
+            line_number=1,
+            line_text="hello",
+            match_start=0,
+            match_end=5,
+        ),
+    ]
+    response = WorkspaceSearchResponse(results=results, is_truncated=False)
+
+    app = make_app(ws)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await pilot.press("ctrl+shift+f")
+        await pilot.wait_for_scheduled_animations()
+        pane = app.query_one(WorkspaceSearchPane)
+        pane._populate_results(response, ws)
+        await pilot.pause()
+        summary = pane.query_one("#ws-search-summary", Label)
+        rendered = summary.render()
+        assert isinstance(rendered, Content)
+        text = rendered.plain
+        assert "2 files" in text
+        assert "3 matches" in text
+
+
+@pytest.mark.asyncio
+async def test_search_summary_shows_truncated_notation(tmp_path: Path) -> None:
+    """Summary label shows '+' suffix when results are truncated."""
+    from textual.widgets import Label
+
+    from tests.conftest import make_app
+    from textual_code.search import WorkspaceSearchResponse
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    ws = tmp_path / "ws_trunc"
+    ws.mkdir(exist_ok=True)
+    (ws / "f.txt").write_bytes(b"x\n")
+
+    results = [
+        WorkspaceSearchResult(
+            file_path=Path("/a.txt"),
+            line_number=1,
+            line_text="hello",
+            match_start=0,
+            match_end=5,
+        ),
+        WorkspaceSearchResult(
+            file_path=Path("/b.txt"),
+            line_number=1,
+            line_text="hello",
+            match_start=0,
+            match_end=5,
+        ),
+        WorkspaceSearchResult(
+            file_path=Path("/c.txt"),
+            line_number=1,
+            line_text="hello",
+            match_start=0,
+            match_end=5,
+        ),
+    ]
+    response = WorkspaceSearchResponse(results=results, is_truncated=True)
+
+    app = make_app(ws)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await pilot.press("ctrl+shift+f")
+        await pilot.wait_for_scheduled_animations()
+        pane = app.query_one(WorkspaceSearchPane)
+        pane._populate_results(response, ws)
+        await pilot.pause()
+        summary = pane.query_one("#ws-search-summary", Label)
+        rendered = summary.render()
+        assert isinstance(rendered, Content)
+        text = rendered.plain
+        assert "3+" in text
+        assert "+" in text
+
+
+@pytest.mark.asyncio
+async def test_search_summary_singular_form(tmp_path: Path) -> None:
+    """Summary label uses singular form for 1 file and 1 match."""
+    from textual.widgets import Label
+
+    from tests.conftest import make_app
+    from textual_code.search import WorkspaceSearchResponse
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    ws = tmp_path / "ws_singular"
+    ws.mkdir(exist_ok=True)
+    (ws / "f.txt").write_bytes(b"x\n")
+
+    results = [
+        WorkspaceSearchResult(
+            file_path=Path("/a.txt"),
+            line_number=1,
+            line_text="hello",
+            match_start=0,
+            match_end=5,
+        ),
+    ]
+    response = WorkspaceSearchResponse(results=results, is_truncated=False)
+
+    app = make_app(ws)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await pilot.press("ctrl+shift+f")
+        await pilot.wait_for_scheduled_animations()
+        pane = app.query_one(WorkspaceSearchPane)
+        pane._populate_results(response, ws)
+        await pilot.pause()
+        summary = pane.query_one("#ws-search-summary", Label)
+        rendered = summary.render()
+        assert isinstance(rendered, Content)
+        text = rendered.plain
+        assert "1 file," in text
+        assert "1 match" in text
+        assert "files" not in text
+        assert "matches" not in text
+
+
+@pytest.mark.asyncio
+async def test_search_summary_empty_when_no_results(tmp_path: Path) -> None:
+    """Summary label is empty when no results found."""
+    from textual.widgets import Label
+
+    from tests.conftest import make_app
+    from textual_code.search import WorkspaceSearchResponse
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    ws = tmp_path / "ws_empty"
+    ws.mkdir(exist_ok=True)
+    (ws / "f.txt").write_bytes(b"x\n")
+
+    response = WorkspaceSearchResponse(results=[], is_truncated=False)
+
+    app = make_app(ws)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await pilot.press("ctrl+shift+f")
+        await pilot.wait_for_scheduled_animations()
+        pane = app.query_one(WorkspaceSearchPane)
+        pane._populate_results(response, ws)
+        await pilot.pause()
+        summary = pane.query_one("#ws-search-summary", Label)
+        rendered = summary.render()
+        assert isinstance(rendered, Content)
+        assert rendered.plain.strip() == ""
+
+
+@pytest.mark.asyncio
+async def test_search_summary_cleared_on_option_change(tmp_path: Path) -> None:
+    """Summary label is cleared when a search option checkbox changes."""
+    from textual.widgets import Checkbox, Label
+
+    from tests.conftest import make_app
+    from textual_code.search import WorkspaceSearchResponse
+    from textual_code.widgets.workspace_search import WorkspaceSearchPane
+
+    ws = tmp_path / "ws_clear"
+    ws.mkdir(exist_ok=True)
+    (ws / "f.txt").write_bytes(b"x\n")
+
+    results = [
+        WorkspaceSearchResult(
+            file_path=Path("/a.txt"),
+            line_number=1,
+            line_text="hello",
+            match_start=0,
+            match_end=5,
+        ),
+    ]
+    response = WorkspaceSearchResponse(results=results, is_truncated=False)
+
+    app = make_app(ws)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await pilot.press("ctrl+shift+f")
+        await pilot.wait_for_scheduled_animations()
+        pane = app.query_one(WorkspaceSearchPane)
+        pane._populate_results(response, ws)
+        await pilot.pause()
+
+        # Toggle a search option checkbox to trigger clear
+        regex_cb = pane.query_one("#ws-regex", Checkbox)
+        regex_cb.value = not regex_cb.value
+        await pilot.pause()
+
+        summary = pane.query_one("#ws-search-summary", Label)
+        rendered = summary.render()
+        assert isinstance(rendered, Content)
+        assert rendered.plain.strip() == ""
+
+
+# ---------------------------------------------------------------------------
+# Replace preview scope-info tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_replace_preview_shows_scope_info() -> None:
+    """ReplacePreviewScreen always shows scope-info label."""
     from textual.app import App
     from textual.content import Content
     from textual.widgets import Label
@@ -817,41 +1045,53 @@ async def test_replace_preview_shows_truncation_warning() -> None:
 
     class _ModalApp(App):
         def on_mount(self) -> None:
-            self.push_screen(ReplacePreviewScreen([preview], is_truncated=True))
+            self.push_screen(ReplacePreviewScreen([preview]))
 
     async with _ModalApp().run_test() as pilot:
         await pilot.pause()
-        warning = pilot.app.screen.query_one("#truncation-warning", Label)
-        rendered = warning.render()
+        scope_info = pilot.app.screen.query_one("#scope-info", Label)
+        rendered = scope_info.render()
         assert isinstance(rendered, Content)
-        assert "More files" in rendered.plain
+        assert "Only the checked matches" in rendered.plain
 
 
 @pytest.mark.asyncio
-async def test_replace_preview_no_warning_when_not_truncated() -> None:
-    """ReplacePreviewScreen does not show warning when is_truncated is False."""
+async def test_replace_preview_always_shows_scope_info() -> None:
+    """ReplacePreviewScreen shows scope-info regardless of result count."""
     from textual.app import App
-    from textual.css.query import NoMatches
+    from textual.content import Content
+    from textual.widgets import Label
 
     from textual_code.modals import ReplacePreviewScreen
     from textual_code.search import FileDiffPreview
 
-    preview = FileDiffPreview(
-        file_path=Path("/tmp/test.txt"),
-        rel_path="test.txt",
-        original_hash="abc",
-        replacement_count=1,
-        diff_lines=["--- test.txt\n", "+++ test.txt\n", "-old\n", "+new\n"],
-    )
+    previews = [
+        FileDiffPreview(
+            file_path=Path("/tmp/a.txt"),
+            rel_path="a.txt",
+            original_hash="abc",
+            replacement_count=3,
+            diff_lines=["--- a.txt\n", "+++ a.txt\n", "-old\n", "+new\n"],
+        ),
+        FileDiffPreview(
+            file_path=Path("/tmp/b.txt"),
+            rel_path="b.txt",
+            original_hash="def",
+            replacement_count=2,
+            diff_lines=["--- b.txt\n", "+++ b.txt\n", "-x\n", "+y\n"],
+        ),
+    ]
 
     class _ModalApp(App):
         def on_mount(self) -> None:
-            self.push_screen(ReplacePreviewScreen([preview], is_truncated=False))
+            self.push_screen(ReplacePreviewScreen(previews))
 
     async with _ModalApp().run_test() as pilot:
         await pilot.pause()
-        with pytest.raises(NoMatches):
-            pilot.app.screen.query_one("#truncation-warning")
+        scope_info = pilot.app.screen.query_one("#scope-info", Label)
+        rendered = scope_info.render()
+        assert isinstance(rendered, Content)
+        assert "Only the checked matches" in rendered.plain
 
 
 # ---------------------------------------------------------------------------

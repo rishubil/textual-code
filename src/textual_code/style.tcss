@@ -892,6 +892,11 @@ WorkspaceSearchPane #ws-replace-status {
     color: $success;
 }
 
+WorkspaceSearchPane #ws-search-summary {
+    height: auto;
+    color: $text-muted;
+}
+
 WorkspaceSearchPane #ws-results {
     height: 1fr;
     overflow-x: auto;

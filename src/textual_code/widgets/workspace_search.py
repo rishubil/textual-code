@@ -17,6 +17,7 @@ from textual_code.modals import (
     ReplacePreviewScreen,
 )
 from textual_code.search import (
+    WorkspaceSearchResponse,
     preview_selected_replace,
     preview_workspace_replace,
     search_workspace,
@@ -70,6 +71,7 @@ class WorkspaceSearchPane(Static):
                 _BTN_LABELS["ws-replace-all"][0], id="ws-replace-all", variant="warning"
             )
         yield Label("", id="ws-replace-status")
+        yield Label("", id="ws-search-summary")
         yield CheckboxTree(id="ws-results")
         yield Label(
             "↑↓ Navigate  ←→ Fold  Space Check  Enter Open",
@@ -115,6 +117,7 @@ class WorkspaceSearchPane(Static):
         checkbox_tree = self.query_one("#ws-results", CheckboxTree)
         checkbox_tree.clear()
         checkbox_tree.loading = False
+        self.query_one("#ws-search-summary", Label).update("")
 
         if not query:
             return
@@ -165,9 +168,8 @@ class WorkspaceSearchPane(Static):
         try:
             self.app.call_from_thread(
                 self._populate_results,
-                response.results,
+                response,
                 workspace_path,
-                response.inaccessible_paths,
             )
         except RuntimeError as exc:
             if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
@@ -176,17 +178,30 @@ class WorkspaceSearchPane(Static):
 
     def _populate_results(
         self,
-        results: list,
+        response: WorkspaceSearchResponse,
         workspace_path: Path,
-        inaccessible_paths: list[str] | None = None,
     ) -> None:
         checkbox_tree = self.query_one("#ws-results", CheckboxTree)
         checkbox_tree.loading = False
-        checkbox_tree.populate(results, workspace_path)
+        checkbox_tree.populate(response.results, workspace_path)
 
-        if inaccessible_paths:
-            count = len(inaccessible_paths)
-            preview = ", ".join(inaccessible_paths[:3])
+        results = response.results
+        if results:
+            file_count = len({r.file_path for r in results})
+            match_count = len(results)
+            suffix = "+" if response.is_truncated else ""
+            file_word = "file" if file_count == 1 else "files"
+            match_word = "match" if match_count == 1 else "matches"
+            summary = (
+                f"{file_count}{suffix} {file_word}, {match_count}{suffix} {match_word}"
+            )
+        else:
+            summary = ""
+        self.query_one("#ws-search-summary", Label).update(summary)
+
+        if response.inaccessible_paths:
+            count = len(response.inaccessible_paths)
+            preview = ", ".join(response.inaccessible_paths[:3])
             if count > 3:
                 preview += f" (+{count - 3} more)"
             self.app.notify(
@@ -202,6 +217,7 @@ class WorkspaceSearchPane(Static):
                 checkbox_tree = self.query_one("#ws-results", CheckboxTree)
                 checkbox_tree.loading = False
                 checkbox_tree.clear()
+                self.query_one("#ws-search-summary", Label).update("")
             elif event.worker.group == "replace_count":
                 status = self.query_one("#ws-replace-status", Label)
                 status.update("Replace count failed")
@@ -379,10 +395,7 @@ class WorkspaceSearchPane(Static):
             status.update("No matches found")
             return
 
-        modal = ReplacePreviewScreen(
-            previews=previews,
-            is_truncated=response.is_truncated,
-        )
+        modal = ReplacePreviewScreen(previews=previews)
 
         def on_result(result: ReplacePreviewResult | None) -> None:
             if result is None or result.is_cancelled or not result.should_apply:
@@ -421,6 +434,9 @@ class WorkspaceSearchPane(Static):
                     f"Replaced {n} of {total} selected occurrence(s) in {f} file(s)"
                 )
 
+            self.query_one("#ws-search-summary", Label).update("")
+            self.query_one("#ws-results", CheckboxTree).clear()
+
         self.app.push_screen(modal, on_result)
 
     # ── Event handlers ─────────────────────────────────────────────────────────
@@ -438,6 +454,7 @@ class WorkspaceSearchPane(Static):
         """Clear stale results when search options change."""
         checkbox_tree = self.query_one("#ws-results", CheckboxTree)
         checkbox_tree.clear()
+        self.query_one("#ws-search-summary", Label).update("")
 
     @on(Input.Submitted, "#ws-query")
     @on(Input.Submitted, "#ws-include")
