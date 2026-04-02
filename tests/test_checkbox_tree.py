@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from textual.app import App, ComposeResult
+from textual.content import Content
 
 from textual_code.search import WorkspaceSearchResult
 from textual_code.widgets.checkbox_tree import (
@@ -336,6 +337,32 @@ async def test_empty_tree_home_end_no_error() -> None:
         await pilot.press("home")
         await pilot.press("end")
         # No error should occur
+
+
+@pytest.mark.asyncio
+async def test_home_end_with_data() -> None:
+    """Home/End navigate to first/last visible row in a populated tree."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        tree.focus()
+        await pilot.pause()
+
+        # Move cursor to the last row via End
+        await pilot.press("end")
+        await pilot.pause()
+        last_row = tree.cursor_node
+        assert last_row is not None
+
+        # Move cursor to the first row via Home
+        await pilot.press("home")
+        await pilot.pause()
+        first_row = tree.cursor_node
+        assert first_row is not None
+
+        # First and last should differ (tree has multiple rows)
+        assert first_row is not last_row
+        # First row should be the first file row
+        assert first_row is tree.file_rows()[0]
 
 
 # ---------------------------------------------------------------------------
@@ -759,7 +786,9 @@ async def test_sidebar_search_key_hints() -> None:
         from textual.widgets import Label
 
         hints = pane.query_one("#ws-key-hints", Label)
-        text = hints.render().plain
+        rendered = hints.render()
+        assert isinstance(rendered, Content)
+        text = rendered.plain
         assert "Navigate" in text
 
 
