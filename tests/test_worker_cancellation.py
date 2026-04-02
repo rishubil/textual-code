@@ -95,7 +95,7 @@ async def test_replace_worker_checks_cancellation(
     workspace: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """_show_replace_preview is not called when replace worker is cancelled."""
-    from textual_code.search import WorkspaceSearchResponse
+    from textual_code.search import PreviewResponse, WorkspaceSearchResult
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
     preview_called: list[bool] = []
@@ -111,19 +111,29 @@ async def test_replace_worker_checks_cancellation(
 
     def slow_replace(*args, **kwargs):
         cancel_event.wait(timeout=5)
-        return WorkspaceSearchResponse()
+        return PreviewResponse()
 
     monkeypatch.setattr(
-        "textual_code.widgets.workspace_search.preview_workspace_replace",
+        "textual_code.widgets.workspace_search.preview_selected_replace",
         slow_replace,
     )
+
+    dummy_results = [
+        WorkspaceSearchResult(
+            file_path=workspace / "test.txt",
+            line_number=1,
+            line_text="test",
+            match_start=0,
+            match_end=4,
+        )
+    ]
 
     app = make_app(workspace)
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
         pane = app.query_one(WorkspaceSearchPane)
-        pane._preview_replace_worker(
-            workspace, "test", "replaced", False, True, True, True, "", ""
+        pane._preview_selected_worker(
+            workspace, "test", "replaced", False, True, dummy_results
         )
         await pilot.pause()
         pane.workers.cancel_group(pane, "replace_count")

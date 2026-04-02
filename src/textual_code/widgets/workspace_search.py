@@ -19,7 +19,6 @@ from textual_code.modals import (
 from textual_code.search import (
     WorkspaceSearchResponse,
     preview_selected_replace,
-    preview_workspace_replace,
     search_workspace,
 )
 from textual_code.widgets.checkbox_tree import CheckboxTree
@@ -245,85 +244,21 @@ class WorkspaceSearchPane(Static):
         if workspace_path is None:
             return
 
-        show_hidden = getattr(self.app, "default_show_hidden_files", True)
         checkbox_tree = self.query_one("#ws-results", CheckboxTree)
 
-        if checkbox_tree.all_selected:
-            # Fast path: replace ALL matches (including beyond 500 cap)
-            self._preview_replace_worker(
-                workspace_path,
-                query,
-                replacement,
-                use_regex,
-                respect_gitignore,
-                case_sensitive,
-                show_hidden,
-                files_to_include,
-                files_to_exclude,
-            )
-        else:
-            # Selected-only path
-            selected = checkbox_tree.selected_results
-            if not selected:
-                status = self.query_one("#ws-replace-status", Label)
-                status.update("No matches selected")
-                return
-            self._preview_selected_worker(
-                workspace_path,
-                query,
-                replacement,
-                use_regex,
-                case_sensitive,
-                selected,
-            )
-
-    @work(thread=True, exclusive=True, group="replace_count", exit_on_error=False)
-    def _preview_replace_worker(
-        self,
-        workspace_path: Path,
-        query: str,
-        replacement: str,
-        use_regex: bool,
-        respect_gitignore: bool,
-        case_sensitive: bool,
-        show_hidden_files: bool,
-        files_to_include: str,
-        files_to_exclude: str,
-    ) -> None:
-        worker = get_current_worker()
-        response = preview_workspace_replace(
+        selected = checkbox_tree.selected_results
+        if not selected:
+            status = self.query_one("#ws-replace-status", Label)
+            status.update("No matches selected")
+            return
+        self._preview_selected_worker(
             workspace_path,
             query,
             replacement,
             use_regex,
-            respect_gitignore=respect_gitignore,
-            show_hidden_files=show_hidden_files,
-            files_to_include=files_to_include,
-            files_to_exclude=files_to_exclude,
-            case_sensitive=case_sensitive,
+            case_sensitive,
+            selected,
         )
-        if worker.is_cancelled:
-            _log.debug("replace preview worker cancelled, skipping callback")
-            return
-        try:
-            self.app.call_from_thread(
-                self._show_replace_preview,
-                workspace_path,
-                query,
-                replacement,
-                use_regex,
-                respect_gitignore,
-                case_sensitive,
-                show_hidden_files,
-                files_to_include,
-                files_to_exclude,
-                response,
-                None,  # selected_results=None means "all" path
-            )
-        except RuntimeError as exc:
-            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
-                raise
-            _log.debug("call_from_thread suppressed (app exiting): %s", exc)
 
     @work(thread=True, exclusive=True, group="replace_count", exit_on_error=False)
     def _preview_selected_worker(
@@ -350,15 +285,10 @@ class WorkspaceSearchPane(Static):
         try:
             self.app.call_from_thread(
                 self._show_replace_preview,
-                workspace_path,
                 query,
                 replacement,
                 use_regex,
-                False,  # respect_gitignore (unused for selected path)
                 case_sensitive,
-                True,  # show_hidden_files (unused for selected path)
-                "",  # files_to_include (unused)
-                "",  # files_to_exclude (unused)
                 response,
                 selected_results,
             )
@@ -369,22 +299,16 @@ class WorkspaceSearchPane(Static):
 
     def _show_replace_preview(
         self,
-        workspace_path: Path,
         query: str,
         replacement: str,
         use_regex: bool,
-        respect_gitignore: bool,
         case_sensitive: bool,
-        show_hidden_files: bool,
-        files_to_include: str,
-        files_to_exclude: str,
         response: object,
-        selected_results: list | None,
+        selected_results: list,
     ) -> None:
         from textual_code.search import (
             PreviewResponse,
             apply_selected_replace,
-            replace_workspace,
         )
 
         assert isinstance(response, PreviewResponse)
@@ -401,38 +325,20 @@ class WorkspaceSearchPane(Static):
             if result is None or result.is_cancelled or not result.should_apply:
                 return
 
-            if selected_results is None:
-                # All-selected fast path: replace ALL matching files
-                replace_result = replace_workspace(
-                    workspace_path,
-                    query,
-                    replacement,
-                    use_regex,
-                    respect_gitignore=respect_gitignore,
-                    show_hidden_files=show_hidden_files,
-                    files_to_include=files_to_include,
-                    files_to_exclude=files_to_exclude,
-                    case_sensitive=case_sensitive,
-                )
-                n = replace_result.replacements_count
-                f = replace_result.files_modified
-                status.update(f"Replaced {n} occurrence(s) in {f} file(s)")
-            else:
-                # Selected-only path
-                apply_result = apply_selected_replace(
-                    previews,
-                    selected_results,
-                    query,
-                    replacement,
-                    use_regex,
-                    case_sensitive=case_sensitive,
-                )
-                n = apply_result.replacements_count
-                f = apply_result.files_modified
-                total = len(selected_results)
-                status.update(
-                    f"Replaced {n} of {total} selected occurrence(s) in {f} file(s)"
-                )
+            apply_result = apply_selected_replace(
+                previews,
+                selected_results,
+                query,
+                replacement,
+                use_regex,
+                case_sensitive=case_sensitive,
+            )
+            n = apply_result.replacements_count
+            f = apply_result.files_modified
+            total = len(selected_results)
+            status.update(
+                f"Replaced {n} of {total} selected occurrence(s) in {f} file(s)"
+            )
 
             self.query_one("#ws-search-summary", Label).update("")
             self.query_one("#ws-results", CheckboxTree).clear()

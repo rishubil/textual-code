@@ -337,6 +337,9 @@ async def test_replace_all_modifies_files(tmp_path: Path) -> None:
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "hello"
         ws_pane.query_one("#ws-replace", Input).value = "hi"
+        ws_pane._run_search()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         ws_pane._run_replace_all()
         # Wait for count worker + modal to appear
         await pilot.wait_for_scheduled_animations()
@@ -364,6 +367,9 @@ async def test_replace_all_updates_status_label(tmp_path: Path) -> None:
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "foo"
         ws_pane.query_one("#ws-replace", Input).value = "bar"
+        ws_pane._run_search()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         ws_pane._run_replace_all()
         # Wait for count worker + modal
         await pilot.wait_for_scheduled_animations()
@@ -419,6 +425,9 @@ async def test_replace_all_shows_confirmation_modal(tmp_path: Path) -> None:
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "hello"
         ws_pane.query_one("#ws-replace", Input).value = "hi"
+        ws_pane._run_search()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         ws_pane._run_replace_all()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
@@ -446,6 +455,9 @@ async def test_replace_all_cancel_does_not_replace(tmp_path: Path) -> None:
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "hello"
         ws_pane.query_one("#ws-replace", Input).value = "hi"
+        ws_pane._run_search()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         ws_pane._run_replace_all()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
@@ -466,7 +478,7 @@ async def test_replace_all_cancel_does_not_replace(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_replace_all_no_matches_shows_status_no_modal(tmp_path: Path) -> None:
-    """When no matches, show status message without modal."""
+    """When no matches selected, show status message without modal."""
     (tmp_path / "test.txt").write_text("hello world\n")
 
     from textual.widgets import Input, Label
@@ -481,17 +493,18 @@ async def test_replace_all_no_matches_shows_status_no_modal(tmp_path: Path) -> N
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "nonexistent_xyz"
         ws_pane.query_one("#ws-replace", Input).value = "replacement"
+        ws_pane._run_search()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
         ws_pane._run_replace_all()
-        await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
 
         # No modal should appear
         assert not isinstance(app.screen, ReplacePreviewScreen)
 
-        # Status should show "No matches found"
+        # Status should show "No matches selected" (no results from search)
         status = ws_pane.query_one("#ws-replace-status", Label)
-        assert "No matches found" in str(status.content)
+        assert "No matches selected" in str(status.content)
 
 
 # ---------------------------------------------------------------------------
