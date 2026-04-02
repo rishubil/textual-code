@@ -475,3 +475,132 @@ async def test_cursor_stays_at_bottom_boundary(
         await pilot.press("down")
         await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["gamma"]
+
+
+# ---------------------------------------------------------------------------
+# 13. Home key jumps to first node
+# ---------------------------------------------------------------------------
+
+
+async def test_home_moves_cursor_to_first_node(
+    workspace: Path, nav_tree: dict[str, Path]
+):
+    """Pressing Home moves cursor to the first visible node."""
+    app = make_app(workspace)
+    async with app.run_test(size=(120, 40)) as pilot:
+        explorer = await _focus_tree_and_wait(pilot, app)
+
+        # Move to the last node first
+        for _ in range(4):
+            await pilot.press("down")
+            await pilot.wait_for_scheduled_animations()
+        assert _get_cursor_path(explorer) == nav_tree["gamma"]
+
+        # Home should jump back to first node
+        await pilot.press("home")
+        await pilot.wait_for_scheduled_animations()
+        assert _get_cursor_path(explorer) == nav_tree["dir_a"]
+
+
+# ---------------------------------------------------------------------------
+# 14. End key jumps to last node
+# ---------------------------------------------------------------------------
+
+
+async def test_end_moves_cursor_to_last_node(
+    workspace: Path, nav_tree: dict[str, Path]
+):
+    """Pressing End moves cursor to the last visible node."""
+    app = make_app(workspace)
+    async with app.run_test(size=(120, 40)) as pilot:
+        explorer = await _focus_tree_and_wait(pilot, app)
+
+        # Cursor starts at first node
+        assert _get_cursor_path(explorer) == nav_tree["dir_a"]
+
+        # End should jump to last node
+        await pilot.press("end")
+        await pilot.wait_for_scheduled_animations()
+        assert _get_cursor_path(explorer) == nav_tree["gamma"]
+
+
+# ---------------------------------------------------------------------------
+# 15. Home/End with expanded subtree
+# ---------------------------------------------------------------------------
+
+
+async def test_home_end_with_expanded_tree(workspace: Path, nav_tree: dict[str, Path]):
+    """End moves to last visible node even when subtrees are expanded."""
+    app = make_app(workspace)
+    async with app.run_test(size=(120, 40)) as pilot:
+        explorer = await _focus_tree_and_wait(pilot, app)
+
+        # Expand dir_a
+        assert _get_cursor_path(explorer) == nav_tree["dir_a"]
+        await pilot.press("enter")
+        await pilot.wait_for_scheduled_animations()
+
+        # End should jump to last visible node (gamma.py, not a child of dir_a)
+        await pilot.press("end")
+        await pilot.wait_for_scheduled_animations()
+        assert _get_cursor_path(explorer) == nav_tree["gamma"]
+
+        # Home should jump back to first node (dir_a)
+        await pilot.press("home")
+        await pilot.wait_for_scheduled_animations()
+        assert _get_cursor_path(explorer) == nav_tree["dir_a"]
+
+
+# ---------------------------------------------------------------------------
+# 16. Home/End from no-selection state (cursor_line=-1)
+# ---------------------------------------------------------------------------
+
+
+async def test_home_end_from_no_selection(workspace: Path, nav_tree: dict[str, Path]):
+    """Home/End work when cursor has not been initialized (cursor_line=-1)."""
+    app = make_app(workspace)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+
+        assert app.sidebar is not None
+        explorer = app.sidebar.query_one(Explorer)
+        tree = explorer.directory_tree
+        tree.focus()
+        await pilot.wait_for_scheduled_animations()
+
+        # Do NOT set cursor_line — leave at default (-1)
+        assert tree.cursor_line == -1
+
+        # Home should activate cursor at first node
+        await pilot.press("home")
+        await pilot.wait_for_scheduled_animations()
+        assert _get_cursor_path(explorer) == nav_tree["dir_a"]
+
+
+# ---------------------------------------------------------------------------
+# 17. Home/End idempotent — consecutive presses stay at same position
+# ---------------------------------------------------------------------------
+
+
+async def test_home_end_idempotent(workspace: Path, nav_tree: dict[str, Path]):
+    """Pressing Home/End twice keeps cursor at the same node."""
+    app = make_app(workspace)
+    async with app.run_test(size=(120, 40)) as pilot:
+        explorer = await _focus_tree_and_wait(pilot, app)
+
+        # End twice — should stay at gamma
+        await pilot.press("end")
+        await pilot.wait_for_scheduled_animations()
+        assert _get_cursor_path(explorer) == nav_tree["gamma"]
+        await pilot.press("end")
+        await pilot.wait_for_scheduled_animations()
+        assert _get_cursor_path(explorer) == nav_tree["gamma"]
+
+        # Home twice — should stay at dir_a
+        await pilot.press("home")
+        await pilot.wait_for_scheduled_animations()
+        assert _get_cursor_path(explorer) == nav_tree["dir_a"]
+        await pilot.press("home")
+        await pilot.wait_for_scheduled_animations()
+        assert _get_cursor_path(explorer) == nav_tree["dir_a"]
