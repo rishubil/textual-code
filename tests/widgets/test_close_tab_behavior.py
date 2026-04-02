@@ -608,11 +608,11 @@ async def test_find_editor_path_not_found_returns_none(workspace: Path):
 
 
 async def test_find_editor_by_path_across_splits(workspace: Path):
-    """Finding an editor by path works across different split groups.
+    """find_editor_by_path() searches across all split groups.
 
-    VSCode equivalent: findEditors scoped per group — we must iterate all leaves.
-    Our pane_id_from_path() only searches the active leaf, so cross-split lookup
-    requires iterating all_leaves().
+    VSCode equivalent: findEditors scoped per group.
+    Our find_editor_by_path() searches all leaves (unlike pane_id_from_path
+    which only searches the active leaf).
     """
     f1 = workspace / "left_file.py"
     f2 = workspace / "right_file.py"
@@ -632,27 +632,67 @@ async def test_find_editor_by_path_across_splits(workspace: Path):
         leaves = all_leaves(main._split_root)
         assert len(leaves) == 2
 
-        # pane_id_from_path() only searches active leaf
-        # Active leaf is the right one (after split)
-        assert main.pane_id_from_path(f2) is not None
-        # f1 is in left leaf — not found via pane_id_from_path()
-        # (it may or may not be found depending on which leaf is active)
+        # find_editor_by_path() finds files in any leaf
+        result_f1 = main.find_editor_by_path(f1)
+        result_f2 = main.find_editor_by_path(f2)
+        assert result_f1 is not None, "f1 should be found across splits"
+        assert result_f2 is not None, "f2 should be found across splits"
 
-        # Cross-split lookup via all_leaves iteration
-        found_f1 = None
-        found_f2 = None
-        for leaf in leaves:
-            if f1 in leaf.opened_files:
-                found_f1 = leaf.opened_files[f1]
-            if f2 in leaf.opened_files:
-                found_f2 = leaf.opened_files[f2]
-
-        assert found_f1 is not None, "f1 should be found in some leaf"
-        assert found_f2 is not None, "f2 should be found in some leaf"
+        pane_id_f1, leaf_f1 = result_f1
+        pane_id_f2, leaf_f2 = result_f2
+        assert pane_id_f1 is not None
+        assert pane_id_f2 is not None
         # Files should be in different leaves
-        leaf_for_f1 = next(lf for lf in leaves if f1 in lf.opened_files)
-        leaf_for_f2 = next(lf for lf in leaves if f2 in lf.opened_files)
-        assert leaf_for_f1.leaf_id != leaf_for_f2.leaf_id
+        assert leaf_f1.leaf_id != leaf_f2.leaf_id
+
+
+async def test_find_editors_returns_all_matches(workspace: Path):
+    """find_editors() returns all matches when same file is in multiple splits."""
+    f1 = workspace / "shared.py"
+    f1.write_text("# shared\n")
+    app = make_app(workspace, light=True, open_file=f1)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        main = app.main_view
+
+        # Split right and open the same file in the right leaf
+        await main.action_split_right()
+        await pilot.wait_for_scheduled_animations()
+        await main.open_code_editor_pane(path=f1)
+        await pilot.wait_for_scheduled_animations()
+
+        results = main.find_editors(f1)
+        assert len(results) == 2, "Same file open in two splits"
+        pane_ids = {r[0] for r in results}
+        leaf_ids = {r[1].leaf_id for r in results}
+        assert len(pane_ids) == 2, "Different pane IDs"
+        assert len(leaf_ids) == 2, "Different leaves"
+
+
+async def test_find_editor_by_path_returns_none_when_not_open(workspace: Path):
+    """find_editor_by_path() returns None for a file that isn't open."""
+    f = workspace / "exists.py"
+    f.write_text("# exists\n")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        main = app.main_view
+
+        not_open = workspace / "not_open.py"
+        assert main.find_editor_by_path(not_open) is None
+
+
+async def test_find_editors_empty_when_not_open(workspace: Path):
+    """find_editors() returns empty list for a file that isn't open."""
+    f = workspace / "exists.py"
+    f.write_text("# exists\n")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        main = app.main_view
+
+        not_open = workspace / "not_open.py"
+        assert main.find_editors(not_open) == []
 
 
 # ── Tab opening position ──────────────────────────────────────────────────

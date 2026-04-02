@@ -89,6 +89,32 @@ def all_pane_ids(root: SplitNode) -> set[str]:
     return result
 
 
+def find_leaves_for_path(root: SplitNode, path: Path) -> list[tuple[str, LeafNode]]:
+    """Find all (pane_id, leaf) pairs where *path* is open.
+
+    Returns results in visual order (left-to-right, top-to-bottom).
+    Returns an empty list when the path is not open anywhere.
+    """
+    return [
+        (leaf.opened_files[path], leaf)
+        for leaf in all_leaves(root)
+        if path in leaf.opened_files
+    ]
+
+
+def find_leaf_for_path(root: SplitNode, path: Path) -> tuple[str, LeafNode] | None:
+    """Find the first (pane_id, leaf) for *path*, or None.
+
+    Semantically equivalent to the first element of
+    :func:`find_leaves_for_path`, but short-circuits without
+    building the full list.
+    """
+    for leaf in all_leaves(root):
+        if path in leaf.opened_files:
+            return leaf.opened_files[path], leaf
+    return None
+
+
 def parent_of(root: SplitNode, node: SplitNode) -> BranchNode | None:
     """Find the parent BranchNode of node, or None if node is root."""
     if root is node:

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Search**: show search results summary above the results tree after each workspace search — displays file count and match count (e.g., "5 files, 23 matches") with `+` suffix when the 500-match cap is reached; summary clears on new search, option change, or replace (#196)
 - **Search**: per-file diff preview for workspace Replace All — replaces the single-match confirmation modal with a two-panel screen showing file list (left) and unified diff (right) for each affected file; includes SHA-256 conflict detection to skip files changed between preview and apply (#157)
 - **Search**: per-match and per-file checkbox selection for workspace Replace All — each search result has a checkbox to include/exclude from replacement; file rows show tri-state (all/partial/none) checkboxes; Replace All operates only on selected matches; preview shows all selected files without truncation (#155)
+- **Editor**: cross-split `find_editors()` API — `MainView.find_editor_by_path()` and `MainView.find_editors()` search for open files across all split leaves, replacing ad-hoc `all_leaves()` iterations; internal API for plugin/test use (#125)
 
 ### Changed
 
