@@ -485,9 +485,13 @@ class MainView(Static):
             return pane_id
 
         # Large file size check (before is_binary_file to avoid reading
-        # the entire file into memory just to discover it's too large)
+        # the entire file into memory just to discover it's too large).
+        # Skip if the file is already open in any leaf (e.g. split).
         force_no_highlighting = False
-        if path is not None:
+        file_already_open = path is not None and any(
+            path in leaf.opened_files for leaf in all_leaves(self._split_root)
+        )
+        if path is not None and not file_already_open:
             threshold = getattr(self.app, "default_large_file_threshold", 5_242_880)
             if threshold > 0:
                 try:
