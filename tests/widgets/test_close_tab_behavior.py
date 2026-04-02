@@ -3,6 +3,7 @@ Close tab behavior tests — ported from VSCode editorGroupModel.test.ts
 and editorGroupsService.test.ts.
 
 VSCode reference:
+- editorGroupModel.test.ts lines 1262-1309: "closing picks next from MRU list"
 - editorGroupModel.test.ts lines 1311-1368: "closing picks next to the right"
 - editorGroupModel.test.ts lines 1514-1567: "Close Others, Close Left, Close Right"
 - editorGroupsService.test.ts lines 728-751: "closeEditors (except one)"
@@ -16,9 +17,11 @@ VSCode reference:
 - editorGroupsService.test.ts lines 1299-1322: "find editors"
 - editorGroupModel.test.ts lines 220-260: "tab opening position"
 
-Our editor uses position-based tab selection after close (right-adjacent, then left),
-which matches VSCode's behavior when focusRecentEditorAfterClose = false.
-MRU-based activation is NOT implemented — see behavioral differences section below.
+Supports both:
+- MRU-based activation (close_tab_focus_recent = true, default)
+  → VSCode default: focusRecentEditorAfterClose = true
+- Position-based activation (close_tab_focus_recent = false)
+  → VSCode: focusRecentEditorAfterClose = false
 """
 
 from pathlib import Path
@@ -65,13 +68,18 @@ def _tab_count(app) -> int:
     return len(tc.get_ordered_pane_ids())
 
 
+def _position_based_config(workspace: Path) -> Path:
+    """Write a TOML config that disables MRU-based close activation."""
+    cfg = workspace / "_test_position_close.toml"
+    cfg.write_text("[editor]\nclose_tab_focus_recent = false\n")
+    return cfg
+
+
 # ── Position-based activation after close ─────────────────────────────────────
 # Ported from VSCode "Multiple Editors - closing picks next to the right"
 # (editorGroupModel.test.ts lines 1311-1368)
 #
-# VSCode default: focusRecentEditorAfterClose = true (MRU-based)
-# Our editor: always position-based (same as VSCode focusRecentEditorAfterClose = false)
-# Behavioral difference: we don't support MRU-based activation
+# Requires close_tab_focus_recent = false (position-based mode).
 
 
 async def test_close_last_activates_previous(workspace: Path):
@@ -97,8 +105,11 @@ async def test_close_first_activates_next_right(workspace: Path):
     """Closing the first tab activates the next tab to the right.
 
     VSCode equivalent: set input1 active, close input1 → input2 becomes active.
+    Requires close_tab_focus_recent = false (position-based mode).
     """
-    app = make_app(workspace, light=True)
+    app = make_app(
+        workspace, light=True, user_config_path=_position_based_config(workspace)
+    )
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 3)
@@ -125,8 +136,11 @@ async def test_close_middle_activates_next_right(workspace: Path):
     """Closing a middle tab activates the tab that takes its position (right).
 
     VSCode equivalent: set input3 active, close input3 → input4 becomes active.
+    Requires close_tab_focus_recent = false (position-based mode).
     """
-    app = make_app(workspace, light=True)
+    app = make_app(
+        workspace, light=True, user_config_path=_position_based_config(workspace)
+    )
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 5)
@@ -148,8 +162,11 @@ async def test_close_sequential_position_based(workspace: Path):
 
     Ports the full sequence from VSCode "closing picks next to the right":
     Open 5 files. Close in sequence, verifying the right tab activates each time.
+    Requires close_tab_focus_recent = false (position-based mode).
     """
-    app = make_app(workspace, light=True)
+    app = make_app(
+        workspace, light=True, user_config_path=_position_based_config(workspace)
+    )
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
         pane_ids = await _open_n_files(app, pilot, workspace, 5)
@@ -1123,3 +1140,174 @@ async def test_close_others_does_not_affect_other_splits(workspace: Path):
         # Left split: still has its file
         left_leaf = [lf for lf in all_leaves(main._split_root) if f1 in lf.opened_files]
         assert len(left_leaf) == 1
+
+
+# ── MRU-based activation after close ─────────────────────────────────────────
+# Ported from VSCode "Multiple Editors - closing picks next from MRU list"
+# (editorGroupModel.test.ts lines 1262-1309)
+#
+# MRU is the default (close_tab_focus_recent = true).
+
+
+async def test_mru_history_tracks_activation_order(workspace: Path):
+    """MRU history records tab activations in most-recent-first order."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        main = app.main_view
+        leaf_id = main._active_leaf_id
+        history = main._mru_history.get(leaf_id, [])
+        # Last opened file should be first in MRU
+        assert history == [pane_ids[2], pane_ids[1], pane_ids[0]]
+
+
+async def test_mru_history_updates_on_reactivation(workspace: Path):
+    """Re-activating a tab moves it to the front of MRU."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        tc = app.main_view.tabbed_content
+        # Activate file1 (was last in MRU)
+        tc.active = pane_ids[0]
+        await pilot.wait_for_scheduled_animations()
+        main = app.main_view
+        leaf_id = main._active_leaf_id
+        history = main._mru_history.get(leaf_id, [])
+        assert history[0] == pane_ids[0]
+        assert history[1] == pane_ids[2]
+        assert history[2] == pane_ids[1]
+
+
+async def test_mru_close_activates_most_recent(workspace: Path):
+    """Closing active tab activates the most recently used tab (MRU).
+
+    VSCode reference (editorGroupModel.test.ts:1262-1285):
+    Open 1..5, close 5 → 4 active (MRU next).
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        pane_ids = await _open_n_files(app, pilot, workspace, 5)
+        # MRU order: [5, 4, 3, 2, 1] (5 is most recent)
+        assert _active_pane(app) == pane_ids[4]
+
+        # Close file5 → file4 should activate (MRU-next)
+        await app.main_view.action_close_code_editor(pane_ids[4])
+        await pilot.wait_for_scheduled_animations()
+        assert _tab_count(app) == 4
+        assert _active_pane(app) == pane_ids[3]
+
+
+async def test_mru_close_after_reactivation(workspace: Path):
+    """MRU close respects reactivation order.
+
+    VSCode reference (editorGroupModel.test.ts:1287-1292):
+    Open 1..5, setActive(1), setActive(4), close 4 → 1 active.
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        pane_ids = await _open_n_files(app, pilot, workspace, 5)
+        tc = app.main_view.tabbed_content
+
+        # Reactivate file1, then file4
+        tc.active = pane_ids[0]
+        await pilot.wait_for_scheduled_animations()
+        tc.active = pane_ids[3]
+        await pilot.wait_for_scheduled_animations()
+        # MRU: [4, 1, 5, 3, 2]
+
+        # Close file4 → file1 active (MRU-next)
+        await app.main_view.action_close_code_editor(pane_ids[3])
+        await pilot.wait_for_scheduled_animations()
+        assert _active_pane(app) == pane_ids[0]
+
+
+async def test_mru_close_sequential(workspace: Path):
+    """Full VSCode MRU close sequence.
+
+    VSCode reference (editorGroupModel.test.ts:1262-1309):
+    1. Open 1..5 → MRU: [5, 4, 3, 2, 1]
+    2. Close 5 → 4 active
+    3. setActive(1), setActive(4) → MRU: [4, 1, 3, 2]
+    4. Close 4 → 1 active
+    5. Close 1 → 3 active
+    6. setActive(2), close 2 → 3 active
+    7. Close 3 → no active
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        pane_ids = await _open_n_files(app, pilot, workspace, 5)
+        main = app.main_view
+        tc = main.tabbed_content
+        leaf_id = main._active_leaf_id
+
+        # Step 2: Close 5 → 4 active
+        await main.action_close_code_editor(pane_ids[4])
+        await pilot.wait_for_scheduled_animations()
+        assert _active_pane(app) == pane_ids[3]
+        assert pane_ids[4] not in main._mru_history.get(leaf_id, [])
+
+        # Step 3: setActive(1), setActive(4)
+        tc.active = pane_ids[0]
+        await pilot.wait_for_scheduled_animations()
+        tc.active = pane_ids[3]
+        await pilot.wait_for_scheduled_animations()
+
+        # Step 4: Close 4 → 1 active
+        await main.action_close_code_editor(pane_ids[3])
+        await pilot.wait_for_scheduled_animations()
+        assert _active_pane(app) == pane_ids[0]
+        assert pane_ids[3] not in main._mru_history.get(leaf_id, [])
+
+        # Step 5: Close 1 → 3 active
+        await main.action_close_code_editor(pane_ids[0])
+        await pilot.wait_for_scheduled_animations()
+        assert _active_pane(app) == pane_ids[2]
+        assert pane_ids[0] not in main._mru_history.get(leaf_id, [])
+
+        # Step 6: setActive(2), close 2 → 3 active
+        tc.active = pane_ids[1]
+        await pilot.wait_for_scheduled_animations()
+        await main.action_close_code_editor(pane_ids[1])
+        await pilot.wait_for_scheduled_animations()
+        assert _active_pane(app) == pane_ids[2]
+        assert pane_ids[1] not in main._mru_history.get(leaf_id, [])
+
+        # Step 7: Close 3 → no active
+        await main.action_close_code_editor(pane_ids[2])
+        await pilot.wait_for_scheduled_animations()
+        assert _tab_count(app) == 0
+
+
+async def test_mru_close_inactive_tab_keeps_active(workspace: Path):
+    """Closing a non-active tab does not change the active tab (MRU mode)."""
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        pane_ids = await _open_n_files(app, pilot, workspace, 4)
+        tc = app.main_view.tabbed_content
+        tc.active = pane_ids[1]
+        await pilot.wait_for_scheduled_animations()
+
+        # Close file4 (not active) — file2 should remain active
+        await app.main_view.action_close_code_editor(pane_ids[3])
+        await pilot.wait_for_scheduled_animations()
+        assert _active_pane(app) == pane_ids[1]
+
+
+async def test_mru_close_only_tab(workspace: Path):
+    """Closing the only tab leaves no active (MRU mode)."""
+    f = workspace / "solo.py"
+    f.write_text("# solo\n")
+    app = make_app(workspace, light=True, open_file=f)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        pane_id = _active_pane(app)
+        assert pane_id is not None
+        await app.main_view.action_close_code_editor(pane_id)
+        await pilot.wait_for_scheduled_animations()
+        assert _tab_count(app) == 0

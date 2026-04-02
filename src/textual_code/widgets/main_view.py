@@ -96,6 +96,30 @@ class MainView(Static):
         self._editor_states: dict[str, EditorState] = {}
         # Lazy tab mounting: leaf_id → previously active pane_id (for unmounting)
         self._prev_active_pane_ids: dict[str, str | None] = {}
+        # MRU history per leaf: leaf_id → list of pane_ids (most recent first)
+        self._mru_history: dict[str, list[str]] = {}
+
+    # ── MRU helpers ──────────────────────────────────────────────────────────
+
+    def _mru_touch(self, leaf_id: str, pane_id: str) -> None:
+        """Move *pane_id* to the front of the MRU list for *leaf_id*."""
+        history = self._mru_history.setdefault(leaf_id, [])
+        if pane_id in history:
+            history.remove(pane_id)
+        history.insert(0, pane_id)
+
+    def _mru_remove(self, leaf_id: str, pane_id: str) -> None:
+        """Remove *pane_id* from the MRU list for *leaf_id*."""
+        history = self._mru_history.get(leaf_id)
+        if history is not None and pane_id in history:
+            history.remove(pane_id)
+
+    def _mru_next(self, leaf_id: str, excluding: str) -> str | None:
+        """Return the next MRU pane for *leaf_id*, skipping *excluding*."""
+        for pane_id in self._mru_history.get(leaf_id, []):
+            if pane_id != excluding:
+                return pane_id
+        return None
 
     def compose(self) -> ComposeResult:
         yield build_split_widgets(self._split_root)
@@ -321,6 +345,7 @@ class MainView(Static):
     ) -> None:
         """Remove widgets for collapsed leaf and restructure."""
         self._prev_active_pane_ids.pop(removed_leaf.leaf_id, None)
+        self._mru_history.pop(removed_leaf.leaf_id, None)
         removed_widget = self.query_one(
             f"#{removed_leaf.leaf_id}", DraggableTabbedContent
         )
@@ -390,9 +415,21 @@ class MainView(Static):
         if leaf is None:
             return False
         tc = self.query_one(f"#{leaf.leaf_id}", TabbedContent)
+        # MRU: pre-activate MRU-next so the closing tab is no longer active,
+        # bypassing Textual's position-based auto-activation.
+        if tc.active == pane_id and getattr(
+            self.app, "default_close_tab_focus_recent", True
+        ):
+            mru_next = self._mru_next(leaf.leaf_id, pane_id)
+            if mru_next is not None:
+                tab_id = f"--content-tab-{mru_next}"
+                if tc.query(f"#{tab_id}"):
+                    self.log(f"MRU: activating {mru_next} (closing {pane_id})")
+                    tc.active = mru_next
         await tc.remove_pane(pane_id)
         leaf.pane_ids.discard(pane_id)
         self._pane_to_leaf.pop(pane_id, None)
+        self._mru_remove(leaf.leaf_id, pane_id)
         return True
 
     def _safe_activate_tab(self, tc: TabbedContent, pane_id: str) -> None:
@@ -1417,6 +1454,7 @@ class MainView(Static):
         )
         new_pane_id = event.pane.id if event.pane else None
         if leaf_id and new_pane_id:
+            self._mru_touch(leaf_id, new_pane_id)
             await self._lazy_swap_editor(leaf_id, new_pane_id)
         self._sync_footer_to_active_editor()
         editor = self.get_active_code_editor()
