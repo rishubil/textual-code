@@ -38,6 +38,7 @@ Saves all modified tabs across all split panes. Tabs without unsaved changes are
 ### Close (Ctrl+W) / Close All (Ctrl+Shift+W)
 
 - **Ctrl+W** closes the active tab. If the tab has unsaved changes, a modal dialog offers three choices: Save, Don't Save, Cancel. Choosing Save writes the file and then closes; Don't Save discards changes and closes; Cancel aborts.
+- **After closing the active tab**, the most recently used (MRU) tab is activated by default, matching VSCode's `focusRecentEditorAfterClose` behavior. Set `close_tab_focus_recent = false` in settings to use position-based activation (right-adjacent, then left) instead.
 - **Ctrl+Shift+W** closes all open tabs with individual unsaved-change prompts for each dirty tab.
 - Closing the last tab in a split pane auto-collapses that split.
 

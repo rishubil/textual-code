@@ -35,11 +35,20 @@ def test_default_editor_settings_values():
     assert DEFAULT_EDITOR_SETTINGS["indent_size"] == 4
     assert DEFAULT_EDITOR_SETTINGS["line_ending"] == "lf"
     assert DEFAULT_EDITOR_SETTINGS["encoding"] == "utf-8"
+    assert DEFAULT_EDITOR_SETTINGS["close_tab_focus_recent"] is True
 
 
 def test_load_editor_settings_no_files(tmp_path):
     settings = load_editor_settings(tmp_path, user_config_path=tmp_path / "no.toml")
     assert settings == DEFAULT_EDITOR_SETTINGS
+
+
+def test_load_editor_settings_close_tab_focus_recent(tmp_path):
+    """close_tab_focus_recent = false loads correctly from TOML."""
+    cfg = tmp_path / "user.toml"
+    cfg.write_text("[editor]\nclose_tab_focus_recent = false\n")
+    settings = load_editor_settings(tmp_path, user_config_path=cfg)
+    assert settings["close_tab_focus_recent"] is False
 
 
 def test_load_editor_settings_user_config(tmp_path):

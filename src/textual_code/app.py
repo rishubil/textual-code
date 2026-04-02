@@ -471,6 +471,9 @@ class TextualCode(App):
         self.default_large_file_threshold: int = int(
             settings.get("large_file_threshold", 5_242_880)
         )
+        self.default_close_tab_focus_recent: bool = bool(
+            settings.get("close_tab_focus_recent", True)
+        )
         self.theme = self.default_ui_theme
 
         # File clipboard for copy/cut/paste in explorer

@@ -81,7 +81,7 @@ for EditorConfig matching.
 | `line_ending` | new files only | yes | yes |
 | `trim_trailing_whitespace` | — | — | yes |
 | `insert_final_newline` | — | — | yes |
-| `word_wrap`, `syntax_theme`, `ui_theme`, `warn_line_ending`, `show_hidden_files`, `dim_gitignored`, `dim_hidden_files`, `show_git_status`, `show_indentation_guides`, `render_whitespace`, `path_display_mode`, `sidebar_width`, `large_file_threshold` | always | — | — |
+| `word_wrap`, `syntax_theme`, `ui_theme`, `warn_line_ending`, `show_hidden_files`, `dim_gitignored`, `dim_hidden_files`, `show_git_status`, `show_indentation_guides`, `render_whitespace`, `path_display_mode`, `sidebar_width`, `large_file_threshold`, `close_tab_focus_recent` | always | — | — |
 
 ## Editor Settings: [editor] section keys
 
@@ -106,6 +106,7 @@ All editor settings go under the `[editor]` TOML table.
 | `path_display_mode` | string | `"absolute"` | File path display in footer: `"absolute"` or `"relative"` (relative to workspace root) |
 | `sidebar_width` | integer or string | `28` | Initial sidebar width: integer for cells (min 5), or `"30%"` for percentage (1%-90%) |
 | `large_file_threshold` | integer | `5242880` | File size in bytes above which a confirmation dialog is shown before opening (0 to disable) |
+| `close_tab_focus_recent` | boolean | `true` | When closing the active tab, activate the most recently used tab (MRU) instead of the adjacent one |
 
 ### Example: user settings file
 
