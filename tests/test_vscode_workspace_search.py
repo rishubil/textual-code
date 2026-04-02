@@ -1082,6 +1082,8 @@ async def test_replace_all_via_ui_modifies_files(tmp_path: Path) -> None:
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "hello"
         ws_pane.query_one("#ws-replace", Input).value = "goodbye"
+        ws_pane._run_search()
+        await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
 
         # Trigger Replace All — worker thread → call_from_thread → push_screen
@@ -1130,6 +1132,8 @@ async def test_replace_all_cancel_preserves_files(tmp_path: Path) -> None:
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "hello"
         ws_pane.query_one("#ws-replace", Input).value = "goodbye"
+        ws_pane._run_search()
+        await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
 
         # Trigger Replace All
@@ -1176,6 +1180,11 @@ async def test_replace_all_regex_capture_groups_via_ui(
         regex_checkbox.value = True
         await pilot.wait_for_scheduled_animations()
 
+        # Search first to populate results tree
+        ws_pane._run_search()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+
         # Trigger Replace All
         ws_pane._run_replace_all()
         await pilot.wait_for_scheduled_animations()
@@ -1214,6 +1223,8 @@ async def test_replace_all_modal_shows_preview(tmp_path: Path) -> None:
         ws_pane = app.query_one(WorkspaceSearchPane)
         ws_pane.query_one("#ws-query", Input).value = "old"
         ws_pane.query_one("#ws-replace", Input).value = "new"
+        ws_pane._run_search()
+        await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
 
         # Trigger Replace All — this opens the preview screen
