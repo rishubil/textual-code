@@ -1961,7 +1961,13 @@ class PathSearchModal(ModalScreen[Path | None]):
         worker = get_current_worker()
         generation = self._scan_generation
         cache_key = self._cache_key_str
-        self.app.call_from_thread(self._set_spinner_visible, True)
+        try:
+            self.app.call_from_thread(self._set_spinner_visible, True)
+        except RuntimeError as exc:
+            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                raise
+            _logger.debug("call_from_thread suppressed (app exiting): %s", exc)
+            return
         t0 = time.monotonic()
         _logger.debug("PathSearchModal: scan started (gen %d)", generation)
         try:
@@ -2146,7 +2152,13 @@ class PathSearchModal(ModalScreen[Path | None]):
         from rapidfuzz import fuzz, process
 
         worker = get_current_worker()
-        self.app.call_from_thread(self._set_spinner_visible, True)
+        try:
+            self.app.call_from_thread(self._set_spinner_visible, True)
+        except RuntimeError as exc:
+            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                raise
+            _logger.debug("call_from_thread suppressed (app exiting): %s", exc)
+            return
         try:
             results = process.extract(
                 query,
