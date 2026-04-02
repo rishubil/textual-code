@@ -6,7 +6,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, ClassVar, cast
+from typing import TYPE_CHECKING, ClassVar, Literal, cast
 
 from textual import on, work
 from textual.app import ComposeResult
@@ -723,6 +723,61 @@ class DiscardAndReloadModalScreen(ModalScreen[DiscardAndReloadModalResult]):
     @on(Button.Pressed, "#cancel")
     def on_cancel(self) -> None:
         self.dismiss(DiscardAndReloadModalResult(is_cancelled=True, should_reload=None))
+
+
+def _format_file_size(size: int) -> str:
+    """Format a file size in bytes to a human-readable string."""
+    if size < 1024:
+        return f"{size} B"
+    if size < 1024 * 1024:
+        return f"{size / 1024:.1f} KB"
+    if size < 1024 * 1024 * 1024:
+        return f"{size / (1024 * 1024):.1f} MB"
+    return f"{size / (1024 * 1024 * 1024):.1f} GB"
+
+
+@dataclass
+class LargeFileConfirmModalResult:
+    """Result of the large file confirmation dialog."""
+
+    action: Literal["open", "open_optimized", "cancel"]
+
+
+class LargeFileConfirmModalScreen(ModalScreen[LargeFileConfirmModalResult]):
+    """Confirmation dialog shown before opening a large file."""
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
+
+    def __init__(self, filename: str, file_size: int) -> None:
+        super().__init__()
+        self._filename = filename
+        self._file_size = file_size
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Large file", id="title"),
+            Label(
+                f"{self._filename} ({_format_file_size(self._file_size)}) "
+                "may slow down the editor.",
+                id="message",
+            ),
+            Button("Open Anyway", variant="primary", id="open"),
+            Button("Open (plain)", variant="warning", id="open_optimized"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#open")
+    def on_open(self) -> None:
+        self.dismiss(LargeFileConfirmModalResult(action="open"))
+
+    @on(Button.Pressed, "#open_optimized")
+    def on_open_optimized(self) -> None:
+        self.dismiss(LargeFileConfirmModalResult(action="open_optimized"))
+
+    @on(Button.Pressed, "#cancel")
+    def action_cancel(self) -> None:
+        self.dismiss(LargeFileConfirmModalResult(action="cancel"))
 
 
 @dataclass

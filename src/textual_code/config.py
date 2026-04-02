@@ -26,6 +26,7 @@ EDITOR_KEYS = {
     "render_whitespace",
     "sidebar_width",
     "compact_folders",
+    "large_file_threshold",
 }
 
 DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
@@ -46,6 +47,7 @@ DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "render_whitespace": "none",
     "sidebar_width": 28,
     "compact_folders": True,
+    "large_file_threshold": 5_242_880,
 }
 
 

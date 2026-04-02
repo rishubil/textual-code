@@ -10,6 +10,7 @@ CodeEditor widget tests.
 - Footer display
 """
 
+import asyncio
 from pathlib import Path
 
 import pytest
@@ -19,6 +20,7 @@ from tests.conftest import make_app
 from textual_code.modals import (
     DeleteFileModalScreen,
     GotoLineModalScreen,
+    LargeFileConfirmModalScreen,
     SaveAsModalScreen,
     UnsavedChangeModalScreen,
 )
@@ -799,3 +801,107 @@ async def test_change_language_updates_footer(workspace: Path, sample_py_file: P
         await pilot.wait_for_scheduled_animations()
 
         assert "rust" in str(app.query_one(CodeEditorFooter).language_button.label)
+
+
+# ── Large file warning ───────────────────────────────────────────────────────
+
+
+async def test_large_file_opens_with_warning(workspace: Path):
+    """Opening a file exceeding threshold shows the confirmation modal."""
+    large_file = workspace / "big.txt"
+    large_file.write_text("x" * 200, encoding="utf-8")
+
+    # Use a low threshold so we don't need a multi-MB file
+    app = make_app(workspace, light=True)
+    app.default_large_file_threshold = 100
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        # Schedule open as a background task (it blocks on modal dismiss)
+        asyncio.create_task(app.main_view.action_open_code_editor(path=large_file))
+        await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
+        assert isinstance(app.screen, LargeFileConfirmModalScreen)
+
+
+async def test_large_file_threshold_zero_disables_warning(workspace: Path):
+    """Threshold of 0 disables the large file warning."""
+    large_file = workspace / "big.txt"
+    large_file.write_text("x" * 200, encoding="utf-8")
+
+    app = make_app(workspace, light=True)
+    app.default_large_file_threshold = 0
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await app.main_view.action_open_code_editor(path=large_file)
+        await pilot.wait_for_scheduled_animations()
+        assert not isinstance(app.screen, LargeFileConfirmModalScreen)
+        # File should have opened normally
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+
+async def test_large_file_open_optimized_disables_highlighting(workspace: Path):
+    """Choosing 'Open (no highlighting)' opens the file without syntax highlighting."""
+    large_file = workspace / "big.py"
+    large_file.write_text("x = 1\n" * 50, encoding="utf-8")
+
+    app = make_app(workspace, light=True)
+    app.default_large_file_threshold = 100
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        # Schedule open as a background task (it blocks on modal dismiss)
+        asyncio.create_task(app.main_view.action_open_code_editor(path=large_file))
+        await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
+        assert isinstance(app.screen, LargeFileConfirmModalScreen)
+
+        await pilot.click("#open_optimized")
+        await pilot.wait_for_scheduled_animations()
+
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.language is None
+
+
+async def test_large_file_already_open_skips_check(workspace: Path):
+    """Re-opening an already-open large file skips the size check."""
+    large_file = workspace / "big.txt"
+    large_file.write_text("x" * 200, encoding="utf-8")
+
+    app = make_app(workspace, light=True)
+    app.default_large_file_threshold = 100
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        # First open — triggers the modal
+        asyncio.create_task(app.main_view.action_open_code_editor(path=large_file))
+        await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
+        assert isinstance(app.screen, LargeFileConfirmModalScreen)
+        await pilot.click("#open")
+        await pilot.wait_for_scheduled_animations()
+
+        # Second open — should just focus the existing pane (no modal)
+        await app.main_view.action_open_code_editor(path=large_file)
+        await pilot.wait_for_scheduled_animations()
+        assert not isinstance(app.screen, LargeFileConfirmModalScreen)
+
+
+async def test_large_file_cancel_does_not_open(workspace: Path):
+    """Cancelling the large file dialog does not open any editor."""
+    large_file = workspace / "big.txt"
+    large_file.write_text("x" * 200, encoding="utf-8")
+
+    app = make_app(workspace, light=True)
+    app.default_large_file_threshold = 100
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        # Schedule open as a background task (it blocks on modal dismiss)
+        asyncio.create_task(app.main_view.action_open_code_editor(path=large_file))
+        await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
+        assert isinstance(app.screen, LargeFileConfirmModalScreen)
+        await pilot.click("#cancel")
+        await pilot.wait_for_scheduled_animations()
+
+        editor = app.main_view.get_active_code_editor()
+        assert editor is None
