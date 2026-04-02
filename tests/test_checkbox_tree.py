@@ -767,12 +767,12 @@ async def test_horizontal_scroll_with_long_content() -> None:
 
 
 @pytest.mark.asyncio
-async def test_sidebar_search_key_hints() -> None:
+async def test_sidebar_search_key_hints(tmp_path: Path) -> None:
     """WorkspaceSearchPane displays key hints below the tree."""
     from tests.conftest import make_app
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
-    ws = Path("/tmp/ws_hints")
+    ws = tmp_path / "ws_hints"
     ws.mkdir(exist_ok=True)
     (ws / "f.txt").write_bytes(b"x\n")
 
