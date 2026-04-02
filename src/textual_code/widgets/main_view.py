@@ -41,6 +41,8 @@ from textual_code.widgets.split_tree import (
     directional_leaf,
     find_leaf,
     find_leaf_for_pane,
+    find_leaf_for_path,
+    find_leaves_for_path,
     make_leaf,
     parent_of,
     remove_leaf,
@@ -388,8 +390,26 @@ class MainView(Static):
         return pane_id in self.opened_pane_ids
 
     def pane_id_from_path(self, path: Path) -> str | None:
-        """Get the pane_id for a path in the active leaf, or None."""
+        """Get the pane_id for a path in the active leaf, or None.
+
+        For cross-split search, use :meth:`find_editor_by_path` or
+        :meth:`find_editors` instead.
+        """
         return self._active_leaf.opened_files.get(path, None)
+
+    def find_editor_by_path(self, path: Path) -> tuple[str, LeafNode] | None:
+        """Find the first (pane_id, leaf) for a file path across all splits.
+
+        Returns None if the path is not open in any leaf.
+        """
+        return find_leaf_for_path(self._split_root, path)
+
+    def find_editors(self, path: Path) -> list[tuple[str, LeafNode]]:
+        """Find all (pane_id, leaf) pairs for a file path across all splits.
+
+        Returns an empty list if the path is not open anywhere.
+        """
+        return find_leaves_for_path(self._split_root, path)
 
     async def open_new_pane(
         self, pane_id: str, pane: TabPane, *, leaf_id: str | None = None
@@ -595,9 +615,7 @@ class MainView(Static):
         # Delegate large-file modal to a @work helper to avoid
         # deadlocking the message loop (#201).
         if path is not None:
-            file_already_open = any(
-                path in leaf.opened_files for leaf in all_leaves(self._split_root)
-            )
+            file_already_open = self.find_editor_by_path(path) is not None
             if not file_already_open:
                 threshold = getattr(self.app, "default_large_file_threshold", 5_242_880)
                 if threshold > 0:
@@ -1240,13 +1258,12 @@ class MainView(Static):
 
         # Update preview content from source editor (if available)
         if path is not None:
-            for leaf in all_leaves(self._split_root):
-                if path in leaf.opened_files:
-                    editor_pane_id = leaf.opened_files[path]
-                    tc = self.query_one(f"#{leaf.leaf_id}", TabbedContent)
-                    editor = tc.get_pane(editor_pane_id).query_one(CodeEditor)
-                    await new_preview.update_for(editor.text, path)
-                    break
+            result = self.find_editor_by_path(path)
+            if result is not None:
+                editor_pane_id, leaf = result
+                tc = self.query_one(f"#{leaf.leaf_id}", TabbedContent)
+                editor = tc.get_pane(editor_pane_id).query_one(CodeEditor)
+                await new_preview.update_for(editor.text, path)
 
         # Close source pane
         await self.close_pane(source_pane_id)
@@ -1645,9 +1662,8 @@ class MainView(Static):
         # Live sync: propagate edits to other editors with the same file open
         if path is not None:
             new_text = editor.text
-            for leaf in all_leaves(self._split_root):
-                other_pane_id = leaf.opened_files.get(path)
-                if other_pane_id is None or other_pane_id == editor.pane_id:
+            for other_pane_id, _leaf in self.find_editors(path):
+                if other_pane_id == editor.pane_id:
                     continue
                 # Update unmounted editor state directly (lazy mounting)
                 if other_pane_id in self._editor_states:
@@ -1691,9 +1707,8 @@ class MainView(Static):
         saved = event.code_editor
         if saved.path is None:
             return
-        for leaf in all_leaves(self._split_root):
-            other_pane_id = leaf.opened_files.get(saved.path)
-            if other_pane_id is None or other_pane_id == saved.pane_id:
+        for other_pane_id, _leaf in self.find_editors(saved.path):
+            if other_pane_id == saved.pane_id:
                 continue
             # Update unmounted editor state directly (lazy mounting)
             if other_pane_id in self._editor_states:

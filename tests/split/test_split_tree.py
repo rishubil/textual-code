@@ -4,6 +4,8 @@ Tests for the split tree data structure (pure data, no Textual dependency).
 Covers: LeafNode, BranchNode, and all tree manipulation functions.
 """
 
+from pathlib import Path
+
 import pytest
 
 from textual_code.widgets.split_tree import (
@@ -15,6 +17,8 @@ from textual_code.widgets.split_tree import (
     branch_depth,
     find_leaf,
     find_leaf_for_pane,
+    find_leaf_for_path,
+    find_leaves_for_path,
     make_leaf,
     parent_of,
     remove_leaf,
@@ -433,3 +437,68 @@ def test_branch_depth_nested():
         ratios=[0.5, 0.5],
     )
     assert branch_depth(root) == 2
+
+
+# ── find_leaves_for_path ────────────────────────────────────────────────────
+
+
+def test_find_leaves_for_path_found():
+    path = Path("/foo/bar.py")
+    leaf = LeafNode(leaf_id="a", pane_ids={"p1"}, opened_files={path: "p1"})
+    other = _leaf("b")
+    root = BranchNode(direction="horizontal", children=[leaf, other], ratios=[0.5, 0.5])
+    result = find_leaves_for_path(root, path)
+    assert result == [("p1", leaf)]
+
+
+def test_find_leaves_for_path_not_found():
+    leaf = LeafNode(leaf_id="a", pane_ids={"p1"}, opened_files={Path("/x.py"): "p1"})
+    root = BranchNode(
+        direction="horizontal", children=[leaf, _leaf("b")], ratios=[0.5, 0.5]
+    )
+    assert find_leaves_for_path(root, Path("/not_here.py")) == []
+
+
+def test_find_leaves_for_path_multiple_leaves():
+    """Same path in two leaves returns both in visual order."""
+    path = Path("/shared.py")
+    left = LeafNode(leaf_id="a", pane_ids={"p1"}, opened_files={path: "p1"})
+    right = LeafNode(leaf_id="b", pane_ids={"p2"}, opened_files={path: "p2"})
+    root = BranchNode(direction="horizontal", children=[left, right], ratios=[0.5, 0.5])
+    result = find_leaves_for_path(root, path)
+    assert result == [("p1", left), ("p2", right)]
+
+
+def test_find_leaves_for_path_single_leaf_root():
+    path = Path("/solo.py")
+    root = LeafNode(leaf_id="a", pane_ids={"p1"}, opened_files={path: "p1"})
+    result = find_leaves_for_path(root, path)
+    assert result == [("p1", root)]
+
+
+# ── find_leaf_for_path ──────────────────────────────────────────────────────
+
+
+def test_find_leaf_for_path_found():
+    path = Path("/foo.py")
+    leaf = LeafNode(leaf_id="a", pane_ids={"p1"}, opened_files={path: "p1"})
+    root = BranchNode(
+        direction="horizontal", children=[_leaf("x"), leaf], ratios=[0.5, 0.5]
+    )
+    result = find_leaf_for_path(root, path)
+    assert result == ("p1", leaf)
+
+
+def test_find_leaf_for_path_not_found():
+    root = _leaf("a")
+    assert find_leaf_for_path(root, Path("/nope.py")) is None
+
+
+def test_find_leaf_for_path_returns_first_in_visual_order():
+    """When same path is in multiple leaves, returns the first in visual order."""
+    path = Path("/shared.py")
+    left = LeafNode(leaf_id="a", pane_ids={"p1"}, opened_files={path: "p1"})
+    right = LeafNode(leaf_id="b", pane_ids={"p2"}, opened_files={path: "p2"})
+    root = BranchNode(direction="horizontal", children=[left, right], ratios=[0.5, 0.5])
+    result = find_leaf_for_path(root, path)
+    assert result == ("p1", left)
