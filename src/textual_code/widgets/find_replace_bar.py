@@ -38,6 +38,9 @@ _BTN_MIN_WIDTHS = {
 # Only show full labels when the bar is very wide.
 _COMPACT_THRESHOLD = 120
 
+_REPLACE_PLACEHOLDER = "Replace with..."
+_REPLACE_PLACEHOLDER_REGEX = "Replace with... (\\1 for groups)"
+
 _TOOLTIPS = {
     "prev_match": "Previous Match (Shift+Enter)",
     "next_match": "Next Match (Enter)",
@@ -122,7 +125,7 @@ class FindReplaceBar(Horizontal):
             )
             yield Button("✕", id="close_btn")
         with Horizontal(id="replace_row"):
-            yield Input(placeholder="Replace with...", id="replace_input")
+            yield Input(placeholder=_REPLACE_PLACEHOLDER, id="replace_input")
             yield Button(
                 _BTN_LABELS["replace_btn"][0], id="replace_btn", variant="primary"
             )
@@ -204,6 +207,9 @@ class FindReplaceBar(Horizontal):
     def _on_regex_changed(self, event: Checkbox.Changed) -> None:
         """Disable case_sensitive checkbox when regex is on."""
         self.query_one("#case_sensitive", Checkbox).disabled = event.value
+        self.query_one("#replace_input", Input).placeholder = (
+            _REPLACE_PLACEHOLDER_REGEX if event.value else _REPLACE_PLACEHOLDER
+        )
 
     @on(Button.Pressed, "#next_match")
     def _on_find_next(self) -> None:

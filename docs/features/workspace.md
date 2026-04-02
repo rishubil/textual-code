@@ -48,7 +48,7 @@ Provides project-wide text search and batch replace without leaving the editor. 
 - Each file is hash-checked (SHA-256) before applying: if a file was modified between the search and the replace, it is skipped.
 - After the user clicks "Apply All", the replacement modifies files on disk directly.
 - A status line shows "Replaced N of M selected occurrence(s) in F file(s)" after completion.
-- Supports regex capture groups when regex mode is enabled (e.g., replace `(\w+)` with `\1_suffix`).
+- Supports regex capture groups when regex mode is enabled (e.g., replace `(\w+)` with `\1_suffix`). When regex is active, the Replace input placeholder changes to "Replace with... (\\1 for groups)" to indicate the backreference syntax.
 
 **Search options (checkboxes):**
 

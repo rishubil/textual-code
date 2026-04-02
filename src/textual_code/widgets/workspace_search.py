@@ -25,6 +25,9 @@ from textual_code.widgets.checkbox_tree import CheckboxTree
 
 _log = logging.getLogger(__name__)
 
+_REPLACE_PLACEHOLDER = "Replace with..."
+_REPLACE_PLACEHOLDER_REGEX = "Replace with... (\\1 for groups)"
+
 _BTN_LABELS = {
     "ws-search": ("🔍 Search", "🔍"),
     "ws-replace-all": ("🔄 Replace All", "🔄"),
@@ -65,7 +68,7 @@ class WorkspaceSearchPane(Static):
             yield Input(placeholder="Include files (src/**)", id="ws-include")
             yield Input(placeholder="Exclude files (dist/**)", id="ws-exclude")
         with Horizontal(id="ws-replace-bar"):
-            yield Input(placeholder="Replace with...", id="ws-replace")
+            yield Input(placeholder=_REPLACE_PLACEHOLDER, id="ws-replace")
             yield Button(
                 _BTN_LABELS["ws-replace-all"][0], id="ws-replace-all", variant="warning"
             )
@@ -361,6 +364,13 @@ class WorkspaceSearchPane(Static):
         checkbox_tree = self.query_one("#ws-results", CheckboxTree)
         checkbox_tree.clear()
         self.query_one("#ws-search-summary", Label).update("")
+
+    @on(Checkbox.Changed, "#ws-regex")
+    def _on_regex_hint_changed(self, event: Checkbox.Changed) -> None:
+        """Show backreference hint on replace input when regex is active."""
+        self.query_one("#ws-replace", Input).placeholder = (
+            _REPLACE_PLACEHOLDER_REGEX if event.value else _REPLACE_PLACEHOLDER
+        )
 
     @on(Input.Submitted, "#ws-query")
     @on(Input.Submitted, "#ws-include")

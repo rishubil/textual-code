@@ -349,6 +349,9 @@ def replace_workspace(
     Thin wrapper around ``preview_workspace_replace`` +
     ``apply_workspace_replace``.  Returns a ``WorkspaceReplaceResult`` with the
     number of files modified and total replacements made.
+
+    The replacement string uses Python ``re.sub()`` syntax: ``\\1``, ``\\2``
+    for backreferences (not VSCode's ``$1``, ``$2`` convention).
     """
     response = preview_workspace_replace(
         workspace_path,
@@ -451,6 +454,7 @@ def preview_workspace_replace(
         files_to_include=files_to_include,
         files_to_exclude=files_to_exclude,
     ):
+        # Replacement uses Python re.sub() backreference syntax (\1, \2).
         new_text, count = pattern.subn(replacement, text)
         if count == 0 or new_text == text:
             continue

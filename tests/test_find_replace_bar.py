@@ -444,3 +444,58 @@ async def test_regex_on_get_case_sensitive_always_true(workspace: Path):
         await pilot.wait_for_scheduled_animations()
 
         assert bar._get_case_sensitive() is True
+
+
+# ── Regex hint on replace input ──────────────────────────────────────────────
+
+
+async def test_regex_hint_shown_on_replace_input(workspace: Path):
+    """Toggling regex on updates replace input placeholder with \\1 hint."""
+    from textual.widgets import Checkbox, Input
+
+    f = await _open_file(workspace, "hello world\n")
+    app = make_app(workspace, open_file=f, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        # Open replace mode
+        await pilot.press("ctrl+h")
+        await pilot.wait_for_scheduled_animations()
+        bar = editor.query_one(FindReplaceBar)
+        replace_input = bar.query_one("#replace_input", Input)
+
+        # Default placeholder
+        assert replace_input.placeholder == "Replace with..."
+
+        # Toggle regex on
+        bar.query_one("#use_regex", Checkbox).value = True
+        await pilot.wait_for_scheduled_animations()
+
+        assert replace_input.placeholder == "Replace with... (\\1 for groups)"
+
+
+async def test_regex_hint_hidden_when_regex_off(workspace: Path):
+    """Toggling regex off reverts replace input placeholder."""
+    from textual.widgets import Checkbox, Input
+
+    f = await _open_file(workspace, "hello world\n")
+    app = make_app(workspace, open_file=f, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+
+        await pilot.press("ctrl+h")
+        await pilot.wait_for_scheduled_animations()
+        bar = editor.query_one(FindReplaceBar)
+        replace_input = bar.query_one("#replace_input", Input)
+
+        # Toggle regex on then off
+        bar.query_one("#use_regex", Checkbox).value = True
+        await pilot.wait_for_scheduled_animations()
+        bar.query_one("#use_regex", Checkbox).value = False
+        await pilot.wait_for_scheduled_animations()
+
+        assert replace_input.placeholder == "Replace with..."
