@@ -20,6 +20,7 @@ VSCode Source Files Referenced
   test_vscode_case_transform.py    ← linesOperations.test.ts
   test_vscode_sort_lines.py        ← sortLinesCommand.test.ts
   test_vscode_move_lines.py        ← moveLinesCommand.test.ts
+  test_vscode_workspace_search.py  ← findModel.test.ts
 
 These tests were NOT copied verbatim. The test intent and assertions were
 adapted from TypeScript/Mocha to Python/pytest, with 1-based positions

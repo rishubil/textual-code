@@ -14,14 +14,13 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import get_style_color_at, make_app
 from textual_code.app import TextualCode
 from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
     EDITOR_KEYS,
     load_editor_settings,
 )
-
-from .conftest import get_style_color_at, make_app
 
 _SPACE_CHAR = "·"
 _TAB_CHAR = "→"
@@ -358,7 +357,7 @@ class TestRendering:
     @pytest.mark.asyncio
     async def test_e06_interaction_with_indentation_guides(self, workspace: Path):
         """When both enabled, guides override whitespace dots at guide positions."""
-        from tests.test_indentation_guides import _find_guide_positions
+        from tests.editor.test_indentation_guides import _find_guide_positions
 
         f = workspace / "both.py"
         f.write_text("        code\n")

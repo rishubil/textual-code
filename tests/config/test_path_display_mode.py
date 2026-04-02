@@ -9,6 +9,7 @@ Covers:
 
 import pytest
 
+from tests.conftest import make_app
 from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
     EDITOR_KEYS,
@@ -16,8 +17,6 @@ from textual_code.config import (
     save_user_editor_settings,
 )
 from textual_code.widgets.code_editor import CodeEditorFooter
-
-from .conftest import make_app
 
 # ---------------------------------------------------------------------------
 # Group A: Config (sync)

@@ -8,10 +8,10 @@ Snapshot tests use a fixed workspace path (/tmp/tc_snapshot_ws/<test_name>)
 so the file path shown in the footer is stable across test runs.
 
 Generate initial snapshots:
-    uv run pytest tests/test_snapshots.py --snapshot-update
+    uv run pytest tests/snapshots/test_snapshots.py --snapshot-update
 
 Compare on subsequent runs:
-    uv run pytest tests/test_snapshots.py
+    uv run pytest tests/snapshots/test_snapshots.py
 """
 
 from pathlib import Path
@@ -20,7 +20,7 @@ import pytest
 from textual.widgets import Input
 
 from tests.conftest import init_git_repo, make_app, make_png, requires_git
-from tests.test_sidebar_scroll import LONG_FILENAME, _populate_wide_workspace
+from tests.widgets.test_sidebar_scroll import LONG_FILENAME, _populate_wide_workspace
 from textual_code.modals import RebindKeyScreen
 from textual_code.widgets.image_preview import ImagePreviewPane
 from textual_code.widgets.split_tree import all_leaves
@@ -301,7 +301,7 @@ def test_snapshot_readme_preview(snap_compare, snapshot_workspace: Path):
     )
     (snapshot_workspace / ".gitignore").write_text("__pycache__/\n*.pyc\n")
     readme = snapshot_workspace / "README.md"
-    project_readme = Path(__file__).resolve().parent.parent / "README.md"
+    project_readme = Path(__file__).resolve().parent.parent.parent / "README.md"
     readme.write_text(project_readme.read_text())
 
     # Disable git status highlighting

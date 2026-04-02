@@ -15,6 +15,7 @@ Covers:
 import pytest
 from textual.widgets import Select
 
+from tests.conftest import make_app
 from textual_code.app import TextualCode
 from textual_code.config import (
     DEFAULT_EDITOR_SETTINGS,
@@ -27,8 +28,6 @@ from textual_code.modals import (
     ChangeSyntaxThemeModalScreen,
 )
 from textual_code.widgets.code_editor import CodeEditor
-
-from .conftest import make_app
 
 # ---------------------------------------------------------------------------
 # Group 1: Import and basic structure

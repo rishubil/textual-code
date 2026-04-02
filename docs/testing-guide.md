@@ -10,10 +10,13 @@ uv run pytest tests/ -n $(( $(nproc) * 2 )) -m "not serial"
 uv run pytest tests/ -m serial
 
 # Update snapshots after UI changes
-uv run pytest tests/test_snapshots.py --snapshot-update
+uv run pytest tests/snapshots/test_snapshots.py --snapshot-update
 
 # Single file
-uv run pytest tests/test_code_editor.py
+uv run pytest tests/editor/test_code_editor.py
+
+# Run tests for a specific domain
+uv run pytest tests/vscode/ -n auto -m "not serial"
 ```
 
 Tests are I/O-bound (event loop waiting), so using 2x CPU cores as workers is optimal.
@@ -88,7 +91,7 @@ content = f.read_text(encoding="utf-8")
 ```
 
 The ruff rule `PLW1514` enforces this — any `write_text`/`read_text`/`open` call
-without `encoding=` will fail lint.  See `tests/test_encoding_safety.py` for
+without `encoding=` will fail lint.  See `tests/config/test_encoding_safety.py` for
 regression tests that simulate a cp949 locale via `io.text_encoding` monkeypatch.
 
 ## Path Comparison: Use `.as_posix()` for Cross-Platform Safety
@@ -229,7 +232,7 @@ should be verified on Linux CI.
 
 ### Structure
 
-All snapshot tests live in `tests/test_snapshots.py` and are marked `@pytest.mark.serial`.
+All snapshot tests live in `tests/snapshots/test_snapshots.py` and are marked `@pytest.mark.serial`.
 They use a fixed terminal size `(120, 40)` and fixed workspace paths under
 `/tmp/tc_snapshot_ws/<test_name>/` for deterministic footer content.
 
@@ -284,7 +287,7 @@ the screenshot is captured.
    ```
 2. Generate the initial SVG:
    ```bash
-   uv run pytest tests/test_snapshots.py::test_snapshot_my_feature --snapshot-update
+   uv run pytest tests/snapshots/test_snapshots.py::test_snapshot_my_feature --snapshot-update
    ```
 3. Visually inspect the generated SVG in `tests/__snapshots__/`.
 4. Snapshot tests use the **full app** (no `light=True`) because the SVG must include the sidebar.
@@ -327,7 +330,7 @@ await _wait_for_stable_screen(pilot, stability_count=3)
 When a snapshot test triggers **cascading deferred work** — markdown preview rendering,
 split creation with pane moves, threaded workers, or any code path using
 `call_after_refresh` — use `_wait_for_stable_screen(pilot)` (defined in
-`test_snapshots.py`).  It repeatedly calls `wait_for_scheduled_animations()` and
+`tests/snapshots/test_snapshots.py`).  It repeatedly calls `wait_for_scheduled_animations()` and
 compares consecutive `export_screenshot()` results, returning when the output stabilises.
 
 ```python
@@ -438,16 +441,22 @@ a file with the appropriate extension.
 
 ## Test File Organization
 
-| File pattern | Tests for |
-|-------------|-----------|
-| `test_code_editor.py` | CodeEditor widget: language detection, save, close, delete |
-| `test_multi_cursor.py` | Multi-cursor editing operations |
-| `test_split_view.py` | Split pane management |
-| `test_find.py` / `test_replace.py` | Find and replace functionality |
-| `test_snapshots.py` | Visual regression (serial only) |
-| `test_modals.py` | Modal screens in isolation (lightweight apps) |
-| `test_file_watcher.py` | External file change detection |
-| `test_light_app.py` | Lightweight app mode (skip_sidebar) validation |
-| `test_tab_drag.py` | DraggableTabbedContent: tab reordering via drag |
-| `test_tab_performance.py` | Tab performance: lazy mounting, central poll, footer batch |
-| `test_settings_isolation.py` | Regression: user config isolation in tests |
+Tests are organized into domain-based subdirectories under `tests/`:
+
+| Directory | Description | Count |
+|-----------|-------------|-------|
+| `tests/vscode/` | Tests ported from VS Code test suite | 12 |
+| `tests/snapshots/` | Visual regression tests (serial only) | 1 |
+| `tests/editor/` | Text editing, cursor, selection, indentation | 19 |
+| `tests/explorer/` | File browser tree operations | 13 |
+| `tests/config/` | Settings, encoding, themes, shortcuts | 17 |
+| `tests/find/` | Search, replace, workspace search | 8 |
+| `tests/split/` | Split views, resize, drag | 10 |
+| `tests/widgets/` | UI components: tabs, sidebar, modals | 20 |
+| `tests/app/` | App integration, CLI, file I/O | 10 |
+
+Run tests for a specific domain:
+```bash
+uv run pytest tests/vscode/ -n auto -m "not serial"
+uv run pytest tests/editor/ -n auto -m "not serial"
+```

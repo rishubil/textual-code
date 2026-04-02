@@ -13,9 +13,8 @@ from unittest.mock import patch
 
 import pytest
 
+from tests.conftest import make_app
 from textual_code.config import get_project_config_path
-
-from .conftest import make_app
 
 # ---------------------------------------------------------------------------
 # Group A: open user settings

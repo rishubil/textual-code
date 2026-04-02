@@ -12,7 +12,7 @@ Covers:
 
 import pytest
 
-from .conftest import make_app
+from tests.conftest import make_app
 
 # ---------------------------------------------------------------------------
 # Group A: copy relative path

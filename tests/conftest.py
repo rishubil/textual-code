@@ -156,7 +156,7 @@ def snap_compare(snap_compare):
     """
 
     def wrapper(app, *, run_before=None, **kwargs):
-        from tests.test_snapshots import _wait_for_stable_screen
+        from tests.snapshots.test_snapshots import _wait_for_stable_screen
 
         async def run_before_no_blink(pilot):
             _disable_cursor_blink(pilot.app)
