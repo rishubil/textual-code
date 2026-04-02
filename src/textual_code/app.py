@@ -1,10 +1,18 @@
+import asyncio
+import concurrent.futures
 import logging
+import threading
 import time
+import weakref
 from collections.abc import Iterable
+from concurrent.futures.thread import (
+    _threads_queues as _threads_queues_map,  # WeakKeyDictionary
+)
+from concurrent.futures.thread import _worker as _executor_worker
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal, cast
 
 from textual import events, on
 from textual.app import App, ComposeResult, SystemCommand
@@ -267,6 +275,50 @@ def _parse_split_resize(
     return result
 
 
+class _DaemonThreadPoolExecutor(concurrent.futures.ThreadPoolExecutor):
+    """ThreadPoolExecutor that does not block process exit.
+
+    Daemon threads + non-blocking shutdown ensure long-running worker
+    threads (ripgrep FFI, subprocesses) do not prevent the app from
+    exiting promptly.
+
+    Note: overrides private CPython method ``_adjust_thread_count``.
+    This has been stable across all Python 3.x releases but is not a
+    public API — verify after Python upgrades.
+    """
+
+    def _adjust_thread_count(self) -> None:  # pragma: no cover – internal
+        if self._idle_semaphore.acquire(timeout=0):
+            return
+
+        work_queue = cast(Any, self._work_queue)
+
+        def weakref_cb(_, q=work_queue):
+            q.put(None)
+
+        threads = cast(set[threading.Thread], self._threads)
+        num_threads = len(threads)
+        if num_threads < self._max_workers:
+            thread_name = f"{self._thread_name_prefix or self}_{num_threads}"
+            t = threading.Thread(
+                name=thread_name,
+                target=_executor_worker,
+                args=(
+                    weakref.ref(self, weakref_cb),
+                    work_queue,
+                    self._initializer,
+                    self._initargs,
+                ),
+            )
+            t.daemon = True
+            t.start()
+            threads.add(t)
+            cast(dict[threading.Thread, Any], _threads_queues_map)[t] = work_queue
+
+    def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
+        super().shutdown(wait=False, cancel_futures=cancel_futures)
+
+
 class TextualCode(App):
     """
     Textual Code app
@@ -448,6 +500,10 @@ class TextualCode(App):
                 return
             self._last_ctrl_q_time = now
         await super().on_event(event)
+
+    async def on_load(self) -> None:
+        loop = asyncio.get_running_loop()
+        loop.set_default_executor(_DaemonThreadPoolExecutor())
 
     def compose(self) -> ComposeResult:
         if not self._skip_sidebar:

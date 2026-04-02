@@ -28,6 +28,7 @@ from textual.widgets import (
     OptionList,
     Select,
 )
+from textual.worker import get_current_worker
 
 if TYPE_CHECKING:
     from textual_code.app import TextualCode
@@ -1957,6 +1958,7 @@ class PathSearchModal(ModalScreen[Path | None]):
     @work(thread=True, exclusive=True)
     def _start_scan(self) -> None:
         """Scan workspace in a background thread."""
+        worker = get_current_worker()
         generation = self._scan_generation
         cache_key = self._cache_key_str
         self.app.call_from_thread(self._set_spinner_visible, True)
@@ -1964,11 +1966,19 @@ class PathSearchModal(ModalScreen[Path | None]):
         _logger.debug("PathSearchModal: scan started (gen %d)", generation)
         try:
             results = self._scan_func(self._workspace_path)
+            if worker.is_cancelled:
+                _logger.debug("scan worker cancelled (gen %d)", generation)
+                return
             if self._path_filter:
                 results = [p for p in results if self._path_filter(p)]
-            self.app.call_from_thread(
-                self._on_scan_results, results, generation, cache_key
-            )
+            try:
+                self.app.call_from_thread(
+                    self._on_scan_results, results, generation, cache_key
+                )
+            except RuntimeError as exc:
+                if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                    raise
+                _logger.debug("call_from_thread suppressed (app exiting): %s", exc)
         finally:
             elapsed = time.monotonic() - t0
             _logger.debug(
@@ -1976,7 +1986,16 @@ class PathSearchModal(ModalScreen[Path | None]):
                 elapsed,
                 generation,
             )
-            self.app.call_from_thread(self._on_scan_complete, generation)
+            if not worker.is_cancelled:
+                try:
+                    self.app.call_from_thread(self._on_scan_complete, generation)
+                except RuntimeError as exc:
+                    if (
+                        "loop" not in str(exc).lower()
+                        and "closed" not in str(exc).lower()
+                    ):
+                        raise
+                    _logger.debug("call_from_thread suppressed (app exiting): %s", exc)
 
     def _on_scan_results(
         self, results: list[Path], generation: int, cache_key: str
@@ -2092,6 +2111,7 @@ class PathSearchModal(ModalScreen[Path | None]):
         displays: list[str],
     ) -> None:
         """Fuzzy search using Textual Matcher (for small candidate lists)."""
+        worker = get_current_worker()
         matcher = Matcher(query)
         scored: list[tuple[float, str, Path]] = []
         for i, path in enumerate(paths):
@@ -2103,7 +2123,17 @@ class PathSearchModal(ModalScreen[Path | None]):
         highlighted = [
             (matcher.highlight(display), path) for _score, display, path in top
         ]
-        self.app.call_from_thread(self._apply_results, query, generation, highlighted)
+        if worker.is_cancelled:
+            _logger.debug("textual search worker cancelled, skipping callback")
+            return
+        try:
+            self.app.call_from_thread(
+                self._apply_results, query, generation, highlighted
+            )
+        except RuntimeError as exc:
+            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                raise
+            _logger.debug("call_from_thread suppressed (app exiting): %s", exc)
 
     def _do_search_rapidfuzz(
         self,
@@ -2115,6 +2145,7 @@ class PathSearchModal(ModalScreen[Path | None]):
         """Fuzzy search using rapidfuzz (for large candidate lists >5000)."""
         from rapidfuzz import fuzz, process
 
+        worker = get_current_worker()
         self.app.call_from_thread(self._set_spinner_visible, True)
         try:
             results = process.extract(
@@ -2138,9 +2169,27 @@ class PathSearchModal(ModalScreen[Path | None]):
         finally:
             # Only hide spinner if this search is still current; a newer
             # scan may have started and re-shown the spinner.
-            if generation == self._search_generation:
-                self.app.call_from_thread(self._set_spinner_visible, False)
-        self.app.call_from_thread(self._apply_results, query, generation, highlighted)
+            if not worker.is_cancelled and generation == self._search_generation:
+                try:
+                    self.app.call_from_thread(self._set_spinner_visible, False)
+                except RuntimeError as exc:
+                    if (
+                        "loop" not in str(exc).lower()
+                        and "closed" not in str(exc).lower()
+                    ):
+                        raise
+                    _logger.debug("call_from_thread suppressed (app exiting): %s", exc)
+        if worker.is_cancelled:
+            _logger.debug("rapidfuzz search worker cancelled, skipping callback")
+            return
+        try:
+            self.app.call_from_thread(
+                self._apply_results, query, generation, highlighted
+            )
+        except RuntimeError as exc:
+            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                raise
+            _logger.debug("call_from_thread suppressed (app exiting): %s", exc)
 
     def _apply_results(
         self,
