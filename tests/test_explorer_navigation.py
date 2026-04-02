@@ -539,6 +539,7 @@ async def test_home_end_with_expanded_tree(workspace: Path, nav_tree: dict[str, 
         assert _get_cursor_path(explorer) == nav_tree["dir_a"]
         await pilot.press("enter")
         await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
 
         # End should jump to last visible node (gamma.py, not a child of dir_a)
         await pilot.press("end")
@@ -576,6 +577,15 @@ async def test_home_end_from_no_selection(workspace: Path, nav_tree: dict[str, P
         await pilot.press("home")
         await pilot.wait_for_scheduled_animations()
         assert _get_cursor_path(explorer) == nav_tree["dir_a"]
+
+        # End should also work from no-selection state
+        # Reset cursor to -1 by navigating away and back
+        tree.cursor_line = -1
+        await pilot.wait_for_scheduled_animations()
+
+        await pilot.press("end")
+        await pilot.wait_for_scheduled_animations()
+        assert _get_cursor_path(explorer) == nav_tree["gamma"]
 
 
 # ---------------------------------------------------------------------------
