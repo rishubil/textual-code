@@ -2,7 +2,7 @@
 
 Code editor for who don't know how to use vi
 
-![Screenshot](tests/__snapshots__/test_snapshots/test_snapshot_readme_preview.svg)
+![Screenshot](tests/snapshots/__snapshots__/test_snapshots/test_snapshot_readme_preview.svg)
 
 > [!WARNING]  
 > This project is in the early stages of development.
