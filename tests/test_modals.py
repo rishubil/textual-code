@@ -21,6 +21,8 @@ from textual_code.modals import (
     DiscardAndReloadModalScreen,
     GotoLineModalResult,
     GotoLineModalScreen,
+    LargeFileConfirmModalResult,
+    LargeFileConfirmModalScreen,
     OverwriteConfirmModalScreen,
     RenameModalResult,
     RenameModalScreen,
@@ -1692,3 +1694,64 @@ async def test_save_screenshot_modal_default_value():
     async with app.run_test():
         input_widget = app.screen.query_one("#path", Input)
         assert input_widget.value == "my_screenshot.svg"
+
+
+# ── LargeFileConfirmModalScreen ──────────────────────────────────────────────
+
+
+class _LargeFileApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result: LargeFileConfirmModalResult | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(
+            LargeFileConfirmModalScreen("big_log.txt", 10_000_000),
+            self._on_result,
+        )
+
+    def _on_result(self, result: LargeFileConfirmModalResult | None) -> None:
+        self.result = result
+
+
+async def test_large_file_confirm_modal_open_anyway():
+    app = _LargeFileApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#open")
+        await pilot.wait_for_scheduled_animations()
+
+    assert app.result is not None
+    assert app.result.action == "open"
+
+
+async def test_large_file_confirm_modal_open_optimized():
+    app = _LargeFileApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#open_optimized")
+        await pilot.wait_for_scheduled_animations()
+
+    assert app.result is not None
+    assert app.result.action == "open_optimized"
+
+
+async def test_large_file_confirm_modal_cancel():
+    app = _LargeFileApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#cancel")
+        await pilot.wait_for_scheduled_animations()
+
+    assert app.result is not None
+    assert app.result.action == "cancel"
+
+
+async def test_large_file_confirm_modal_escape_cancels():
+    app = _LargeFileApp()
+    async with app.run_test() as pilot:
+        await pilot.press("escape")
+        await pilot.wait_for_scheduled_animations()
+
+    assert app.result is not None
+    assert app.result.action == "cancel"

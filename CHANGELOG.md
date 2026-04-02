@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Editor**: warn before opening very large files — shows a confirmation dialog when a file exceeds the configurable `large_file_threshold` (default 5 MB) with options to open normally, open without syntax highlighting, or cancel; prevents the UI from freezing on multi-megabyte files (#183)
 - **CI**: add Windows test job to CI — runs non-snapshot tests on `windows-latest` with Python 3.12/3.13/3.14 matrix to catch Windows-specific regressions (#180)
 - **Tabs**: directional/selective close tab commands via command palette — Close Other Editors, Close Editors to the Right, Close Editors to the Left, and Close Saved Editors; dirty unmounted editors are preserved to prevent silent data loss (#122)
 - **Search**: show search results summary above the results tree after each workspace search — displays file count and match count (e.g., "5 files, 23 matches") with `+` suffix when the 500-match cap is reached; summary clears on new search, option change, or replace (#196)

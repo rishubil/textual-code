@@ -375,6 +375,29 @@ def test_snapshot_discard_and_reload_modal(
     )
 
 
+def test_snapshot_large_file_confirm_modal(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """LargeFileConfirmModalScreen shown before opening a large file."""
+    import asyncio
+
+    large_file = snapshot_workspace / "large_data.txt"
+    large_file.write_text("x" * 200, encoding="utf-8")
+
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+    app.default_large_file_threshold = 100
+
+    async def trigger_large_file_modal(pilot):
+        await pilot.wait_for_scheduled_animations()
+        asyncio.create_task(app.main_view.action_open_code_editor(path=large_file))
+        await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
+
+    assert snap_compare(
+        app, run_before=trigger_large_file_modal, terminal_size=TERMINAL_SIZE
+    )
+
+
 def test_snapshot_show_shortcuts_screen(snap_compare, snapshot_workspace: Path):
     """ShowShortcutsScreen (F1) is centered on screen."""
     app = make_app(snapshot_workspace)

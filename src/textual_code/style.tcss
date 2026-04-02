@@ -287,6 +287,39 @@ DiscardAndReloadModalScreen Button {
     width: 100%;
 }
 
+LargeFileConfirmModalScreen {
+    align: center middle;
+}
+
+LargeFileConfirmModalScreen #dialog {
+    grid-size: 3 3;
+    grid-gutter: 1 2;
+    grid-rows: 1fr 1fr 3;
+    padding: 0 1;
+    max-width: 60;
+    max-height: 9;
+    border: thick $background 80%;
+    background: $surface;
+}
+
+LargeFileConfirmModalScreen #title {
+    column-span: 3;
+    height: 1fr;
+    width: 1fr;
+    content-align: center middle;
+}
+
+LargeFileConfirmModalScreen #message {
+    column-span: 3;
+    height: 1fr;
+    width: 1fr;
+    content-align: center middle;
+}
+
+LargeFileConfirmModalScreen Button {
+    width: 100%;
+}
+
 DeleteFileModalScreen {
     align: center middle;
 }

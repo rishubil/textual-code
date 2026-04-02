@@ -468,6 +468,9 @@ class TextualCode(App):
                     f"Invalid sidebar_width in config: {raw_sw!r}. "
                     f"Using default ({_default_sw})."
                 )
+        self.default_large_file_threshold: int = int(
+            settings.get("large_file_threshold", 5_242_880)
+        )
         self.theme = self.default_ui_theme
 
         # File clipboard for copy/cut/paste in explorer

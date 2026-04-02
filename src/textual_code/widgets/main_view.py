@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 from pathlib import Path
@@ -15,6 +16,10 @@ from textual.widget import Widget
 from textual.widgets import Button, Static, TabbedContent, TabPane
 
 from textual_code.command_registry import bindings_for_context as _bindings_for_context
+from textual_code.modals import (
+    LargeFileConfirmModalResult,
+    LargeFileConfirmModalScreen,
+)
 from textual_code.utils import is_binary_file
 from textual_code.widgets.code_editor import CodeEditor, CodeEditorFooter, EditorState
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
@@ -479,6 +484,31 @@ class MainView(Static):
             await self.open_new_pane(pane_id, pane, leaf_id=target_leaf_id)
             return pane_id
 
+        # Large file size check (before is_binary_file to avoid reading
+        # the entire file into memory just to discover it's too large)
+        force_no_highlighting = False
+        if path is not None:
+            threshold = getattr(self.app, "default_large_file_threshold", 5_242_880)
+            if threshold > 0:
+                try:
+                    file_size = path.stat().st_size
+                except OSError:
+                    file_size = 0  # fail-open: can't stat → skip warning
+                if file_size > threshold:
+                    log.info("Large file detected: %s (%d bytes)", path.name, file_size)
+                    future: asyncio.Future[LargeFileConfirmModalResult] = (
+                        asyncio.get_running_loop().create_future()
+                    )
+                    self.app.push_screen(
+                        LargeFileConfirmModalScreen(path.name, file_size),
+                        future.set_result,
+                    )
+                    result = await future
+                    if result.action == "cancel":
+                        return ""
+                    if result.action == "open_optimized":
+                        force_no_highlighting = True
+
         if path is not None and is_binary_file(path):
             pane = TabPane(
                 path.name,
@@ -511,6 +541,7 @@ class MainView(Static):
                 default_warn_line_ending=getattr(
                     self.app, "default_warn_line_ending", True
                 ),
+                _force_no_highlighting=force_no_highlighting,
             ),
             id=pane_id,
         )
@@ -549,6 +580,8 @@ class MainView(Static):
         focus: bool = True,
     ) -> None:
         pane_id = await self.open_code_editor_pane(path)
+        if not pane_id:
+            return
         leaf = self._leaf_of_pane(pane_id)
         if leaf is None:
             leaf = self._active_leaf
@@ -850,6 +883,8 @@ class MainView(Static):
         # Open editor in the new leaf and focus it
         self._active_leaf_id = new_leaf.leaf_id
         pane_id = await self.open_code_editor_pane(path, leaf_id=new_leaf.leaf_id)
+        if not pane_id:
+            return
         # Ensure DOM focus moves to the new leaf's editor
         tc = self.query_one(f"#{new_leaf.leaf_id}", TabbedContent)
         tc.active = pane_id
@@ -1055,6 +1090,8 @@ class MainView(Static):
                 return existing_pane_id
             self._active_leaf_id = dest_leaf.leaf_id
             new_pane_id = await self.open_code_editor_pane(path)
+            if not new_pane_id:
+                return source_pane_id
             await self.action_close_code_editor(source_pane_id, auto_close_split=False)
             await self._auto_close_split_if_empty()
             return new_pane_id
@@ -1085,6 +1122,8 @@ class MainView(Static):
         # _auto_close_split_if_empty collapsing while source leaf is empty)
         self._active_leaf_id = dest_leaf.leaf_id
         new_pane_id = await self.open_code_editor_pane(path)
+        if not new_pane_id:
+            return source_pane_id
 
         # Restore unsaved content
         if has_unsaved:

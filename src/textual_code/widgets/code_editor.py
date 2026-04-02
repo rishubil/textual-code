@@ -744,6 +744,7 @@ class EditorState:
     notified_copy_line_ending: bool
     show_indentation_guides: bool = True
     render_whitespace: str = "none"
+    force_no_highlighting: bool = False
 
 
 class _PathLabel(Label):
@@ -1184,6 +1185,7 @@ class CodeEditor(Static):
         default_render_whitespace: str = "none",
         default_warn_line_ending: bool = True,
         _from_state: EditorState | None = None,
+        _force_no_highlighting: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(*args, **kwargs)
@@ -1191,6 +1193,7 @@ class CodeEditor(Static):
         self.set_reactive(CodeEditor.path, path)
         self._file_mtime: float | None = None
         self._external_change_notification: Notification | None = None
+        self._force_no_highlighting = _force_no_highlighting
         self._syntax_theme: str = default_syntax_theme
         self._warn_line_ending: bool = default_warn_line_ending
         self._notified_copy_line_ending: bool = False
@@ -1239,6 +1242,7 @@ class CodeEditor(Static):
             self._syntax_theme = _from_state.syntax_theme
             self._warn_line_ending = _from_state.warn_line_ending
             self._notified_copy_line_ending = _from_state.notified_copy_line_ending
+            self._force_no_highlighting = _from_state.force_no_highlighting
             self._restore_cursor = _from_state.cursor_end
             self._restore_scroll = _from_state.scroll_offset
             self._is_restoring = True
@@ -1409,7 +1413,8 @@ class CodeEditor(Static):
             self._is_restoring = False
         else:
             # update the language of the editor (triggers lazy language registration)
-            self.load_language_from_path(self.path)
+            if not self._force_no_highlighting:
+                self.load_language_from_path(self.path)
         # Start background git diff computation
         self._refresh_git_diff()
 
@@ -2511,6 +2516,7 @@ class CodeEditor(Static):
             syntax_theme=self._syntax_theme,
             warn_line_ending=self._warn_line_ending,
             notified_copy_line_ending=self._notified_copy_line_ending,
+            force_no_highlighting=self._force_no_highlighting,
         )
         log.debug("capture_state: pane=%s path=%s", state.pane_id, state.path)
         return state
