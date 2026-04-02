@@ -106,8 +106,8 @@ def find_leaf_for_path(root: SplitNode, path: Path) -> tuple[str, LeafNode] | No
     """Find the first (pane_id, leaf) for *path*, or None.
 
     Semantically equivalent to the first element of
-    :func:`find_leaves_for_path`, but short-circuits without
-    building the full list.
+    :func:`find_leaves_for_path`, but returns on first match
+    without building the result list.
     """
     for leaf in all_leaves(root):
         if path in leaf.opened_files:
