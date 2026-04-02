@@ -5,9 +5,6 @@ import threading
 import time
 import weakref
 from collections.abc import Iterable
-from concurrent.futures.thread import (
-    _threads_queues as _threads_queues_map,  # WeakKeyDictionary
-)
 from concurrent.futures.thread import _worker as _executor_worker
 from dataclasses import dataclass
 from functools import partial
@@ -313,7 +310,10 @@ class _DaemonThreadPoolExecutor(concurrent.futures.ThreadPoolExecutor):
             t.daemon = True
             t.start()
             threads.add(t)
-            cast(dict[threading.Thread, Any], _threads_queues_map)[t] = work_queue
+            # Intentionally NOT registering in _threads_queues:
+            # CPython's _python_exit atexit handler joins every thread
+            # in that map, which would block process exit even for
+            # daemon threads.
 
     def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
         super().shutdown(wait=False, cancel_futures=cancel_futures)
