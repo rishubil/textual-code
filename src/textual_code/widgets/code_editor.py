@@ -23,6 +23,7 @@ from textual.message import Message
 from textual.notifications import Notification, Notify
 from textual.reactive import reactive
 from textual.widgets import Button, Label, Static, TextArea
+from textual.worker import get_current_worker
 
 from textual_code.modals import (
     ChangeEncodingModalResult,
@@ -1417,8 +1418,17 @@ class CodeEditor(Static):
     @work(thread=True, exclusive=True, group="git_diff")
     def _refresh_git_diff(self) -> None:
         """Fetch HEAD content in a background thread and compute line diff."""
+        worker = get_current_worker()
         head_lines = self._fetch_head_lines()
-        self.app.call_from_thread(self._apply_git_diff, head_lines)
+        if worker.is_cancelled:
+            log.debug("git_diff worker cancelled, skipping callback")
+            return
+        try:
+            self.app.call_from_thread(self._apply_git_diff, head_lines)
+        except RuntimeError as exc:
+            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                raise
+            log.debug("call_from_thread suppressed (app exiting): %s", exc)
 
     def _fetch_head_lines(self) -> list[str] | None:
         """Return HEAD lines for the current file, or None to clear indicators."""

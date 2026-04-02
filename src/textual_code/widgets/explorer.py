@@ -220,10 +220,16 @@ class FilteredDirectoryTree(DirectoryTree):
         git_result = self._load_git_status()
         worker = get_current_worker()
         if worker.is_cancelled:
+            _log.debug("bg_loading worker cancelled, skipping callback")
             return
         self._git_result = git_result
         _log.debug("background git status loading completed")
-        self.app.call_from_thread(self.refresh)
+        try:
+            self.app.call_from_thread(self.refresh)
+        except RuntimeError as exc:
+            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                raise
+            _log.debug("call_from_thread suppressed (app exiting): %s", exc)
 
     def _init_ws_polling(self) -> None:
         """Initialize workspace polling snapshot and start timer."""

@@ -106,14 +106,27 @@ class ImagePreviewPane(VerticalScroll):
                 target_w,
                 target_h,
             )
-            self.app.call_from_thread(self._update_content, pixels)
+            try:
+                self.app.call_from_thread(self._update_content, pixels)
+            except RuntimeError as exc:
+                if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                    raise
+                log.debug("call_from_thread suppressed (app exiting): %s", exc)
 
         except (OSError, ValueError, UnidentifiedImageError) as exc:
             log.warning("Could not load image %s: %s", self.source_path, exc)
             if not worker.is_cancelled:
-                self.app.call_from_thread(
-                    self._update_content, "\u26a0  Could not load image"
-                )
+                try:
+                    self.app.call_from_thread(
+                        self._update_content, "\u26a0  Could not load image"
+                    )
+                except RuntimeError as rt_exc:
+                    if (
+                        "loop" not in str(rt_exc).lower()
+                        and "closed" not in str(rt_exc).lower()
+                    ):
+                        raise
+                    log.debug("call_from_thread suppressed (app exiting): %s", rt_exc)
 
     def _show_loading(self, show: bool) -> None:
         """Toggle loading indicator and image content visibility."""

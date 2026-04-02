@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.widgets import Button, Checkbox, Input, Label, Static
-from textual.worker import Worker, WorkerState
+from textual.worker import Worker, WorkerState, get_current_worker
 
 from textual_code.modals import (
     ReplacePreviewResult,
@@ -21,6 +22,8 @@ from textual_code.search import (
     search_workspace,
 )
 from textual_code.widgets.checkbox_tree import CheckboxTree
+
+_log = logging.getLogger(__name__)
 
 _BTN_LABELS = {
     "ws-search": ("🔍 Search", "🔍"),
@@ -45,6 +48,10 @@ class WorkspaceSearchPane(Static):
 
         file_path: Path
         line_number: int  # 1-based; 0 means open file only
+
+    def on_unmount(self) -> None:
+        self.workers.cancel_group(self, "search")
+        self.workers.cancel_group(self, "replace_count")
 
     def compose(self) -> ComposeResult:
         with Horizontal(id="ws-search-bar"):
@@ -141,6 +148,7 @@ class WorkspaceSearchPane(Static):
         files_to_include: str,
         files_to_exclude: str,
     ) -> None:
+        worker = get_current_worker()
         response = search_workspace(
             workspace_path,
             query,
@@ -151,12 +159,20 @@ class WorkspaceSearchPane(Static):
             files_to_include=files_to_include,
             files_to_exclude=files_to_exclude,
         )
-        self.app.call_from_thread(
-            self._populate_results,
-            response.results,
-            workspace_path,
-            response.inaccessible_paths,
-        )
+        if worker.is_cancelled:
+            _log.debug("search worker cancelled, skipping callback")
+            return
+        try:
+            self.app.call_from_thread(
+                self._populate_results,
+                response.results,
+                workspace_path,
+                response.inaccessible_paths,
+            )
+        except RuntimeError as exc:
+            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                raise
+            _log.debug("call_from_thread suppressed (app exiting): %s", exc)
 
     def _populate_results(
         self,
@@ -258,6 +274,7 @@ class WorkspaceSearchPane(Static):
         files_to_include: str,
         files_to_exclude: str,
     ) -> None:
+        worker = get_current_worker()
         response = preview_workspace_replace(
             workspace_path,
             query,
@@ -269,21 +286,28 @@ class WorkspaceSearchPane(Static):
             files_to_exclude=files_to_exclude,
             case_sensitive=case_sensitive,
         )
-
-        self.app.call_from_thread(
-            self._show_replace_preview,
-            workspace_path,
-            query,
-            replacement,
-            use_regex,
-            respect_gitignore,
-            case_sensitive,
-            show_hidden_files,
-            files_to_include,
-            files_to_exclude,
-            response,
-            None,  # selected_results=None means "all" path
-        )
+        if worker.is_cancelled:
+            _log.debug("replace preview worker cancelled, skipping callback")
+            return
+        try:
+            self.app.call_from_thread(
+                self._show_replace_preview,
+                workspace_path,
+                query,
+                replacement,
+                use_regex,
+                respect_gitignore,
+                case_sensitive,
+                show_hidden_files,
+                files_to_include,
+                files_to_exclude,
+                response,
+                None,  # selected_results=None means "all" path
+            )
+        except RuntimeError as exc:
+            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                raise
+            _log.debug("call_from_thread suppressed (app exiting): %s", exc)
 
     @work(thread=True, exclusive=True, group="replace_count", exit_on_error=False)
     def _preview_selected_worker(
@@ -295,6 +319,7 @@ class WorkspaceSearchPane(Static):
         case_sensitive: bool,
         selected_results: list,
     ) -> None:
+        worker = get_current_worker()
         response = preview_selected_replace(
             workspace_path,
             selected_results,
@@ -303,21 +328,28 @@ class WorkspaceSearchPane(Static):
             use_regex,
             case_sensitive=case_sensitive,
         )
-
-        self.app.call_from_thread(
-            self._show_replace_preview,
-            workspace_path,
-            query,
-            replacement,
-            use_regex,
-            False,  # respect_gitignore (unused for selected path)
-            case_sensitive,
-            True,  # show_hidden_files (unused for selected path)
-            "",  # files_to_include (unused)
-            "",  # files_to_exclude (unused)
-            response,
-            selected_results,
-        )
+        if worker.is_cancelled:
+            _log.debug("selected replace worker cancelled, skipping callback")
+            return
+        try:
+            self.app.call_from_thread(
+                self._show_replace_preview,
+                workspace_path,
+                query,
+                replacement,
+                use_regex,
+                False,  # respect_gitignore (unused for selected path)
+                case_sensitive,
+                True,  # show_hidden_files (unused for selected path)
+                "",  # files_to_include (unused)
+                "",  # files_to_exclude (unused)
+                response,
+                selected_results,
+            )
+        except RuntimeError as exc:
+            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                raise
+            _log.debug("call_from_thread suppressed (app exiting): %s", exc)
 
     def _show_replace_preview(
         self,

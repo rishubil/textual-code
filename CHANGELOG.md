@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **App**: process no longer hangs on Ctrl+Q while background workers (workspace search, file scan, git diff) are running — registers a daemon-thread executor so threads do not block process exit, and adds `is_cancelled` guards before all `call_from_thread` callbacks to prevent dispatching to unmounted widgets or a closed event loop (Fix #195)
 - **Editor**: git diff gutter now decodes `git show` output using the file's detected encoding instead of always UTF-8 — fixes false modification indicators on every non-ASCII line in non-UTF-8 files such as Latin-1 or EUC-KR (Fix #176)
 - **Explorer**: git-modified and untracked filenames are now readable across all built-in themes — replaced background-calibrated `$warning`/`$success` with foreground-appropriate `$text-warning`/`$text-success` semantic color tokens (Fix #170)
 - **Explorer**: git status colours (modified/untracked) no longer flicker off and back on when a file is saved — stale decorations are now kept visible until the background worker atomically replaces them, matching VS Code's behaviour (Fix #171)
