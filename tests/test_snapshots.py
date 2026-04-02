@@ -379,8 +379,6 @@ def test_snapshot_large_file_confirm_modal(
     snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
 ):
     """LargeFileConfirmModalScreen shown before opening a large file."""
-    import asyncio
-
     large_file = snapshot_workspace / "large_data.txt"
     large_file.write_text("x" * 200, encoding="utf-8")
 
@@ -389,7 +387,7 @@ def test_snapshot_large_file_confirm_modal(
 
     async def trigger_large_file_modal(pilot):
         await pilot.wait_for_scheduled_animations()
-        asyncio.create_task(app.main_view.action_open_code_editor(path=large_file))
+        await app.main_view.action_open_code_editor(path=large_file)
         await pilot.wait_for_scheduled_animations()
         await pilot.pause()
 

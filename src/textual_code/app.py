@@ -676,14 +676,9 @@ class TextualCode(App):
         self, event: WorkspaceSearchPane.OpenFileAtLineRequested
     ) -> None:
         """Open a file and jump to the requested line from a workspace search result."""
-        await self.main_view.action_open_code_editor(path=event.file_path, focus=True)
-        if event.line_number > 0:
-            editor = self.main_view.get_active_code_editor()
-            if editor is not None:
-                row = event.line_number - 1
-                line_count = len(editor.editor.document.lines)
-                if 0 <= row < line_count:
-                    editor.editor.cursor_location = (row, 0)
+        await self.main_view.action_open_code_editor(
+            path=event.file_path, focus=True, line=event.line_number
+        )
 
     def action_open_markdown_preview_cmd(self) -> None:
         """Open markdown preview as tab from command palette."""

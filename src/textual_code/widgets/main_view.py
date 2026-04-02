@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import logging
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
-from textual import events, on
+from textual import events, on, work
 from textual.app import ComposeResult
 from textual.css.query import NoMatches
 from textual.message import Message
@@ -16,10 +15,7 @@ from textual.widget import Widget
 from textual.widgets import Button, Static, TabbedContent, TabPane
 
 from textual_code.command_registry import bindings_for_context as _bindings_for_context
-from textual_code.modals import (
-    LargeFileConfirmModalResult,
-    LargeFileConfirmModalScreen,
-)
+from textual_code.modals import LargeFileConfirmModalScreen
 from textual_code.utils import is_binary_file
 from textual_code.widgets.code_editor import CodeEditor, CodeEditorFooter, EditorState
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
@@ -432,7 +428,11 @@ class MainView(Static):
         return True
 
     async def open_code_editor_pane(
-        self, path: Path | None = None, *, leaf_id: str | None = None
+        self,
+        path: Path | None = None,
+        *,
+        leaf_id: str | None = None,
+        force_no_highlighting: bool = False,
     ) -> str:
         target_leaf_id = leaf_id or self._active_leaf_id
         target_leaf = find_leaf(self._split_root, target_leaf_id)
@@ -483,35 +483,6 @@ class MainView(Static):
             target_leaf.opened_files[path] = pane_id
             await self.open_new_pane(pane_id, pane, leaf_id=target_leaf_id)
             return pane_id
-
-        # Large file size check (before is_binary_file to avoid reading
-        # the entire file into memory just to discover it's too large).
-        # Skip if the file is already open in any leaf (e.g. split).
-        force_no_highlighting = False
-        file_already_open = path is not None and any(
-            path in leaf.opened_files for leaf in all_leaves(self._split_root)
-        )
-        if path is not None and not file_already_open:
-            threshold = getattr(self.app, "default_large_file_threshold", 5_242_880)
-            if threshold > 0:
-                try:
-                    file_size = path.stat().st_size
-                except OSError:
-                    file_size = 0  # fail-open: can't stat → skip warning
-                if file_size > threshold:
-                    log.info("Large file detected: %s (%d bytes)", path.name, file_size)
-                    future: asyncio.Future[LargeFileConfirmModalResult] = (
-                        asyncio.get_running_loop().create_future()
-                    )
-                    self.app.push_screen(
-                        LargeFileConfirmModalScreen(path.name, file_size),
-                        future.set_result,
-                    )
-                    result = await future
-                    if result.action == "cancel":
-                        return ""
-                    if result.action == "open_optimized":
-                        force_no_highlighting = True
 
         if path is not None and is_binary_file(path):
             pane = TabPane(
@@ -582,8 +553,66 @@ class MainView(Static):
         self,
         path: Path | None = None,
         focus: bool = True,
+        line: int | None = None,
     ) -> None:
-        pane_id = await self.open_code_editor_pane(path)
+        # Delegate large-file modal to a @work helper to avoid
+        # deadlocking the message loop (#201).
+        if path is not None:
+            file_already_open = any(
+                path in leaf.opened_files for leaf in all_leaves(self._split_root)
+            )
+            if not file_already_open:
+                threshold = getattr(self.app, "default_large_file_threshold", 5_242_880)
+                if threshold > 0:
+                    try:
+                        file_size = path.stat().st_size
+                    except OSError:
+                        file_size = 0
+                    if file_size > threshold:
+                        log.info(
+                            "Large file detected: %s (%d bytes)",
+                            path.name,
+                            file_size,
+                        )
+                        self._open_large_file_with_confirmation(
+                            path, file_size, focus, line
+                        )
+                        return
+
+        await self._finish_open_code_editor(path, focus=focus, line=line)
+
+    @work(exit_on_error=False)
+    async def _open_large_file_with_confirmation(
+        self,
+        path: Path,
+        file_size: int,
+        focus: bool,
+        line: int | None,
+    ) -> None:
+        """Show large-file modal in a worker to avoid message-loop deadlock."""
+        result = await self.app.push_screen_wait(
+            LargeFileConfirmModalScreen(path.name, file_size)
+        )
+        if result.action == "cancel":
+            return
+        force_no_highlighting = result.action == "open_optimized"
+        await self._finish_open_code_editor(
+            path,
+            focus=focus,
+            line=line,
+            force_no_highlighting=force_no_highlighting,
+        )
+
+    async def _finish_open_code_editor(
+        self,
+        path: Path | None = None,
+        focus: bool = True,
+        line: int | None = None,
+        force_no_highlighting: bool = False,
+    ) -> None:
+        pane_id = await self.open_code_editor_pane(
+            path, force_no_highlighting=force_no_highlighting
+        )
         if not pane_id:
             return
         leaf = self._leaf_of_pane(pane_id)
@@ -595,6 +624,14 @@ class MainView(Static):
             editors = tc.get_pane(pane_id).query(CodeEditor)
             if editors:
                 editors.first(CodeEditor).action_focus()
+
+        if line is not None and line > 0:
+            editor = self.get_active_code_editor()
+            if editor is not None:
+                line_count = len(editor.editor.document.lines)
+                row = line - 1
+                if 0 <= row < line_count:
+                    editor.editor.cursor_location = (row, 0)
 
     async def action_close_code_editor(
         self, pane_id: str, *, auto_close_split: bool = True
