@@ -10,7 +10,6 @@ CodeEditor widget tests.
 - Footer display
 """
 
-import asyncio
 from pathlib import Path
 
 import pytest
@@ -816,8 +815,7 @@ async def test_large_file_opens_with_warning(workspace: Path):
     app.default_large_file_threshold = 100
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
-        # Schedule open as a background task (it blocks on modal dismiss)
-        asyncio.create_task(app.main_view.action_open_code_editor(path=large_file))
+        await app.main_view.action_open_code_editor(path=large_file)
         await pilot.wait_for_scheduled_animations()
         await pilot.pause()
         assert isinstance(app.screen, LargeFileConfirmModalScreen)
@@ -834,6 +832,7 @@ async def test_large_file_threshold_zero_disables_warning(workspace: Path):
         await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=large_file)
         await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
         assert not isinstance(app.screen, LargeFileConfirmModalScreen)
         # File should have opened normally
         editor = app.main_view.get_active_code_editor()
@@ -849,14 +848,14 @@ async def test_large_file_open_optimized_disables_highlighting(workspace: Path):
     app.default_large_file_threshold = 100
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
-        # Schedule open as a background task (it blocks on modal dismiss)
-        asyncio.create_task(app.main_view.action_open_code_editor(path=large_file))
+        await app.main_view.action_open_code_editor(path=large_file)
         await pilot.wait_for_scheduled_animations()
         await pilot.pause()
         assert isinstance(app.screen, LargeFileConfirmModalScreen)
 
         await pilot.click("#open_optimized")
         await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
@@ -872,17 +871,19 @@ async def test_large_file_already_open_skips_check(workspace: Path):
     app.default_large_file_threshold = 100
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
-        # First open — triggers the modal
-        asyncio.create_task(app.main_view.action_open_code_editor(path=large_file))
+        # First open — triggers the modal (handled by internal worker)
+        await app.main_view.action_open_code_editor(path=large_file)
         await pilot.wait_for_scheduled_animations()
         await pilot.pause()
         assert isinstance(app.screen, LargeFileConfirmModalScreen)
         await pilot.click("#open")
         await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
 
         # Second open — should just focus the existing pane (no modal)
         await app.main_view.action_open_code_editor(path=large_file)
         await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
         assert not isinstance(app.screen, LargeFileConfirmModalScreen)
 
 
@@ -895,13 +896,43 @@ async def test_large_file_cancel_does_not_open(workspace: Path):
     app.default_large_file_threshold = 100
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
-        # Schedule open as a background task (it blocks on modal dismiss)
-        asyncio.create_task(app.main_view.action_open_code_editor(path=large_file))
+        await app.main_view.action_open_code_editor(path=large_file)
         await pilot.wait_for_scheduled_animations()
         await pilot.pause()
         assert isinstance(app.screen, LargeFileConfirmModalScreen)
         await pilot.click("#cancel")
         await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
 
         editor = app.main_view.get_active_code_editor()
         assert editor is None
+
+
+async def test_large_file_no_deadlock_without_create_task(workspace: Path):
+    """action_open_code_editor handles large file modal without deadlock.
+
+    Regression test for #201: the original implementation used asyncio.Future
+    inside open_code_editor_pane, which deadlocked when called from a message
+    handler.  The fix delegates the modal to a @work helper, so the message
+    loop stays free.
+    """
+    large_file = workspace / "big.txt"
+    large_file.write_text("x" * 200, encoding="utf-8")
+
+    app = make_app(workspace, light=True)
+    app.default_large_file_threshold = 100
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        # Calling via await — no asyncio.create_task workaround needed
+        await app.main_view.action_open_code_editor(path=large_file)
+        await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
+        assert isinstance(app.screen, LargeFileConfirmModalScreen)
+
+        # Modal must be interactive
+        await pilot.click("#open")
+        await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
+
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
