@@ -78,7 +78,13 @@ class ImagePreviewPane(VerticalScroll):
 
         worker = get_current_worker()
 
-        self.app.call_from_thread(self._show_loading, True)
+        try:
+            self.app.call_from_thread(self._show_loading, True)
+        except RuntimeError as exc:
+            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                raise
+            log.debug("call_from_thread suppressed (app exiting): %s", exc)
+            return
 
         try:
             log.debug("Loading image: %s", self.source_path)
