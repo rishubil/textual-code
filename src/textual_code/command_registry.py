@@ -461,6 +461,13 @@ COMMAND_REGISTRY: tuple[CommandEntry, ...] = (
         "action_paste_file_or_directory",
     ),
     CommandEntry(
+        "cancel_file_operation",
+        "Cancel File Operation",
+        "Cancel the in-progress file copy, move, or delete",
+        "app",
+        "action_cancel_file_operation",
+    ),
+    CommandEntry(
         "change_indentation",
         "Change Indentation...",
         "Change indentation style and size",
