@@ -82,6 +82,9 @@ from textual_code.widgets.code_editor_helpers import (
     _LINE_ENDING_WARNING as _LINE_ENDING_WARNING,
 )
 from textual_code.widgets.code_editor_helpers import (
+    _build_line_offsets as _build_line_offsets,
+)
+from textual_code.widgets.code_editor_helpers import (
     _convert_indentation as _convert_indentation,
 )
 from textual_code.widgets.code_editor_helpers import (
@@ -1752,16 +1755,18 @@ class CodeEditor(Static):
         if not matches:
             return 0
 
+        line_starts = _build_line_offsets(text)
+
         first = matches[0]
         self.editor.selection = Selection(
-            start=_text_offset_to_location(text, first.start()),
-            end=_text_offset_to_location(text, first.end()),
+            start=_text_offset_to_location(text, first.start(), line_starts),
+            end=_text_offset_to_location(text, first.end(), line_starts),
         )
 
         for m in matches[1:]:
             self.editor.add_cursor(
-                _text_offset_to_location(text, m.end()),
-                anchor=_text_offset_to_location(text, m.start()),
+                _text_offset_to_location(text, m.end(), line_starts),
+                anchor=_text_offset_to_location(text, m.start(), line_starts),
             )
 
         return len(matches)

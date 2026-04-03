@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Search**: Replace All preview modal now shows a neutral scope-info message ("Only the checked matches will be modified") instead of the misleading truncation warning; removed `+` notation from the modal title (#196)
 
+### Performance
+
+- **Editor**: replace O(n) linear scans with O(log n) bisect lookups in offset-to-location conversions (`_text_offset_to_location`, `_location_to_text_offset`, `_offset_to_loc`), rendering pipeline range checks (`_inject_whitespace_rendering`, `_inject_indentation_guides`), and CSS color resolution caching (`_overlay_fg`) — reduces latency for find/replace, multi-cursor editing, and per-frame rendering on large files
+- **Search**: `is_binary_file` now reads only the first 8 KiB instead of the entire file — eliminates unnecessary I/O for large binary files during workspace search
+
 ### Fixed
 
 - **Editor**: large file warning dialog no longer freezes the app — replaced hand-rolled `asyncio.Future` modal wait (which deadlocked Textual's message loop) with a `@work` helper using `push_screen_wait`; the confirmation dialog now remains fully interactive (Fix #201)

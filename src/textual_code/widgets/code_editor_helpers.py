@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from bisect import bisect_right
 from pathlib import Path
 
 from charset_normalizer import detect as _cn_detect
@@ -379,24 +380,51 @@ _LINE_ENDING_WARNING = (
 # ── Search / find utilities ─────────────────────────────────────────────────
 
 
-def _text_offset_to_location(text: str, offset: int) -> tuple[int, int]:
-    """Convert a character offset in *text* to a (row, col) location."""
-    row = col = 0
-    for ch in text[:offset]:
+def _build_line_offsets(text: str) -> list[int]:
+    """Build prefix-sum of line start character offsets for bisect lookup.
+
+    Returns a list where ``offsets[i]`` is the character offset of the start
+    of line *i*.
+    """
+    offsets = [0]
+    for i, ch in enumerate(text):
         if ch == "\n":
-            row += 1
-            col = 0
-        else:
-            col += 1
-    return (row, col)
+            offsets.append(i + 1)
+    return offsets
 
 
-def _location_to_text_offset(text: str, location: tuple[int, int]) -> int:
-    """Convert a (row, col) location to a character offset in text."""
+def _text_offset_to_location(
+    text: str,
+    offset: int,
+    line_starts: list[int] | None = None,
+) -> tuple[int, int]:
+    """Convert a character offset in *text* to a (row, col) location.
+
+    *line_starts* may be supplied to avoid rebuilding the prefix-sum when
+    the same text is used for multiple conversions.
+    """
+    if line_starts is None:
+        line_starts = _build_line_offsets(text)
+    row = bisect_right(line_starts, offset) - 1
+    return (row, offset - line_starts[row])
+
+
+def _location_to_text_offset(
+    text: str,
+    location: tuple[int, int],
+    line_starts: list[int] | None = None,
+) -> int:
+    """Convert a (row, col) location to a character offset in text.
+
+    *line_starts* may be supplied to avoid rebuilding the prefix-sum when
+    the same text is used for multiple conversions.
+    """
     row, col = location
-    lines = text.split("\n")
-    offset = sum(len(lines[i]) + 1 for i in range(min(row, len(lines))))
-    return offset + col
+    if line_starts is None:
+        line_starts = _build_line_offsets(text)
+    if row >= len(line_starts):
+        row = len(line_starts) - 1
+    return line_starts[row] + col
 
 
 def _word_boundary_pattern(query: str) -> str:
