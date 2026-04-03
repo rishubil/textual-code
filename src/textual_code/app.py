@@ -1855,11 +1855,7 @@ class TextualCode(App):
         if worker.is_cancelled:
             self.log.warning("file_op cancelled before start: %s", label)
             self._current_file_op_label = ""
-            _safe_call(
-                self.notify,
-                f"Cancelled: {label}",
-                "warning",
-            )
+            _safe_call(lambda: self.notify(f"Cancelled: {label}", severity="warning"))
             if on_error is not None:
                 _safe_call(on_error)
             return
@@ -1868,11 +1864,8 @@ class TextualCode(App):
             op()
         except Exception as e:
             self.log.error("file_op failed: %s: %s", label, e)
-            _safe_call(
-                self.notify,
-                f"Error: {e}. Partial files may remain.",
-                "error",
-            )
+            err_msg = f"Error: {e}. Partial files may remain."
+            _safe_call(lambda: self.notify(err_msg, severity="error"))
             if on_error is not None:
                 _safe_call(on_error)
             return
