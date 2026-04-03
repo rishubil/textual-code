@@ -1848,32 +1848,36 @@ class TextualCode(App):
         self.log.info("file_op started: %s", label)
         _safe_call(self.notify, f"{label}...")
 
-        try:
-            op()
-        except Exception as e:
-            if not worker.is_cancelled:
-                self.log.error("file_op failed: %s: %s", label, e)
-                _safe_call(
-                    self.notify,
-                    f"Error: {e}. Partial files may remain.",
-                    "error",
-                )
-            if on_error is not None:
-                _safe_call(on_error)
-            return
-        finally:
-            self._current_file_op_label = ""
-
+        # Check cancellation before starting the blocking operation.
+        # After op() completes we always run on_success — thread workers
+        # cannot be interrupted mid-I/O, so a late cancel should not
+        # discard a filesystem change that already happened.
         if worker.is_cancelled:
-            self.log.warning("file_op cancelled: %s", label)
+            self.log.warning("file_op cancelled before start: %s", label)
+            self._current_file_op_label = ""
             _safe_call(
                 self.notify,
-                f"Cancelled: {label}. Partial files may remain.",
+                f"Cancelled: {label}",
                 "warning",
             )
             if on_error is not None:
                 _safe_call(on_error)
             return
+
+        try:
+            op()
+        except Exception as e:
+            self.log.error("file_op failed: %s: %s", label, e)
+            _safe_call(
+                self.notify,
+                f"Error: {e}. Partial files may remain.",
+                "error",
+            )
+            if on_error is not None:
+                _safe_call(on_error)
+            return
+        finally:
+            self._current_file_op_label = ""
 
         self.log.info("file_op completed: %s", label)
         if on_success is not None:
