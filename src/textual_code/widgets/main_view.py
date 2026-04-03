@@ -701,6 +701,21 @@ class MainView(Static):
         if auto_close_split:
             await self._auto_close_split_if_empty()
         self._sync_footer_to_active_editor()
+        # Gated on auto_close_split to avoid interfering with bulk-close and
+        # move-tab paths that manage focus themselves.
+        # Deferred via call_after_refresh so lazy mounting (_lazy_swap_editor)
+        # completes before the editor is queried.
+        if auto_close_split and leaf and leaf.pane_ids:
+
+            def _focus_editor() -> None:
+                try:
+                    editor = self._get_active_code_editor_in_leaf(leaf)
+                    if editor is not None:
+                        editor.editor.focus()
+                except Exception:
+                    pass
+
+            self.call_after_refresh(_focus_editor)
 
     def action_save(self):
         code_editor = self.get_active_code_editor()
