@@ -266,7 +266,9 @@ class TestGitStatusIntegration:
             return original_run(*args, **kwargs)
 
         tree = self._make_tree(ws)
-        with patch("textual_code.widgets.explorer.subprocess.run", side_effect=spy_run):
+        with patch(
+            "textual_code.widgets.filtered_tree.subprocess.run", side_effect=spy_run
+        ):
             tree._git_result = None
             tree._load_git_status()
 

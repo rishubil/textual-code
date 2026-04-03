@@ -40,7 +40,7 @@ class TestScandirOptimization:
         (ws / "file.txt").touch()
         tree = FilteredDirectoryTree(ws)
         with patch(
-            "textual_code.widgets.explorer.os.scandir", wraps=os.scandir
+            "textual_code.widgets.filtered_tree.os.scandir", wraps=os.scandir
         ) as mock_scandir:
             tree._load_directory_sync(ws)
             mock_scandir.assert_called_once()

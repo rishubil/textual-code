@@ -226,7 +226,7 @@ class TestGetGitHeadContent:
             return original_run(*args, **kwargs)
 
         with patch(
-            "textual_code.widgets.code_editor.subprocess.run", side_effect=spy_run
+            "textual_code.widgets.code_editor_git.subprocess.run", side_effect=spy_run
         ):
             _get_git_head_content(committed)
 
@@ -280,7 +280,7 @@ class TestGetGitHeadContent:
             return original_run(*args, **kwargs)
 
         with patch(
-            "textual_code.widgets.code_editor.subprocess.run", side_effect=spy_run
+            "textual_code.widgets.code_editor_git.subprocess.run", side_effect=spy_run
         ):
             _get_git_head_content(committed, encoding="latin-1")
 

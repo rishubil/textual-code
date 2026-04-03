@@ -339,4 +339,4 @@ Pressing `Escape` dismisses any modal where cancellation is safe and has no side
 
 Escape does **not** dismiss destructive confirmation modals that require a deliberate choice: Unsaved Changes, Unsaved Changes (Quit), Delete File/Folder, Overwrite Confirm, Discard & Reload, and Replace All Confirm. These require clicking the explicit Cancel button.
 
-**Implementation:** Each non-destructive modal declares `BINDINGS = [Binding("escape", "cancel", ...)]` and an `action_cancel` method that produces the same result as clicking the Cancel button (`modals.py`).
+**Implementation:** Each non-destructive modal declares `BINDINGS = [Binding("escape", "cancel", ...)]` and an `action_cancel` method that produces the same result as clicking the Cancel button (`modals/` package).

@@ -73,7 +73,7 @@ Available syntax themes: `monokai` (default), `dracula`, `github_light`, `vscode
 - No semantic highlighting; highlighting is purely syntactic via tree-sitter.
 - The set of syntax themes is hardcoded in `AVAILABLE_SYNTAX_THEMES`; users cannot add custom themes.
 
-**Implementation:** `widgets/code_editor.py` (language maps, detection, lazy registration), `modals.py` (`ChangeLanguageModalScreen`, `ChangeSyntaxThemeModalScreen`), `grammars/*.scm` (custom highlight queries), `app.py` (`action_set_syntax_theme`)
+**Implementation:** `widgets/code_editor.py` (language maps, detection, lazy registration), `modals/editor_config.py` (`ChangeLanguageModalScreen`), `modals/appearance.py` (`ChangeSyntaxThemeModalScreen`), `grammars/*.scm` (custom highlight queries), `app.py` (`action_set_syntax_theme`)
 
 ---
 
@@ -152,7 +152,7 @@ A 2-second polling interval (`set_interval(2.0, ...)`) monitors the mtime of `.e
 - `tab_width` is only used as a fallback when `indent_size` is set to `tab`.
 - No UI for creating or editing `.editorconfig` files.
 
-**Implementation:** `widgets/code_editor.py` (`_read_editorconfig`, `_parse_editorconfig_file`, `_editorconfig_glob_to_pattern`, `_glob_to_regex`, `_apply_editorconfig`, `_poll_editorconfig_change`, `_apply_editorconfig_changes`, `_trim_trailing_whitespace`, `_insert_final_newline`, `_remove_final_newline`)
+**Implementation:** `widgets/code_editor_helpers.py` (`_read_editorconfig`, `_parse_editorconfig_file`, `_editorconfig_glob_to_pattern`, `_glob_to_regex`, `_trim_trailing_whitespace`, `_insert_final_newline`, `_remove_final_newline`), `widgets/code_editor.py` (`_apply_editorconfig`, `_poll_editorconfig_change`, `_apply_editorconfig_changes`)
 
 ---
 
@@ -226,7 +226,7 @@ This warning can be disabled by setting `warn_line_ending = false` in the `[edit
 - No mixed line ending detection or normalization: the first match wins.
 - Changing encoding re-interprets bytes, which may produce garbled text if the new encoding is incompatible with the actual file content.
 
-**Implementation:** `widgets/code_editor.py` (`_detect_encoding`, `_detect_line_ending`, `_convert_line_ending`, `_ENCODING_DISPLAY`, `_LINE_ENDING_WARNING`), `modals.py` (`ChangeEncodingModalScreen`, `ChangeLineEndingModalScreen`)
+**Implementation:** `widgets/code_editor_helpers.py` (`_detect_encoding`, `_detect_line_ending`, `_convert_line_ending`, `_ENCODING_DISPLAY`, `_LINE_ENDING_WARNING`), `modals/editor_config.py` (`ChangeEncodingModalScreen`, `ChangeLineEndingModalScreen`)
 
 ---
 
@@ -409,7 +409,7 @@ All config sections (`[bindings]`, `[display.*]`, `[footer.*]`) are saved atomic
 - No chord/sequence keybindings (e.g. Ctrl+K, Ctrl+C).
 - Keybinding changes require an app restart to take effect. Footer order changes apply immediately.
 
-**Implementation:** `command_registry.py` (`CommandEntry`, `COMMAND_REGISTRY`, `bindings_for_context`), `config.py` (`FooterOrders`, `ShortcutDisplayEntry`, `load_keybindings`, `load_shortcut_display`, `load_footer_orders`, `save_keybindings_file`), `app.py` (`_apply_custom_keybindings`, `action_show_keyboard_shortcuts`, `action_configure_footer`, `_get_focused_area`, `_collect_bindings_for_area`, `set_keybinding`, `set_shortcut_display`, `set_footer_order`, `get_footer_order`, `get_footer_priority`), `modals.py` (`ShowShortcutsScreen`, `ShortcutSettingsScreen`, `FooterConfigScreen`, `RebindKeyScreen`)
+**Implementation:** `command_registry.py` (`CommandEntry`, `COMMAND_REGISTRY`, `bindings_for_context`), `config.py` (`FooterOrders`, `ShortcutDisplayEntry`, `load_keybindings`, `load_shortcut_display`, `load_footer_orders`, `save_keybindings_file`), `app.py` (`_apply_custom_keybindings`, `action_show_keyboard_shortcuts`, `action_configure_footer`, `_get_focused_area`, `_collect_bindings_for_area`, `set_keybinding`, `set_shortcut_display`, `set_footer_order`, `get_footer_order`, `get_footer_priority`), `modals/shortcuts_config.py` (`ShowShortcutsScreen`, `ShortcutSettingsScreen`, `FooterConfigScreen`, `RebindKeyScreen`)
 
 ---
 
@@ -448,4 +448,4 @@ Textual's default built-in system commands (Theme, Quit, Keys, Maximize/Minimize
 - No custom theme creation; only the 20 built-in Textual themes are available.
 - No per-editor theming; the theme applies globally to the entire application.
 
-**Implementation:** `app.py` (`action_set_ui_theme`), `modals.py` (`ChangeUIThemeModalScreen`), `config.py` (`save_user_editor_settings`, `save_project_editor_settings`)
+**Implementation:** `app.py` (`action_set_ui_theme`), `modals/appearance.py` (`ChangeUIThemeModalScreen`), `config.py` (`save_user_editor_settings`, `save_project_editor_settings`)
