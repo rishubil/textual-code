@@ -230,11 +230,13 @@ async def test_cancel_stops_worker(workspace: Path):
             app.action_cancel_file_operation()
             await pilot.wait_for_scheduled_animations()
 
-        # Release barrier so the thread can finish
+        # Release barrier so the thread can finish cleanly
         barrier.set()
         await pilot.wait_for_scheduled_animations()
 
-    # The copy should NOT have completed (cancelled before barrier released)
-    # Note: since cancel only sets a flag and the thread was blocked on barrier,
-    # the operation may or may not have started. This test verifies the cancel
-    # mechanism works — the worker group is cleared.
+    # Verify cancel was invoked: the label should have been cleared after
+    # the worker finished (whether cancelled or completed).
+    assert app._current_file_op_label == ""
+    # The worker group should have no running workers after cleanup.
+    running = [w for w in app.workers if w.group == "file_ops" and w.is_running]
+    assert len(running) == 0
