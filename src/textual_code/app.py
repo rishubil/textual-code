@@ -1885,7 +1885,13 @@ class TextualCode(App):
 
         @work(thread=True, exit_on_error=False, exclusive=True, group="dir_size_check")
         def _calc_and_check(self_: "TextualCode") -> None:
+            from textual.worker import get_current_worker
+
+            worker = get_current_worker()
             total, count = self_._calc_dir_size(path, threshold)
+
+            if worker.is_cancelled:
+                return
 
             def _show_or_proceed() -> None:
                 self_.log.info(
