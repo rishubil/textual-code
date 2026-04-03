@@ -28,6 +28,7 @@ from pathlib import Path
 
 from tests.conftest import make_app
 from textual_code.modals import UnsavedChangeModalScreen
+from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 from textual_code.widgets.split_tree import all_leaves
 
@@ -73,6 +74,20 @@ def _position_based_config(workspace: Path) -> Path:
     cfg = workspace / "_test_position_close.toml"
     cfg.write_text("[editor]\nclose_tab_focus_recent = false\n")
     return cfg
+
+
+def _assert_editor_focused(app, pane_id: str) -> None:
+    """Assert that the CodeEditor's TextArea in *pane_id* has keyboard focus."""
+    focused = app.focused
+    assert focused is not None, "No widget has focus after closing tab"
+    tc = app.main_view.tabbed_content
+    active_pane = tc.get_pane(pane_id)
+    editors = active_pane.query(CodeEditor)
+    assert editors, "Active pane has no CodeEditor"
+    editor_widget = editors.first(CodeEditor).editor
+    assert focused is editor_widget, (
+        f"Expected focus on editor in pane {pane_id}, but focused widget is {focused!r}"
+    )
 
 
 # ── Position-based activation after close ─────────────────────────────────────
@@ -1351,3 +1366,76 @@ async def test_mru_close_only_tab(workspace: Path):
         await app.main_view.action_close_code_editor(pane_id)
         await pilot.wait_for_scheduled_animations()
         assert _tab_count(app) == 0
+
+
+async def test_close_tab_focuses_previous_editor(workspace: Path):
+    """Closing the active tab focuses the editor in the newly activated tab.
+
+    After closing a tab, the user should be able to type immediately without
+    clicking on the editor area — the CodeEditor's TextArea in the MRU-next
+    tab must receive keyboard focus.
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        assert _active_pane(app) == pane_ids[2]
+
+        # Close file3 → file2 should activate AND receive focus
+        await app.main_view.action_close_code_editor(pane_ids[2])
+        await pilot.wait_for_scheduled_animations()
+        assert _active_pane(app) == pane_ids[1]
+        _assert_editor_focused(app, pane_ids[1])
+
+
+async def test_close_tab_focuses_editor_position_based(workspace: Path):
+    """Closing the active tab focuses the editor (position-based mode).
+
+    With close_tab_focus_recent=false, closing a tab activates the next tab
+    to the right (or left if rightmost). The editor in that tab must receive
+    keyboard focus.
+    """
+    app = make_app(
+        workspace, light=True, user_config_path=_position_based_config(workspace)
+    )
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        tc = app.main_view.tabbed_content
+        tc.active = pane_ids[0]
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        assert _active_pane(app) == pane_ids[0]
+
+        # Close file1 → file2 should activate AND receive focus
+        await app.main_view.action_close_code_editor(pane_ids[0])
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        assert _active_pane(app) == pane_ids[1]
+        _assert_editor_focused(app, pane_ids[1])
+
+
+async def test_close_middle_tab_focuses_mru_editor(workspace: Path):
+    """Closing a middle tab after MRU reactivation focuses the MRU-next editor.
+
+    Open 3 files, reactivate file1 then file2 → MRU: [2, 1, 3].
+    Close file2 → file1 should activate AND receive keyboard focus.
+    """
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        pane_ids = await _open_n_files(app, pilot, workspace, 3)
+        tc = app.main_view.tabbed_content
+
+        # Reactivate file1, then file2 → MRU: [2, 1, 3]
+        tc.active = pane_ids[0]
+        await pilot.wait_for_scheduled_animations()
+        tc.active = pane_ids[1]
+        await pilot.wait_for_scheduled_animations()
+        assert _active_pane(app) == pane_ids[1]
+
+        # Close file2 → file1 active (MRU-next) AND focused
+        await app.main_view.action_close_code_editor(pane_ids[1])
+        await pilot.wait_for_scheduled_animations()
+        assert _active_pane(app) == pane_ids[0]
+        _assert_editor_focused(app, pane_ids[0])
