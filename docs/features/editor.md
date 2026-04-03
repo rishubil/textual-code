@@ -90,7 +90,7 @@ When saving (Ctrl+S), if the file's `mtime` on disk differs from the last known 
 - Save As rejects paths that already exist (no overwrite option in Save As).
 - Untitled files are skipped by Save All.
 
-**Implementation:** `code_editor.py`, `main_view.py`, `app.py`, `modals.py`, `utils.py`
+**Implementation:** `code_editor.py`, `main_view.py`, `app.py`, `modals/file_ops.py`, `utils.py`
 
 ### Quit and Double Ctrl+Q Force Quit
 
