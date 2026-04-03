@@ -177,7 +177,7 @@ class TestGetGitHeadContent:
         """Returns None when git binary is not found."""
         f = tmp_path / "file.py"
         f.write_text("# test\n")
-        with patch("textual_code.widgets.code_editor._git_bin", None):
+        with patch("textual_code.widgets.code_editor_git._git_bin", None):
             result = _get_git_head_content(f)
         assert result is None
 

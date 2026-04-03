@@ -54,9 +54,6 @@ from textual_code.widgets.code_editor_git import (
 from textual_code.widgets.code_editor_git import (
     _get_git_head_content as _get_git_head_content,
 )
-from textual_code.widgets.code_editor_git import (
-    _git_bin as _git_bin,
-)
 from textual_code.widgets.code_editor_grammar import (
     _CUSTOM_GRAMMAR_NAMES as _CUSTOM_GRAMMAR_NAMES,
 )
