@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from bisect import bisect_right
+from bisect import bisect_left, bisect_right
 from collections import defaultdict
 from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar, Literal
@@ -45,10 +45,14 @@ def _offset_to_loc(
     offset: int, lines: list[str], offsets: list[int]
 ) -> tuple[int, int]:
     """Convert flat text offset to (row, col) using pre-built prefix sum."""
-    for r in range(len(lines) - 1, -1, -1):
-        if offsets[r] <= offset:
-            return (r, offset - offsets[r])
-    return (0, offset)
+    r = bisect_right(offsets, offset) - 1
+    return (r, offset - offsets[r])
+
+
+def _range_has_element(sorted_list: list[int], start: int, end: int) -> bool:
+    """Return True if any element in *sorted_list* falls in [start, end)."""
+    idx = bisect_left(sorted_list, start)
+    return idx < len(sorted_list) and sorted_list[idx] < end
 
 
 # ── Key classification helpers ─────────────────────────────────────────────────
@@ -276,6 +280,11 @@ MultiCursorTextArea {
         self._line_changes: dict[int, LineChangeType] = {}
         self._show_indentation_guides: bool = True
         self._render_whitespace: str = "none"
+        self._overlay_fg_cache: dict[tuple[str, bool], Color | None] = {}
+
+    def notify_style_update(self) -> None:
+        self._overlay_fg_cache.clear()
+        super().notify_style_update()
 
     # ── git gutter API ───────────────────────────────────────────────────────
 
@@ -330,12 +339,15 @@ MultiCursorTextArea {
         Uses a higher-contrast variant when *line_index* is the cursor line
         so that markers remain visible against the cursor-line background.
         """
+        cache_key = (feature, self._is_cursor_line(line_index))
+        if cache_key in self._overlay_fg_cache:
+            return self._overlay_fg_cache[cache_key]
         cls = (
-            f"text-area--{feature}-active"
-            if self._is_cursor_line(line_index)
-            else f"text-area--{feature}"
+            f"text-area--{feature}-active" if cache_key[1] else f"text-area--{feature}"
         )
-        return self.get_component_rich_style(cls).color
+        color = self.get_component_rich_style(cls).color
+        self._overlay_fg_cache[cache_key] = color
+        return color
 
     # ── rendering pipeline ───────────────────────────────────────────────────
 
@@ -501,6 +513,7 @@ MultiCursorTextArea {
         if not render_cols:
             return strip
 
+        sorted_cols = sorted(render_cols)
         gutter_width = self.gutter_width if self.show_line_numbers else 0
         scroll_x = self.scroll_offset.x if not self.soft_wrap else 0
         ws_fg = self._overlay_fg(line_index, feature="whitespace")
@@ -517,8 +530,8 @@ MultiCursorTextArea {
             content_end = seg_end - gutter_width + scroll_x
 
             # Fast path: segment entirely outside render region
-            if cell_pos < gutter_width or not any(
-                content_start <= c < content_end for c in render_cols
+            if cell_pos < gutter_width or not _range_has_element(
+                sorted_cols, content_start, content_end
             ):
                 new_segments.append(seg)
                 cell_pos = seg_end
@@ -563,7 +576,8 @@ MultiCursorTextArea {
         if leading_spaces < indent_width:
             return strip
 
-        guide_positions = set(range(0, leading_spaces, indent_width))
+        guide_positions_sorted = list(range(0, leading_spaces, indent_width))
+        guide_positions = set(guide_positions_sorted)
         gutter_width = self.gutter_width if self.show_line_numbers else 0
         scroll_x = self.scroll_offset.x if not self.soft_wrap else 0
 
@@ -581,8 +595,8 @@ MultiCursorTextArea {
             content_start = cell_pos - gutter_width + scroll_x
             content_end = seg_end - gutter_width + scroll_x
 
-            if cell_pos < gutter_width or not any(
-                content_start <= p < content_end for p in guide_positions
+            if cell_pos < gutter_width or not _range_has_element(
+                guide_positions_sorted, content_start, content_end
             ):
                 new_segments.append(seg)
                 cell_pos = seg_end

@@ -9,7 +9,8 @@ def is_binary_file(path: Path) -> bool:
     Returns False on any read error.
     """
     try:
-        raw = path.read_bytes()
+        with open(path, "rb") as f:
+            chunk = f.read(8192)
     except OSError:
         return False
-    return b"\x00" in raw[:8192]
+    return b"\x00" in chunk
