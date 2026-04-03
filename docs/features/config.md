@@ -251,9 +251,9 @@ Settings are merged in this order (later overrides earlier):
 2. User config file
 3. Project config file
 
-### Settings keys (14 keys)
+### Settings keys (20 keys)
 
-All settings live under the `[editor]` TOML table: `indent_type`, `indent_size`, `line_ending`, `encoding`, `syntax_theme`, `word_wrap`, `ui_theme`, `warn_line_ending`, `show_hidden_files`, `dim_gitignored`, `dim_hidden_files`, `show_git_status`, `path_display_mode`, `sidebar_width`.
+All settings live under the `[editor]` TOML table: `indent_type`, `indent_size`, `line_ending`, `encoding`, `syntax_theme`, `word_wrap`, `ui_theme`, `warn_line_ending`, `show_hidden_files`, `dim_gitignored`, `dim_hidden_files`, `show_git_status`, `show_indentation_guides`, `render_whitespace`, `path_display_mode`, `sidebar_width`, `large_file_threshold`, `large_dir_operation_threshold`, `close_tab_focus_recent`, `compact_folders`.
 
 ### Opening settings files
 

@@ -368,3 +368,51 @@ class LargeFileConfirmModalScreen(ModalScreen[LargeFileConfirmModalResult]):
     @on(Button.Pressed, "#cancel")
     def action_cancel(self) -> None:
         self.dismiss(LargeFileConfirmModalResult(action="cancel"))
+
+
+@dataclass
+class LargeDirWarningModalResult:
+    """Result of the large directory warning dialog."""
+
+    should_proceed: bool
+
+
+class LargeDirWarningModalScreen(ModalScreen[LargeDirWarningModalResult]):
+    """Warning dialog shown before operating on a large directory."""
+
+    BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
+
+    def __init__(
+        self,
+        dir_name: str,
+        total_size: int,
+        file_count: int,
+        operation: str,
+    ) -> None:
+        super().__init__()
+        self._dir_name = dir_name
+        self._total_size = total_size
+        self._file_count = file_count
+        self._operation = operation
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label("Large directory", id="title"),
+            Label(
+                f"{self._operation} '{self._dir_name}' "
+                f"({_format_file_size(self._total_size)}, "
+                f"{self._file_count:,} files) may take a while.",
+                id="message",
+            ),
+            Button("Continue", variant="warning", id="continue"),
+            Button("Cancel", variant="default", id="cancel"),
+            id="dialog",
+        )
+
+    @on(Button.Pressed, "#continue")
+    def on_continue(self) -> None:
+        self.dismiss(LargeDirWarningModalResult(should_proceed=True))
+
+    @on(Button.Pressed, "#cancel")
+    def action_cancel(self) -> None:
+        self.dismiss(LargeDirWarningModalResult(should_proceed=False))

@@ -1,6 +1,7 @@
 import asyncio
 import concurrent.futures
 import logging
+import os
 import threading
 import time
 import weakref
@@ -470,6 +471,9 @@ class TextualCode(App):
                 )
         self.default_large_file_threshold: int = int(
             settings.get("large_file_threshold", 5_242_880)
+        )
+        self.default_large_dir_threshold: int = int(
+            settings.get("large_dir_operation_threshold", 104_857_600)
         )
         self.default_close_tab_focus_recent: bool = bool(
             settings.get("close_tab_focus_recent", True)
@@ -1799,11 +1803,15 @@ class TextualCode(App):
             self.notify(f"Moved to '{new_relative}'", severity="information")
 
         if is_directory:
-            self._do_file_op(
-                f"Moving '{path.name}'",
-                lambda: shutil.move(str(path), str(new_path)),
-                on_success=_move_success,
-            )
+
+            def _do_move() -> None:
+                self._do_file_op(
+                    f"Moving '{path.name}'",
+                    lambda: shutil.move(str(path), str(new_path)),
+                    on_success=_move_success,
+                )
+
+            self._check_dir_size_and_proceed(path, "Move", _do_move)
         else:
             # Single file move — typically fast
             try:
@@ -1813,6 +1821,98 @@ class TextualCode(App):
                 self.notify(f"Error moving: {e}", severity="error")
                 return
             _move_success()
+
+    # ── Directory size check ─────────────────────────────────────────
+
+    @staticmethod
+    def _calc_dir_size(path: Path, threshold: int = 0) -> tuple[int, int]:
+        """Calculate total size and file count for a directory.
+
+        Args:
+            path: Directory to scan.
+            threshold: When > 0, stop scanning once total exceeds this value.
+
+        Returns:
+            (total_bytes, file_count) tuple.
+        """
+        total = 0
+        count = 0
+        for dirpath, _dirnames, filenames in os.walk(
+            path, followlinks=False, onerror=lambda _e: None
+        ):
+            for fname in filenames:
+                try:
+                    total += os.path.getsize(os.path.join(dirpath, fname))
+                except OSError:
+                    continue
+                count += 1
+                if threshold > 0 and total > threshold:
+                    return total, count
+        return total, count
+
+    def _check_dir_size_and_proceed(
+        self,
+        path: Path,
+        operation: Literal["Delete", "Move", "Copy"],
+        proceed: Callable[[], None],
+    ) -> None:
+        """Check directory size and show a warning modal if over threshold.
+
+        Runs the size calculation in a background thread. If the directory
+        exceeds the threshold, a confirmation modal is shown. The *proceed*
+        callback is invoked only when the user approves or the size is below
+        the threshold.
+
+        Args:
+            path: Directory path to check.
+            operation: Human-readable label like "Delete", "Move", "Copy".
+            proceed: Callback to invoke when the user approves or size is
+                     below threshold.
+        """
+        from textual_code.modals.file_ops import (
+            LargeDirWarningModalResult,
+            LargeDirWarningModalScreen,
+        )
+
+        threshold = self.default_large_dir_threshold
+        if threshold <= 0:
+            proceed()
+            return
+
+        if not path.is_dir():
+            proceed()
+            return
+
+        @work(thread=True, exit_on_error=False, exclusive=True, group="dir_size_check")
+        def _calc_and_check(self_: "TextualCode") -> None:
+            total, count = self_._calc_dir_size(path, threshold)
+
+            def _show_or_proceed() -> None:
+                self_.log.info(
+                    "dir size check: %s = %d bytes, %d files (threshold: %d)",
+                    path.name,
+                    total,
+                    count,
+                    threshold,
+                )
+                if total > threshold:
+
+                    def _on_warning_result(
+                        result: LargeDirWarningModalResult | None,
+                    ) -> None:
+                        if result is not None and result.should_proceed:
+                            proceed()
+
+                    self_.push_screen(
+                        LargeDirWarningModalScreen(path.name, total, count, operation),
+                        _on_warning_result,
+                    )
+                else:
+                    proceed()
+
+            self_.app.call_from_thread(_show_or_proceed)
+
+        _calc_and_check(self)
 
     # ── Async file operations ──────────────────────────────────────────
 
@@ -1880,6 +1980,7 @@ class TextualCode(App):
         """Cancel any in-progress file operation."""
         label = self._current_file_op_label
         self.workers.cancel_group(self, "file_ops")
+        self.workers.cancel_group(self, "dir_size_check")
         msg = f"Cancelled: {label}" if label else "File operation cancelled."
         self.notify(msg, severity="warning")
 
@@ -1908,12 +2009,15 @@ class TextualCode(App):
             _post_delete()
             return
 
-        # Directory delete — async worker
-        self._do_file_op(
-            f"Deleting '{path.name}'",
-            lambda: shutil.rmtree(path),
-            on_success=_post_delete,
-        )
+        def _do_delete() -> None:
+            self._do_file_op(
+                f"Deleting '{path.name}'",
+                lambda: shutil.rmtree(path),
+                on_success=_post_delete,
+            )
+
+        # Directory delete — check size, then async worker
+        self._check_dir_size_and_proceed(path, "Delete", _do_delete)
 
     def _update_open_tabs_after_rename(
         self, old_path: Path, new_path: Path, is_directory: bool
@@ -2114,11 +2218,15 @@ class TextualCode(App):
                 self.notify(f"Copied to '{dest_relative}'", severity="information")
 
             if is_directory:
-                self._do_file_op(
-                    f"Copying '{source_path.name}'",
-                    lambda: shutil.copytree(str(source_path), str(dest_path)),
-                    on_success=_copy_success,
-                )
+
+                def _do_copy() -> None:
+                    self._do_file_op(
+                        f"Copying '{source_path.name}'",
+                        lambda: shutil.copytree(str(source_path), str(dest_path)),
+                        on_success=_copy_success,
+                    )
+
+                self._check_dir_size_and_proceed(source_path, "Copy", _do_copy)
             else:
                 # Single file copy — instant
                 try:
@@ -2132,9 +2240,6 @@ class TextualCode(App):
                 _copy_success()
 
         else:  # cut
-            # Optimistic clipboard clear — restore on failure
-            saved_clipboard = self._file_clipboard
-            self._file_clipboard = None
 
             def _cut_success() -> None:
                 self._update_open_tabs_after_rename(
@@ -2145,20 +2250,26 @@ class TextualCode(App):
 
             if is_directory:
 
-                def _cut_op() -> None:
-                    shutil.move(str(source_path), str(dest_path))
+                def _do_cut() -> None:
+                    # Clipboard clear deferred until after size warning confirmation
+                    saved_clipboard = self._file_clipboard
+                    self._file_clipboard = None
 
-                def _cut_fail_restore() -> None:
-                    self._file_clipboard = saved_clipboard
+                    def _cut_fail_restore() -> None:
+                        self._file_clipboard = saved_clipboard
 
-                self._do_file_op(
-                    f"Moving '{source_path.name}'",
-                    _cut_op,
-                    on_success=_cut_success,
-                    on_error=_cut_fail_restore,
-                )
+                    self._do_file_op(
+                        f"Moving '{source_path.name}'",
+                        lambda: shutil.move(str(source_path), str(dest_path)),
+                        on_success=_cut_success,
+                        on_error=_cut_fail_restore,
+                    )
+
+                self._check_dir_size_and_proceed(source_path, "Move", _do_cut)
             else:
                 # Single file cut — instant
+                saved_clipboard = self._file_clipboard
+                self._file_clipboard = None
                 try:
                     shutil.move(str(source_path), str(dest_path))
                 except Exception as e:

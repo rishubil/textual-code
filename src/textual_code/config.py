@@ -27,6 +27,7 @@ EDITOR_KEYS = {
     "sidebar_width",
     "compact_folders",
     "large_file_threshold",
+    "large_dir_operation_threshold",
     "close_tab_focus_recent",
 }
 
@@ -49,6 +50,7 @@ DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "sidebar_width": 28,
     "compact_folders": True,
     "large_file_threshold": 5_242_880,
+    "large_dir_operation_threshold": 104_857_600,  # 100 MB
     "close_tab_focus_recent": True,
 }
 
