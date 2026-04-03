@@ -4,14 +4,14 @@ import logging
 import threading
 import time
 import weakref
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from concurrent.futures.thread import _worker as _executor_worker
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from typing import Any, Literal, cast
 
-from textual import events, on
+from textual import events, on, work
 from textual.app import App, ComposeResult, SystemCommand
 from textual.binding import Binding, BindingType
 from textual.command import (
@@ -478,6 +478,9 @@ class TextualCode(App):
 
         # File clipboard for copy/cut/paste in explorer
         self._file_clipboard: tuple[Literal["copy", "cut"], Path] | None = None
+
+        # Label of the currently running file operation (for cancel notification)
+        self._current_file_op_label: str = ""
 
         # load and apply custom keybindings and display preferences
         kb_path = get_keybindings_path(user_config_path) if user_config_path else None
@@ -1783,22 +1786,137 @@ class TextualCode(App):
             )
             return
 
-        try:
-            new_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.move(str(path), str(new_path))
-        except Exception as e:
-            self.log.warning("Move failed: %s → %s: %s", path, new_path, e)
-            self.notify(f"Error moving: {e}", severity="error")
-            return
+        new_path.parent.mkdir(parents=True, exist_ok=True)
 
-        self._update_open_tabs_after_rename(path, new_path, is_directory)
-        self.action_refresh_explorer()
         try:
             new_relative = str(new_path.relative_to(self.workspace_path))
         except ValueError:
             new_relative = str(new_path)
-        self.log.info("Moved: %s → %s", path, new_path)
-        self.notify(f"Moved to '{new_relative}'", severity="information")
+
+        def _move_success() -> None:
+            self._update_open_tabs_after_rename(path, new_path, is_directory)
+            self.action_refresh_explorer()
+            self.notify(f"Moved to '{new_relative}'", severity="information")
+
+        if is_directory:
+            self._do_file_op(
+                f"Moving '{path.name}'",
+                lambda: shutil.move(str(path), str(new_path)),
+                on_success=_move_success,
+            )
+        else:
+            # Single file move — typically fast
+            try:
+                shutil.move(str(path), str(new_path))
+            except Exception as e:
+                self.log.warning("Move failed: %s → %s: %s", path, new_path, e)
+                self.notify(f"Error moving: {e}", severity="error")
+                return
+            _move_success()
+
+    # ── Async file operations ──────────────────────────────────────────
+
+    @work(thread=True, exclusive=True, group="file_ops", exit_on_error=False)
+    def _do_file_op(
+        self,
+        label: str,
+        op: Callable[[], None],
+        on_success: Callable[[], None] | None = None,
+        on_error: Callable[[], None] | None = None,
+    ) -> None:
+        """Run a file operation in a background thread.
+
+        Args:
+            label: Human-readable label like "Deleting 'mydir'".
+            op: The blocking callable (shutil.rmtree, etc.).
+            on_success: Callback to run on main thread after success.
+            on_error: Callback to run on main thread after failure or cancel.
+        """
+        from textual.worker import get_current_worker
+
+        worker = get_current_worker()
+
+        def _safe_call(fn: Callable[..., object], *args: object) -> None:
+            try:
+                self.app.call_from_thread(fn, *args)
+            except RuntimeError as exc:
+                if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
+                    raise
+                _logger.debug("call_from_thread suppressed (app exiting): %s", exc)
+
+        self._current_file_op_label = label
+        self.log.info("file_op started: %s", label)
+        _safe_call(self.notify, f"{label}...")
+
+        try:
+            op()
+        except Exception as e:
+            if not worker.is_cancelled:
+                self.log.error("file_op failed: %s: %s", label, e)
+                _safe_call(
+                    self.notify,
+                    f"Error: {e}. Partial files may remain.",
+                    "error",
+                )
+            if on_error is not None:
+                _safe_call(on_error)
+            return
+        finally:
+            self._current_file_op_label = ""
+
+        if worker.is_cancelled:
+            self.log.warning("file_op cancelled: %s", label)
+            _safe_call(
+                self.notify,
+                f"Cancelled: {label}. Partial files may remain.",
+                "warning",
+            )
+            if on_error is not None:
+                _safe_call(on_error)
+            return
+
+        self.log.info("file_op completed: %s", label)
+        if on_success is not None:
+            _safe_call(on_success)
+
+    def action_cancel_file_operation(self) -> None:
+        """Cancel any in-progress file operation."""
+        label = self._current_file_op_label
+        self.workers.cancel_group(self, "file_ops")
+        msg = f"Cancelled: {label}" if label else "File operation cancelled."
+        self.notify(msg, severity="warning")
+
+    def _execute_delete(self, path: Path) -> None:
+        """Shared delete logic for explorer and command palette handlers."""
+        import shutil
+
+        is_dir = path.is_dir()
+
+        def _post_delete() -> None:
+            pane_id = self.main_view.pane_id_from_path(path)
+            if pane_id:
+                self.call_next(
+                    partial(self.main_view.action_close_code_editor, pane_id)
+                )
+            self.action_refresh_explorer()
+            self.notify(f"Deleted: {path.name}", severity="information")
+
+        if not is_dir:
+            # Single file delete — instant, keep synchronous
+            try:
+                path.unlink()
+            except Exception as e:
+                self.notify(f"Error deleting: {e}", severity="error")
+                return
+            _post_delete()
+            return
+
+        # Directory delete — async worker
+        self._do_file_op(
+            f"Deleting '{path.name}'",
+            lambda: shutil.rmtree(path),
+            on_success=_post_delete,
+        )
 
     def _update_open_tabs_after_rename(
         self, old_path: Path, new_path: Path, is_directory: bool
@@ -1872,30 +1990,12 @@ class TextualCode(App):
     def on_delete_path_with_palette_requested(
         self, event: DeletePathWithPaletteRequested
     ) -> None:
-        import shutil
-
         path = event.path
 
         def do_delete(result: DeleteFileModalResult | None) -> None:
             if not result or result.is_cancelled or not result.should_delete:
                 return
-            try:
-                if path.is_dir():
-                    shutil.rmtree(path)
-                else:
-                    path.unlink()
-            except Exception as e:
-                self.notify(f"Error deleting: {e}", severity="error")
-                return
-
-            pane_id = self.main_view.pane_id_from_path(path)
-            if pane_id:
-                self.call_next(
-                    partial(self.main_view.action_close_code_editor, pane_id)
-                )
-
-            self.action_refresh_explorer()
-            self.notify(f"Deleted: {path.name}", severity="information")
+            self._execute_delete(path)
 
         self.push_screen(DeleteFileModalScreen(path), do_delete)
 
@@ -1903,31 +2003,12 @@ class TextualCode(App):
     def on_explorer_file_delete_requested(
         self, event: Explorer.FileDeleteRequested
     ) -> None:
-        import shutil
-
         path = event.path
 
         def do_delete(result: DeleteFileModalResult | None) -> None:
             if not result or result.is_cancelled or not result.should_delete:
                 return
-            try:
-                if path.is_dir():
-                    shutil.rmtree(path)
-                else:
-                    path.unlink()
-            except Exception as e:
-                self.notify(f"Error deleting: {e}", severity="error")
-                return
-
-            # close the tab if the deleted file is open
-            pane_id = self.main_view.pane_id_from_path(path)
-            if pane_id:
-                self.call_next(
-                    partial(self.main_view.action_close_code_editor, pane_id)
-                )
-
-            self.action_refresh_explorer()
-            self.notify(f"Deleted: {path.name}", severity="information")
+            self._execute_delete(path)
 
         self.push_screen(DeleteFileModalScreen(path), do_delete)
 
@@ -2025,33 +2106,72 @@ class TextualCode(App):
         self.log.info("Paste %s: %s → %s", operation, source_path, dest_path)
 
         try:
-            if operation == "copy":
-                if is_directory:
-                    shutil.copytree(str(source_path), str(dest_path))
-                else:
-                    shutil.copy2(str(source_path), str(dest_path))
-                # Copy keeps clipboard intact (can paste again)
-            else:  # cut
-                shutil.move(str(source_path), str(dest_path))
-                self._update_open_tabs_after_rename(
-                    source_path, dest_path, is_directory
-                )
-                self._file_clipboard = None
-        except Exception as e:
-            self.log.warning("Paste failed: %s → %s: %s", source_path, dest_path, e)
-            self.notify(f"Error pasting: {e}", severity="error")
-            return
-
-        self.action_refresh_explorer()
-        try:
             dest_relative = str(dest_path.relative_to(self.workspace_path))
         except ValueError:
             dest_relative = str(dest_path)
 
         if operation == "copy":
-            self.notify(f"Copied to '{dest_relative}'", severity="information")
-        else:
-            self.notify(f"Moved to '{dest_relative}'", severity="information")
+
+            def _copy_success() -> None:
+                self.action_refresh_explorer()
+                self.notify(f"Copied to '{dest_relative}'", severity="information")
+
+            if is_directory:
+                self._do_file_op(
+                    f"Copying '{source_path.name}'",
+                    lambda: shutil.copytree(str(source_path), str(dest_path)),
+                    on_success=_copy_success,
+                )
+            else:
+                # Single file copy — instant
+                try:
+                    shutil.copy2(str(source_path), str(dest_path))
+                except Exception as e:
+                    self.log.warning(
+                        "Paste failed: %s → %s: %s", source_path, dest_path, e
+                    )
+                    self.notify(f"Error pasting: {e}", severity="error")
+                    return
+                _copy_success()
+
+        else:  # cut
+            # Optimistic clipboard clear — restore on failure
+            saved_clipboard = self._file_clipboard
+            self._file_clipboard = None
+
+            def _cut_success() -> None:
+                self._update_open_tabs_after_rename(
+                    source_path, dest_path, is_directory
+                )
+                self.action_refresh_explorer()
+                self.notify(f"Moved to '{dest_relative}'", severity="information")
+
+            if is_directory:
+
+                def _cut_op() -> None:
+                    shutil.move(str(source_path), str(dest_path))
+
+                def _cut_fail_restore() -> None:
+                    self._file_clipboard = saved_clipboard
+
+                self._do_file_op(
+                    f"Moving '{source_path.name}'",
+                    _cut_op,
+                    on_success=_cut_success,
+                    on_error=_cut_fail_restore,
+                )
+            else:
+                # Single file cut — instant
+                try:
+                    shutil.move(str(source_path), str(dest_path))
+                except Exception as e:
+                    self._file_clipboard = saved_clipboard
+                    self.log.warning(
+                        "Paste failed: %s → %s: %s", source_path, dest_path, e
+                    )
+                    self.notify(f"Error pasting: {e}", severity="error")
+                    return
+                _cut_success()
 
     @on(MainView.ActiveFileChanged)
     def on_active_file_changed(self, event: MainView.ActiveFileChanged) -> None:

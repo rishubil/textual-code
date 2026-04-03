@@ -296,7 +296,17 @@ Provides visual file navigation, file/folder management, and quick access to wor
 - File/folder renaming opens a modal pre-filled with the current name, with the filename stem (before the extension) pre-selected. Renaming a directory updates the paths of all open tabs under that directory. Path separator characters are rejected to prevent accidental file moves.
 - File/folder moving opens a command palette showing all workspace directories with fuzzy search, including dot-prefixed directories (e.g. `.github/`, `.vscode/`) but excluding `.git` directories and their subtrees. The user selects a destination folder and the file or directory is moved there, keeping its original name. The workspace root is listed as `"."`. Moving a directory updates the paths of all open tabs under that directory. Destination must be within the workspace boundary.
 - File/folder copy/cut/paste uses an app-level file clipboard. Copy (`Ctrl+C`) stores the selected path; the clipboard persists so the user can paste multiple times. Cut (`Ctrl+X`) stores the path and clears the clipboard after paste. Paste (`Ctrl+V`) duplicates (copy) or moves (cut) the file/folder into the currently selected directory. Name conflicts are auto-resolved with a " copy" suffix (e.g. `file.py` → `file copy.py` → `file copy 2.py`). Cutting an open file updates the editor tab path. Pasting a directory into itself is prevented. These bindings only activate when the Explorer has focus; when the editor has focus, `Ctrl+C/X/V` perform text copy/cut/paste as usual.
-- Also accessible via command palette: "New File...", "New Folder...", "Delete File or Directory", "Rename File or Directory...", "Rename...", "Move File...", "Move File or Directory...", "Copy File or Directory", "Cut File or Directory", "Paste File or Directory".
+- Also accessible via command palette: "New File...", "New Folder...", "Delete File or Directory", "Rename File or Directory...", "Rename...", "Move File...", "Move File or Directory...", "Copy File or Directory", "Cut File or Directory", "Paste File or Directory", "Cancel File Operation".
+
+**Async directory operations:**
+
+- Directory-level copy (`shutil.copytree`), delete (`shutil.rmtree`), and move (`shutil.move`) run in a background thread worker so the UI remains responsive during large directory operations. Single file operations (unlink, copy2, rename) remain synchronous as they complete instantly.
+- A notification is shown when a directory operation starts (e.g. "Copying 'mydir'..."), followed by a success or error notification on completion.
+- "Cancel File Operation" in the command palette cancels any in-progress directory operation. The notification includes the operation name (e.g. "Cancelled: Moving 'mydir'"). Partial results may remain on disk after cancellation or failure.
+- Only one directory file operation runs at a time (`exclusive=True`). Starting a new operation implicitly cancels the previous one.
+- For cut-paste, the clipboard is cleared optimistically before the operation starts. If the operation fails or is cancelled, the clipboard is restored.
+
+**Implementation:** `app.py` (`_do_file_op`, `_execute_delete`, `action_cancel_file_operation`)
 
 **Hidden files:**
 
