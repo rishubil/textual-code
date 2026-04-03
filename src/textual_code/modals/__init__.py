@@ -69,6 +69,12 @@ from textual_code.modals.file_ops import (
     DiscardAndReloadModalScreen as DiscardAndReloadModalScreen,
 )
 from textual_code.modals.file_ops import (
+    LargeDirWarningModalResult as LargeDirWarningModalResult,
+)
+from textual_code.modals.file_ops import (
+    LargeDirWarningModalScreen as LargeDirWarningModalScreen,
+)
+from textual_code.modals.file_ops import (
     LargeFileConfirmModalResult as LargeFileConfirmModalResult,
 )
 from textual_code.modals.file_ops import (

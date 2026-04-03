@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Explorer**: warn before large directory operations — shows a confirmation dialog when a directory exceeds the configurable `large_dir_operation_threshold` (default 100 MB) before copy, delete, or move; displays total size and file count; size calculation runs in a background thread to avoid UI blocking; set to `0` to disable (#210)
 - **Performance**: directory copy, delete, and move now run in a background thread worker so the UI remains responsive during large directory operations; single-file operations stay synchronous; a "Cancel File Operation" command palette entry lets users cancel in-progress operations; progress and completion notifications are shown; cut-paste clipboard is restored on failure
 - **Search**: show `\1` backreference hint on Replace input when regex mode is active — placeholder changes to "Replace with... (\\1 for groups)" on both the in-editor Find/Replace bar and the workspace Search panel, helping VSCode users discover the correct Python `re.sub()` syntax (#168)
 - **Editor**: warn before opening very large files — shows a confirmation dialog when a file exceeds the configurable `large_file_threshold` (default 5 MB) with options to open normally, open without syntax highlighting, or cancel; prevents the UI from freezing on multi-megabyte files (#183)

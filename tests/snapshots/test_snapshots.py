@@ -396,6 +396,44 @@ def test_snapshot_large_file_confirm_modal(
     )
 
 
+def test_snapshot_large_dir_warning_modal(
+    snap_compare, snapshot_workspace: Path, snapshot_py_file: Path
+):
+    """LargeDirWarningModalScreen shown before a large directory operation."""
+    from textual_code.modals.file_ops import LargeDirWarningModalScreen
+    from textual_code.widgets.explorer import Explorer
+
+    bigdir = snapshot_workspace / "bigdir"
+    bigdir.mkdir()
+    for i in range(5):
+        (bigdir / f"file{i}.dat").write_bytes(b"x" * 200)
+
+    app = make_app(snapshot_workspace, open_file=snapshot_py_file)
+    app.default_large_dir_threshold = 100
+
+    async def trigger_large_dir_modal(pilot):
+        await pilot.wait_for_scheduled_animations()
+        assert app.sidebar is not None
+        explorer = app.sidebar.explorer
+        explorer.post_message(
+            Explorer.FileDeleteRequested(explorer=explorer, path=bigdir)
+        )
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        # Confirm the delete modal
+        await pilot.click("#delete")
+        # Wait for the large dir warning modal
+        from tests.conftest import wait_for_condition
+
+        await wait_for_condition(
+            pilot, lambda: isinstance(app.screen, LargeDirWarningModalScreen)
+        )
+
+    assert snap_compare(
+        app, run_before=trigger_large_dir_modal, terminal_size=TERMINAL_SIZE
+    )
+
+
 def test_snapshot_show_shortcuts_screen(snap_compare, snapshot_workspace: Path):
     """ShowShortcutsScreen (F1) is centered on screen."""
     app = make_app(snapshot_workspace)
