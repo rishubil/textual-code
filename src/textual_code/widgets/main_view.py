@@ -1001,12 +1001,22 @@ class MainView(Static):
         pane_id = await self.open_code_editor_pane(path, leaf_id=new_leaf.leaf_id)
         if not pane_id:
             return
-        # Ensure DOM focus moves to the new leaf's editor
+        # Ensure DOM focus moves to the new pane
         tc = self.query_one(f"#{new_leaf.leaf_id}", TabbedContent)
         tc.active = pane_id
-        editors = tc.get_pane(pane_id).query(CodeEditor)
+        new_pane = tc.get_pane(pane_id)
+        editors = new_pane.query(CodeEditor)
         if editors:
             editors.first(CodeEditor).editor.focus()
+        else:
+            # Non-CodeEditor pane (e.g. ImagePreviewPane): focus first focusable child
+            focusable = (
+                new_pane.query("*:can-focus").first()
+                if new_pane.query("*:can-focus")
+                else None
+            )
+            if focusable is not None:
+                focusable.focus()
 
     async def _mount_new_split(
         self, new_leaf: LeafNode, direction: str, position: str = "after"
