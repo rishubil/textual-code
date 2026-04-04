@@ -286,7 +286,7 @@ Tab drag-and-drop supports reordering tabs within the same split and moving tabs
 - The screen has `background: transparent`, so all pane content beneath is fully visible.
 - All mouse events and Enter/Leave events are forwarded to the screen below via `_forward_event`, ensuring drag-and-drop continues to function through the overlay.
 - Pre-creates `DropHighlight` instances for every `DraggableTabbedContent` found at push time, keyed by their DOM ID.
-- A cache (`_highlight_state`) tracks `(region, mode)` per DTC to skip redundant style updates.
+- A cache (`_highlight_state`) tracks `(region, mode, tab_count)` per DTC to skip redundant style updates.
 
 ### Drop hint box
 
@@ -294,7 +294,7 @@ Tab drag-and-drop supports reordering tabs within the same split and moving tabs
 - It is absolutely positioned within the overlay screen.
 - Two display modes:
   - **Full-pane drop** (`"full"` mode): shows `"Move to this pane"`, centered within the target DTC's region.
-  - **Edge-zone drop** (`"edge-<direction>"` mode): shows a directional label (`"Split left"`, `"Split right"`, `"Split up"`, `"Split down"`), positioned near the corresponding edge rather than centered. This gives a clear visual cue about where the new split will appear.
+  - **Edge-zone drop** (`"edge-<direction>"` mode): shows a context-aware directional label positioned near the corresponding edge. The label includes a suffix indicating the operation — `"Split right — move"` when the source pane has multiple tabs, or `"Split right — clone"` when it has only one tab. The suffix is determined by `tab_count` passed from `show_edge_overlay()` (cached at drag start for efficiency).
 - The hint box is hidden (`display: none`) by default and shown (`display: block`) only when the cursor enters a valid drop zone.
 
 ### Edge zone detection
@@ -316,7 +316,9 @@ Tab drag-and-drop supports reordering tabs within the same split and moving tabs
 
 - Dropping a tab onto a different `DraggableTabbedContent` moves the tab to that split.
 - The `TabMovedToOtherSplit` message carries `source_pane_id`, `target_pane_id`, `target_dtc_id`, and `split_direction`.
-- Edge-zone drops with no adjacent leaf create a new split in the requested direction, provided the source split has at least 2 tabs (last tab is protected).
+- Edge-zone drops with no adjacent leaf create a new split in the requested direction:
+  - **Multi-tab source**: the dragged tab is moved to the new split (original behavior).
+  - **Single-tab source**: the tab is cloned (the same file is opened in the new split via `_do_split`), keeping the original pane intact. This matches VS Code's behavior.
 
 ### Active tab underline sync
 
@@ -329,7 +331,7 @@ Tab drag-and-drop supports reordering tabs within the same split and moving tabs
 - No multi-tab drag selection (only one tab can be dragged at a time).
 - No drag to external applications or OS-level drag-and-drop.
 - No visual preview of the tab content during drag.
-- The last tab in a split cannot be edge-dragged out to create a new split (the split would become empty).
+- Edge-dragging the only tab in a split clones it rather than moving it; the clone opens the same file in a new split without leaving the source pane empty.
 
 **Implementation:** `widgets/draggable_tabs_content.py` (classes `DropHintBox`, `DropHighlight`, `DropTargetScreen`, `DraggableTabbedContent`), `style.tcss` (`Tab.-dragging` styles), `widgets/main_view.py` (`on_tab_moved_to_other_split` handler)
 

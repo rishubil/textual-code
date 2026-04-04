@@ -687,6 +687,53 @@ async def test_on_mouse_up_at_screen_edge_with_edge_direction():
         assert dtc._drag_pane_id is None
 
 
+async def test_edge_label_includes_move_suffix_multi_tab():
+    """Edge label includes 'move' suffix when tab_count >= 2."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.wait_for_scheduled_animations()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        screen = await _push_overlay(app, pilot)
+        screen.show_highlight(dtc.id, dtc.region, "edge-right", tab_count=2)
+        hint = screen._highlights[dtc.id].hint
+        await pilot.wait_for_scheduled_animations()
+        rendered = str(hint.render())
+        assert "move" in rendered
+        assert "clone" not in rendered
+
+
+async def test_edge_label_includes_clone_suffix_single_tab():
+    """Edge label includes 'clone' suffix when tab_count == 1."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.wait_for_scheduled_animations()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        screen = await _push_overlay(app, pilot)
+        screen.show_highlight(dtc.id, dtc.region, "edge-right", tab_count=1)
+        hint = screen._highlights[dtc.id].hint
+        await pilot.wait_for_scheduled_animations()
+        rendered = str(hint.render())
+        assert "clone" in rendered
+        assert "move" not in rendered
+
+
+async def test_show_edge_overlay_passes_tab_count():
+    """show_edge_overlay passes cached tab count to overlay screen."""
+    app = EdgeZoneApp()
+    async with app.run_test(size=(80, 24)) as pilot:
+        await pilot.wait_for_scheduled_animations()
+        dtc = app.query_one("#dtc", DraggableTabbedContent)
+        screen = await _push_overlay(app, pilot)
+        # Simulate drag start: cache tab count
+        dtc._drag_tab_count = 1
+        dtc.show_edge_overlay("right")
+        cached = screen._highlight_state.get(dtc.id)
+        assert cached is not None
+        # Cache should include tab_count=1
+        assert len(cached) == 3
+        assert cached[2] == 1
+
+
 async def test_on_mouse_up_at_screen_edge_resets_drag_state():
     """on_mouse_up at screen edge properly resets all drag state."""
     app = EdgeZoneApp()

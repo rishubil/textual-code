@@ -1612,8 +1612,25 @@ class MainView(Static):
         if dest_leaf is None or dest_leaf is source_leaf:
             # Edge zone drag with no adjacent leaf → create new split
             if event.target_pane_id is None and event.target_dtc_id is None:
-                # Guard: don't create split from single-tab leaf
+                # Single-tab leaf: clone the tab into a new split
                 if len(source_leaf.pane_ids) < 2:
+                    direction = event.split_direction or "right"
+                    path = next(
+                        (
+                            p
+                            for p, pid in source_leaf.opened_files.items()
+                            if pid == event.source_pane_id
+                        ),
+                        None,
+                    )
+                    split_dir, split_pos = _DIRECTION_TO_SPLIT[direction]
+                    log.debug(
+                        "edge zone clone: single tab %s to %s split",
+                        event.source_pane_id,
+                        direction,
+                    )
+                    self._active_leaf_id = source_leaf.leaf_id
+                    await self._do_split(path, split_dir, split_pos)
                     event.stop()
                     return
                 # Determine direction from event, fallback to heuristic
