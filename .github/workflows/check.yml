@@ -11,7 +11,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: check-${{ github.ref }}
+  group: >-
+    check-${{
+      github.event_name == 'pull_request'
+        && format('pr-{0}', github.event.pull_request.number)
+        || github.sha
+    }}
   cancel-in-progress: true
 
 jobs:
