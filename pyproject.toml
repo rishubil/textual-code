@@ -64,6 +64,10 @@ dev = [
 
 [tool.uv]
 exclude-newer = "P15D"
+# Security patches: bypass cooldown for packages with known vulnerabilities
+# aiohttp <=3.13.3 (Dependabot #2-#11) — remove after 2026-04-12
+# Pygments <2.20.0 (Dependabot #1) — remove after 2026-04-13
+exclude-newer-package = { aiohttp = "2026-03-29T00:00:00Z", pygments = "2026-03-30T00:00:00Z" }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

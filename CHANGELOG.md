@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Search**: Replace All preview modal now shows a neutral scope-info message ("Only the checked matches will be modified") instead of the misleading truncation warning; removed `+` notation from the modal title (#196)
 
+### Security
+
+- **Dependencies**: upgrade aiohttp 3.13.3 → 3.13.4 (duplicate Host headers, header injection, response splitting, cookie leak, multipart DoS — Dependabot #2-#11) and Pygments 2.19.2 → 2.20.0 (ReDoS via GUID regex — Dependabot #1); use `exclude-newer-package` to bypass the 15-day cooldown for these specific packages only
+
 ### Performance
 
 - **Editor**: replace O(n) linear scans with O(log n) bisect lookups in offset-to-location conversions (`_text_offset_to_location`, `_location_to_text_offset`, `_offset_to_loc`), rendering pipeline range checks (`_inject_whitespace_rendering`, `_inject_indentation_guides`), and CSS color resolution caching (`_overlay_fg`) — reduces latency for find/replace, multi-cursor editing, and per-frame rendering on large files
