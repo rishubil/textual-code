@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-04
+
 ### Added
 
 - **Tabs**: edge drop zone labels now indicate the upcoming operation — `"Split right — move"` when the source pane has multiple tabs, or `"Split right — clone"` when it has only one tab; dragging the only tab in a pane to an edge zone now clones the tab into a new split instead of being silently ignored, matching VS Code's behavior (#214)
@@ -20,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Search**: show search results summary above the results tree after each workspace search — displays file count and match count (e.g., "5 files, 23 matches") with `+` suffix when the 500-match cap is reached; summary clears on new search, option change, or replace (#196)
 - **Search**: per-file diff preview for workspace Replace All — replaces the single-match confirmation modal with a two-panel screen showing file list (left) and unified diff (right) for each affected file; includes SHA-256 conflict detection to skip files changed between preview and apply (#157)
 - **Search**: per-match and per-file checkbox selection for workspace Replace All — each search result has a checkbox to include/exclude from replacement; file rows show tri-state (all/partial/none) checkboxes; Replace All operates only on selected matches; preview shows all selected files without truncation (#155)
+- **Search**: enable horizontal scrolling in the search sidebar results tree and add keyboard shortcut hints below the tree ("↑↓ Navigate  ←→ Fold  Space Check  Enter Open")
 - **Editor**: cross-split `find_editors()` API — `MainView.find_editor_by_path()` and `MainView.find_editors()` search for open files across all split leaves, replacing ad-hoc `all_leaves()` iterations; internal API for plugin/test use (#125)
 
 ### Changed
@@ -28,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 
+- **CI**: add explicit `permissions: contents: read` to all GitHub Actions workflows — resolves 8 code scanning alerts for `missing-workflow-permissions`; follows the principle of least privilege
 - **Dependencies**: upgrade aiohttp 3.13.3 → 3.13.4 (duplicate Host headers, header injection, response splitting, cookie leak, multipart DoS — Dependabot #2-#11) and Pygments 2.19.2 → 2.20.0 (ReDoS via GUID regex — Dependabot #1); use `exclude-newer-package` to bypass the 15-day cooldown for these specific packages only
 
 ### Performance
@@ -49,6 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tests**: fix flaky cross-split drag tests on Windows — add extra `await pilot.pause()` after tab activation to allow lazy editor remount to complete before subsequent actions (Fix #178)
 - **Tests**: fix `test_search_results_nested_paths_sorted` failure on Windows — use `.as_posix()` instead of `str()` for cross-platform path comparison (Fix #179)
 - **Tests**: fix 16+ test failures on Windows — skip `chmod` test on Windows, add `PYTHONUTF8=1` for license check script, add `encoding="utf-8"` for multibyte search test, and add extra `pilot.pause()` calls for Windows parallel execution timing (Fix #180)
+- **Split**: splitting a pane with a non-CodeEditor content (image preview, error/binary notice) now correctly focuses the new pane — previously focus was lost because the generic `*:can-focus` query returned nothing for plain Static widgets; added a `pane.focus()` fallback
+- **Editor**: skip large file warning when splitting a pane that is already open in another split — previously the dialog appeared again on split, and cancelling it left an empty split behind
 - **Tests**: use `wait_for_scheduled_animations()` across all tests (snapshot and non-snapshot) and in `wait_for_condition` / `_wait_for_stable_screen` helpers for more thorough event-loop settling; replace ad-hoc `pilot.pause()` sequences and 5-pause loops with deterministic settling patterns
 - **Tests**: replace `tempfile.TemporaryDirectory` with pytest `tmp_path_factory` in 3 tests and add `.resolve()` to path assertions in 2 tests — fixes deterministic `PermissionError` on Windows where temp directory cleanup races with open file handles (Fix #189)
 
@@ -219,7 +225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add basic text editing features
 
-[unreleased]: https://github.com/rishubil/textual-code/compare/v0.4.0...HEAD
+[unreleased]: https://github.com/rishubil/textual-code/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/rishubil/textual-code/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/rishubil/textual-code/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/rishubil/textual-code/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/rishubil/textual-code/compare/v0.1.1...v0.2.0
