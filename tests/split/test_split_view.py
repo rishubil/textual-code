@@ -655,6 +655,50 @@ async def test_edge_drag_single_tab_clones_to_new_split(workspace: Path, py_file
             assert editors.first().path == py_file
 
 
+async def test_edge_drag_single_markdown_preview_is_noop(
+    workspace: Path,
+):
+    """Single-tab edge drag of a markdown preview pane is a no-op (not cloned)."""
+    from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+
+    md_file = workspace / "README.md"
+    md_file.write_text("# Hello\n")
+
+    app = make_app(workspace, open_file=md_file, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        main = app.main_view
+
+        # Open markdown preview (creates a second tab)
+        await main.action_open_markdown_preview()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+
+        # Close the editor tab, leaving only the preview pane
+        md_pane_id = next(iter(all_leaves(main._split_root)[0].opened_files.values()))
+        await main.action_close_code_editor(md_pane_id)
+        await pilot.wait_for_scheduled_animations()
+
+        leaves = all_leaves(main._split_root)
+        assert len(leaves) == 1
+        source_leaf = leaves[0]
+        assert len(source_leaf.pane_ids) == 1
+        preview_pane_id = next(iter(source_leaf.pane_ids))
+
+        tc = main.query_one(f"#{source_leaf.leaf_id}", DraggableTabbedContent)
+        tc.post_message(
+            DraggableTabbedContent.TabMovedToOtherSplit(
+                preview_pane_id, None, False, split_direction="right"
+            )
+        )
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+
+        # Split should NOT be created (preview pane is protected)
+        assert main._split_visible is False
+        assert len(all_leaves(main._split_root)) == 1
+
+
 # ── Group I — DescendantFocus updates active leaf ──────────────────────────────
 
 

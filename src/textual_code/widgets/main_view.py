@@ -1614,6 +1614,14 @@ class MainView(Static):
             if event.target_pane_id is None and event.target_dtc_id is None:
                 # Single-tab leaf: clone the tab into a new split
                 if len(source_leaf.pane_ids) < 2:
+                    tc_check = self.query_one(f"#{source_leaf.leaf_id}", TabbedContent)
+                    pane_check = tc_check.get_pane(event.source_pane_id)
+                    if pane_check.query(MarkdownPreviewPane) or pane_check.query(
+                        ImagePreviewPane
+                    ):
+                        # Preview panes cannot be cloned via _do_split; no-op.
+                        event.stop()
+                        return
                     direction = event.split_direction or "right"
                     path = next(
                         (
