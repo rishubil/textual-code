@@ -1087,9 +1087,10 @@ class MainView(Static):
                     # "before" case: new leaf is first child
                     # Find the widget for the sibling (currently first in container)
                     handle = SplitResizeHandle(child_index=0)
-                    # Increment existing handles' child_index
-                    for h in container.query(SplitResizeHandle):
-                        h._child_index += 1
+                    # Increment direct handles' child_index (skip nested)
+                    for child in container.children:
+                        if isinstance(child, SplitResizeHandle):
+                            child._child_index += 1
                     await container.mount(new_dtc, before=sibling_widget)
                     await container.mount(handle, after=new_dtc)
                 elif idx < len(parent_node.children) - 1:
@@ -1110,9 +1111,12 @@ class MainView(Static):
                     for _ in range(next_depth):
                         target = cast(Widget, target.parent)
                     handle = SplitResizeHandle(child_index=idx)
-                    for h in container.query(SplitResizeHandle):
-                        if h._child_index >= idx:
-                            h._child_index += 1
+                    for child in container.children:
+                        if (
+                            isinstance(child, SplitResizeHandle)
+                            and child._child_index >= idx
+                        ):
+                            child._child_index += 1
                     await container.mount(new_dtc, before=target)
                     await container.mount(handle, after=new_dtc)
                 else:
