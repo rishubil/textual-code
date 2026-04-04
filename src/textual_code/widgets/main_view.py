@@ -705,7 +705,12 @@ class MainView(Static):
         # move-tab paths that manage focus themselves.
         # Deferred via call_after_refresh so lazy mounting (_lazy_swap_editor)
         # completes before the editor is queried.
-        if auto_close_split and leaf and leaf.pane_ids:
+        if (
+            auto_close_split
+            and leaf
+            and leaf.pane_ids
+            and leaf.leaf_id == self._active_leaf_id
+        ):
 
             def _focus_editor() -> None:
                 try:
