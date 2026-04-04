@@ -908,6 +908,59 @@ async def test_split_right_then_split_left(workspace: Path, py_file: Path):
         assert leaves[2].leaf_id == right_leaf_id
 
 
+async def test_split_right_from_left_inserts_in_middle(workspace: Path, py_file: Path):
+    """Split right from left editor in [A|B] should produce [A|new|B], not [A|B|new]."""
+    from textual_code.widgets.split_resize_handle import SplitResizeHandle
+
+    app = make_app(workspace, open_file=py_file, light=True)
+    async with app.run_test(size=(180, 30)) as pilot:
+        await pilot.wait_for_scheduled_animations()
+        mv = app.main_view
+
+        # Create initial split: [A | B]
+        await mv.action_split_right()
+        await pilot.wait_for_scheduled_animations()
+
+        leaves_2 = all_leaves(mv._split_root)
+        assert len(leaves_2) == 2
+        a_leaf, b_leaf = leaves_2
+
+        # Focus A (left) and split right again
+        mv._set_active_leaf(a_leaf)
+        await mv.action_split_right()
+        await pilot.wait_for_scheduled_animations()
+
+        leaves_3 = all_leaves(mv._split_root)
+        assert len(leaves_3) == 3
+
+        # Tree order should be [A, new, B]
+        assert leaves_3[0].leaf_id == a_leaf.leaf_id
+        assert leaves_3[2].leaf_id == b_leaf.leaf_id
+        new_leaf = leaves_3[1]
+
+        # DOM order should match tree order
+        new_dtc = mv.query_one(f"#{new_leaf.leaf_id}", DraggableTabbedContent)
+        b_dtc = mv.query_one(f"#{b_leaf.leaf_id}", DraggableTabbedContent)
+        a_dtc = mv.query_one(f"#{a_leaf.leaf_id}", DraggableTabbedContent)
+
+        # All three should share the same parent SplitContainer
+        assert new_dtc.parent is a_dtc.parent
+        assert new_dtc.parent is b_dtc.parent
+
+        # DOM order: A should come before new, new before B
+        assert new_dtc.parent is not None
+        container_children = list(new_dtc.parent.children)
+        dtc_children = [
+            c for c in container_children if isinstance(c, DraggableTabbedContent)
+        ]
+        assert dtc_children == [a_dtc, new_dtc, b_dtc]
+
+        # Verify handle child_index values are correct
+        handles = [c for c in container_children if isinstance(c, SplitResizeHandle)]
+        handle_indices = sorted(h.child_index for h in handles)
+        assert handle_indices == [0, 1]
+
+
 async def test_split_left_resize_handle_works(workspace: Path, py_file: Path):
     """Split left creates a resize handle with correct child_index."""
     from textual_code.widgets.split_resize_handle import SplitResizeHandle

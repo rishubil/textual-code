@@ -1092,8 +1092,31 @@ class MainView(Static):
                         h._child_index += 1
                     await container.mount(new_dtc, before=sibling_widget)
                     await container.mount(handle, after=new_dtc)
+                elif idx < len(parent_node.children) - 1:
+                    # "after" case, middle insertion: mount before the next sibling
+                    next_sibling = parent_node.children[idx + 1]
+                    if isinstance(next_sibling, LeafNode):
+                        next_widget = self.query_one(
+                            f"#{next_sibling.leaf_id}", DraggableTabbedContent
+                        )
+                    else:
+                        next_leaves = all_leaves(next_sibling)
+                        next_widget = self.query_one(
+                            f"#{next_leaves[0].leaf_id}",
+                            DraggableTabbedContent,
+                        )
+                    next_depth = branch_depth(next_sibling)
+                    target: Widget = next_widget
+                    for _ in range(next_depth):
+                        target = cast(Widget, target.parent)
+                    handle = SplitResizeHandle(child_index=idx)
+                    for h in container.query(SplitResizeHandle):
+                        if h._child_index >= idx:
+                            h._child_index += 1
+                    await container.mount(new_dtc, before=target)
+                    await container.mount(handle, after=new_dtc)
                 else:
-                    # "after" case: new leaf appended at end
+                    # "after" case, end insertion: append at end
                     handle = SplitResizeHandle(
                         child_index=len(parent_node.children) - 2
                     )
