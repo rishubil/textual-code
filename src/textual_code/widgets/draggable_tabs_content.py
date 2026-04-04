@@ -66,19 +66,27 @@ class DropHighlight:
     def widgets(self) -> list[DropHintBox]:
         return [self.hint]
 
-    def show(self, region: Region, mode: str) -> None:
+    def show(self, region: Region, mode: str, tab_count: int | None = None) -> None:
         """Position and display the hint box in the given region.
 
         For 'full' mode the box is centered.  For edge modes it is placed
         near the corresponding edge so the user sees the hint close to
         where the split will appear.
+
+        When *tab_count* is provided for edge modes, the label is suffixed
+        with " — move" (multi-tab) or " — clone" (single tab).
         """
         self._mode = mode
         x, y, w, h = region.x, region.y, region.width, region.height
 
         if mode.startswith("edge-"):
             direction = mode.split("-", 1)[1]
-            label = EDGE_LABELS[direction]
+            base = EDGE_LABELS[direction]
+            if tab_count is not None:
+                suffix = "clone" if tab_count < 2 else "move"
+                label = f"{base} \N{EM DASH} {suffix}"
+            else:
+                label = base
         else:
             direction = None
             label = FULL_LABEL
@@ -135,8 +143,8 @@ class DropTargetScreen(Screen):
     def __init__(self, dtc_ids: list[str] | None = None) -> None:
         super().__init__()
         self._highlights: dict[str, DropHighlight] = {}
-        # Cache: dtc_id → (region, mode) to skip redundant updates
-        self._highlight_state: dict[str, tuple[Region, str]] = {}
+        # Cache: dtc_id → (region, mode, tab_count) to skip redundant updates
+        self._highlight_state: dict[str, tuple[Region, str, int | None]] = {}
         # Pre-create highlight bar groups so they're available before mount
         for dtc_id in dtc_ids or []:
             self._highlights[dtc_id] = DropHighlight(dtc_id)
@@ -161,17 +169,23 @@ class DropTargetScreen(Screen):
             return
         super()._forward_event(event)
 
-    def show_highlight(self, dtc_id: str, region: Region, mode: str) -> None:
+    def show_highlight(
+        self,
+        dtc_id: str,
+        region: Region,
+        mode: str,
+        tab_count: int | None = None,
+    ) -> None:
         """Show a highlight over the given DTC region."""
         cached = self._highlight_state.get(dtc_id)
-        if cached and cached == (region, mode):
+        if cached and cached == (region, mode, tab_count):
             return
-        self._highlight_state[dtc_id] = (region, mode)
+        self._highlight_state[dtc_id] = (region, mode, tab_count)
 
         highlight = self._highlights.get(dtc_id)
         if highlight is None:
             return
-        highlight.show(region, mode)
+        highlight.show(region, mode, tab_count=tab_count)
         self.log.debug(f"Show highlight {mode} on {dtc_id} at {region}")
 
     def hide_highlight(self, dtc_id: str) -> None:
@@ -229,6 +243,7 @@ class DraggableTabbedContent(TabbedContent):
         self._drop_target: DraggableTabbedContent | None = None
         self._overlay_screen: DropTargetScreen | None = None
         self._edge_direction: Direction | None = None
+        self._drag_tab_count: int | None = None
 
     # ── Drop highlight helpers ────────────────────────────────────────────────
 
@@ -241,7 +256,10 @@ class DraggableTabbedContent(TabbedContent):
         """Show edge drop zone highlight via overlay screen."""
         if self._overlay_screen:
             self._overlay_screen.show_highlight(
-                self.id, self.region, f"edge-{direction}"
+                self.id,
+                self.region,
+                f"edge-{direction}",
+                tab_count=self._drag_tab_count,
             )
 
     def hide_drop_overlay(self) -> None:
@@ -379,6 +397,7 @@ class DraggableTabbedContent(TabbedContent):
             dy = event.screen_y - self._drag_start[1]
             if dx * dx + dy * dy >= DRAG_THRESHOLD * DRAG_THRESHOLD:
                 self._dragging = True
+                self._drag_tab_count = len(list(self.query(ContentTab)))
                 self.capture_mouse()
                 self._push_overlay_screen()
                 # Visual feedback: highlight dragged tab
@@ -421,6 +440,7 @@ class DraggableTabbedContent(TabbedContent):
         self._drag_start = None
         self._dragging = False
         self._edge_direction = None
+        self._drag_tab_count = None
 
         # Remove visual feedback
         for tab in self.query(ContentTab):
@@ -445,7 +465,7 @@ class DraggableTabbedContent(TabbedContent):
                 return
             # Edge zone → create new split by posting with target_pane_id=None
             # Use stored _edge_direction (regions may shift after overlay pop)
-            if edge_direction is not None and len(list(self.query(ContentTab))) > 1:
+            if edge_direction is not None:
                 self.post_message(
                     self.TabMovedToOtherSplit(
                         drag_id, None, False, split_direction=edge_direction

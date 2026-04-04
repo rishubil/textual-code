@@ -205,7 +205,9 @@ Enables flexible organization of open files across the workspace. Tabs can be re
 **Edge-drag to create split:**
 
 - Dragging a tab to a pane edge (15% of width/height) creates a new split in that direction.
-- Requires at least 2 tabs in the source pane (the last tab is protected from being moved out).
+- **Multi-tab source**: the dragged tab is moved to the new split.
+- **Single-tab source**: the tab is cloned — the same file opens in the new split while the original pane stays intact (matches VS Code behavior).
+- The drop zone hint label reflects the upcoming operation: `"Split right — move"` or `"Split right — clone"`.
 - For visual feedback details (hint boxes, overlay, edge zone sizing), see [ui.md#drag-and-drop](ui.md#drag-and-drop-visual-feedback-drop-hints-target-highlights-edge-zone-indicators).
 
 **Directional tab move (command palette):**

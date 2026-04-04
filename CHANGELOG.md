@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tabs**: edge drop zone labels now indicate the upcoming operation — `"Split right — move"` when the source pane has multiple tabs, or `"Split right — clone"` when it has only one tab; dragging the only tab in a pane to an edge zone now clones the tab into a new split instead of being silently ignored, matching VS Code's behavior (#214)
 - **Explorer**: warn before large directory operations — shows a confirmation dialog when a directory exceeds the configurable `large_dir_operation_threshold` (default 100 MB) before copy, delete, or move; displays total size and file count; size calculation runs in a background thread to avoid UI blocking; set to `0` to disable (#210)
 - **Performance**: directory copy, delete, and move now run in a background thread worker so the UI remains responsive during large directory operations; single-file operations stay synchronous; a "Cancel File Operation" command palette entry lets users cancel in-progress operations; progress and completion notifications are shown; cut-paste clipboard is restored on failure
 - **Search**: show `\1` backreference hint on Replace input when regex mode is active — placeholder changes to "Replace with... (\\1 for groups)" on both the in-editor Find/Replace bar and the workspace Search panel, helping VSCode users discover the correct Python `re.sub()` syntax (#168)

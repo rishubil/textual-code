@@ -609,6 +609,52 @@ async def test_edge_drag_two_tabs_moves_one(
         assert py_file2 in app.main_view._opened_files["left"]
 
 
+async def test_edge_drag_single_tab_clones_to_new_split(workspace: Path, py_file: Path):
+    """Single-tab edge drag clones the tab into a new split instead of blocking."""
+    from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
+
+    app = make_app(workspace, open_file=py_file, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        main = app.main_view
+        assert main._split_visible is False
+
+        leaves = all_leaves(main._split_root)
+        assert len(leaves) == 1
+        source_leaf = leaves[0]
+        assert len(source_leaf.pane_ids) == 1
+        pane_id = next(iter(source_leaf.pane_ids))
+
+        tc = main.query_one(f"#{source_leaf.leaf_id}", DraggableTabbedContent)
+        tc.post_message(
+            DraggableTabbedContent.TabMovedToOtherSplit(
+                pane_id, None, False, split_direction="right"
+            )
+        )
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+
+        # Split should be created
+        assert main._split_visible is True
+        leaves_after = all_leaves(main._split_root)
+        assert len(leaves_after) == 2
+
+        # File should be open in both leaves (cloned)
+        assert py_file in leaves_after[0].opened_files
+        assert py_file in leaves_after[1].opened_files
+
+        # Verify CodeEditor is mounted in both leaves
+        from textual_code.widgets.code_editor import CodeEditor
+
+        for leaf in leaves_after:
+            tc = main.query_one(f"#{leaf.leaf_id}", DraggableTabbedContent)
+            pane = tc.get_pane(leaf.opened_files[py_file])
+            editors = pane.query(CodeEditor)
+            assert len(editors) == 1
+            assert editors.first().path == py_file
+
+
 # ── Group I — DescendantFocus updates active leaf ──────────────────────────────
 
 
