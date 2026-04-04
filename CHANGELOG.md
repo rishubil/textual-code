@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Split**: "Split Right" / "Split Down" from a non-last editor now inserts the new pane adjacent to the source editor instead of appending it at the far end — e.g. splitting right from A in `[A | B]` correctly produces `[A | new | B]`; same fix applies to "Split Left" / "Split Up" in symmetric positions (Fix #213)
 - **Tabs**: closing the active tab now focuses the editor in the newly activated tab — previously focus remained on the tab bar (ContentTabs), requiring an extra click before the user could type; uses `call_after_refresh` to defer focus until after lazy mounting completes
 - **Editor**: large file warning dialog no longer freezes the app — replaced hand-rolled `asyncio.Future` modal wait (which deadlocked Textual's message loop) with a `@work` helper using `push_screen_wait`; the confirmation dialog now remains fully interactive (Fix #201)
 - **App**: process no longer hangs on Ctrl+Q while background workers (workspace search, file scan, git diff) are running — registers a daemon-thread executor so threads do not block process exit, and adds `is_cancelled` guards before all `call_from_thread` callbacks to prevent dispatching to unmounted widgets or a closed event loop (Fix #195)
