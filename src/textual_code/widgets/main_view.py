@@ -1009,7 +1009,8 @@ class MainView(Static):
         if editors:
             editors.first(CodeEditor).editor.focus()
         else:
-            # Non-CodeEditor pane (e.g. ImagePreviewPane): focus first focusable child
+            # Non-CodeEditor pane: focus first focusable child (e.g. ImagePreviewPane),
+            # or the pane itself as fallback (e.g. error/binary-notice Static panes)
             focusable = (
                 new_pane.query("*:can-focus").first()
                 if new_pane.query("*:can-focus")
@@ -1017,6 +1018,8 @@ class MainView(Static):
             )
             if focusable is not None:
                 focusable.focus()
+            else:
+                new_pane.focus()
 
     async def _mount_new_split(
         self, new_leaf: LeafNode, direction: str, position: str = "after"
