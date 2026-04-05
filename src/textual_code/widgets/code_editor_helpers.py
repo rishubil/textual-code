@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+import contextlib
+import logging
 import re
 from bisect import bisect_right
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from charset_normalizer import detect as _cn_detect
 
 from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
+log = logging.getLogger(__name__)
 
 # ── EditorConfig support ────────────────────────────────────────────────────
 
@@ -370,6 +375,75 @@ def _detect_encoding(raw_bytes: bytes) -> str:
         if encoding and confidence > 0.7:
             return encoding.lower()
     return "latin-1"
+
+
+@dataclass
+class FileLoadResult:
+    """Result of loading a file for the code editor (no widget state)."""
+
+    text: str
+    encoding: str
+    line_ending: str
+    file_mtime: float | None
+    editorconfig: dict[str, str]
+    ec_search_dirs: list[Path]
+    ec_mtimes: dict[Path, float | None] = field(default_factory=dict)
+    error: str | None = None
+
+
+def load_file_for_editor(path: Path) -> FileLoadResult:
+    """Read a file and return all data needed to construct a CodeEditor.
+
+    This is a synchronous function suitable for ``asyncio.to_thread()``.
+    """
+    error: str | None = None
+    log.debug("load_file_for_editor: reading %s", path)
+    try:
+        raw_bytes = path.read_bytes()
+    except Exception as e:
+        raw_bytes = b""
+        error = str(e)
+        log.debug("load_file_for_editor: read error: %s", error)
+
+    log.debug("load_file_for_editor: detecting encoding (%d bytes)", len(raw_bytes))
+    detected_encoding = _detect_encoding(raw_bytes)
+
+    try:
+        raw_text = raw_bytes.decode(detected_encoding)
+    except UnicodeDecodeError as e:
+        log.debug(
+            "load_file_for_editor: decode error (%s), falling back to latin-1: %s",
+            detected_encoding,
+            e,
+        )
+        raw_text = raw_bytes.decode("latin-1", errors="replace")
+
+    log.debug("load_file_for_editor: detecting line endings")
+    detected_le = _detect_line_ending(raw_text)
+
+    text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
+    if text.startswith("\ufeff"):
+        text = text[1:]
+
+    file_mtime: float | None = None
+    with contextlib.suppress(OSError):
+        file_mtime = path.stat().st_mtime
+
+    log.debug("load_file_for_editor: reading editorconfig")
+    ec, ec_search_dirs = _read_editorconfig(path)
+    ec_mtimes = _snapshot_editorconfig_mtimes(ec_search_dirs)
+
+    log.debug("load_file_for_editor: done for %s", path.name)
+    return FileLoadResult(
+        text=text,
+        encoding=detected_encoding,
+        line_ending=detected_le,
+        file_mtime=file_mtime,
+        editorconfig=ec,
+        ec_search_dirs=ec_search_dirs,
+        ec_mtimes=ec_mtimes,
+        error=error,
+    )
 
 
 _LINE_ENDING_WARNING = (

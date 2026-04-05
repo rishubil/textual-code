@@ -475,6 +475,9 @@ class TextualCode(App):
         self.default_large_dir_threshold: int = int(
             settings.get("large_dir_operation_threshold", 104_857_600)
         )
+        self.default_file_open_timeout: float = float(
+            settings.get("file_open_timeout", 5)
+        )
         self.default_close_tab_focus_recent: bool = bool(
             settings.get("close_tab_focus_recent", True)
         )

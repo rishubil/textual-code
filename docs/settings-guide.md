@@ -107,6 +107,7 @@ All editor settings go under the `[editor]` TOML table.
 | `sidebar_width` | integer or string | `28` | Initial sidebar width: integer for cells (min 5), or `"30%"` for percentage (1%-90%) |
 | `large_file_threshold` | integer | `5242880` | File size in bytes above which a confirmation dialog is shown before opening (0 to disable) |
 | `large_dir_operation_threshold` | integer | `104857600` | Directory size in bytes above which a confirmation dialog is shown before copy/delete/move (0 to disable) |
+| `file_open_timeout` | number | `5` | Seconds to wait before showing a confirmation dialog when opening a file (0 to disable) |
 | `close_tab_focus_recent` | boolean | `true` | When closing the active tab, activate the most recently used tab (MRU) instead of the adjacent one |
 
 ### Example: user settings file

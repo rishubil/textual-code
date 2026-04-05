@@ -1755,3 +1755,59 @@ async def test_large_file_confirm_modal_escape_cancels():
 
     assert app.result is not None
     assert app.result.action == "cancel"
+
+
+class _TimeoutFileApp(App):
+    def __init__(self):
+        super().__init__()
+        self.result: LargeFileConfirmModalResult | None = None
+
+    def compose(self) -> ComposeResult:
+        yield Label("test")
+
+    def on_mount(self) -> None:
+        self.push_screen(
+            LargeFileConfirmModalScreen("slow_file.txt", 1024, reason="timeout"),
+            self._on_result,
+        )
+
+    def _on_result(self, result: LargeFileConfirmModalResult | None) -> None:
+        self.result = result
+
+
+async def test_timeout_modal_shows_slow_file_title():
+    """When reason='timeout', title shows 'Slow file' instead of 'Large file'."""
+    app = _TimeoutFileApp()
+    async with app.run_test() as pilot:
+        title = app.screen.query_one("#title", Label)
+        assert "Slow file" in str(title.render())
+        msg = app.screen.query_one("#message", Label)
+        assert "taking too long" in str(msg.render())
+
+        await pilot.click("#open")
+        await pilot.wait_for_scheduled_animations()
+
+    assert app.result is not None
+    assert app.result.action == "open"
+
+
+async def test_timeout_modal_open_optimized():
+    """Timeout modal 'Open (plain)' returns open_optimized action."""
+    app = _TimeoutFileApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#open_optimized")
+        await pilot.wait_for_scheduled_animations()
+
+    assert app.result is not None
+    assert app.result.action == "open_optimized"
+
+
+async def test_timeout_modal_cancel():
+    """Timeout modal cancel returns cancel action."""
+    app = _TimeoutFileApp()
+    async with app.run_test() as pilot:
+        await pilot.click("#cancel")
+        await pilot.wait_for_scheduled_animations()
+
+    assert app.result is not None
+    assert app.result.action == "cancel"

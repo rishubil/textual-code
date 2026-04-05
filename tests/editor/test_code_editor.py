@@ -936,3 +936,153 @@ async def test_large_file_no_deadlock_without_create_task(workspace: Path):
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
+
+
+# ── File open timeout (#233) ─────────────────────────────────────────────────
+
+
+async def test_file_open_timeout_shows_modal(workspace: Path, monkeypatch):
+    """When file loading exceeds timeout, the timeout modal appears."""
+    import asyncio
+    import time
+
+    from textual_code.widgets.code_editor_helpers import (
+        load_file_for_editor as real_load,
+    )
+
+    slow_file = workspace / "slow.txt"
+    slow_file.write_text("content\n", encoding="utf-8")
+
+    def slow_load(path):
+        time.sleep(2)
+        return real_load(path)
+
+    monkeypatch.setattr(
+        "textual_code.widgets.main_view.load_file_for_editor", slow_load
+    )
+
+    app = make_app(workspace, light=True)
+    app.default_file_open_timeout = 0.1
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await app.main_view.action_open_code_editor(path=slow_file)
+        # Wait for timeout (0.1s) + worker scheduling
+        await asyncio.sleep(0.5)
+        await pilot.pause()
+        assert isinstance(app.screen, LargeFileConfirmModalScreen)
+
+
+async def test_file_open_timeout_zero_disables(workspace: Path, monkeypatch):
+    """Timeout of 0 disables the timeout check; file opens normally."""
+    slow_file = workspace / "normal.txt"
+    slow_file.write_text("hello\n", encoding="utf-8")
+
+    app = make_app(workspace, light=True)
+    app.default_file_open_timeout = 0
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await app.main_view.action_open_code_editor(path=slow_file)
+        await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
+        assert not isinstance(app.screen, LargeFileConfirmModalScreen)
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.text == "hello\n"
+
+
+async def test_file_open_timeout_cancel_does_not_open(workspace: Path, monkeypatch):
+    """Cancelling the timeout modal leaves no editor open."""
+    import asyncio
+    import time
+
+    from textual_code.widgets.code_editor_helpers import (
+        load_file_for_editor as real_load,
+    )
+
+    slow_file = workspace / "slow2.txt"
+    slow_file.write_text("data\n", encoding="utf-8")
+
+    def slow_load(path):
+        time.sleep(2)
+        return real_load(path)
+
+    monkeypatch.setattr(
+        "textual_code.widgets.main_view.load_file_for_editor", slow_load
+    )
+
+    app = make_app(workspace, light=True)
+    app.default_file_open_timeout = 0.1
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await app.main_view.action_open_code_editor(path=slow_file)
+        await asyncio.sleep(0.5)
+        await pilot.pause()
+        assert isinstance(app.screen, LargeFileConfirmModalScreen)
+
+        await pilot.click("#cancel")
+        await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
+
+        editor = app.main_view.get_active_code_editor()
+        assert editor is None
+
+
+async def test_file_open_timeout_open_plain(workspace: Path, monkeypatch):
+    """Choosing 'Open (plain)' after timeout opens with no highlighting."""
+    import asyncio
+    import time
+
+    from textual_code.widgets.code_editor_helpers import (
+        load_file_for_editor as real_load,
+    )
+
+    slow_file = workspace / "slow3.py"
+    slow_file.write_text("x = 1\n", encoding="utf-8")
+
+    call_count = 0
+
+    def slow_then_fast_load(path):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            time.sleep(2)  # first call: slow (triggers timeout)
+        return real_load(path)
+
+    monkeypatch.setattr(
+        "textual_code.widgets.main_view.load_file_for_editor", slow_then_fast_load
+    )
+
+    app = make_app(workspace, light=True)
+    app.default_file_open_timeout = 0.1
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await app.main_view.action_open_code_editor(path=slow_file)
+        await asyncio.sleep(0.5)
+        await pilot.pause()
+        assert isinstance(app.screen, LargeFileConfirmModalScreen)
+
+        await pilot.click("#open_optimized")
+        await asyncio.sleep(0.5)
+        await pilot.pause()
+
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.language is None
+
+
+async def test_file_open_normal_with_timeout_enabled(workspace: Path):
+    """Normal (fast) file opens successfully when timeout is enabled."""
+    normal_file = workspace / "fast.txt"
+    normal_file.write_text("quick content\n", encoding="utf-8")
+
+    app = make_app(workspace, light=True)
+    app.default_file_open_timeout = 5.0
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await app.main_view.action_open_code_editor(path=normal_file)
+        await pilot.wait_for_scheduled_animations()
+        await pilot.pause()
+        assert not isinstance(app.screen, LargeFileConfirmModalScreen)
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        assert editor.text == "quick content\n"

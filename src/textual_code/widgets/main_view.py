@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Literal, cast
 from uuid import uuid4
 
 from textual import events, on, work
@@ -18,6 +19,10 @@ from textual_code.command_registry import bindings_for_context as _bindings_for_
 from textual_code.modals import LargeFileConfirmModalScreen
 from textual_code.utils import is_binary_file
 from textual_code.widgets.code_editor import CodeEditor, CodeEditorFooter, EditorState
+from textual_code.widgets.code_editor_helpers import (
+    FileLoadResult,
+    load_file_for_editor,
+)
 from textual_code.widgets.draggable_tabs_content import DraggableTabbedContent
 from textual_code.widgets.image_preview import (
     IMAGE_EXTENSIONS,
@@ -490,6 +495,7 @@ class MainView(Static):
         *,
         leaf_id: str | None = None,
         force_no_highlighting: bool = False,
+        loaded: FileLoadResult | None = None,
     ) -> str:
         target_leaf_id = leaf_id or self._active_leaf_id
         target_leaf = find_leaf(self._split_root, target_leaf_id)
@@ -574,6 +580,7 @@ class MainView(Static):
                     self.app, "default_warn_line_ending", True
                 ),
                 _force_no_highlighting=force_no_highlighting,
+                _from_loaded=loaded,
             ),
             id=pane_id,
         )
@@ -612,11 +619,12 @@ class MainView(Static):
         focus: bool = True,
         line: int | None = None,
     ) -> None:
-        # Delegate large-file modal to a @work helper to avoid
+        # Delegate large-file / timeout modals to @work helpers to avoid
         # deadlocking the message loop (#201).
         if path is not None:
             file_already_open = self.find_editor_by_path(path) is not None
             if not file_already_open:
+                # Gate 1: file-size check
                 threshold = getattr(self.app, "default_large_file_threshold", 5_242_880)
                 if threshold > 0:
                     try:
@@ -629,33 +637,88 @@ class MainView(Static):
                             path.name,
                             file_size,
                         )
-                        self._open_large_file_with_confirmation(
-                            path, file_size, focus, line
+                        self._open_file_with_confirmation(
+                            path, file_size, focus, line, reason="large_file"
                         )
                         return
+
+                # Gate 2: timeout check (skip binary/image — they have
+                # separate handling in open_code_editor_pane)
+                timeout: float = getattr(self.app, "default_file_open_timeout", 5.0)
+                if (
+                    timeout > 0
+                    and not is_binary_file(path)
+                    and path.suffix.lower() not in IMAGE_EXTENSIONS
+                ):
+                    self._open_file_with_timeout(path, timeout, focus, line)
+                    return
 
         await self._finish_open_code_editor(path, focus=focus, line=line)
 
     @work(exit_on_error=False)
-    async def _open_large_file_with_confirmation(
+    async def _open_file_with_timeout(
+        self,
+        path: Path,
+        timeout: float,
+        focus: bool,
+        line: int | None,
+    ) -> None:
+        """Load file in a thread with timeout; show modal on TimeoutError."""
+        try:
+            loaded = await asyncio.wait_for(
+                asyncio.to_thread(load_file_for_editor, path),
+                timeout=timeout,
+            )
+        except TimeoutError:
+            log.info("File open timeout: %s (>%.1fs)", path.name, timeout)
+            try:
+                file_size = path.stat().st_size
+            except OSError:
+                file_size = 0
+            # Show confirmation modal directly (not via another @work)
+            result = await self.app.push_screen_wait(
+                LargeFileConfirmModalScreen(path.name, file_size, reason="timeout")
+            )
+            if result.action == "cancel":
+                return
+            force_no_highlighting = result.action == "open_optimized"
+            loaded = await asyncio.to_thread(load_file_for_editor, path)
+            await self._finish_open_code_editor(
+                path,
+                focus=focus,
+                line=line,
+                force_no_highlighting=force_no_highlighting,
+                loaded=loaded,
+            )
+            return
+
+        await self._finish_open_code_editor(path, focus=focus, line=line, loaded=loaded)
+
+    @work(exit_on_error=False)
+    async def _open_file_with_confirmation(
         self,
         path: Path,
         file_size: int,
         focus: bool,
         line: int | None,
+        *,
+        reason: Literal["large_file", "timeout"] = "large_file",
     ) -> None:
-        """Show large-file modal in a worker to avoid message-loop deadlock."""
+        """Show confirmation modal in a worker to avoid message-loop deadlock."""
         result = await self.app.push_screen_wait(
-            LargeFileConfirmModalScreen(path.name, file_size)
+            LargeFileConfirmModalScreen(path.name, file_size, reason=reason)
         )
         if result.action == "cancel":
             return
         force_no_highlighting = result.action == "open_optimized"
+        # Retry file read in a thread to avoid blocking the event loop
+        loaded = await asyncio.to_thread(load_file_for_editor, path)
         await self._finish_open_code_editor(
             path,
             focus=focus,
             line=line,
             force_no_highlighting=force_no_highlighting,
+            loaded=loaded,
         )
 
     async def _finish_open_code_editor(
@@ -664,9 +727,10 @@ class MainView(Static):
         focus: bool = True,
         line: int | None = None,
         force_no_highlighting: bool = False,
+        loaded: FileLoadResult | None = None,
     ) -> None:
         pane_id = await self.open_code_editor_pane(
-            path, force_no_highlighting=force_no_highlighting
+            path, force_no_highlighting=force_no_highlighting, loaded=loaded
         )
         if not pane_id:
             return
