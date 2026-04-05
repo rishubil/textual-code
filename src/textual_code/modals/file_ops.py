@@ -334,23 +334,38 @@ class LargeFileConfirmModalResult:
 
 
 class LargeFileConfirmModalScreen(ModalScreen[LargeFileConfirmModalResult]):
-    """Confirmation dialog shown before opening a large file."""
+    """Confirmation dialog shown before opening a large or slow file."""
 
     BINDINGS = [Binding("escape", "cancel", "Cancel", show=False)]
 
-    def __init__(self, filename: str, file_size: int) -> None:
+    def __init__(
+        self,
+        filename: str,
+        file_size: int,
+        *,
+        reason: Literal["large_file", "timeout"] = "large_file",
+    ) -> None:
         super().__init__()
         self._filename = filename
         self._file_size = file_size
+        self._reason = reason
 
     def compose(self) -> ComposeResult:
-        yield Grid(
-            Label("Large file", id="title"),
-            Label(
+        if self._reason == "timeout":
+            title_text = "Slow file"
+            msg_text = (
+                f"Opening {self._filename} is taking too long. "
+                "It may slow down the editor."
+            )
+        else:
+            title_text = "Large file"
+            msg_text = (
                 f"{self._filename} ({_format_file_size(self._file_size)}) "
-                "may slow down the editor.",
-                id="message",
-            ),
+                "may slow down the editor."
+            )
+        yield Grid(
+            Label(title_text, id="title"),
+            Label(msg_text, id="message"),
             Button("Open Anyway", variant="primary", id="open"),
             Button("Open (plain)", variant="warning", id="open_optimized"),
             Button("Cancel", variant="default", id="cancel"),

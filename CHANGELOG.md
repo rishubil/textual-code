@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Editor**: file open timeout — shows a confirmation dialog when opening a file takes longer than the configurable `file_open_timeout` (default 5 seconds) with options to continue opening, open without syntax highlighting, or cancel; file reading runs in a background thread to keep the UI responsive; particularly useful on slow filesystems (NFS, SSHFS, remote mounts); set to `0` to disable (#233)
+
 ## [0.5.0] - 2026-04-04
 
 ### Added

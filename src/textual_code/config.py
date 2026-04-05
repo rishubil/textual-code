@@ -28,6 +28,7 @@ EDITOR_KEYS = {
     "compact_folders",
     "large_file_threshold",
     "large_dir_operation_threshold",
+    "file_open_timeout",
     "close_tab_focus_recent",
 }
 
@@ -51,6 +52,7 @@ DEFAULT_EDITOR_SETTINGS: dict[str, str | int | bool] = {
     "compact_folders": True,
     "large_file_threshold": 5_242_880,
     "large_dir_operation_threshold": 104_857_600,  # 100 MB
+    "file_open_timeout": 5,  # seconds; 0 to disable
     "close_tab_focus_recent": True,
 }
 

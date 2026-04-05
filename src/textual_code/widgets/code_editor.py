@@ -82,6 +82,9 @@ from textual_code.widgets.code_editor_helpers import (
     _LINE_ENDING_WARNING as _LINE_ENDING_WARNING,
 )
 from textual_code.widgets.code_editor_helpers import (
+    FileLoadResult as FileLoadResult,
+)
+from textual_code.widgets.code_editor_helpers import (
     _build_line_offsets as _build_line_offsets,
 )
 from textual_code.widgets.code_editor_helpers import (
@@ -614,6 +617,7 @@ class CodeEditor(Static):
         default_render_whitespace: str = "none",
         default_warn_line_ending: bool = True,
         _from_state: EditorState | None = None,
+        _from_loaded: FileLoadResult | None = None,
         _force_no_highlighting: bool = False,
         **kwargs,
     ) -> None:
@@ -675,6 +679,33 @@ class CodeEditor(Static):
             self._restore_cursor = _from_state.cursor_end
             self._restore_scroll = _from_state.scroll_offset
             self._is_restoring = True
+            return
+
+        if _from_loaded is not None:
+            # Use pre-loaded file data (from async load with timeout)
+            self.set_reactive(CodeEditor.encoding, _from_loaded.encoding)
+            self.set_reactive(CodeEditor.line_ending, _from_loaded.line_ending)
+            self.set_reactive(CodeEditor.initial_text, _from_loaded.text)
+            self.set_reactive(CodeEditor.text, _from_loaded.text)
+            self._file_mtime = _from_loaded.file_mtime
+            self._ec_search_dirs = list(_from_loaded.ec_search_dirs)
+            self._ec_mtimes = dict(_from_loaded.ec_mtimes)
+            self._apply_editorconfig(_from_loaded.editorconfig, init_all=True)
+            if _from_loaded.error:
+
+                def _notify_error(err: str = _from_loaded.error) -> None:
+                    self.notify(f"Error reading file: {err}", severity="error")
+
+                self.call_after_refresh(_notify_error)
+            self.set_reactive(CodeEditor.word_wrap, default_word_wrap)
+            self.set_reactive(
+                CodeEditor.show_indentation_guides,
+                default_show_indentation_guides,
+            )
+            self.set_reactive(
+                CodeEditor.render_whitespace,
+                default_render_whitespace,
+            )
             return
 
         # if a path is provided, load the file content
