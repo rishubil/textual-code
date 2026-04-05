@@ -13,7 +13,7 @@ from textual_code.widgets.code_editor_helpers import (
 def test_load_file_for_editor_utf8(tmp_path: Path) -> None:
     """Reads UTF-8 file and returns correct text/encoding."""
     f = tmp_path / "hello.py"
-    f.write_text("print('hello')\n", encoding="utf-8")
+    f.write_bytes(b"print('hello')\n")
 
     result = load_file_for_editor(f)
 
@@ -39,9 +39,9 @@ def test_load_file_for_editor_crlf(tmp_path: Path) -> None:
 def test_load_file_for_editor_editorconfig(tmp_path: Path) -> None:
     """Picks up EditorConfig settings."""
     ec = tmp_path / ".editorconfig"
-    ec.write_text("[*.py]\nindent_style = tab\nindent_size = 2\nroot = true\n")
+    ec.write_bytes(b"[*.py]\nindent_style = tab\nindent_size = 2\nroot = true\n")
     f = tmp_path / "test.py"
-    f.write_text("x = 1\n")
+    f.write_bytes(b"x = 1\n")
 
     result = load_file_for_editor(f)
 
