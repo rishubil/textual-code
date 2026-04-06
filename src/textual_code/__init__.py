@@ -4,8 +4,6 @@ from typing import Annotated
 import typer
 from rich.console import Console
 
-from textual_code.app import TextualCode
-
 err_console = Console(stderr=True)
 
 
@@ -86,6 +84,8 @@ def typer_main(
             err_console.print(f"Error: --workspace {workspace} is not a directory.")
             raise typer.Exit(code=1)
         workspace_path = workspace
+
+    from textual_code.app import TextualCode
 
     app = TextualCode(workspace_path=workspace_path, with_open_file=with_open_file)
     app.run()
