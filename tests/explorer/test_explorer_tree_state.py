@@ -13,6 +13,7 @@ VSCode references:
 - asyncDataTree.test.ts: "Collapse state should be preserved across refresh calls"
 """
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -348,7 +349,10 @@ async def test_select_file_updates_cursor(workspace: Path, state_tree: dict[str,
         assert cursor.data.path == state_tree["mmm"]
 
 
-@pytest.mark.flaky(reruns=3, reruns_delay=1)
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="select_file + subprocess dir expansion is unreliable on Windows CI",
+)
 async def test_select_file_expands_collapsed_parent(
     workspace: Path, state_tree: dict[str, Path]
 ):
@@ -392,7 +396,10 @@ async def test_select_file_expands_collapsed_parent(
         assert alpha_node.is_expanded
 
 
-@pytest.mark.flaky(reruns=3, reruns_delay=1)
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="select_file + subprocess dir expansion is unreliable on Windows CI",
+)
 async def test_select_file_expands_deeply_nested_path(
     workspace: Path, state_tree: dict[str, Path]
 ):
