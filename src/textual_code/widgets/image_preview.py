@@ -12,7 +12,8 @@ from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
 from textual.timer import Timer
 from textual.widgets import LoadingIndicator, Static
-from textual.worker import get_current_worker
+
+from textual_code.cancellable_worker import run_cancellable
 
 log = logging.getLogger(__name__)
 
@@ -23,6 +24,21 @@ IMAGE_EXTENSIONS = frozenset(
 MAX_IMAGE_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 _RESIZE_DEBOUNCE = 0.15  # seconds
+
+
+def render_image_sync(source_path: Path, max_w: int, max_h: int) -> RenderableType:
+    """Load an image and render it to rich-pixels in a subprocess.
+
+    This is a module-level function so it can be pickled for
+    ``run_cancellable()``.
+    """
+    from PIL import Image
+    from rich_pixels import Pixels
+
+    with Image.open(source_path) as img:
+        orig_w, orig_h = img.size
+        target_w, target_h = compute_resize(orig_w, orig_h, max_w, max_h)
+        return Pixels.from_image(img, resize=(target_w, target_h))
 
 
 def compute_resize(orig_w: int, orig_h: int, max_w: int, max_h: int) -> tuple[int, int]:
@@ -70,69 +86,24 @@ class ImagePreviewPane(VerticalScroll):
             self._resize_timer.stop()
             self._resize_timer = None
 
-    @work(thread=True, exclusive=True)
-    def _render_image(self) -> None:
-        """Load and render the image in a background thread."""
-        from PIL import Image, UnidentifiedImageError
-        from rich_pixels import Pixels
-
-        worker = get_current_worker()
+    @work(exclusive=True)
+    async def _render_image(self) -> None:
+        """Load and render the image in a subprocess."""
+        self._show_loading(True)
 
         try:
-            self.app.call_from_thread(self._show_loading, True)
-        except RuntimeError as exc:
-            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
-                raise
-            log.debug("call_from_thread suppressed (app exiting): %s", exc)
-            return
-
-        try:
-            log.debug("Loading image: %s", self.source_path)
-            with Image.open(self.source_path) as img:
-                orig_w, orig_h = img.size
-
-                # width - 4 for border, (height - 4) * 2 for half-cell renderer
-                max_w = max(self.size.width - 4, 1)
-                max_h = max((self.size.height - 4) * 2, 1)
-                target_w, target_h = compute_resize(orig_w, orig_h, max_w, max_h)
-
-                if worker.is_cancelled:
-                    return
-
-                pixels = Pixels.from_image(img, resize=(target_w, target_h))
-
-            if worker.is_cancelled:
-                return
-
-            log.debug(
-                "Image rendered: %s (%dx%d -> %dx%d)",
+            pixels = await run_cancellable(
+                render_image_sync,
                 self.source_path,
-                orig_w,
-                orig_h,
-                target_w,
-                target_h,
+                max(self.size.width - 4, 1),
+                max((self.size.height - 4) * 2, 1),
             )
-            try:
-                self.app.call_from_thread(self._update_content, pixels)
-            except RuntimeError as exc:
-                if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
-                    raise
-                log.debug("call_from_thread suppressed (app exiting): %s", exc)
-
-        except (OSError, ValueError, UnidentifiedImageError) as exc:
+            self._update_content(pixels)
+        except TimeoutError:
+            return
+        except (OSError, ValueError) as exc:
             log.warning("Could not load image %s: %s", self.source_path, exc)
-            if not worker.is_cancelled:
-                try:
-                    self.app.call_from_thread(
-                        self._update_content, "\u26a0  Could not load image"
-                    )
-                except RuntimeError as rt_exc:
-                    if (
-                        "loop" not in str(rt_exc).lower()
-                        and "closed" not in str(rt_exc).lower()
-                    ):
-                        raise
-                    log.debug("call_from_thread suppressed (app exiting): %s", rt_exc)
+            self._update_content("\u26a0  Could not load image")
 
     def _show_loading(self, show: bool) -> None:
         """Toggle loading indicator and image content visibility."""
