@@ -370,8 +370,12 @@ async def test_select_file_expands_collapsed_parent(
         assert not alpha_node.is_expanded
 
         # Select inner.py inside dir_alpha — should trigger auto-expansion
+        # (triggers _load_directory worker for dir_alpha via run_cancellable)
         explorer.select_file(state_tree["inner"])
-        for _ in range(20):
+        for _ in range(10):
+            await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
+        for _ in range(10):
             await pilot.wait_for_scheduled_animations()
         await await_workers(pilot)
 
