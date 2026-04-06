@@ -74,6 +74,8 @@ class ImagePreviewPane(VerticalScroll):
             )
             self._update_content(pixels)
         except TimeoutError:
+            log.debug("Image render cancelled: %s", self.source_path)
+            self._show_loading(False)
             return
         except (OSError, ValueError) as exc:
             log.warning("Could not load image %s: %s", self.source_path, exc)

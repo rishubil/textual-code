@@ -65,6 +65,7 @@ async def run_cancellable[T](
     proc.start()
     child_conn.close()  # parent doesn't need the child's end
 
+    fn_name = getattr(fn, "__name__", repr(fn))
     try:
         tag, payload = await asyncio.wait_for(
             asyncio.to_thread(parent_conn.recv),
@@ -73,29 +74,31 @@ async def run_cancellable[T](
     except (TimeoutError, asyncio.CancelledError):
         _kill(proc)
         parent_conn.close()
-        fn_name = getattr(fn, "__name__", repr(fn))
         raise TimeoutError(f"{fn_name} timed out after {timeout}s") from None
     except EOFError:
         _kill(proc)
         parent_conn.close()
-        fn_name = getattr(fn, "__name__", repr(fn))
         raise RuntimeError(f"{fn_name} crashed without sending a result") from None
 
     parent_conn.close()
-    proc.join(timeout=2)
+    proc.join(timeout=0.1)
     if proc.is_alive():
         _kill(proc)
 
     if tag == "error":
         assert isinstance(payload, BaseException)
         raise payload
+    if tag != "ok":
+        raise RuntimeError(f"{fn_name} returned unknown IPC tag: {tag!r}")
     result: T = payload
     return result
 
 
 def _kill(proc: BaseProcess) -> None:
     """Kill a process and wait for it to exit."""
-    if proc.is_alive():
+    try:
         log.debug("Killing subprocess %s (pid=%s)", proc.name, proc.pid)
         proc.kill()
-        proc.join(timeout=2)
+    except OSError:
+        return  # already dead
+    proc.join(timeout=2)

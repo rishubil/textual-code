@@ -92,3 +92,32 @@ async def test_run_cancellable_no_timeout_parameter() -> None:
     """Without timeout parameter, function runs to completion."""
     result = await run_cancellable(_sleep_and_return, 0.1, "ok")
     assert result == "ok"
+
+
+@pytest.mark.asyncio
+async def test_run_cancellable_unknown_ipc_tag() -> None:
+    """Unknown IPC tag raises RuntimeError."""
+    from unittest.mock import MagicMock, patch
+
+    from textual_code.cancellable_worker import _MP_CTX
+
+    real_pipe = _MP_CTX.Pipe
+
+    def patched_pipe(*args, **kwargs):
+        parent, child = real_pipe(*args, **kwargs)
+        real_recv = parent.recv
+        wrapper = MagicMock()
+        wrapper.close = parent.close
+
+        def _fake_recv():
+            real_recv()  # consume the real message
+            return ("bogus", "unexpected")
+
+        wrapper.recv = _fake_recv
+        return wrapper, child
+
+    with (
+        patch.object(_MP_CTX, "Pipe", patched_pipe),
+        pytest.raises(RuntimeError, match="unknown IPC tag"),
+    ):
+        await run_cancellable(_add, 1, 2)
