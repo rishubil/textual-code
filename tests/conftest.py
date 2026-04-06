@@ -241,6 +241,44 @@ def snapshot_json_file(snapshot_workspace: Path) -> Path:
     return f
 
 
+@pytest.fixture(autouse=True)
+def _await_file_open_workers(monkeypatch):
+    """Ensure file-opening workers complete before action_open_code_editor returns.
+
+    On Windows, ``run_cancellable`` uses ``multiprocessing.spawn`` which takes
+    80–400 ms.  The ``@work`` decorated ``_open_file_with_timeout`` /
+    ``_open_file_with_confirmation`` methods fire-and-forget, so
+    ``await pilot.wait_for_scheduled_animations()`` returns before the worker
+    finishes.  This autouse fixture monkey-patches ``action_open_code_editor``
+    to await those workers, making every test that calls ``make_app(open_file=…)``
+    automatically synchronise without per-test changes.
+    """
+    import asyncio
+
+    from textual_code.widgets.main_view import MainView
+
+    _FILE_OPEN_WORKERS = frozenset(
+        {"_open_file_with_timeout", "_open_file_with_confirmation"}
+    )
+    original = MainView.action_open_code_editor
+
+    async def _patched(self, *args, **kwargs):
+        await original(self, *args, **kwargs)
+        # Drain the event loop so the @work coroutine is scheduled
+        await asyncio.sleep(0)
+        for _ in range(200):  # up to ~2 s
+            running = [
+                w
+                for w in self.app.workers
+                if w.name in _FILE_OPEN_WORKERS and w.is_running
+            ]
+            if not running:
+                break
+            await asyncio.sleep(0.01)
+
+    monkeypatch.setattr(MainView, "action_open_code_editor", _patched)
+
+
 def make_app(
     workspace: Path,
     open_file: Path | None = None,
