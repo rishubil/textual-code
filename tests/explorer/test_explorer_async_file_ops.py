@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.conftest import make_app, wait_for_condition
+from tests.conftest import await_workers, make_app, wait_for_condition
 from textual_code.app import TextualCode
 from textual_code.command_registry import COMMAND_REGISTRY
 from textual_code.modals import DeleteFileModalScreen
@@ -76,6 +76,7 @@ async def test_delete_dir_runs_in_worker(workspace_with_dir: tuple[Path, Path]):
         # Confirm delete
         await pilot.click("#delete")
         await wait_for_condition(pilot, lambda: not bigdir.exists())
+        await await_workers(pilot)
 
     assert not bigdir.exists()
 
@@ -100,6 +101,7 @@ async def test_single_file_delete_stays_sync(workspace: Path, sample_py_file: Pa
 
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     # File should be deleted immediately (synchronously)
     assert not sample_py_file.exists()
@@ -124,6 +126,7 @@ async def test_move_dir_runs_in_worker(workspace: Path):
             )
         )
         await wait_for_condition(pilot, lambda: (dest_dir / "source").exists())
+        await await_workers(pilot)
 
     assert (dest_dir / "source").exists()
     assert not src.exists()
@@ -153,6 +156,7 @@ async def test_paste_copytree_runs_in_worker(workspace: Path):
             Explorer.FilePasteRequested(explorer=explorer, target_dir=target_dir)
         )
         await wait_for_condition(pilot, lambda: (target_dir / "original").exists())
+        await await_workers(pilot)
 
     assert (target_dir / "original").exists()
     assert (target_dir / "original" / "sub" / "nested.txt").exists()
@@ -185,6 +189,7 @@ async def test_single_file_copy_stays_sync(workspace: Path, sample_py_file: Path
             Explorer.FilePasteRequested(explorer=explorer, target_dir=target_dir)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     # File should be copied immediately (synchronously)
     assert (target_dir / "hello.py").exists()
@@ -221,6 +226,7 @@ async def test_cancel_stops_worker(workspace: Path):
             )
             await pilot.wait_for_scheduled_animations()
             await pilot.wait_for_scheduled_animations()
+            await await_workers(pilot)
 
             # Cancel the operation
             app.action_cancel_file_operation()

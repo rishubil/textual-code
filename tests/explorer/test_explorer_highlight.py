@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import make_app
+from tests.conftest import await_workers, make_app
 from textual_code.widgets.explorer import Explorer
 
 
@@ -237,6 +237,7 @@ async def test_select_file_nonexistent_nested_path_is_noop(workspace: Path):
         ghost_path = workspace / "ghost_dir" / "ghost.py"
         explorer.select_file(ghost_path)
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Cursor should not have changed
         assert explorer.directory_tree.cursor_node is original_node
@@ -258,6 +259,7 @@ async def test_select_file_outside_workspace_is_noop(workspace: Path, two_files)
         outside_path = Path("/tmp/outside.py")
         explorer.select_file(outside_path)
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Cursor should not have changed
         assert explorer.directory_tree.cursor_node is original_node

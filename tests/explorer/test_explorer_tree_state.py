@@ -339,6 +339,7 @@ async def test_select_file_updates_cursor(workspace: Path, state_tree: dict[str,
         # Select a top-level file
         explorer.select_file(state_tree["mmm"])
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         cursor = explorer.directory_tree.cursor_node
         assert cursor is not None
@@ -464,6 +465,7 @@ async def test_cursor_after_selected_file_deleted(workspace: Path):
         assert isinstance(app.screen, DeleteFileModalScreen)
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Wait for tree reload
         for _ in range(10):

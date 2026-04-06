@@ -53,6 +53,7 @@ async def test_delete_palette_file_confirm_deletes_file(
 
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not sample_py_file.exists()
 
@@ -137,6 +138,7 @@ async def test_delete_palette_open_tab_file_closes_tab(
 
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         assert len(app.main_view.opened_pane_ids) == 0
 
     assert not sample_py_file.exists()

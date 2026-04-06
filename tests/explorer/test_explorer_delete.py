@@ -68,6 +68,7 @@ async def test_delete_file_confirm_deletes_file(workspace: Path, sample_py_file:
         await pilot.wait_for_scheduled_animations()
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not sample_py_file.exists()
 
@@ -114,6 +115,7 @@ async def test_delete_open_file_closes_tab(workspace: Path, sample_py_file: Path
         await pilot.wait_for_scheduled_animations()
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         assert len(app.main_view.opened_pane_ids) == 0
 
     assert not sample_py_file.exists()

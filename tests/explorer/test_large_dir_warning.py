@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import make_app, wait_for_condition
+from tests.conftest import await_workers, make_app, wait_for_condition
 from textual_code.app import TextualCode
 from textual_code.modals import DeleteFileModalScreen
 from textual_code.modals.file_ops import LargeDirWarningModalScreen
@@ -140,6 +140,7 @@ async def test_large_dir_warning_shown_on_delete(workspace: Path):
         await wait_for_condition(
             pilot, lambda: isinstance(app.screen, LargeDirWarningModalScreen)
         )
+        await await_workers(pilot)
 
         # Confirm the warning
         await pilot.click("#continue")
@@ -168,6 +169,7 @@ async def test_small_dir_no_warning_on_delete(workspace: Path):
 
         await pilot.click("#delete")
         await wait_for_condition(pilot, lambda: not smalldir.exists())
+        await await_workers(pilot)
 
     assert not smalldir.exists()
 
@@ -194,6 +196,7 @@ async def test_large_dir_warning_cancel_aborts_delete(workspace: Path):
         await wait_for_condition(
             pilot, lambda: isinstance(app.screen, LargeDirWarningModalScreen)
         )
+        await await_workers(pilot)
 
         # Cancel the warning
         await pilot.click("#cancel")
@@ -223,6 +226,7 @@ async def test_threshold_zero_disables_warning(workspace: Path):
 
         await pilot.click("#delete")
         await wait_for_condition(pilot, lambda: not bigdir.exists())
+        await await_workers(pilot)
 
     assert not bigdir.exists()
 
@@ -249,6 +253,7 @@ async def test_large_dir_warning_shown_on_move(workspace: Path):
         await wait_for_condition(
             pilot, lambda: isinstance(app.screen, LargeDirWarningModalScreen)
         )
+        await await_workers(pilot)
 
         # Confirm
         await pilot.click("#continue")
@@ -285,6 +290,7 @@ async def test_large_dir_warning_shown_on_copy_paste(workspace: Path):
         await wait_for_condition(
             pilot, lambda: isinstance(app.screen, LargeDirWarningModalScreen)
         )
+        await await_workers(pilot)
 
         # Confirm
         await pilot.click("#continue")
@@ -321,6 +327,7 @@ async def test_large_dir_warning_shown_on_cut_paste(workspace: Path):
         await wait_for_condition(
             pilot, lambda: isinstance(app.screen, LargeDirWarningModalScreen)
         )
+        await await_workers(pilot)
 
         # Clipboard should NOT be cleared yet (modal still showing)
         assert app._file_clipboard is not None
@@ -365,6 +372,7 @@ async def test_dir_removed_during_size_calc(workspace: Path):
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     # Should not crash — directory was already gone
     assert not ghost.exists()

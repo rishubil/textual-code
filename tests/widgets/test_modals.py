@@ -8,6 +8,7 @@ from pathlib import Path
 from textual.app import App, ComposeResult
 from textual.widgets import Input, Label
 
+from tests.conftest import await_workers
 from textual_code.modals import (
     ChangeEncodingModalScreen,
     ChangeIndentModalResult,
@@ -253,6 +254,7 @@ async def test_delete_modal_delete_button(tmp_path):
     async with app.run_test() as pilot:
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert app.result is not None
     assert app.result.is_cancelled is False
@@ -1722,6 +1724,7 @@ async def test_large_file_confirm_modal_open_anyway():
     async with app.run_test() as pilot:
         await pilot.click("#open")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert app.result is not None
     assert app.result.action == "open"
@@ -1732,6 +1735,7 @@ async def test_large_file_confirm_modal_open_optimized():
     async with app.run_test() as pilot:
         await pilot.click("#open_optimized")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert app.result is not None
     assert app.result.action == "open_optimized"
@@ -1786,6 +1790,7 @@ async def test_timeout_modal_shows_slow_file_title():
 
         await pilot.click("#open")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert app.result is not None
     assert app.result.action == "open"
@@ -1797,6 +1802,7 @@ async def test_timeout_modal_open_optimized():
     async with app.run_test() as pilot:
         await pilot.click("#open_optimized")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert app.result is not None
     assert app.result.action == "open_optimized"

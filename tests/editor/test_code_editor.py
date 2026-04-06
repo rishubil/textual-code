@@ -316,6 +316,7 @@ async def test_delete_confirm_removes_file_and_closes_tab(
         await pilot.wait_for_scheduled_animations()
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         assert not sample_py_file.exists()
         assert len(app.main_view.opened_pane_ids) == 0
 
@@ -1054,6 +1055,7 @@ async def test_file_open_timeout_open_plain(workspace: Path, monkeypatch):
         await pilot.click("#open_optimized")
         await asyncio.sleep(0.5)
         await pilot.pause()
+        await await_workers(pilot)
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
