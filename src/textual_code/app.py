@@ -28,6 +28,7 @@ from textual.events import Ready
 from textual.message import Message
 from textual.screen import Screen
 
+from textual_code.cancellable_worker import run_cancellable
 from textual_code.command_registry import bindings_for_context as _bindings_for_context
 from textual_code.commands import (
     _read_workspace_directories,
@@ -329,6 +330,34 @@ class _DaemonThreadPoolExecutor(concurrent.futures.ThreadPoolExecutor):
 
     def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
         super().shutdown(wait=False, cancel_futures=cancel_futures)
+
+
+def calc_dir_size(path: Path, threshold: int = 0) -> tuple[int, int]:
+    """Calculate total size and file count for a directory.
+
+    Module-level function so it can be pickled by :func:`run_cancellable`.
+
+    Args:
+        path: Directory to scan.
+        threshold: When > 0, stop scanning once total exceeds this value.
+
+    Returns:
+        (total_bytes, file_count) tuple.
+    """
+    total = 0
+    count = 0
+    for dirpath, _dirnames, filenames in os.walk(
+        path, followlinks=False, onerror=lambda _e: None
+    ):
+        for fname in filenames:
+            try:
+                total += os.path.getsize(os.path.join(dirpath, fname))
+            except OSError:
+                continue
+            count += 1
+            if threshold > 0 and total > threshold:
+                return total, count
+    return total, count
 
 
 class TextualCode(App):
@@ -1831,27 +1860,10 @@ class TextualCode(App):
     def _calc_dir_size(path: Path, threshold: int = 0) -> tuple[int, int]:
         """Calculate total size and file count for a directory.
 
-        Args:
-            path: Directory to scan.
-            threshold: When > 0, stop scanning once total exceeds this value.
-
-        Returns:
-            (total_bytes, file_count) tuple.
+        Delegates to the module-level :func:`calc_dir_size` function.
+        Kept for backward compatibility with tests.
         """
-        total = 0
-        count = 0
-        for dirpath, _dirnames, filenames in os.walk(
-            path, followlinks=False, onerror=lambda _e: None
-        ):
-            for fname in filenames:
-                try:
-                    total += os.path.getsize(os.path.join(dirpath, fname))
-                except OSError:
-                    continue
-                count += 1
-                if threshold > 0 and total > threshold:
-                    return total, count
-        return total, count
+        return calc_dir_size(path, threshold)
 
     def _check_dir_size_and_proceed(
         self,
@@ -1861,10 +1873,10 @@ class TextualCode(App):
     ) -> None:
         """Check directory size and show a warning modal if over threshold.
 
-        Runs the size calculation in a background thread. If the directory
-        exceeds the threshold, a confirmation modal is shown. The *proceed*
-        callback is invoked only when the user approves or the size is below
-        the threshold.
+        Runs the size calculation in a subprocess via ``run_cancellable``.
+        If the directory exceeds the threshold, a confirmation modal is
+        shown.  The *proceed* callback is invoked only when the user
+        approves or the size is below the threshold.
 
         Args:
             path: Directory path to check.
@@ -1873,7 +1885,6 @@ class TextualCode(App):
                      below threshold.
         """
         from textual_code.modals.file_ops import (
-            LargeDirWarningModalResult,
             LargeDirWarningModalScreen,
         )
 
@@ -1886,40 +1897,25 @@ class TextualCode(App):
             proceed()
             return
 
-        @work(thread=True, exit_on_error=False, exclusive=True, group="dir_size_check")
-        def _calc_and_check(self_: "TextualCode") -> None:
-            from textual.worker import get_current_worker
+        @work(exit_on_error=False, exclusive=True, group="dir_size_check")
+        async def _calc_and_check(self_: "TextualCode") -> None:
+            total, count = await run_cancellable(calc_dir_size, path, threshold)
 
-            worker = get_current_worker()
-            total, count = self_._calc_dir_size(path, threshold)
-
-            if worker.is_cancelled:
-                return
-
-            def _show_or_proceed() -> None:
-                self_.log.info(
-                    "dir size check: %s = %d bytes, %d files (threshold: %d)",
-                    path.name,
-                    total,
-                    count,
-                    threshold,
+            self_.log.info(
+                "dir size check: %s = %d bytes, %d files (threshold: %d)",
+                path.name,
+                total,
+                count,
+                threshold,
+            )
+            if total > threshold:
+                result = await self_.app.push_screen_wait(
+                    LargeDirWarningModalScreen(path.name, total, count, operation),
                 )
-                if total > threshold:
-
-                    def _on_warning_result(
-                        result: LargeDirWarningModalResult | None,
-                    ) -> None:
-                        if result is not None and result.should_proceed:
-                            proceed()
-
-                    self_.push_screen(
-                        LargeDirWarningModalScreen(path.name, total, count, operation),
-                        _on_warning_result,
-                    )
-                else:
+                if result is not None and result.should_proceed:
                     proceed()
-
-            self_.app.call_from_thread(_show_or_proceed)
+            else:
+                proceed()
 
         _calc_and_check(self)
 
