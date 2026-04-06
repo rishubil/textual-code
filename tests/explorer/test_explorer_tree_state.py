@@ -22,6 +22,7 @@ from tests.conftest import (
     find_tree_node_by_path,
     get_tree_child_labels,
     make_app,
+    wait_for_condition,
 )
 from textual_code.widgets.explorer import Explorer, FilteredDirectoryTree
 
@@ -372,27 +373,20 @@ async def test_select_file_expands_collapsed_parent(
         # Select inner.py inside dir_alpha — should trigger auto-expansion
         # (triggers _load_directory worker for dir_alpha via run_cancellable)
         explorer.select_file(state_tree["inner"])
-        for _ in range(10):
-            await pilot.wait_for_scheduled_animations()
-        await await_workers(pilot)
-        for _ in range(10):
-            await pilot.wait_for_scheduled_animations()
-        await await_workers(pilot)
-        # Extra drain: cursor move may be posted after worker completes
-        for _ in range(5):
-            await pilot.wait_for_scheduled_animations()
-        await await_workers(pilot)
+        await wait_for_condition(
+            pilot,
+            lambda: (
+                tree.cursor_node is not None
+                and tree.cursor_node.data is not None
+                and tree.cursor_node.data.path == state_tree["inner"]
+            ),
+            msg="Cursor did not reach inner.py after select_file",
+        )
 
         # dir_alpha should now be expanded
         alpha_node = find_tree_node_by_path(tree, state_tree["dir_alpha"])
         assert alpha_node is not None
         assert alpha_node.is_expanded
-
-        # Cursor should be on inner.py
-        cursor = tree.cursor_node
-        assert cursor is not None
-        assert cursor.data is not None
-        assert cursor.data.path == state_tree["inner"]
 
 
 async def test_select_file_expands_deeply_nested_path(
@@ -413,17 +407,16 @@ async def test_select_file_expands_deeply_nested_path(
 
         # Select deep.py (two levels deep — each level triggers a
         # _load_directory worker via run_cancellable).
-        # Level 1: expand dir_beta, Level 2: expand sub_beta, then cursor.
         explorer.select_file(state_tree["deep"])
-        for _ in range(10):
-            await pilot.wait_for_scheduled_animations()
-        await await_workers(pilot)
-        for _ in range(10):
-            await pilot.wait_for_scheduled_animations()
-        await await_workers(pilot)
-        for _ in range(10):
-            await pilot.wait_for_scheduled_animations()
-        await await_workers(pilot)
+        await wait_for_condition(
+            pilot,
+            lambda: (
+                tree.cursor_node is not None
+                and tree.cursor_node.data is not None
+                and tree.cursor_node.data.path == state_tree["deep"]
+            ),
+            msg="Cursor did not reach deep.py after select_file",
+        )
 
         # Both dir_beta and sub_beta should be expanded
         beta_node = find_tree_node_by_path(tree, state_tree["dir_beta"])
