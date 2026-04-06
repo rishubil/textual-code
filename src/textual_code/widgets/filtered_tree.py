@@ -22,6 +22,7 @@ from textual.widgets._directory_tree import DirEntry
 from textual.worker import get_current_worker
 
 from textual_code.cancellable_worker import run_cancellable
+from textual_code.subprocess_tasks import scan_directory_sync
 
 if TYPE_CHECKING:
     from textual.widgets._tree import TreeNode
@@ -128,41 +129,6 @@ def _set_status(
             break  # All ancestors already have equal or higher priority
         status_map[parent] = status
         parent = parent.parent
-
-
-def scan_directory_sync(
-    path: Path, show_hidden_files: bool
-) -> tuple[list[Path], dict[Path, bool]]:
-    """Scan a directory with os.scandir and return sorted paths + is_dir cache.
-
-    Module-level function so it can be pickled by :func:`run_cancellable`.
-
-    Args:
-        path: The directory to scan. Will be resolved to an absolute path.
-        show_hidden_files: If False, entries starting with '.' are excluded.
-
-    Returns:
-        A tuple of (sorted_paths, is_dir_cache).
-    """
-    path = path.resolve()
-    entries: list[Path] = []
-    is_dir_cache: dict[Path, bool] = {}
-    try:
-        with os.scandir(path) as it:
-            for entry in it:
-                entry_path = Path(entry.path)
-                try:
-                    is_dir = entry.is_dir(follow_symlinks=True)
-                except OSError:
-                    is_dir = False
-                is_dir_cache[entry_path] = is_dir
-                entries.append(entry_path)
-    except OSError:
-        pass
-    if not show_hidden_files:
-        entries = [p for p in entries if not p.name.startswith(".")]
-    entries.sort(key=lambda p: (not is_dir_cache.get(p, False), p.name.lower()))
-    return entries, is_dir_cache
 
 
 class FilteredDirectoryTree(DirectoryTree):

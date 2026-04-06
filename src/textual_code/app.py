@@ -1,7 +1,6 @@
 import asyncio
 import concurrent.futures
 import logging
-import os
 import threading
 import time
 import weakref
@@ -76,6 +75,7 @@ from textual_code.modals import (
     UnsavedChangeQuitModalResult,
     UnsavedChangeQuitModalScreen,
 )
+from textual_code.subprocess_tasks import calc_dir_size
 from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.explorer import Explorer
 from textual_code.widgets.main_view import MainView
@@ -330,34 +330,6 @@ class _DaemonThreadPoolExecutor(concurrent.futures.ThreadPoolExecutor):
 
     def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
         super().shutdown(wait=False, cancel_futures=cancel_futures)
-
-
-def calc_dir_size(path: Path, threshold: int = 0) -> tuple[int, int]:
-    """Calculate total size and file count for a directory.
-
-    Module-level function so it can be pickled by :func:`run_cancellable`.
-
-    Args:
-        path: Directory to scan.
-        threshold: When > 0, stop scanning once total exceeds this value.
-
-    Returns:
-        (total_bytes, file_count) tuple.
-    """
-    total = 0
-    count = 0
-    for dirpath, _dirnames, filenames in os.walk(
-        path, followlinks=False, onerror=lambda _e: None
-    ):
-        for fname in filenames:
-            try:
-                total += os.path.getsize(os.path.join(dirpath, fname))
-            except OSError:
-                continue
-            count += 1
-            if threshold > 0 and total > threshold:
-                return total, count
-    return total, count
 
 
 class TextualCode(App):

@@ -14,6 +14,8 @@ from textual.timer import Timer
 from textual.widgets import LoadingIndicator, Static
 
 from textual_code.cancellable_worker import run_cancellable
+from textual_code.subprocess_tasks import compute_resize as compute_resize
+from textual_code.subprocess_tasks import render_image_sync
 
 log = logging.getLogger(__name__)
 
@@ -24,34 +26,6 @@ IMAGE_EXTENSIONS = frozenset(
 MAX_IMAGE_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 
 _RESIZE_DEBOUNCE = 0.15  # seconds
-
-
-def render_image_sync(source_path: Path, max_w: int, max_h: int) -> RenderableType:
-    """Load an image and render it to rich-pixels in a subprocess.
-
-    This is a module-level function so it can be pickled for
-    ``run_cancellable()``.
-    """
-    from PIL import Image
-    from rich_pixels import Pixels
-
-    with Image.open(source_path) as img:
-        orig_w, orig_h = img.size
-        target_w, target_h = compute_resize(orig_w, orig_h, max_w, max_h)
-        return Pixels.from_image(img, resize=(target_w, target_h))
-
-
-def compute_resize(orig_w: int, orig_h: int, max_w: int, max_h: int) -> tuple[int, int]:
-    """Compute target (width, height) that fits within *max_w*×*max_h*.
-
-    The image is never enlarged beyond its original pixel size (no upscale).
-    Aspect ratio is always preserved.
-    """
-    if orig_w <= 0 or orig_h <= 0 or max_w <= 0 or max_h <= 0:
-        return (1, 1)
-
-    scale = min(max_w / orig_w, max_h / orig_h, 1.0)
-    return (max(int(orig_w * scale), 1), max(int(orig_h * scale), 1))
 
 
 class ImagePreviewPane(VerticalScroll):

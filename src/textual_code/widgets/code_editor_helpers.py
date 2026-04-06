@@ -11,8 +11,6 @@ from pathlib import Path
 
 from charset_normalizer import detect as _cn_detect
 
-from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
-
 log = logging.getLogger(__name__)
 
 # ── EditorConfig support ────────────────────────────────────────────────────
@@ -566,6 +564,8 @@ def _get_word_at_location(text: str, row: int, col: int) -> str:
     Returns an empty string if the character at (row, col) is not a word
     character or if the coordinates are out of range.
     """
+    from textual_code.widgets.multi_cursor_text_area import MultiCursorTextArea
+
     bounds = MultiCursorTextArea._word_bounds_at(text, row, col)
     if bounds is None:
         return ""
