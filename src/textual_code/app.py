@@ -1839,7 +1839,8 @@ class TextualCode(App):
             def _do_move() -> None:
                 self._do_file_op(
                     f"Moving '{path.name}'",
-                    lambda: shutil.move(str(path), str(new_path)),
+                    shutil.move,
+                    (str(path), str(new_path)),
                     on_success=_move_success,
                 )
 
@@ -1921,65 +1922,48 @@ class TextualCode(App):
 
     # ── Async file operations ──────────────────────────────────────────
 
-    @work(thread=True, exclusive=True, group="file_ops", exit_on_error=False)
-    def _do_file_op(
+    @work(exclusive=True, group="file_ops", exit_on_error=False)
+    async def _do_file_op(
         self,
         label: str,
-        op: Callable[[], None],
+        op: Callable[..., object],
+        args: tuple[object, ...],
         on_success: Callable[[], None] | None = None,
         on_error: Callable[[], None] | None = None,
     ) -> None:
-        """Run a file operation in a background thread.
+        """Run a file operation in a subprocess via :func:`run_cancellable`.
 
         Args:
             label: Human-readable label like "Deleting 'mydir'".
-            op: The blocking callable (shutil.rmtree, etc.).
-            on_success: Callback to run on main thread after success.
-            on_error: Callback to run on main thread after failure or cancel.
+            op: A **module-level** callable (must be picklable).
+            args: Positional arguments for *op* (must be picklable).
+            on_success: Callback to run after success.
+            on_error: Callback to run after failure or cancel.
         """
-        from textual.worker import get_current_worker
-
-        worker = get_current_worker()
-
-        def _safe_call(fn: Callable[..., object], *args: object) -> None:
-            try:
-                self.app.call_from_thread(fn, *args)
-            except RuntimeError as exc:
-                if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
-                    raise
-                _logger.debug("call_from_thread suppressed (app exiting): %s", exc)
-
         self._current_file_op_label = label
         self.log.info("file_op started: %s", label)
-        _safe_call(self.notify, f"{label}...")
-
-        # Check cancellation before starting the blocking operation.
-        # After op() completes we always run on_success — thread workers
-        # cannot be interrupted mid-I/O, so a late cancel should not
-        # discard a filesystem change that already happened.
-        if worker.is_cancelled:
-            self.log.warning("file_op cancelled before start: %s", label)
-            self._current_file_op_label = ""
-            _safe_call(lambda: self.notify(f"Cancelled: {label}", severity="warning"))
-            if on_error is not None:
-                _safe_call(on_error)
-            return
+        self.notify(f"{label}...")
 
         try:
-            op()
+            await run_cancellable(op, *args)
+        except (TimeoutError, asyncio.CancelledError):
+            self.log.warning("file_op cancelled: %s", label)
+            self.notify(f"Cancelled: {label}", severity="warning")
+            if on_error is not None:
+                on_error()
+            return
         except Exception as e:
             self.log.error("file_op failed: %s: %s", label, e)
-            err_msg = f"Error: {e}. Partial files may remain."
-            _safe_call(lambda: self.notify(err_msg, severity="error"))
+            self.notify(f"Error: {e}. Partial files may remain.", severity="error")
             if on_error is not None:
-                _safe_call(on_error)
+                on_error()
             return
         finally:
             self._current_file_op_label = ""
 
         self.log.info("file_op completed: %s", label)
         if on_success is not None:
-            _safe_call(on_success)
+            on_success()
 
     def action_cancel_file_operation(self) -> None:
         """Cancel any in-progress file operation."""
@@ -2017,7 +2001,8 @@ class TextualCode(App):
         def _do_delete() -> None:
             self._do_file_op(
                 f"Deleting '{path.name}'",
-                lambda: shutil.rmtree(path),
+                shutil.rmtree,
+                (path,),
                 on_success=_post_delete,
             )
 
@@ -2227,7 +2212,8 @@ class TextualCode(App):
                 def _do_copy() -> None:
                     self._do_file_op(
                         f"Copying '{source_path.name}'",
-                        lambda: shutil.copytree(str(source_path), str(dest_path)),
+                        shutil.copytree,
+                        (str(source_path), str(dest_path)),
                         on_success=_copy_success,
                     )
 
@@ -2265,7 +2251,8 @@ class TextualCode(App):
 
                     self._do_file_op(
                         f"Moving '{source_path.name}'",
-                        lambda: shutil.move(str(source_path), str(dest_path)),
+                        shutil.move,
+                        (str(source_path), str(dest_path)),
                         on_success=_cut_success,
                         on_error=_cut_fail_restore,
                     )

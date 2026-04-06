@@ -5,7 +5,7 @@ Verifies that directory copy/delete/move run in background workers,
 single file operations stay synchronous, and the cancel command works.
 """
 
-import threading
+import asyncio
 from pathlib import Path
 from unittest.mock import patch
 
@@ -194,19 +194,14 @@ async def test_single_file_copy_stays_sync(workspace: Path, sample_py_file: Path
 
 
 async def test_cancel_stops_worker(workspace: Path):
-    """Cancelling a file operation stops the worker."""
+    """Cancelling a file operation stops the subprocess-based worker."""
     src = _make_large_dir(workspace, "original")
     target_dir = workspace / "target"
     target_dir.mkdir()
 
-    # Use a barrier to hold the copytree so we can cancel mid-operation
-    barrier = threading.Event()
-
-    original_copytree = __import__("shutil").copytree
-
-    def slow_copytree(*args, **kwargs):
-        barrier.wait(timeout=5)
-        return original_copytree(*args, **kwargs)
+    async def slow_run_cancellable(*_args: object, **_kwargs: object) -> None:
+        """Simulate a long-running subprocess that can be cancelled."""
+        await asyncio.sleep(60)
 
     app = make_app(workspace)
     async with app.run_test() as pilot:
@@ -218,8 +213,9 @@ async def test_cancel_stops_worker(workspace: Path):
         explorer.post_message(Explorer.FileCopyRequested(explorer=explorer, path=src))
         await pilot.wait_for_scheduled_animations()
 
-        # Paste with slow copytree
-        with patch("shutil.copytree", side_effect=slow_copytree):
+        # Paste with mocked run_cancellable that blocks forever
+        mock_target = "textual_code.app.run_cancellable"
+        with patch(mock_target, side_effect=slow_run_cancellable):
             explorer.post_message(
                 Explorer.FilePasteRequested(explorer=explorer, target_dir=target_dir)
             )
@@ -229,10 +225,6 @@ async def test_cancel_stops_worker(workspace: Path):
             # Cancel the operation
             app.action_cancel_file_operation()
             await pilot.wait_for_scheduled_animations()
-
-        # Release barrier so the thread can finish cleanly
-        barrier.set()
-        await pilot.wait_for_scheduled_animations()
 
     # Verify cancel was invoked: the label should have been cleared after
     # the worker finished (whether cancelled or completed).
