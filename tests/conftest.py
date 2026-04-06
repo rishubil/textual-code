@@ -389,6 +389,9 @@ async def wait_for_condition(
             last_exc = exc
         await pilot.wait_for_scheduled_animations()
         await await_workers(pilot)
+        # Extra animation drain: workers may post messages that spawn
+        # new workers (e.g. multi-level directory expansion)
+        await pilot.wait_for_scheduled_animations()
         await pilot.pause(delay=delay)
     if last_exc is not None:
         raise AssertionError(msg) from last_exc
