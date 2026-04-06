@@ -408,6 +408,7 @@ async def test_select_file_expands_deeply_nested_path(
         await await_workers(pilot)
         for _ in range(30):
             await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Both dir_beta and sub_beta should be expanded
         beta_node = find_tree_node_by_path(tree, state_tree["dir_beta"])

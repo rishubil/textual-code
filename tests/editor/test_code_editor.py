@@ -880,6 +880,7 @@ async def test_large_file_already_open_skips_check(workspace: Path):
         await pilot.click("#open")
         await pilot.wait_for_scheduled_animations()
         await pilot.pause()
+        await await_workers(pilot)
 
         # Second open — should just focus the existing pane (no modal)
         await app.main_view.action_open_code_editor(path=large_file)
