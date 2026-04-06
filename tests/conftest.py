@@ -388,6 +388,7 @@ async def wait_for_condition(
         except Exception as exc:
             last_exc = exc
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         await pilot.pause(delay=delay)
     if last_exc is not None:
         raise AssertionError(msg) from last_exc
