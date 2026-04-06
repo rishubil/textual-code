@@ -23,46 +23,90 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.12"
     steps:
-      - run: echo skip
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --frozen
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+
   typecheck:
     name: Type Check
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.12"
     steps:
-      - run: echo skip
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --frozen
+      - run: uv run ty check
+
   language-check:
     name: Language Check
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.12"
     steps:
-      - run: echo skip
-  test:
-    name: Test (Python 3.12)
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo skip
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: bash scripts/check-language.sh --all
 
-  test-windows:
-    name: Test Windows (Python ${{ matrix.python-version }})
-    runs-on: windows-latest
+  test:
+    name: Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.12", "3.13", "3.14"]
     env:
       UV_PYTHON: ${{ matrix.python-version }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v3
       - run: uv sync --frozen
-      - run: uv run pytest tests/ -n auto -m "not serial" --reruns 3 -v
+      - run: uv run pytest tests/ -n auto -m "not serial" --reruns 3
+
+  test-windows:
+    name: Test Windows (Python ${{ matrix.python-version }})
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --frozen
+      - run: uv run pytest tests/ -n auto -m "not serial" --reruns 3
 
   test-snapshot:
-    name: Snapshot Test (Python 3.12)
+    name: Snapshot Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
     steps:
-      - run: echo skip
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --frozen
+      - run: uv run pytest tests/ -m serial --reruns 3
+      - name: Upload snapshot report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-report-python-${{ matrix.python-version }}
+          path: snapshot_report.html
+
   build:
     name: Build
     runs-on: ubuntu-latest
+    env:
+      UV_PYTHON: "3.12"
     steps:
-      - run: echo skip
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv build

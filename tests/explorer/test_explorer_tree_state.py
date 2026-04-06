@@ -378,6 +378,10 @@ async def test_select_file_expands_collapsed_parent(
         for _ in range(10):
             await pilot.wait_for_scheduled_animations()
         await await_workers(pilot)
+        # Extra drain: cursor move may be posted after worker completes
+        for _ in range(5):
+            await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # dir_alpha should now be expanded
         alpha_node = find_tree_node_by_path(tree, state_tree["dir_alpha"])
