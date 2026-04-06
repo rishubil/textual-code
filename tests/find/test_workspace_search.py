@@ -673,6 +673,14 @@ async def test_search_error_clears_loading(tmp_path: Path, monkeypatch) -> None:
 
     monkeypatch.setattr(ws_module, "search_workspace", exploding_search)
 
+    # run_cancellable executes in a subprocess where monkeypatch has no
+    # effect.  Replace it with an in-process call so the patched
+    # search_workspace is actually invoked.
+    async def _inproc_run_cancellable(fn, *args, **kwargs):
+        return fn(*args)
+
+    monkeypatch.setattr(ws_module, "run_cancellable", _inproc_run_cancellable)
+
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
@@ -863,6 +871,14 @@ async def test_search_with_permission_error_shows_toast(
         )
 
     monkeypatch.setattr(ws_module, "search_workspace", search_with_errors)
+
+    # run_cancellable executes in a subprocess where monkeypatch has no
+    # effect.  Replace it with an in-process call so the patched
+    # search_workspace is actually invoked.
+    async def _inproc_run_cancellable(fn, *args, **kwargs):
+        return fn(*args)
+
+    monkeypatch.setattr(ws_module, "run_cancellable", _inproc_run_cancellable)
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
