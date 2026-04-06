@@ -1,7 +1,6 @@
 import asyncio
 import concurrent.futures
 import logging
-import os
 import threading
 import time
 import weakref
@@ -28,6 +27,7 @@ from textual.events import Ready
 from textual.message import Message
 from textual.screen import Screen
 
+from textual_code.cancellable_worker import run_cancellable
 from textual_code.command_registry import bindings_for_context as _bindings_for_context
 from textual_code.commands import (
     _read_workspace_directories,
@@ -75,6 +75,7 @@ from textual_code.modals import (
     UnsavedChangeQuitModalResult,
     UnsavedChangeQuitModalScreen,
 )
+from textual_code.subprocess_tasks import calc_dir_size
 from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.explorer import Explorer
 from textual_code.widgets.main_view import MainView
@@ -1810,7 +1811,8 @@ class TextualCode(App):
             def _do_move() -> None:
                 self._do_file_op(
                     f"Moving '{path.name}'",
-                    lambda: shutil.move(str(path), str(new_path)),
+                    shutil.move,
+                    (str(path), str(new_path)),
                     on_success=_move_success,
                 )
 
@@ -1831,27 +1833,10 @@ class TextualCode(App):
     def _calc_dir_size(path: Path, threshold: int = 0) -> tuple[int, int]:
         """Calculate total size and file count for a directory.
 
-        Args:
-            path: Directory to scan.
-            threshold: When > 0, stop scanning once total exceeds this value.
-
-        Returns:
-            (total_bytes, file_count) tuple.
+        Delegates to the module-level :func:`calc_dir_size` function.
+        Kept for backward compatibility with tests.
         """
-        total = 0
-        count = 0
-        for dirpath, _dirnames, filenames in os.walk(
-            path, followlinks=False, onerror=lambda _e: None
-        ):
-            for fname in filenames:
-                try:
-                    total += os.path.getsize(os.path.join(dirpath, fname))
-                except OSError:
-                    continue
-                count += 1
-                if threshold > 0 and total > threshold:
-                    return total, count
-        return total, count
+        return calc_dir_size(path, threshold)
 
     def _check_dir_size_and_proceed(
         self,
@@ -1861,10 +1846,10 @@ class TextualCode(App):
     ) -> None:
         """Check directory size and show a warning modal if over threshold.
 
-        Runs the size calculation in a background thread. If the directory
-        exceeds the threshold, a confirmation modal is shown. The *proceed*
-        callback is invoked only when the user approves or the size is below
-        the threshold.
+        Runs the size calculation in a subprocess via ``run_cancellable``.
+        If the directory exceeds the threshold, a confirmation modal is
+        shown.  The *proceed* callback is invoked only when the user
+        approves or the size is below the threshold.
 
         Args:
             path: Directory path to check.
@@ -1873,7 +1858,6 @@ class TextualCode(App):
                      below threshold.
         """
         from textual_code.modals.file_ops import (
-            LargeDirWarningModalResult,
             LargeDirWarningModalScreen,
         )
 
@@ -1886,104 +1870,72 @@ class TextualCode(App):
             proceed()
             return
 
-        @work(thread=True, exit_on_error=False, exclusive=True, group="dir_size_check")
-        def _calc_and_check(self_: "TextualCode") -> None:
-            from textual.worker import get_current_worker
+        @work(exit_on_error=False, exclusive=True, group="dir_size_check")
+        async def _calc_and_check(self_: "TextualCode") -> None:
+            total, count = await run_cancellable(calc_dir_size, path, threshold)
 
-            worker = get_current_worker()
-            total, count = self_._calc_dir_size(path, threshold)
-
-            if worker.is_cancelled:
-                return
-
-            def _show_or_proceed() -> None:
-                self_.log.info(
-                    "dir size check: %s = %d bytes, %d files (threshold: %d)",
-                    path.name,
-                    total,
-                    count,
-                    threshold,
+            self_.log.info(
+                "dir size check: %s = %d bytes, %d files (threshold: %d)",
+                path.name,
+                total,
+                count,
+                threshold,
+            )
+            if total > threshold:
+                result = await self_.app.push_screen_wait(
+                    LargeDirWarningModalScreen(path.name, total, count, operation),
                 )
-                if total > threshold:
-
-                    def _on_warning_result(
-                        result: LargeDirWarningModalResult | None,
-                    ) -> None:
-                        if result is not None and result.should_proceed:
-                            proceed()
-
-                    self_.push_screen(
-                        LargeDirWarningModalScreen(path.name, total, count, operation),
-                        _on_warning_result,
-                    )
-                else:
+                if result is not None and result.should_proceed:
                     proceed()
-
-            self_.app.call_from_thread(_show_or_proceed)
+            else:
+                proceed()
 
         _calc_and_check(self)
 
     # ── Async file operations ──────────────────────────────────────────
 
-    @work(thread=True, exclusive=True, group="file_ops", exit_on_error=False)
-    def _do_file_op(
+    @work(exclusive=True, group="file_ops", exit_on_error=False)
+    async def _do_file_op(
         self,
         label: str,
-        op: Callable[[], None],
+        op: Callable[..., object],
+        args: tuple[object, ...],
         on_success: Callable[[], None] | None = None,
         on_error: Callable[[], None] | None = None,
     ) -> None:
-        """Run a file operation in a background thread.
+        """Run a file operation in a subprocess via :func:`run_cancellable`.
 
         Args:
             label: Human-readable label like "Deleting 'mydir'".
-            op: The blocking callable (shutil.rmtree, etc.).
-            on_success: Callback to run on main thread after success.
-            on_error: Callback to run on main thread after failure or cancel.
+            op: A **module-level** callable (must be picklable).
+            args: Positional arguments for *op* (must be picklable).
+            on_success: Callback to run after success.
+            on_error: Callback to run after failure or cancel.
         """
-        from textual.worker import get_current_worker
-
-        worker = get_current_worker()
-
-        def _safe_call(fn: Callable[..., object], *args: object) -> None:
-            try:
-                self.app.call_from_thread(fn, *args)
-            except RuntimeError as exc:
-                if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
-                    raise
-                _logger.debug("call_from_thread suppressed (app exiting): %s", exc)
-
         self._current_file_op_label = label
         self.log.info("file_op started: %s", label)
-        _safe_call(self.notify, f"{label}...")
-
-        # Check cancellation before starting the blocking operation.
-        # After op() completes we always run on_success — thread workers
-        # cannot be interrupted mid-I/O, so a late cancel should not
-        # discard a filesystem change that already happened.
-        if worker.is_cancelled:
-            self.log.warning("file_op cancelled before start: %s", label)
-            self._current_file_op_label = ""
-            _safe_call(lambda: self.notify(f"Cancelled: {label}", severity="warning"))
-            if on_error is not None:
-                _safe_call(on_error)
-            return
+        self.notify(f"{label}...")
 
         try:
-            op()
+            await run_cancellable(op, *args)
+        except (TimeoutError, asyncio.CancelledError):
+            self.log.warning("file_op cancelled: %s", label)
+            self.notify(f"Cancelled: {label}", severity="warning")
+            if on_error is not None:
+                on_error()
+            return
         except Exception as e:
             self.log.error("file_op failed: %s: %s", label, e)
-            err_msg = f"Error: {e}. Partial files may remain."
-            _safe_call(lambda: self.notify(err_msg, severity="error"))
+            self.notify(f"Error: {e}. Partial files may remain.", severity="error")
             if on_error is not None:
-                _safe_call(on_error)
+                on_error()
             return
         finally:
             self._current_file_op_label = ""
 
         self.log.info("file_op completed: %s", label)
         if on_success is not None:
-            _safe_call(on_success)
+            on_success()
 
     def action_cancel_file_operation(self) -> None:
         """Cancel any in-progress file operation."""
@@ -2021,7 +1973,8 @@ class TextualCode(App):
         def _do_delete() -> None:
             self._do_file_op(
                 f"Deleting '{path.name}'",
-                lambda: shutil.rmtree(path),
+                shutil.rmtree,
+                (path,),
                 on_success=_post_delete,
             )
 
@@ -2231,7 +2184,8 @@ class TextualCode(App):
                 def _do_copy() -> None:
                     self._do_file_op(
                         f"Copying '{source_path.name}'",
-                        lambda: shutil.copytree(str(source_path), str(dest_path)),
+                        shutil.copytree,
+                        (str(source_path), str(dest_path)),
                         on_success=_copy_success,
                     )
 
@@ -2269,7 +2223,8 @@ class TextualCode(App):
 
                     self._do_file_op(
                         f"Moving '{source_path.name}'",
-                        lambda: shutil.move(str(source_path), str(dest_path)),
+                        shutil.move,
+                        (str(source_path), str(dest_path)),
                         on_success=_cut_success,
                         on_error=_cut_fail_restore,
                     )

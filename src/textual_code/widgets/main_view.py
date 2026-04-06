@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import logging
 from pathlib import Path
@@ -15,6 +14,7 @@ from textual.timer import Timer
 from textual.widget import Widget
 from textual.widgets import Button, Static, TabbedContent, TabPane
 
+from textual_code.cancellable_worker import run_cancellable
 from textual_code.command_registry import bindings_for_context as _bindings_for_context
 from textual_code.modals import LargeFileConfirmModalScreen
 from textual_code.utils import is_binary_file
@@ -650,49 +650,47 @@ class MainView(Static):
                     and not is_binary_file(path)
                     and path.suffix.lower() not in IMAGE_EXTENSIONS
                 ):
-                    self._open_file_with_timeout(path, timeout, focus, line)
+                    try:
+                        loaded = await run_cancellable(
+                            load_file_for_editor, path, timeout=timeout
+                        )
+                    except TimeoutError:
+                        self._handle_file_open_timeout(path, focus, line)
+                        return
+                    await self._finish_open_code_editor(
+                        path, focus=focus, line=line, loaded=loaded
+                    )
                     return
 
         await self._finish_open_code_editor(path, focus=focus, line=line)
 
     @work(exit_on_error=False)
-    async def _open_file_with_timeout(
+    async def _handle_file_open_timeout(
         self,
         path: Path,
-        timeout: float,
         focus: bool,
         line: int | None,
     ) -> None:
-        """Load file in a thread with timeout; show modal on TimeoutError."""
+        """Show timeout modal and optionally retry loading."""
+        log.info("File open timeout: %s", path.name)
         try:
-            loaded = await asyncio.wait_for(
-                asyncio.to_thread(load_file_for_editor, path),
-                timeout=timeout,
-            )
-        except TimeoutError:
-            log.info("File open timeout: %s (>%.1fs)", path.name, timeout)
-            try:
-                file_size = path.stat().st_size
-            except OSError:
-                file_size = 0
-            # Show confirmation modal directly (not via another @work)
-            result = await self.app.push_screen_wait(
-                LargeFileConfirmModalScreen(path.name, file_size, reason="timeout")
-            )
-            if result.action == "cancel":
-                return
-            force_no_highlighting = result.action == "open_optimized"
-            loaded = await asyncio.to_thread(load_file_for_editor, path)
-            await self._finish_open_code_editor(
-                path,
-                focus=focus,
-                line=line,
-                force_no_highlighting=force_no_highlighting,
-                loaded=loaded,
-            )
+            file_size = path.stat().st_size
+        except OSError:
+            file_size = 0
+        result = await self.app.push_screen_wait(
+            LargeFileConfirmModalScreen(path.name, file_size, reason="timeout")
+        )
+        if result.action == "cancel":
             return
-
-        await self._finish_open_code_editor(path, focus=focus, line=line, loaded=loaded)
+        force_no_highlighting = result.action == "open_optimized"
+        loaded = await run_cancellable(load_file_for_editor, path)
+        await self._finish_open_code_editor(
+            path,
+            focus=focus,
+            line=line,
+            force_no_highlighting=force_no_highlighting,
+            loaded=loaded,
+        )
 
     @work(exit_on_error=False)
     async def _open_file_with_confirmation(
@@ -711,8 +709,8 @@ class MainView(Static):
         if result.action == "cancel":
             return
         force_no_highlighting = result.action == "open_optimized"
-        # Retry file read in a thread to avoid blocking the event loop
-        loaded = await asyncio.to_thread(load_file_for_editor, path)
+        # Retry file read in a subprocess to avoid blocking the event loop
+        loaded = await run_cancellable(load_file_for_editor, path)
         await self._finish_open_code_editor(
             path,
             focus=focus,

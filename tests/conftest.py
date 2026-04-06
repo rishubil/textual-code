@@ -241,6 +241,25 @@ def snapshot_json_file(snapshot_workspace: Path) -> Path:
     return f
 
 
+async def await_workers(pilot) -> None:
+    """Wait until all running Textual workers finish.
+
+    On Windows, ``run_cancellable`` uses ``multiprocessing.spawn`` (~80-400 ms
+    startup).  Fire-and-forget ``@work`` methods may still be running when
+    ``wait_for_scheduled_animations()`` returns.  Call this helper after
+    animations to ensure subprocess-based workers have completed.
+
+    On Linux with ``fork``, workers complete near-instantly so this returns
+    immediately with negligible overhead.
+    """
+    import asyncio
+
+    for _ in range(200):  # up to ~2 s
+        if not any(w.is_running for w in pilot.app.workers):
+            return
+        await asyncio.sleep(0.01)
+
+
 def make_app(
     workspace: Path,
     open_file: Path | None = None,
@@ -368,6 +387,10 @@ async def wait_for_condition(
                 return result
         except Exception as exc:
             last_exc = exc
+        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
+        # Extra animation drain: workers may post messages that spawn
+        # new workers (e.g. multi-level directory expansion)
         await pilot.wait_for_scheduled_animations()
         await pilot.pause(delay=delay)
     if last_exc is not None:

@@ -7,7 +7,7 @@ DirectoryTree using Ctrl+C/X/V or the command palette.
 
 from pathlib import Path
 
-from tests.conftest import make_app
+from tests.conftest import await_workers, make_app
 from textual_code.app import _resolve_paste_name
 from textual_code.widgets.explorer import Explorer
 
@@ -143,6 +143,7 @@ async def test_paste_copied_file(workspace: Path, sample_py_file: Path):
             Explorer.FilePasteRequested(explorer=explorer, target_dir=dest_dir)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     # Source still exists (copy, not cut)
     assert sample_py_file.exists()
@@ -170,6 +171,7 @@ async def test_paste_copied_file_content_preserved(
             Explorer.FilePasteRequested(explorer=explorer, target_dir=dest_dir)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert (dest_dir / "hello.py").read_text() == original_content
 
@@ -189,6 +191,7 @@ async def test_paste_copied_file_same_dir(workspace: Path, sample_py_file: Path)
             Explorer.FilePasteRequested(explorer=explorer, target_dir=workspace)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert sample_py_file.exists()
     assert (workspace / "hello copy.py").exists()
@@ -213,6 +216,7 @@ async def test_paste_copied_file_preserves_clipboard(
             Explorer.FilePasteRequested(explorer=explorer, target_dir=dest_dir)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert app._file_clipboard == ("copy", sample_py_file)
 
@@ -233,11 +237,13 @@ async def test_paste_copied_file_twice(workspace: Path, sample_py_file: Path):
             Explorer.FilePasteRequested(explorer=explorer, target_dir=workspace)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         # Second paste
         explorer.post_message(
             Explorer.FilePasteRequested(explorer=explorer, target_dir=workspace)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert (workspace / "hello copy.py").exists()
     assert (workspace / "hello copy 2.py").exists()
@@ -263,6 +269,7 @@ async def test_paste_copied_directory(workspace: Path):
             Explorer.FilePasteRequested(explorer=explorer, target_dir=dest_dir)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert src.exists()  # source preserved
     assert (dest_dir / "src" / "main.py").exists()
@@ -290,6 +297,7 @@ async def test_paste_cut_file(workspace: Path, sample_py_file: Path):
             Explorer.FilePasteRequested(explorer=explorer, target_dir=dest_dir)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not sample_py_file.exists()
     assert (dest_dir / "hello.py").exists()
@@ -316,6 +324,7 @@ async def test_paste_cut_file_updates_tab(workspace: Path, sample_py_file: Path)
             Explorer.FilePasteRequested(explorer=explorer, target_dir=dest_dir)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     expected = dest_dir / "hello.py"
     assert editor.path == expected
@@ -345,6 +354,7 @@ async def test_paste_cut_directory_updates_open_files(workspace: Path):
             Explorer.FilePasteRequested(explorer=explorer, target_dir=dest_dir)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert editor.path == (dest_dir / "src" / "main.py").resolve()
 
@@ -366,6 +376,7 @@ async def test_paste_cut_clears_clipboard(workspace: Path, sample_py_file: Path)
             Explorer.FilePasteRequested(explorer=explorer, target_dir=dest_dir)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert app._file_clipboard is None
 
@@ -384,6 +395,7 @@ async def test_paste_empty_clipboard(workspace: Path):
             Explorer.FilePasteRequested(explorer=explorer, target_dir=workspace)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert any("Nothing to paste" in str(n.message) for n in app._notifications)
 
@@ -405,6 +417,7 @@ async def test_paste_source_deleted(workspace: Path, sample_py_file: Path):
             Explorer.FilePasteRequested(explorer=explorer, target_dir=workspace)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert app._file_clipboard is None
     assert any("no longer exists" in str(n.message) for n in app._notifications)
@@ -425,6 +438,7 @@ async def test_paste_dir_into_itself(workspace: Path):
             Explorer.FilePasteRequested(explorer=explorer, target_dir=src)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert any("Cannot paste" in str(n.message) for n in app._notifications)
 
@@ -453,5 +467,6 @@ async def test_paste_target_is_file_uses_parent(workspace: Path, sample_py_file:
             Explorer.FilePasteRequested(explorer=explorer, target_dir=dest_dir)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert (dest_dir / "other.py").exists()

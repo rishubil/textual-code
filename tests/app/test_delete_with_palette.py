@@ -4,7 +4,7 @@ Integration tests for deleting files/folders from the command palette.
 
 from pathlib import Path
 
-from tests.conftest import make_app
+from tests.conftest import await_workers, make_app
 from textual_code.app import TextualCode
 from textual_code.modals import DeleteFileModalScreen, PathSearchModal
 
@@ -53,6 +53,7 @@ async def test_delete_palette_file_confirm_deletes_file(
 
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not sample_py_file.exists()
 
@@ -73,6 +74,7 @@ async def test_delete_palette_directory_confirm_deletes_directory(workspace: Pat
 
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not subdir.exists()
 
@@ -95,6 +97,7 @@ async def test_delete_palette_nonempty_directory_deletes_all_contents(workspace:
 
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not subdir.exists()
 
@@ -135,6 +138,7 @@ async def test_delete_palette_open_tab_file_closes_tab(
 
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         assert len(app.main_view.opened_pane_ids) == 0
 
     assert not sample_py_file.exists()

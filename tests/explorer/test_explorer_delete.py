@@ -7,7 +7,7 @@ in the sidebar DirectoryTree
 
 from pathlib import Path
 
-from tests.conftest import make_app
+from tests.conftest import await_workers, make_app
 from textual_code.modals import DeleteFileModalScreen
 from textual_code.widgets.explorer import Explorer
 
@@ -68,6 +68,7 @@ async def test_delete_file_confirm_deletes_file(workspace: Path, sample_py_file:
         await pilot.wait_for_scheduled_animations()
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not sample_py_file.exists()
 
@@ -114,6 +115,7 @@ async def test_delete_open_file_closes_tab(workspace: Path, sample_py_file: Path
         await pilot.wait_for_scheduled_animations()
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         assert len(app.main_view.opened_pane_ids) == 0
 
     assert not sample_py_file.exists()
@@ -162,6 +164,7 @@ async def test_delete_directory_confirm_deletes_directory(workspace: Path):
         await pilot.wait_for_scheduled_animations()
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not subdir.exists()
 
@@ -190,6 +193,7 @@ async def test_delete_nonempty_directory_deletes_all_contents(workspace: Path):
         await pilot.wait_for_scheduled_animations()
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not subdir.exists()
 

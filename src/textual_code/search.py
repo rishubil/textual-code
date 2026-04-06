@@ -12,11 +12,12 @@ from itertools import groupby
 from pathlib import Path
 
 import pathspec
+from ripgrep_rs import PySortMode, PySortModeKind, search_structured
 from ripgrep_rs import files as rg_files
-from ripgrep_rs import search_structured
 
-from textual_code.commands import _SORT_BY_PATH
 from textual_code.utils import is_binary_file
+
+_SORT_BY_PATH = PySortMode(kind=PySortModeKind.Path, reverse=False)
 
 logger = logging.getLogger(__name__)
 

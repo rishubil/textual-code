@@ -20,7 +20,12 @@ from pathlib import Path
 import pytest
 from textual.widgets import Input
 
-from tests.conftest import find_tree_node_by_path, get_tree_child_labels, make_app
+from tests.conftest import (
+    await_workers,
+    find_tree_node_by_path,
+    get_tree_child_labels,
+    make_app,
+)
 from textual_code.app import TextualCode
 from textual_code.modals import RenameModalScreen
 from textual_code.widgets.explorer import Explorer
@@ -157,6 +162,7 @@ async def test_move_file_reflected_in_tree(workspace: Path):
 
         for _ in range(10):
             await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # moveme.py should no longer be at root level
         root_names_after = get_tree_child_labels(tree)
@@ -201,6 +207,8 @@ async def test_move_directory_subtree_reflected_in_tree(workspace: Path):
         app.post_message(
             TextualCode.MoveDestinationSelected(source_path=src, destination_dir=dest)
         )
+        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         for _ in range(10):
             await pilot.wait_for_scheduled_animations()
@@ -254,6 +262,7 @@ async def test_select_file_case_sensitive(workspace: Path):
         explorer.select_file(f)
         for _ in range(5):
             await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         cursor = tree.cursor_node
         assert cursor is not None
@@ -265,6 +274,7 @@ async def test_select_file_case_sensitive(workspace: Path):
         explorer.select_file(wrong_case)
         for _ in range(5):
             await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Cursor should still be on the original file (unchanged)
         cursor_after = tree.cursor_node

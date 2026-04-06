@@ -177,7 +177,7 @@ async def test_search_shows_results(tmp_path: Path) -> None:
     """Running a search populates the results tree."""
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.checkbox_tree import CheckboxTree
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -197,6 +197,7 @@ async def test_search_shows_results(tmp_path: Path) -> None:
         # Trigger search directly
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         assert results_tree.file_rows()  # at least one file node
@@ -207,7 +208,7 @@ async def test_search_no_results_message(tmp_path: Path) -> None:
     """Search with no matches shows a 'No results' node in the tree."""
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.checkbox_tree import CheckboxTree
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -225,6 +226,7 @@ async def test_search_no_results_message(tmp_path: Path) -> None:
 
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         # CheckboxTree stays empty when no results
@@ -236,7 +238,7 @@ async def test_search_result_click_opens_file(tmp_path: Path) -> None:
     """Clicking a search result opens the file in the editor."""
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
     target = tmp_path / "target.txt"
@@ -252,6 +254,7 @@ async def test_search_result_click_opens_file(tmp_path: Path) -> None:
         await pilot.wait_for_scheduled_animations()
         await pilot.press("enter")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Simulate selecting the first result
         ws_pane.post_message(
@@ -518,7 +521,7 @@ async def test_exclude_field_in_ui_applies_to_search(tmp_path: Path) -> None:
     """The #ws-exclude Input field is read and applied during search."""
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.checkbox_tree import CheckboxTree
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -536,6 +539,7 @@ async def test_exclude_field_in_ui_applies_to_search(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-exclude", Input).value = "node_modules"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_labels = [n.label_text for n in results_tree.file_rows()]
@@ -548,7 +552,7 @@ async def test_case_sensitive_checkbox_in_ui(tmp_path: Path) -> None:
     """The #ws-case-sensitive checkbox controls case sensitivity."""
     from textual.widgets import Checkbox, Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.checkbox_tree import CheckboxTree
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -565,6 +569,7 @@ async def test_case_sensitive_checkbox_in_ui(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-case-sensitive", Checkbox).value = False
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_labels = [n.label_text for n in results_tree.file_rows()]
@@ -602,20 +607,18 @@ async def test_workspace_search_no_clipping(tmp_path: Path) -> None:
 
 
 def _patch_gated_search(monkeypatch):
-    """Patch search_workspace to block until the returned Event is set."""
-    import threading
+    """Patch run_cancellable to block until the returned asyncio Event is set."""
+    import asyncio as _asyncio
 
     import textual_code.widgets.workspace_search as ws_module
 
-    gate = threading.Event()
-    original_search = ws_module.search_workspace
+    gate = _asyncio.Event()
 
-    def gated_search(*args, **kwargs):
-        if not gate.wait(timeout=5):
-            raise RuntimeError("Test gate timed out — search was never released")
-        return original_search(*args, **kwargs)
+    async def gated_run_cancellable(fn, *args, **kwargs):
+        await gate.wait()
+        return fn(*args)
 
-    monkeypatch.setattr(ws_module, "search_workspace", gated_search)
+    monkeypatch.setattr(ws_module, "run_cancellable", gated_run_cancellable)
     return gate
 
 
@@ -669,6 +672,14 @@ async def test_search_error_clears_loading(tmp_path: Path, monkeypatch) -> None:
         raise RuntimeError("boom")
 
     monkeypatch.setattr(ws_module, "search_workspace", exploding_search)
+
+    # run_cancellable executes in a subprocess where monkeypatch has no
+    # effect.  Replace it with an in-process call so the patched
+    # search_workspace is actually invoked.
+    async def _inproc_run_cancellable(fn, *args, **kwargs):
+        return fn(*args)
+
+    monkeypatch.setattr(ws_module, "run_cancellable", _inproc_run_cancellable)
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
@@ -763,7 +774,7 @@ async def test_enter_in_include_field_triggers_search(tmp_path: Path) -> None:
     """Pressing Enter in #ws-include triggers search with the include filter."""
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.checkbox_tree import CheckboxTree
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -786,6 +797,7 @@ async def test_enter_in_include_field_triggers_search(tmp_path: Path) -> None:
         await pilot.press(*"src/**")
         await pilot.press("enter")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_labels = [n.label_text for n in results_tree.file_rows()]
@@ -798,7 +810,7 @@ async def test_enter_in_exclude_field_triggers_search(tmp_path: Path) -> None:
     """Pressing Enter in #ws-exclude triggers search with the exclude filter."""
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.checkbox_tree import CheckboxTree
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -820,6 +832,7 @@ async def test_enter_in_exclude_field_triggers_search(tmp_path: Path) -> None:
         await pilot.press(*"node_modules")
         await pilot.press("enter")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_labels = [n.label_text for n in results_tree.file_rows()]
@@ -837,7 +850,7 @@ async def test_search_with_permission_error_shows_toast(
     from textual.widgets import Input
 
     import textual_code.widgets.workspace_search as ws_module
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.checkbox_tree import CheckboxTree
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -859,6 +872,14 @@ async def test_search_with_permission_error_shows_toast(
 
     monkeypatch.setattr(ws_module, "search_workspace", search_with_errors)
 
+    # run_cancellable executes in a subprocess where monkeypatch has no
+    # effect.  Replace it with an in-process call so the patched
+    # search_workspace is actually invoked.
+    async def _inproc_run_cancellable(fn, *args, **kwargs):
+        return fn(*args)
+
+    monkeypatch.setattr(ws_module, "run_cancellable", _inproc_run_cancellable)
+
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
@@ -872,6 +893,7 @@ async def test_search_with_permission_error_shows_toast(
         with patch.object(app, "notify") as mock_notify:
             ws_pane._run_search()
             await pilot.wait_for_scheduled_animations()
+            await await_workers(pilot)
 
             # Results should be populated
             results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
@@ -895,7 +917,7 @@ async def test_search_results_grouped_by_file(tmp_path: Path) -> None:
     """Search results are grouped by file in a Tree widget."""
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.checkbox_tree import CheckboxTree
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -912,6 +934,7 @@ async def test_search_results_grouped_by_file(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_nodes = list(results_tree.file_rows())
@@ -949,7 +972,7 @@ async def test_tree_file_nodes_expanded_by_default(tmp_path: Path) -> None:
     """All file-level tree nodes are expanded after search."""
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.checkbox_tree import CheckboxTree
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -966,6 +989,7 @@ async def test_tree_file_nodes_expanded_by_default(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         from textual_code.widgets.checkbox_tree import _ExpandToggle
 
@@ -982,7 +1006,7 @@ async def test_tree_match_node_click_opens_file(tmp_path: Path) -> None:
     """Clicking a match leaf node opens the file at that line."""
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.checkbox_tree import CheckboxTree
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -999,6 +1023,7 @@ async def test_tree_match_node_click_opens_file(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle_here"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_row = list(results_tree.file_rows())[0]
@@ -1055,7 +1080,7 @@ async def test_tree_match_count_accuracy_at_cap(tmp_path: Path) -> None:
     """File node match counts reflect actual returned results when capped."""
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.checkbox_tree import CheckboxTree
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -1073,6 +1098,7 @@ async def test_tree_match_count_accuracy_at_cap(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_nodes = list(results_tree.file_rows())

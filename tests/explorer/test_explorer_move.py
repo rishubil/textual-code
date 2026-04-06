@@ -8,7 +8,7 @@ The move dialog uses a CommandPalette-based directory picker with fuzzy search.
 
 from pathlib import Path
 
-from tests.conftest import make_app
+from tests.conftest import await_workers, make_app
 from textual_code.app import TextualCode
 from textual_code.commands import _read_workspace_directories
 from textual_code.modals import PathSearchModal
@@ -115,6 +115,7 @@ async def test_move_file_to_directory(workspace: Path, sample_py_file: Path):
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not sample_py_file.exists()
     assert (workspace / "lib" / "hello.py").exists()
@@ -157,6 +158,7 @@ async def test_move_open_file_updates_tab(workspace: Path, sample_py_file: Path)
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         assert editor.path == workspace / "lib" / "hello.py"
         assert "hello.py" in editor.title
@@ -178,6 +180,7 @@ async def test_move_to_existing_shows_error(workspace: Path, sample_py_file: Pat
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert sample_py_file.exists()
     assert (dest_dir / "hello.py").read_text() == "existing\n"
@@ -196,6 +199,7 @@ async def test_move_unchanged_path_noop(workspace: Path, sample_py_file: Path):
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert sample_py_file.exists()
 
@@ -222,6 +226,7 @@ async def test_move_directory(workspace: Path):
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not subdir.exists()
     assert (workspace / "dest" / "subdir").exists()
@@ -251,6 +256,7 @@ async def test_move_dir_updates_open_files(workspace: Path):
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         assert editor.path == (workspace / "dest" / "subdir" / "child.py").resolve()
         assert "child.py" in editor.title
@@ -295,6 +301,7 @@ async def test_move_file_preserves_unsaved_changes(
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Path updated but content and dirty state preserved
         assert editor.path == workspace / "lib" / "hello.py"
@@ -322,6 +329,7 @@ async def test_move_outside_workspace_shows_error(
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert sample_py_file.exists()
 
@@ -346,6 +354,7 @@ async def test_move_file_to_workspace_root(workspace: Path):
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not src_file.exists()
     assert (workspace / "main.py").exists()
@@ -364,6 +373,7 @@ async def test_move_file_already_in_root_noop(workspace: Path, sample_py_file: P
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert sample_py_file.exists()
 
@@ -388,6 +398,7 @@ async def test_move_dir_into_own_subtree_shows_error(workspace: Path):
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     # Directory should remain unchanged
     assert parent_dir.exists()
@@ -421,6 +432,7 @@ async def test_move_via_command_palette(workspace: Path, sample_py_file: Path):
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not sample_py_file.exists()
     assert (workspace / "lib" / "hello.py").exists()

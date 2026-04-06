@@ -37,7 +37,7 @@ from pathlib import Path
 import pytest
 from textual.widgets import Button, Checkbox, Input, Label, Static
 
-from tests.conftest import make_app
+from tests.conftest import await_workers, make_app
 from textual_code.search import (
     replace_workspace,
     search_workspace,
@@ -276,9 +276,7 @@ async def test_search_tree_cleared_on_new_search(tmp_path: Path) -> None:
         await pilot.wait_for_scheduled_animations()
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await (
-            pilot.wait_for_scheduled_animations()
-        )  # Windows: extra pause for search worker completion
+        await await_workers(pilot)
 
         # Verify results are populated
         assert len(results_tree.file_rows()) > 0, "First search should have results"
@@ -288,9 +286,7 @@ async def test_search_tree_cleared_on_new_search(tmp_path: Path) -> None:
         await pilot.wait_for_scheduled_animations()
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await (
-            pilot.wait_for_scheduled_animations()
-        )  # Windows: extra pause for search worker completion
+        await await_workers(pilot)
 
         # After the second search completes, tree should be empty (no results)
         assert results_tree.file_rows() == []
@@ -311,7 +307,7 @@ async def test_previous_search_cancelled_by_new_search(
     a second search. We verify that Textual's exclusive worker mechanism
     cancels the first search when a second is started.
     """
-    import threading
+    import asyncio as _asyncio
 
     from textual.worker import WorkerState
 
@@ -323,17 +319,16 @@ async def test_previous_search_cancelled_by_new_search(
 
     # Track search invocation count and block first search
     call_count = 0
-    gate = threading.Event()
-    original_search = ws_module.search_workspace
+    gate = _asyncio.Event()
 
-    def tracked_search(*args, **kwargs):
+    async def tracked_run_cancellable(fn, *args, **kwargs):
         nonlocal call_count
         call_count += 1
-        if call_count == 1 and not gate.wait(timeout=5):
-            raise RuntimeError("Gate timed out")
-        return original_search(*args, **kwargs)
+        if call_count == 1:
+            await gate.wait()
+        return fn(*args)
 
-    monkeypatch.setattr(ws_module, "search_workspace", tracked_search)
+    monkeypatch.setattr(ws_module, "run_cancellable", tracked_run_cancellable)
 
     app = make_app(tmp_path)
     async with app.run_test() as pilot:
@@ -406,9 +401,7 @@ async def test_search_tree_groups_results_by_file(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "target"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await (
-            pilot.wait_for_scheduled_animations()
-        )  # Windows: extra pause for search worker completion
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_nodes = list(results_tree.file_rows())
@@ -680,9 +673,7 @@ async def test_tree_hierarchy_file_and_match_nodes(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await (
-            pilot.wait_for_scheduled_animations()
-        )  # Windows: extra pause for search worker completion
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
 
@@ -721,9 +712,7 @@ async def test_tree_node_data_stores_file_and_line(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await (
-            pilot.wait_for_scheduled_animations()
-        )  # Windows: extra pause for search worker + tree population
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_nodes = list(results_tree.file_rows())
@@ -771,9 +760,7 @@ async def test_nested_directory_tree_grouping(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await (
-            pilot.wait_for_scheduled_animations()
-        )  # Windows: extra pause for search worker completion
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_nodes = list(results_tree.file_rows())
@@ -832,7 +819,7 @@ async def test_remove_match_row_updates_tree(
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_nodes = list(results_tree.file_rows())
@@ -875,7 +862,7 @@ async def test_remove_only_match_removes_file_row(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_nodes = list(results_tree.file_rows())
@@ -915,7 +902,7 @@ async def test_remove_file_row_with_siblings(
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_nodes = list(results_tree.file_rows())
@@ -957,9 +944,7 @@ async def test_last_file_node_in_tree(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await (
-            pilot.wait_for_scheduled_animations()
-        )  # Windows: extra pause for search worker completion
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_nodes = list(results_tree.file_rows())
@@ -999,9 +984,7 @@ async def test_last_match_node_in_tree(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await (
-            pilot.wait_for_scheduled_animations()
-        )  # Windows: extra pause for search results tree population
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         file_nodes = list(results_tree.file_rows())
@@ -1039,7 +1022,7 @@ async def test_clear_removes_all_results(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-query", Input).value = "needle"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         results_tree = ws_pane.query_one("#ws-results", CheckboxTree)
         assert len(results_tree.file_rows()) == 1
@@ -1084,13 +1067,12 @@ async def test_replace_all_via_ui_modifies_files(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-replace", Input).value = "goodbye"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Trigger Replace All — worker thread → call_from_thread → push_screen
         ws_pane._run_replace_all()
         await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Confirm in modal — query within the modal screen
         replace_btn = app.screen.query_one("#apply-all", Button)
@@ -1134,13 +1116,12 @@ async def test_replace_all_cancel_preserves_files(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-replace", Input).value = "goodbye"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Trigger Replace All
         ws_pane._run_replace_all()
         await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Cancel in modal
         cancel_btn = app.screen.query_one("#cancel", Button)
@@ -1183,13 +1164,12 @@ async def test_replace_all_regex_capture_groups_via_ui(
         # Search first to populate results tree
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Trigger Replace All
         ws_pane._run_replace_all()
         await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Confirm in modal
         app.screen.query_one("#apply-all", Button).press()
@@ -1225,13 +1205,12 @@ async def test_replace_all_modal_shows_preview(tmp_path: Path) -> None:
         ws_pane.query_one("#ws-replace", Input).value = "new"
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Trigger Replace All — this opens the preview screen
         ws_pane._run_replace_all()
         await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
-        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Verify title content
         title = app.screen.query_one("#title", Label)

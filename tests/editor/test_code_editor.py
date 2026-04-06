@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from textual.widgets import Input
 
-from tests.conftest import make_app
+from tests.conftest import await_workers, make_app
 from textual_code.modals import (
     DeleteFileModalScreen,
     GotoLineModalScreen,
@@ -316,6 +316,7 @@ async def test_delete_confirm_removes_file_and_closes_tab(
         await pilot.wait_for_scheduled_animations()
         await pilot.click("#delete")
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         assert not sample_py_file.exists()
         assert len(app.main_view.opened_pane_ids) == 0
 
@@ -856,6 +857,7 @@ async def test_large_file_open_optimized_disables_highlighting(workspace: Path):
         await pilot.click("#open_optimized")
         await pilot.wait_for_scheduled_animations()
         await pilot.pause()
+        await await_workers(pilot)
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
@@ -879,6 +881,7 @@ async def test_large_file_already_open_skips_check(workspace: Path):
         await pilot.click("#open")
         await pilot.wait_for_scheduled_animations()
         await pilot.pause()
+        await await_workers(pilot)
 
         # Second open — should just focus the existing pane (no modal)
         await app.main_view.action_open_code_editor(path=large_file)
@@ -933,6 +936,7 @@ async def test_large_file_no_deadlock_without_create_task(workspace: Path):
         await pilot.click("#open")
         await pilot.wait_for_scheduled_animations()
         await pilot.pause()
+        await await_workers(pilot)
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
@@ -944,21 +948,15 @@ async def test_large_file_no_deadlock_without_create_task(workspace: Path):
 async def test_file_open_timeout_shows_modal(workspace: Path, monkeypatch):
     """When file loading exceeds timeout, the timeout modal appears."""
     import asyncio
-    import time
-
-    from textual_code.widgets.code_editor_helpers import (
-        load_file_for_editor as real_load,
-    )
 
     slow_file = workspace / "slow.txt"
     slow_file.write_text("content\n", encoding="utf-8")
 
-    def slow_load(path):
-        time.sleep(2)
-        return real_load(path)
+    async def mock_run_cancellable(fn, *args, timeout=None):
+        raise TimeoutError("timed out")
 
     monkeypatch.setattr(
-        "textual_code.widgets.main_view.load_file_for_editor", slow_load
+        "textual_code.widgets.main_view.run_cancellable", mock_run_cancellable
     )
 
     app = make_app(workspace, light=True)
@@ -966,7 +964,6 @@ async def test_file_open_timeout_shows_modal(workspace: Path, monkeypatch):
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
         await app.main_view.action_open_code_editor(path=slow_file)
-        # Wait for timeout (0.1s) + worker scheduling
         await asyncio.sleep(0.5)
         await pilot.pause()
         assert isinstance(app.screen, LargeFileConfirmModalScreen)
@@ -993,21 +990,15 @@ async def test_file_open_timeout_zero_disables(workspace: Path, monkeypatch):
 async def test_file_open_timeout_cancel_does_not_open(workspace: Path, monkeypatch):
     """Cancelling the timeout modal leaves no editor open."""
     import asyncio
-    import time
-
-    from textual_code.widgets.code_editor_helpers import (
-        load_file_for_editor as real_load,
-    )
 
     slow_file = workspace / "slow2.txt"
     slow_file.write_text("data\n", encoding="utf-8")
 
-    def slow_load(path):
-        time.sleep(2)
-        return real_load(path)
+    async def mock_run_cancellable(fn, *args, timeout=None):
+        raise TimeoutError("timed out")
 
     monkeypatch.setattr(
-        "textual_code.widgets.main_view.load_file_for_editor", slow_load
+        "textual_code.widgets.main_view.run_cancellable", mock_run_cancellable
     )
 
     app = make_app(workspace, light=True)
@@ -1030,7 +1021,6 @@ async def test_file_open_timeout_cancel_does_not_open(workspace: Path, monkeypat
 async def test_file_open_timeout_open_plain(workspace: Path, monkeypatch):
     """Choosing 'Open (plain)' after timeout opens with no highlighting."""
     import asyncio
-    import time
 
     from textual_code.widgets.code_editor_helpers import (
         load_file_for_editor as real_load,
@@ -1041,15 +1031,16 @@ async def test_file_open_timeout_open_plain(workspace: Path, monkeypatch):
 
     call_count = 0
 
-    def slow_then_fast_load(path):
+    async def mock_run_cancellable(fn, *args, timeout=None):
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            time.sleep(2)  # first call: slow (triggers timeout)
-        return real_load(path)
+            raise TimeoutError("timed out")
+        # Second call (retry after modal): run synchronously
+        return real_load(*args)
 
     monkeypatch.setattr(
-        "textual_code.widgets.main_view.load_file_for_editor", slow_then_fast_load
+        "textual_code.widgets.main_view.run_cancellable", mock_run_cancellable
     )
 
     app = make_app(workspace, light=True)
@@ -1064,6 +1055,7 @@ async def test_file_open_timeout_open_plain(workspace: Path, monkeypatch):
         await pilot.click("#open_optimized")
         await asyncio.sleep(0.5)
         await pilot.pause()
+        await await_workers(pilot)
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None

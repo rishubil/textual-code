@@ -328,7 +328,7 @@ async def test_replace_all_modifies_files(tmp_path: Path) -> None:
 
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
     app = make_app(tmp_path)
@@ -340,11 +340,13 @@ async def test_replace_all_modifies_files(tmp_path: Path) -> None:
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         ws_pane._run_replace_all()
         # Wait for count worker + modal to appear
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         # Confirm in the modal
         await pilot.click("#apply-all")
         await pilot.wait_for_scheduled_animations()
@@ -358,7 +360,7 @@ async def test_replace_all_updates_status_label(tmp_path: Path) -> None:
 
     from textual.widgets import Input, Label
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
     app = make_app(tmp_path)
@@ -370,11 +372,13 @@ async def test_replace_all_updates_status_label(tmp_path: Path) -> None:
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         ws_pane._run_replace_all()
         # Wait for count worker + modal
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         # Confirm
         await pilot.click("#apply-all")
         await pilot.wait_for_scheduled_animations()
@@ -415,7 +419,7 @@ async def test_replace_all_shows_confirmation_modal(tmp_path: Path) -> None:
 
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.modals import ReplacePreviewScreen
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -428,10 +432,12 @@ async def test_replace_all_shows_confirmation_modal(tmp_path: Path) -> None:
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         ws_pane._run_replace_all()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         # Modal should be on the screen stack
         assert isinstance(app.screen, ReplacePreviewScreen)
@@ -445,7 +451,7 @@ async def test_replace_all_cancel_does_not_replace(tmp_path: Path) -> None:
 
     from textual.widgets import Input
 
-    from tests.conftest import make_app
+    from tests.conftest import await_workers, make_app
     from textual_code.modals import ReplacePreviewScreen
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -458,10 +464,12 @@ async def test_replace_all_cancel_does_not_replace(tmp_path: Path) -> None:
         ws_pane._run_search()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         ws_pane._run_replace_all()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         assert isinstance(app.screen, ReplacePreviewScreen)
 
