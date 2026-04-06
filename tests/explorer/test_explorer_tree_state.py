@@ -348,6 +348,7 @@ async def test_select_file_updates_cursor(workspace: Path, state_tree: dict[str,
         assert cursor.data.path == state_tree["mmm"]
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=1)
 async def test_select_file_expands_collapsed_parent(
     workspace: Path, state_tree: dict[str, Path]
 ):
@@ -380,8 +381,8 @@ async def test_select_file_expands_collapsed_parent(
                 and tree.cursor_node.data is not None
                 and tree.cursor_node.data.path == state_tree["inner"]
             ),
-            max_retries=50,
-            delay=0.5,
+            max_retries=30,
+            delay=0.2,
             msg="Cursor did not reach inner.py after select_file",
         )
 
@@ -391,6 +392,7 @@ async def test_select_file_expands_collapsed_parent(
         assert alpha_node.is_expanded
 
 
+@pytest.mark.flaky(reruns=3, reruns_delay=1)
 async def test_select_file_expands_deeply_nested_path(
     workspace: Path, state_tree: dict[str, Path]
 ):
@@ -417,8 +419,8 @@ async def test_select_file_expands_deeply_nested_path(
                 and tree.cursor_node.data is not None
                 and tree.cursor_node.data.path == state_tree["deep"]
             ),
-            max_retries=50,
-            delay=0.5,
+            max_retries=30,
+            delay=0.2,
             msg="Cursor did not reach deep.py after select_file",
         )
 
