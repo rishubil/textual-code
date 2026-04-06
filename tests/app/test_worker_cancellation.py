@@ -2,7 +2,7 @@
 
 Verifies that:
 1. The app registers a daemon thread executor on load
-2. Thread workers check is_cancelled before call_from_thread
+2. Async workers skip callbacks when cancelled (TimeoutError from run_cancellable)
 3. Widget unmount cancels owned worker groups
 4. Modal dismiss triggers Textual's automatic worker cancellation
 """
@@ -16,6 +16,15 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import make_app
+
+
+async def _slow_run_cancellable(*args, **kwargs):
+    """Mock for run_cancellable that blocks until cancelled."""
+    try:
+        await asyncio.sleep(60)
+    except asyncio.CancelledError:
+        raise TimeoutError("cancelled") from None
+
 
 # ---------------------------------------------------------------------------
 # Test 1: Daemon executor registered
@@ -45,7 +54,6 @@ async def test_search_worker_checks_cancellation(
     workspace: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """_populate_results is not called when the search worker is cancelled."""
-    from textual_code.search import WorkspaceSearchResponse
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
     populate_called: list[bool] = []
@@ -57,15 +65,9 @@ async def test_search_worker_checks_cancellation(
 
     monkeypatch.setattr(WorkspaceSearchPane, "_populate_results", tracking_populate)
 
-    # Make search_workspace block long enough to cancel
-    cancel_event = threading.Event()
-
-    def slow_search(*args, **kwargs):
-        cancel_event.wait(timeout=5)
-        return WorkspaceSearchResponse()
-
     monkeypatch.setattr(
-        "textual_code.widgets.workspace_search.search_workspace", slow_search
+        "textual_code.widgets.workspace_search.run_cancellable",
+        _slow_run_cancellable,
     )
 
     app = make_app(workspace)
@@ -77,8 +79,6 @@ async def test_search_worker_checks_cancellation(
         await pilot.pause()
         # Cancel the search group immediately
         pane.workers.cancel_group(pane, "search")
-        # Unblock the search function
-        cancel_event.set()
         # Allow worker to finish
         await pilot.pause()
         await pilot.pause()
@@ -95,7 +95,7 @@ async def test_replace_worker_checks_cancellation(
     workspace: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """_show_replace_preview is not called when replace worker is cancelled."""
-    from textual_code.search import PreviewResponse, WorkspaceSearchResult
+    from textual_code.search import WorkspaceSearchResult
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
     preview_called: list[bool] = []
@@ -107,15 +107,9 @@ async def test_replace_worker_checks_cancellation(
 
     monkeypatch.setattr(WorkspaceSearchPane, "_show_replace_preview", tracking_preview)
 
-    cancel_event = threading.Event()
-
-    def slow_replace(*args, **kwargs):
-        cancel_event.wait(timeout=5)
-        return PreviewResponse()
-
     monkeypatch.setattr(
-        "textual_code.widgets.workspace_search.preview_selected_replace",
-        slow_replace,
+        "textual_code.widgets.workspace_search.run_cancellable",
+        _slow_run_cancellable,
     )
 
     dummy_results = [
@@ -137,7 +131,6 @@ async def test_replace_worker_checks_cancellation(
         )
         await pilot.pause()
         pane.workers.cancel_group(pane, "replace_count")
-        cancel_event.set()
         await pilot.pause()
         await pilot.pause()
 
@@ -274,17 +267,11 @@ async def test_workspace_search_pane_cancels_workers_on_unmount(
     workspace: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Workers are cancelled when WorkspaceSearchPane is unmounted."""
-    from textual_code.search import WorkspaceSearchResponse
     from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
-    cancel_event = threading.Event()
-
-    def slow_search(*args, **kwargs):
-        cancel_event.wait(timeout=5)
-        return WorkspaceSearchResponse()
-
     monkeypatch.setattr(
-        "textual_code.widgets.workspace_search.search_workspace", slow_search
+        "textual_code.widgets.workspace_search.run_cancellable",
+        _slow_run_cancellable,
     )
 
     app = make_app(workspace)
@@ -303,9 +290,6 @@ async def test_workspace_search_pane_cancels_workers_on_unmount(
         # Remove the pane (triggers on_unmount)
         await pane.remove()
         await pilot.pause()
-
-        # Unblock threads
-        cancel_event.set()
         await pilot.pause()
 
     # All search workers should have been cancelled

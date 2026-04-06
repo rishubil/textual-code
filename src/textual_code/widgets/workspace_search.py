@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 
 from rich.cells import cell_len
@@ -10,8 +11,9 @@ from textual.app import ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.message import Message
 from textual.widgets import Button, Checkbox, Input, Label, Static
-from textual.worker import Worker, WorkerState, get_current_worker
+from textual.worker import Worker, WorkerState
 
+from textual_code.cancellable_worker import run_cancellable
 from textual_code.modals import (
     ReplacePreviewResult,
     ReplacePreviewScreen,
@@ -141,8 +143,8 @@ class WorkspaceSearchPane(Static):
             files_to_exclude,
         )
 
-    @work(thread=True, exclusive=True, group="search", exit_on_error=False)
-    def _search_worker(
+    @work(exclusive=True, group="search", exit_on_error=False)
+    async def _search_worker(
         self,
         workspace_path: Path,
         query: str,
@@ -153,30 +155,24 @@ class WorkspaceSearchPane(Static):
         files_to_include: str,
         files_to_exclude: str,
     ) -> None:
-        worker = get_current_worker()
-        response = search_workspace(
-            workspace_path,
-            query,
-            use_regex,
-            respect_gitignore=respect_gitignore,
-            show_hidden_files=show_hidden_files,
-            case_sensitive=case_sensitive,
-            files_to_include=files_to_include,
-            files_to_exclude=files_to_exclude,
-        )
-        if worker.is_cancelled:
+        try:
+            response = await run_cancellable(
+                partial(
+                    search_workspace,
+                    workspace_path,
+                    query,
+                    use_regex,
+                    respect_gitignore=respect_gitignore,
+                    show_hidden_files=show_hidden_files,
+                    case_sensitive=case_sensitive,
+                    files_to_include=files_to_include,
+                    files_to_exclude=files_to_exclude,
+                ),
+            )
+        except TimeoutError:
             _log.debug("search worker cancelled, skipping callback")
             return
-        try:
-            self.app.call_from_thread(
-                self._populate_results,
-                response,
-                workspace_path,
-            )
-        except RuntimeError as exc:
-            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
-                raise
-            _log.debug("call_from_thread suppressed (app exiting): %s", exc)
+        self._populate_results(response, workspace_path)
 
     def _populate_results(
         self,
@@ -263,8 +259,8 @@ class WorkspaceSearchPane(Static):
             selected,
         )
 
-    @work(thread=True, exclusive=True, group="replace_count", exit_on_error=False)
-    def _preview_selected_worker(
+    @work(exclusive=True, group="replace_count", exit_on_error=False)
+    async def _preview_selected_worker(
         self,
         workspace_path: Path,
         query: str,
@@ -273,32 +269,29 @@ class WorkspaceSearchPane(Static):
         case_sensitive: bool,
         selected_results: list,
     ) -> None:
-        worker = get_current_worker()
-        response = preview_selected_replace(
-            workspace_path,
-            selected_results,
+        try:
+            response = await run_cancellable(
+                partial(
+                    preview_selected_replace,
+                    workspace_path,
+                    selected_results,
+                    query,
+                    replacement,
+                    use_regex,
+                    case_sensitive=case_sensitive,
+                ),
+            )
+        except TimeoutError:
+            _log.debug("selected replace worker cancelled, skipping callback")
+            return
+        self._show_replace_preview(
             query,
             replacement,
             use_regex,
-            case_sensitive=case_sensitive,
+            case_sensitive,
+            response,
+            selected_results,
         )
-        if worker.is_cancelled:
-            _log.debug("selected replace worker cancelled, skipping callback")
-            return
-        try:
-            self.app.call_from_thread(
-                self._show_replace_preview,
-                query,
-                replacement,
-                use_regex,
-                case_sensitive,
-                response,
-                selected_results,
-            )
-        except RuntimeError as exc:
-            if "loop" not in str(exc).lower() and "closed" not in str(exc).lower():
-                raise
-            _log.debug("call_from_thread suppressed (app exiting): %s", exc)
 
     def _show_replace_preview(
         self,

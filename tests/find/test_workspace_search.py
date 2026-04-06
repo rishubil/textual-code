@@ -602,20 +602,18 @@ async def test_workspace_search_no_clipping(tmp_path: Path) -> None:
 
 
 def _patch_gated_search(monkeypatch):
-    """Patch search_workspace to block until the returned Event is set."""
-    import threading
+    """Patch run_cancellable to block until the returned asyncio Event is set."""
+    import asyncio as _asyncio
 
     import textual_code.widgets.workspace_search as ws_module
 
-    gate = threading.Event()
-    original_search = ws_module.search_workspace
+    gate = _asyncio.Event()
 
-    def gated_search(*args, **kwargs):
-        if not gate.wait(timeout=5):
-            raise RuntimeError("Test gate timed out — search was never released")
-        return original_search(*args, **kwargs)
+    async def gated_run_cancellable(fn, *args, **kwargs):
+        await gate.wait()
+        return fn(*args)
 
-    monkeypatch.setattr(ws_module, "search_workspace", gated_search)
+    monkeypatch.setattr(ws_module, "run_cancellable", gated_run_cancellable)
     return gate
 
 

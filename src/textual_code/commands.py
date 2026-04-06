@@ -8,16 +8,15 @@ from functools import partial
 from pathlib import Path
 from typing import Any
 
-from ripgrep_rs import PySortMode, PySortModeKind
 from ripgrep_rs import files as rg_files
 from textual.command import DiscoveryHit, Hit, Hits, Provider
+
+from textual_code.search import _SORT_BY_PATH
 
 logger = logging.getLogger(__name__)
 
 _MAX_SEARCH_HITS = 20
 """Maximum number of hits returned by a single command provider search."""
-
-_SORT_BY_PATH = PySortMode(kind=PySortModeKind.Path, reverse=False)
 
 
 def _rg_scan(
