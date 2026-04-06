@@ -21,6 +21,10 @@ CLAUDE.local.md
 
 # Test artifacts
 snapshot_report.html
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
 
 # Environment
 .env
