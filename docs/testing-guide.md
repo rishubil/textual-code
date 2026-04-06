@@ -21,6 +21,23 @@ uv run pytest tests/vscode/ -n auto -m "not serial"
 
 Tests are I/O-bound (event loop waiting), so using 2x CPU cores as workers is optimal.
 
+### Coverage: measuring tested code paths with pytest-cov
+
+```bash
+# Run with coverage (single file)
+uv run pytest tests/test_cancellable_worker.py --cov --cov-report=term-missing
+
+# Full coverage measurement (mirrors CI)
+uv run pytest tests/ -n auto -m "not serial" --cov --cov-report=
+uv run pytest tests/ -m serial --cov --cov-append --cov-report=
+uv run coverage report --show-missing
+```
+
+Configuration lives in `pyproject.toml` under `[tool.coverage.run]` and
+`[tool.coverage.report]`.  Key settings: `parallel = true` and
+`concurrency = ["multiprocessing"]` ensure subprocess code spawned via
+`run_cancellable` is measured.  The `fail_under` threshold is enforced in CI.
+
 ## Test App: `make_app()` and `light` Mode
 
 All integration tests create a `TextualCode` app via the `make_app()` factory in `conftest.py`.
