@@ -8,7 +8,7 @@ The move dialog uses a CommandPalette-based directory picker with fuzzy search.
 
 from pathlib import Path
 
-from tests.conftest import make_app
+from tests.conftest import await_workers, make_app
 from textual_code.app import TextualCode
 from textual_code.commands import _read_workspace_directories
 from textual_code.modals import PathSearchModal
@@ -222,6 +222,7 @@ async def test_move_directory(workspace: Path):
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert not subdir.exists()
     assert (workspace / "dest" / "subdir").exists()
@@ -251,6 +252,7 @@ async def test_move_dir_updates_open_files(workspace: Path):
             )
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         assert editor.path == (workspace / "dest" / "subdir" / "child.py").resolve()
         assert "child.py" in editor.title

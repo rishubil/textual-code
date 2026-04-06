@@ -20,7 +20,12 @@ from pathlib import Path
 import pytest
 from textual.widgets import Input
 
-from tests.conftest import find_tree_node_by_path, get_tree_child_labels, make_app
+from tests.conftest import (
+    await_workers,
+    find_tree_node_by_path,
+    get_tree_child_labels,
+    make_app,
+)
 from textual_code.app import TextualCode
 from textual_code.modals import RenameModalScreen
 from textual_code.widgets.explorer import Explorer
@@ -201,6 +206,8 @@ async def test_move_directory_subtree_reflected_in_tree(workspace: Path):
         app.post_message(
             TextualCode.MoveDestinationSelected(source_path=src, destination_dir=dest)
         )
+        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
         for _ in range(10):
             await pilot.wait_for_scheduled_animations()

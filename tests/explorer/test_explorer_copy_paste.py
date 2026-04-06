@@ -7,7 +7,7 @@ DirectoryTree using Ctrl+C/X/V or the command palette.
 
 from pathlib import Path
 
-from tests.conftest import make_app
+from tests.conftest import await_workers, make_app
 from textual_code.app import _resolve_paste_name
 from textual_code.widgets.explorer import Explorer
 
@@ -263,6 +263,7 @@ async def test_paste_copied_directory(workspace: Path):
             Explorer.FilePasteRequested(explorer=explorer, target_dir=dest_dir)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert src.exists()  # source preserved
     assert (dest_dir / "src" / "main.py").exists()
@@ -345,6 +346,7 @@ async def test_paste_cut_directory_updates_open_files(workspace: Path):
             Explorer.FilePasteRequested(explorer=explorer, target_dir=dest_dir)
         )
         await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
 
     assert editor.path == (dest_dir / "src" / "main.py").resolve()
 

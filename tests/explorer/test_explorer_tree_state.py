@@ -17,7 +17,12 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import find_tree_node_by_path, get_tree_child_labels, make_app
+from tests.conftest import (
+    await_workers,
+    find_tree_node_by_path,
+    get_tree_child_labels,
+    make_app,
+)
 from textual_code.widgets.explorer import Explorer, FilteredDirectoryTree
 
 
@@ -398,6 +403,8 @@ async def test_select_file_expands_deeply_nested_path(
 
         # Select deep.py (two levels deep)
         explorer.select_file(state_tree["deep"])
+        await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         for _ in range(30):
             await pilot.wait_for_scheduled_animations()
 
