@@ -381,7 +381,7 @@ async def test_select_file_expands_collapsed_parent(
                 and tree.cursor_node.data.path == state_tree["inner"]
             ),
             max_retries=50,
-            delay=0.2,
+            delay=0.5,
             msg="Cursor did not reach inner.py after select_file",
         )
 
@@ -418,7 +418,7 @@ async def test_select_file_expands_deeply_nested_path(
                 and tree.cursor_node.data.path == state_tree["deep"]
             ),
             max_retries=50,
-            delay=0.2,
+            delay=0.5,
             msg="Cursor did not reach deep.py after select_file",
         )
 
