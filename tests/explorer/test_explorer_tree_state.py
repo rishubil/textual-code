@@ -408,8 +408,12 @@ async def test_select_file_expands_deeply_nested_path(
         tree = explorer.directory_tree
 
         # Select deep.py (two levels deep — each level triggers a
-        # _load_directory worker via run_cancellable)
+        # _load_directory worker via run_cancellable).
+        # Level 1: expand dir_beta, Level 2: expand sub_beta, then cursor.
         explorer.select_file(state_tree["deep"])
+        for _ in range(10):
+            await pilot.wait_for_scheduled_animations()
+        await await_workers(pilot)
         for _ in range(10):
             await pilot.wait_for_scheduled_animations()
         await await_workers(pilot)
