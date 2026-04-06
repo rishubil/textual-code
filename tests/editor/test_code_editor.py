@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from textual.widgets import Input
 
-from tests.conftest import make_app
+from tests.conftest import await_workers, make_app
 from textual_code.modals import (
     DeleteFileModalScreen,
     GotoLineModalScreen,
@@ -856,6 +856,7 @@ async def test_large_file_open_optimized_disables_highlighting(workspace: Path):
         await pilot.click("#open_optimized")
         await pilot.wait_for_scheduled_animations()
         await pilot.pause()
+        await await_workers(pilot)
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
@@ -933,6 +934,7 @@ async def test_large_file_no_deadlock_without_create_task(workspace: Path):
         await pilot.click("#open")
         await pilot.wait_for_scheduled_animations()
         await pilot.pause()
+        await await_workers(pilot)
 
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
