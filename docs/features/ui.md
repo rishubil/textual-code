@@ -337,7 +337,7 @@ Tab drag-and-drop supports reordering tabs within the same split and moving tabs
 
 ## Modal Dialogs: Escape key dismisses non-destructive modals
 
-Pressing `Escape` dismisses any modal where cancellation is safe and has no side effects. This includes: Save As, Rename, Go to Line, Find, Replace, Change Language, Change Indentation, Change Line Ending, Change Encoding, Change Syntax Theme, Change Word Wrap, Change UI Theme, Sidebar Resize, Split Resize, Shortcut Settings, Footer Configuration, and Show Keyboard Shortcuts.
+Pressing `Escape` dismisses any modal where cancellation is safe and has no side effects. This includes: Save As, Rename, Go to Line, Find, Replace, Change Language, Change Indentation, Change Line Ending, Change Encoding, Change Syntax Theme, Change Word Wrap, Change UI Theme, Sidebar Resize, Split Resize, Shortcut Settings, Footer Configuration, Show Keyboard Shortcuts, and Progress Toast (close only — does not cancel the operation).
 
 Escape does **not** dismiss destructive confirmation modals that require a deliberate choice: Unsaved Changes, Unsaved Changes (Quit), Delete File/Folder, Overwrite Confirm, Discard & Reload, and Replace All Confirm. These require clicking the explicit Cancel button.
 

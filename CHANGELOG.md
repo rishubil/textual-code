@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **UI**: persistent progress toast for file operations — shows a `ProgressToast` connected to the background worker with live status polling; auto-hides for fast operations (< 500ms); click to open a modal with Stop / Close controls; terminal state feedback (success ✓, error ✗, cancel ⚠) with auto-dismiss; replaces transient `notify()` toasts in `_do_file_op` (#239)
 - **CI**: test coverage measurement with `pytest-cov` — dedicated Coverage job (Python 3.12, ubuntu-latest) measures branch coverage across both parallel and serial test suites; `fail_under` threshold enforced; subprocess code via `run_cancellable` / `multiprocessing.Process` properly instrumented with `concurrency = ["multiprocessing"]` (#237)
 - **Editor**: file open timeout — shows a confirmation dialog when opening a file takes longer than the configurable `file_open_timeout` (default 5 seconds) with options to continue opening, open without syntax highlighting, or cancel; file reading runs in a background thread to keep the UI responsive; particularly useful on slow filesystems (NFS, SSHFS, remote mounts); set to `0` to disable (#233)
 

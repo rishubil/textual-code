@@ -140,6 +140,9 @@ from textual_code.modals.layout import (
 from textual_code.modals.layout import (
     SplitResizeModalScreen as SplitResizeModalScreen,
 )
+from textual_code.modals.progress_toast import (
+    ProgressToastModal as ProgressToastModal,
+)
 from textual_code.modals.search import (
     _MAX_DISCOVERY as _MAX_DISCOVERY,
 )

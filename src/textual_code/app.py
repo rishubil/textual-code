@@ -26,6 +26,7 @@ from textual.css.query import NoMatches
 from textual.events import Ready
 from textual.message import Message
 from textual.screen import Screen
+from textual.worker import get_current_worker
 
 from textual_code.cancellable_worker import run_cancellable
 from textual_code.command_registry import bindings_for_context as _bindings_for_context
@@ -80,6 +81,7 @@ from textual_code.widgets.code_editor import CodeEditor
 from textual_code.widgets.explorer import Explorer
 from textual_code.widgets.main_view import MainView
 from textual_code.widgets.ordered_footer import OrderedFooter
+from textual_code.widgets.progress_toast import ProgressToastRack
 from textual_code.widgets.sidebar import SIDEBAR_MIN_WIDTH, Sidebar
 from textual_code.widgets.workspace_search import WorkspaceSearchPane
 
@@ -546,6 +548,7 @@ class TextualCode(App):
             )
         yield MainView()
         yield OrderedFooter()
+        yield ProgressToastRack()
 
     @on(Ready)
     async def on_ready(self, event: Ready):
@@ -1796,15 +1799,9 @@ class TextualCode(App):
 
         new_path.parent.mkdir(parents=True, exist_ok=True)
 
-        try:
-            new_relative = str(new_path.relative_to(self.workspace_path))
-        except ValueError:
-            new_relative = str(new_path)
-
         def _move_success() -> None:
             self._update_open_tabs_after_rename(path, new_path, is_directory)
             self.action_refresh_explorer()
-            self.notify(f"Moved to '{new_relative}'", severity="information")
 
         if is_directory:
 
@@ -1894,6 +1891,10 @@ class TextualCode(App):
 
     # ── Async file operations ──────────────────────────────────────────
 
+    def show_progress_toast(self, label: str, worker: Any, **kwargs: Any) -> Any:
+        """Show a persistent progress toast connected to *worker*."""
+        return self.query_one(ProgressToastRack).show(label, worker, **kwargs)
+
     @work(exclusive=True, group="file_ops", exit_on_error=False)
     async def _do_file_op(
         self,
@@ -1914,19 +1915,17 @@ class TextualCode(App):
         """
         self._current_file_op_label = label
         self.log.info("file_op started: %s", label)
-        self.notify(f"{label}...")
+        self.show_progress_toast(label, get_current_worker(), group="file_ops")
 
         try:
             await run_cancellable(op, *args)
         except (TimeoutError, asyncio.CancelledError):
             self.log.warning("file_op cancelled: %s", label)
-            self.notify(f"Cancelled: {label}", severity="warning")
             if on_error is not None:
                 on_error()
             return
         except Exception as e:
             self.log.error("file_op failed: %s: %s", label, e)
-            self.notify(f"Error: {e}. Partial files may remain.", severity="error")
             if on_error is not None:
                 on_error()
             return
@@ -1939,11 +1938,8 @@ class TextualCode(App):
 
     def action_cancel_file_operation(self) -> None:
         """Cancel any in-progress file operation."""
-        label = self._current_file_op_label
         self.workers.cancel_group(self, "file_ops")
         self.workers.cancel_group(self, "dir_size_check")
-        msg = f"Cancelled: {label}" if label else "File operation cancelled."
-        self.notify(msg, severity="warning")
 
     def _execute_delete(self, path: Path) -> None:
         """Shared delete logic for explorer and command palette handlers."""
@@ -2168,16 +2164,10 @@ class TextualCode(App):
 
         self.log.info("Paste %s: %s → %s", operation, source_path, dest_path)
 
-        try:
-            dest_relative = str(dest_path.relative_to(self.workspace_path))
-        except ValueError:
-            dest_relative = str(dest_path)
-
         if operation == "copy":
 
             def _copy_success() -> None:
                 self.action_refresh_explorer()
-                self.notify(f"Copied to '{dest_relative}'", severity="information")
 
             if is_directory:
 
@@ -2209,7 +2199,6 @@ class TextualCode(App):
                     source_path, dest_path, is_directory
                 )
                 self.action_refresh_explorer()
-                self.notify(f"Moved to '{dest_relative}'", severity="information")
 
             if is_directory:
 

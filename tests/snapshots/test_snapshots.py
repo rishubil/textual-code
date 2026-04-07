@@ -1415,3 +1415,52 @@ def test_snapshot_replace_preview_screen(snap_compare, snapshot_workspace: Path)
         await pilot.wait_for_scheduled_animations()
 
     assert snap_compare(app, run_before=run_before, terminal_size=TERMINAL_SIZE)
+
+
+# ── ProgressToast snapshots ──────────────────────────────────────────────────
+
+
+def test_snapshot_progress_toast_running(snap_compare, snapshot_workspace: Path):
+    """Progress toast visible with success state (stable for snapshot)."""
+    import asyncio
+
+    app = make_app(snapshot_workspace)
+
+    async def show_toast(pilot):
+        await pilot.wait_for_scheduled_animations()
+        gate = asyncio.Event()
+        worker = app.run_worker(gate.wait(), exit_on_error=False)
+        app.show_progress_toast("Copying 'bigdir'...", worker, delay=0.01)
+        await asyncio.sleep(0.05)
+        await pilot.wait_for_scheduled_animations()
+        # Transition to success for stable snapshot (no LoadingIndicator animation)
+        gate.set()
+        await asyncio.sleep(0.1)
+        await pilot.wait_for_scheduled_animations()
+
+    assert snap_compare(app, run_before=show_toast, terminal_size=TERMINAL_SIZE)
+
+
+def test_snapshot_progress_toast_modal(snap_compare, snapshot_workspace: Path):
+    """ProgressToastModal open over a running toast."""
+    import asyncio
+
+    from textual_code.modals.progress_toast import ProgressToastModal
+
+    app = make_app(snapshot_workspace)
+
+    async def show_toast_and_modal(pilot):
+        await pilot.wait_for_scheduled_animations()
+        gate = asyncio.Event()
+        worker = app.run_worker(gate.wait(), exit_on_error=False)
+        app.show_progress_toast("Deleting 'bigdir'...", worker, delay=0.01)
+        await asyncio.sleep(0.05)
+        await pilot.wait_for_scheduled_animations()
+        # Push modal directly for a stable snapshot
+        modal = ProgressToastModal("Deleting 'bigdir'...", worker)
+        app.push_screen(modal)
+        await pilot.wait_for_scheduled_animations()
+
+    assert snap_compare(
+        app, run_before=show_toast_and_modal, terminal_size=TERMINAL_SIZE
+    )
