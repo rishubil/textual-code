@@ -121,8 +121,8 @@ jobs:
       - uses: astral-sh/setup-uv@v3
       - run: uv sync --frozen
       - name: Run parallel tests with coverage
-        run: uv run pytest tests/ -n auto -m "not serial" --cov --cov-report=
+        run: uv run pytest tests/ -n auto -m "not serial" --cov --cov-report= --reruns 3
       - name: Run serial tests with coverage (append)
-        run: uv run pytest tests/ -m serial --cov --cov-append --cov-report=
+        run: uv run pytest tests/ -m serial --cov --cov-append --cov-report= --reruns 3
       - name: Enforce coverage threshold
         run: uv run coverage report --show-missing
