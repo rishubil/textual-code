@@ -16,6 +16,7 @@ from textual_code.widgets.progress_toast import (
     ProgressToastRack,
 )
 
+
 class _ProgressApp(App):
     """Minimal app with ProgressToastRack for testing."""
 
