@@ -1216,3 +1216,107 @@ async def test_remove_file_row() -> None:
         remaining = tree.file_rows()
         assert len(remaining) == 1
         assert "src/b.py" in remaining[0].label_text
+
+
+# ---------------------------------------------------------------------------
+# Navigation: page_down, page_up, toggle, select
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_page_down_up_navigation() -> None:
+    """PageDown/PageUp navigate within the tree."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        tree.focus()
+        await pilot.pause()
+
+        # Navigate down first
+        await pilot.press("down")
+        await pilot.pause()
+
+        # PageDown
+        await pilot.press("pagedown")
+        await pilot.pause()
+        row_after_pagedown = tree._last_focused_row
+        assert row_after_pagedown is not None
+
+        # PageUp should navigate back
+        await pilot.press("pageup")
+        await pilot.pause()
+        row_after_pageup = tree._last_focused_row
+        assert row_after_pageup is not None
+
+
+@pytest.mark.asyncio
+async def test_toggle_cursor_check_on_match_row() -> None:
+    """Space toggles the checkbox on the current cursor match row."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        tree.focus()
+        await pilot.pause()
+
+        # Navigate to a match row
+        file_rows = tree.file_rows()
+        match_rows = tree.match_rows_for(file_rows[0])
+        tree._set_cursor(match_rows[0])
+        await pilot.pause()
+
+        # Toggle via action
+        tree.action_toggle_cursor_check()
+        await pilot.pause()
+        cb = match_rows[0].query_one(_InlineCheckbox)
+        assert cb.value is False  # was True, toggled to False
+
+
+@pytest.mark.asyncio
+async def test_toggle_cursor_check_on_file_row() -> None:
+    """Space toggles the tri-state checkbox on a file row."""
+    async with _TreeApp(_SAMPLE_RESULTS, _WS).run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        tree.focus()
+        await pilot.pause()
+
+        file_row = tree.file_rows()[0]
+        tree._set_cursor(file_row)
+        await pilot.pause()
+
+        tree.action_toggle_cursor_check()
+        await pilot.pause()
+        tri = file_row.query_one(_InlineTriState)
+        # Was True (all checked), toggled to False
+        assert tri.value is False
+
+
+@pytest.mark.asyncio
+async def test_select_cursor_node_posts_message() -> None:
+    """Enter on a cursor row posts NodeSelected message."""
+    messages: list[CheckboxTree.NodeSelected] = []
+
+    class _App(App):
+        def compose(self) -> ComposeResult:
+            yield CheckboxTree(id="tree")
+
+        def on_mount(self) -> None:
+            self.query_one("#tree", CheckboxTree).populate(_SAMPLE_RESULTS, _WS)
+
+        def on_checkbox_tree_node_selected(
+            self, event: CheckboxTree.NodeSelected
+        ) -> None:
+            messages.append(event)
+
+    async with _App().run_test() as pilot:
+        tree = pilot.app.query_one("#tree", CheckboxTree)
+        tree.focus()
+        await pilot.pause()
+
+        # Set cursor to first match row
+        match_row = tree.match_rows_for(tree.file_rows()[0])[0]
+        tree._set_cursor(match_row)
+        await pilot.pause()
+
+        tree.action_select_cursor_node()
+        await pilot.pause()
+        assert len(messages) == 1
+        assert messages[0].file_path == _WS / "src/a.py"
+        assert messages[0].line_number == 10

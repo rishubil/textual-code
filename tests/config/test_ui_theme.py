@@ -342,3 +342,26 @@ async def test_ui_theme_preview_ignores_blank(workspace):
         select.post_message(Select.Changed(select, Select.BLANK))
         await pilot.wait_for_scheduled_animations()
         assert app.theme == original
+
+
+async def test_ui_theme_apply_button(workspace, sample_py_file):
+    """Clicking Apply in ChangeUIThemeModalScreen saves the selection."""
+    from textual.widgets import Button
+
+    from textual_code.modals.appearance import ChangeUIThemeModalScreen
+
+    app = make_app(workspace, open_file=sample_py_file, light=True)
+    results = []
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            ChangeUIThemeModalScreen(current_theme=app.theme),
+            callback=results.append,
+        )
+        await pilot.wait_for_scheduled_animations()
+        apply_btn = app.screen.query_one("#apply", Button)
+        apply_btn.press()
+        await pilot.wait_for_scheduled_animations()
+        assert len(results) == 1
+        assert not results[0].is_cancelled
+        assert results[0].theme is not None

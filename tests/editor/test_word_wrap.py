@@ -177,3 +177,27 @@ async def test_c05_on_mount_applies_word_wrap_false(workspace):
         editor = app.main_view.get_active_code_editor()
         assert editor is not None
         assert editor.editor.soft_wrap is False
+
+
+@pytest.mark.asyncio
+async def test_word_wrap_modal_apply_button(workspace):
+    """Clicking Apply in ChangeWordWrapModalScreen saves the selection."""
+    from textual.widgets import Button
+
+    from textual_code.modals.appearance import ChangeWordWrapModalScreen
+
+    app = make_app(workspace, light=True)
+    results = []
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            ChangeWordWrapModalScreen(current_word_wrap=True),
+            callback=results.append,
+        )
+        await pilot.wait_for_scheduled_animations()
+        apply_btn = app.screen.query_one("#apply", Button)
+        apply_btn.press()
+        await pilot.wait_for_scheduled_animations()
+        assert len(results) == 1
+        assert not results[0].is_cancelled
+        assert results[0].word_wrap is True

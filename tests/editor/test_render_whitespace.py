@@ -632,3 +632,31 @@ class TestRendering:
                 f"Whitespace marker fg should differ on cursor line "
                 f"(got {fg_cursor} on both lines)"
             )
+
+
+# ── action_cycle_render_whitespace ───────────────────────────────────────────
+
+
+async def test_cycle_render_whitespace(workspace: Path, sample_py_file: Path):
+    """action_cycle_render_whitespace cycles through all modes."""
+    app = make_app(workspace, open_file=sample_py_file, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        editor = app.main_view.get_active_code_editor()
+        assert editor is not None
+        # Default is "none"
+        editor.render_whitespace = "none"
+        await pilot.wait_for_scheduled_animations()
+        # Cycle: none → all → boundary → trailing → none
+        editor.action_cycle_render_whitespace()
+        await pilot.wait_for_scheduled_animations()
+        assert editor.render_whitespace == "all"
+        editor.action_cycle_render_whitespace()
+        await pilot.wait_for_scheduled_animations()
+        assert editor.render_whitespace == "boundary"
+        editor.action_cycle_render_whitespace()
+        await pilot.wait_for_scheduled_animations()
+        assert editor.render_whitespace == "trailing"
+        editor.action_cycle_render_whitespace()
+        await pilot.wait_for_scheduled_animations()
+        assert editor.render_whitespace == "none"

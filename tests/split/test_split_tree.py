@@ -502,3 +502,42 @@ def test_find_leaf_for_path_returns_first_in_visual_order():
     root = BranchNode(direction="horizontal", children=[left, right], ratios=[0.5, 0.5])
     result = find_leaf_for_path(root, path)
     assert result == ("p1", left)
+
+
+def test_find_leaf_for_pane_returns_none_for_missing_pane():
+    """find_leaf_for_pane returns None when pane_id is not in any leaf."""
+    from textual_code.widgets.split_tree import find_leaf_for_pane
+
+    leaf = LeafNode(leaf_id="a", pane_ids={"p1"})
+    assert find_leaf_for_pane(leaf, "nonexistent") is None
+
+
+def test_find_leaf_for_pane_returns_none_in_branch():
+    """find_leaf_for_pane returns None for missing pane in nested branches."""
+    from textual_code.widgets.split_tree import find_leaf_for_pane
+
+    left = LeafNode(leaf_id="a", pane_ids={"p1"})
+    right = LeafNode(leaf_id="b", pane_ids={"p2"})
+    root = BranchNode(direction="horizontal", children=[left, right], ratios=[0.5, 0.5])
+    assert find_leaf_for_pane(root, "nonexistent") is None
+
+
+def test_replace_node_returns_root_when_no_match():
+    """replace_node returns original root when old_node is not found."""
+    from textual_code.widgets.split_tree import replace_node
+
+    left = LeafNode(leaf_id="a", pane_ids={"p1"})
+    right = LeafNode(leaf_id="b", pane_ids={"p2"})
+    root = BranchNode(direction="horizontal", children=[left, right], ratios=[0.5, 0.5])
+    phantom = LeafNode(leaf_id="c", pane_ids={"p3"})
+    new_node = LeafNode(leaf_id="d", pane_ids={"p4"})
+    result = replace_node(root, phantom, new_node)
+    assert result is root
+
+
+def test_adjacent_leaf_returns_none_for_unknown_id():
+    """adjacent_leaf returns None when leaf_id is not found."""
+    from textual_code.widgets.split_tree import adjacent_leaf
+
+    leaf = LeafNode(leaf_id="a", pane_ids={"p1"})
+    assert adjacent_leaf(leaf, "nonexistent") is None

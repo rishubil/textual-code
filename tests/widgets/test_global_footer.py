@@ -391,3 +391,37 @@ async def test_footer_buttons_resize_on_tab_switch(workspace: Path):
             f"Language button did not shrink: "
             f"c_width={c_width}, docker_width={lang_width}"
         )
+
+
+# ── OrderedFooter fallback tests ─────────────────────────────────────────────
+
+
+async def test_ordered_footer_non_textualcode_fallback():
+    """OrderedFooter falls back to binding.show and ACTION_ORDER."""
+    from textual.app import App, ComposeResult
+    from textual.binding import Binding
+
+    from textual_code.widgets.ordered_footer import OrderedFooter
+
+    class PlainApp(App):
+        BINDINGS = [
+            Binding("ctrl+s", "save", "Save", show=True),
+            Binding("ctrl+x", "mystery", "Mystery", show=False),
+        ]
+
+        def compose(self) -> ComposeResult:
+            yield OrderedFooter()
+
+    app = PlainApp()
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        footer = app.query_one(OrderedFooter)
+        # _should_show_in_footer returns binding.show for non-TextualCode apps
+        shown = Binding("ctrl+s", "save", "Save", show=True)
+        hidden = Binding("ctrl+x", "mystery", "Mystery", show=False)
+        assert footer._should_show_in_footer(shown) is True
+        assert footer._should_show_in_footer(hidden) is False
+        # _action_sort_key uses ACTION_ORDER for non-TextualCode apps
+        assert footer._action_sort_key("save") == 0  # first in ACTION_ORDER
+        # Unknown action returns sentinel
+        assert footer._action_sort_key("nonexistent") == len(OrderedFooter.ACTION_ORDER)
