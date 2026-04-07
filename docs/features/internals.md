@@ -220,3 +220,28 @@ internal Textual APIs. Snapshot tests guard against breakage on Textual updates.
 
 On each keystroke, only step 4-5 run (no subprocess — cached `_git_head_lines` is reused).
 The `show_git_status` user setting controls whether git diff runs at all.
+
+## ProgressToast: why 4Hz polling instead of Worker.StateChanged
+
+`Worker.StateChanged` is sent with `bubble=False`, meaning only the DOM node that created
+the worker receives the message. Since `ProgressToast` lives in the `ProgressToastRack`
+(a separate container), it cannot receive state-change messages from workers created by `App`
+or other widgets. Polling at 4Hz (0.25s interval) is the pragmatic alternative — the per-tick
+cost is two attribute reads and three enum comparisons, with no DOM queries on the hot path.
+
+### Delay threshold: why 500ms default
+
+Fast operations (< 500ms) complete before the user notices, so showing a toast for them
+creates visual flicker. The configurable `delay` parameter (default 0.5s) ensures the toast
+is only mounted if the worker is still running after the threshold. If the worker finishes
+during the delay, `_show_toast()` skips mounting entirely and removes the holder.
+
+### Toast-owned modal dismiss: why weakref
+
+The toast holds a `weakref.ref` to the `ProgressToastModal` it pushed. When the worker
+reaches a terminal state, the toast checks the weakref and dismisses the modal if it is
+still in the screen stack. This avoids a double-dismiss race condition (where both the toast
+poller and the modal's own logic attempt to dismiss) and eliminates strong reference cycles
+between the toast and the modal.
+
+**Implementation:** `widgets/progress_toast.py`, `modals/progress_toast.py`, `app.py` (`show_progress_toast`, `_do_file_op`)
