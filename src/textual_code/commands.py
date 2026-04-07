@@ -1,5 +1,3 @@
-import asyncio
-import heapq
 import logging
 import os
 import time
@@ -9,14 +7,11 @@ from pathlib import Path
 from typing import Any
 
 from ripgrep_rs import files as rg_files
-from textual.command import DiscoveryHit, Hit, Hits, Provider
+from textual.command import Hit, Hits, Provider
 
 from textual_code.search import _SORT_BY_PATH
 
 logger = logging.getLogger(__name__)
-
-_MAX_SEARCH_HITS = 20
-"""Maximum number of hits returned by a single command provider search."""
 
 
 def _rg_scan(
@@ -75,46 +70,6 @@ def _read_workspace_files(
     )
 
 
-def create_open_file_command_provider(
-    workspace_path: Path, post_message_callback: Callable[[Path], Any]
-) -> type[Provider]:
-    class OpenFileCommandProvider(Provider):
-        """A command provider to open a file in the viewer."""
-
-        async def startup(self) -> None:
-            worker = self.app.run_worker(
-                partial(_read_workspace_files, workspace_path), thread=True
-            )
-            self.file_paths = await worker.wait()
-
-        async def search(self, query: str) -> Hits:
-            matcher = self.matcher(query)
-            file_paths = self.file_paths
-
-            def _match() -> list[tuple[float, str]]:
-                results: list[tuple[float, str]] = []
-                for path in file_paths:
-                    command = str(path)
-                    score = matcher.match(command)
-                    if score > 0:
-                        results.append((score, command))
-                return heapq.nlargest(_MAX_SEARCH_HITS, results)
-
-            top = await asyncio.to_thread(_match)
-            for score, command in top:
-                yield Hit(
-                    score,
-                    matcher.highlight(command),
-                    partial(
-                        post_message_callback,
-                        workspace_path / command,
-                    ),
-                    help="Open this file in the viewer",
-                )
-
-    return OpenFileCommandProvider
-
-
 def _read_workspace_paths(
     workspace_path: Path,
     *,
@@ -137,77 +92,6 @@ def _read_workspace_paths(
     )
 
 
-def _create_path_action_command_provider(
-    workspace_path: Path,
-    post_message_callback: Callable[[Path], Any],
-    action_verb: str,
-) -> type[Provider]:
-    """Create a command provider that lists workspace paths for an action."""
-    passed_workspace_path = workspace_path
-    passed_post_message_callback = post_message_callback
-    passed_action_verb = action_verb
-
-    class PathActionCommandProvider(Provider):
-        async def startup(self) -> None:
-            worker = self.app.run_worker(
-                partial(_read_workspace_paths, passed_workspace_path), thread=True
-            )
-            self.paths = await worker.wait()
-
-        async def search(self, query: str) -> Hits:
-            matcher = self.matcher(query)
-            paths = self.paths
-
-            def _match() -> list[tuple[float, str, Path, bool]]:
-                results: list[tuple[float, str, Path, bool]] = []
-                for path in paths:
-                    relative = path.relative_to(passed_workspace_path)
-                    command = str(relative)
-                    score = matcher.match(command)
-                    if score > 0:
-                        results.append((score, command, path, path.is_dir()))
-                return heapq.nlargest(_MAX_SEARCH_HITS, results)
-
-            top = await asyncio.to_thread(_match)
-            for score, command, path, is_dir in top:
-                kind = "directory" if is_dir else "file"
-                yield Hit(
-                    score,
-                    matcher.highlight(command),
-                    partial(passed_post_message_callback, path),
-                    help=f"{passed_action_verb} {kind}",
-                )
-
-    return PathActionCommandProvider
-
-
-def create_delete_path_command_provider(
-    workspace_path: Path,
-    post_message_callback: Callable[[Path], Any],
-) -> type[Provider]:
-    return _create_path_action_command_provider(
-        workspace_path, post_message_callback, "Delete"
-    )
-
-
-def create_rename_path_command_provider(
-    workspace_path: Path,
-    post_message_callback: Callable[[Path], Any],
-) -> type[Provider]:
-    return _create_path_action_command_provider(
-        workspace_path, post_message_callback, "Rename"
-    )
-
-
-def create_move_path_command_provider(
-    workspace_path: Path,
-    post_message_callback: Callable[[Path], Any],
-) -> type[Provider]:
-    return _create_path_action_command_provider(
-        workspace_path, post_message_callback, "Move"
-    )
-
-
 def _read_workspace_directories(workspace_path: Path) -> list[Path]:
     """Return all directories under workspace_path, including root.
 
@@ -226,80 +110,6 @@ def _read_workspace_directories(workspace_path: Path) -> list[Path]:
         logger.debug("OSError during os.walk of %s", workspace_path)
     dirs.sort()
     return dirs
-
-
-def create_move_destination_command_provider(
-    workspace_path: Path,
-    source_path: Path,
-    post_message_callback: Callable[[Path], Any],
-) -> type[Provider]:
-    """Create a provider that lists workspace directories as move destinations."""
-    passed_workspace_path = workspace_path
-    passed_source_path = source_path
-    passed_callback = post_message_callback
-    is_source_dir = source_path.is_dir()
-
-    class MoveDestinationProvider(Provider):
-        async def startup(self) -> None:
-            worker = self.app.run_worker(
-                partial(_read_workspace_directories, passed_workspace_path),
-                thread=True,
-            )
-            all_dirs = await worker.wait()
-            # Filter out source directory and its subtree
-            self.dirs: list[Path] = []
-            for d in all_dirs:
-                if is_source_dir:
-                    try:
-                        d.relative_to(passed_source_path)
-                        continue  # skip source and its children
-                    except ValueError:
-                        pass
-                self.dirs.append(d)
-
-        def _display_path(self, d: Path) -> str:
-            if d == passed_workspace_path:
-                return "."
-            return str(d.relative_to(passed_workspace_path))
-
-        def _help_text(self, d: Path) -> str:
-            if d == passed_workspace_path:
-                return "(workspace root)"
-            return "Move to directory"
-
-        async def discover(self) -> Hits:
-            for d in self.dirs:
-                display = self._display_path(d)
-                yield DiscoveryHit(
-                    display,
-                    partial(passed_callback, d),
-                    help=self._help_text(d),
-                )
-
-        async def search(self, query: str) -> Hits:
-            matcher = self.matcher(query)
-            dirs = self.dirs
-            display_path = self._display_path
-
-            def _match() -> list[tuple[float, str, Path]]:
-                results: list[tuple[float, str, Path]] = []
-                for d in dirs:
-                    display = display_path(d)
-                    score = matcher.match(display)
-                    if score > 0:
-                        results.append((score, display, d))
-                return heapq.nlargest(_MAX_SEARCH_HITS, results)
-
-            top = await asyncio.to_thread(_match)
-            for score, display, d in top:
-                yield Hit(
-                    score,
-                    matcher.highlight(display),
-                    partial(passed_callback, d),
-                    help=self._help_text(d),
-                )
-
-    return MoveDestinationProvider
 
 
 class BaseCreatePathCommandProvider(Provider):

@@ -410,3 +410,26 @@ async def test_syntax_theme_preview_ignores_blank(workspace):
         await pilot.wait_for_scheduled_animations()
         for ed in app.query(CodeEditor):
             assert ed.syntax_theme == "monokai"
+
+
+async def test_syntax_theme_apply_button(workspace, sample_py_file):
+    """Clicking Apply in ChangeSyntaxThemeModalScreen saves the selection."""
+    from textual.widgets import Button
+
+    from textual_code.modals.appearance import ChangeSyntaxThemeModalScreen
+
+    app = make_app(workspace, open_file=sample_py_file, light=True)
+    results = []
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            ChangeSyntaxThemeModalScreen(current_theme="monokai"),
+            callback=results.append,
+        )
+        await pilot.wait_for_scheduled_animations()
+        apply_btn = app.screen.query_one("#apply", Button)
+        apply_btn.press()
+        await pilot.wait_for_scheduled_animations()
+        assert len(results) == 1
+        assert not results[0].is_cancelled
+        assert results[0].theme == "monokai"

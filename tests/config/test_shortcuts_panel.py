@@ -823,3 +823,387 @@ async def test_all_registry_commands_in_palette(workspace):
                     f"Registry entry '{entry.title}' (action={entry.action}) "
                     f"not found in command palette"
                 )
+
+
+# ---------------------------------------------------------------------------
+# Group 11: RebindKeyScreen — skip keys, Apply, Cancel buttons
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_rebind_screen_skip_keys_ignored(workspace):
+    """Pressing a skip-key (tab) does not capture and Apply stays disabled."""
+    from textual.widgets import Button
+
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(RebindKeyScreen("save", "Save", "ctrl+s"))
+        await pilot.wait_for_scheduled_animations()
+        await pilot.press("tab")
+        await pilot.wait_for_scheduled_animations()
+        btn = app.screen.query_one("#apply", Button)
+        assert btn.disabled
+
+
+@pytest.mark.asyncio
+async def test_rebind_screen_apply_button_click(workspace):
+    """Pressing a key then clicking Apply returns the new key."""
+    from textual.widgets import Button
+
+    results = []
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            RebindKeyScreen("save", "Save", "ctrl+s"),
+            callback=results.append,
+        )
+        await pilot.wait_for_scheduled_animations()
+        await pilot.press("ctrl+k")
+        await pilot.wait_for_scheduled_animations()
+        btn = app.screen.query_one("#apply", Button)
+        btn.press()
+        await pilot.wait_for_scheduled_animations()
+        assert len(results) == 1
+        assert not results[0].is_cancelled
+        assert results[0].new_key == "ctrl+k"
+
+
+@pytest.mark.asyncio
+async def test_rebind_screen_cancel_button_click(workspace):
+    """Clicking Cancel returns is_cancelled=True."""
+    from textual.widgets import Button
+
+    results = []
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            RebindKeyScreen("save", "Save", "ctrl+s"),
+            callback=results.append,
+        )
+        await pilot.wait_for_scheduled_animations()
+        btn = app.screen.query_one("#cancel", Button)
+        btn.press()
+        await pilot.wait_for_scheduled_animations()
+        assert len(results) == 1
+        assert results[0].is_cancelled
+
+
+# ---------------------------------------------------------------------------
+# Group 12: ShortcutSettingsScreen — unbind, change key flow
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_shortcut_settings_unbind_button(workspace):
+    """Clicking Unbind sets key to '(none)' and disables the button."""
+    from textual.widgets import Button, Label
+
+    from textual_code.modals import ShortcutSettingsScreen
+
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            ShortcutSettingsScreen(
+                action_name="save",
+                description="Save",
+                current_key="ctrl+s",
+            )
+        )
+        await pilot.wait_for_scheduled_animations()
+        assert isinstance(app.screen, ShortcutSettingsScreen)
+        unbind_btn = app.screen.query_one("#unbind", Button)
+        unbind_btn.press()
+        await pilot.wait_for_scheduled_animations()
+        label = app.screen.query_one("#current_key_label", Label)
+        assert "(none)" in str(label.content)
+        assert unbind_btn.disabled
+
+
+@pytest.mark.asyncio
+async def test_shortcut_settings_change_key_opens_rebind(workspace):
+    """Clicking 'Change Key...' opens RebindKeyScreen."""
+    from textual.widgets import Button
+
+    from textual_code.modals import ShortcutSettingsScreen
+
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            ShortcutSettingsScreen(
+                action_name="save",
+                description="Save",
+                current_key="ctrl+s",
+            )
+        )
+        await pilot.wait_for_scheduled_animations()
+        change_btn = app.screen.query_one("#change_key", Button)
+        change_btn.press()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        assert isinstance(app.screen, RebindKeyScreen)
+
+
+# ---------------------------------------------------------------------------
+# Group 13: FooterConfigScreen — toggle, move, area switch, save
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_footer_config_toggle_and_save(workspace):
+    """Space toggles item visibility; Save returns only visible items."""
+    from textual.widgets import Button
+
+    from textual_code.config import FooterOrders
+    from textual_code.modals.shortcuts_config import FooterConfigScreen
+
+    all_area_actions = {
+        "editor": [
+            ("save", "Save", "ctrl+s", True),
+            ("find", "Find", "ctrl+f", True),
+            ("replace", "Replace", "ctrl+h", False),
+        ],
+    }
+    footer_orders = FooterOrders(areas={})
+    results = []
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            FooterConfigScreen(all_area_actions, footer_orders),
+            callback=results.append,
+        )
+        await pilot.wait_for_scheduled_animations()
+        screen = app.screen
+        assert isinstance(screen, FooterConfigScreen)
+        # Toggle first item (save: True → False) via action method
+        screen.action_toggle_item()
+        await pilot.wait_for_scheduled_animations()
+        # Save
+        save_btn = screen.query_one("#save", Button)
+        save_btn.press()
+        await pilot.wait_for_scheduled_animations()
+        assert len(results) == 1
+        assert not results[0].is_cancelled
+        # "save" was toggled off, so only "find" should be visible
+        assert "save" not in results[0].order
+        assert "find" in results[0].order
+
+
+@pytest.mark.asyncio
+async def test_footer_config_move_up_down(workspace):
+    """Ctrl+Down moves item down in the list."""
+    from textual_code.config import FooterOrders
+    from textual_code.modals.shortcuts_config import FooterConfigScreen
+
+    all_area_actions = {
+        "editor": [
+            ("save", "Save", "ctrl+s", True),
+            ("find", "Find", "ctrl+f", True),
+            ("replace", "Replace", "ctrl+h", True),
+        ],
+    }
+    footer_orders = FooterOrders(areas={})
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            FooterConfigScreen(all_area_actions, footer_orders),
+        )
+        await pilot.wait_for_scheduled_animations()
+        screen = app.screen
+        assert isinstance(screen, FooterConfigScreen)
+        # Move first item ("save") down
+        await pilot.press("ctrl+down")
+        await pilot.wait_for_scheduled_animations()
+        # Now "find" should be first, "save" second
+        assert screen._items[0][0] == "find"
+        assert screen._items[1][0] == "save"
+        # Move it back up
+        await pilot.press("ctrl+up")
+        await pilot.wait_for_scheduled_animations()
+        assert screen._items[0][0] == "save"
+
+
+@pytest.mark.asyncio
+async def test_footer_config_area_switch(workspace):
+    """Switching area rebuilds the list with new area's actions."""
+    from textual.widgets import Select
+
+    from textual_code.config import FooterOrders
+    from textual_code.modals.shortcuts_config import FooterConfigScreen
+
+    all_area_actions = {
+        "editor": [
+            ("save", "Save", "ctrl+s", True),
+            ("find", "Find", "ctrl+f", True),
+        ],
+        "explorer": [
+            ("create_file", "New File", "ctrl+n", True),
+        ],
+    }
+    footer_orders = FooterOrders(areas={})
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            FooterConfigScreen(all_area_actions, footer_orders, initial_area="editor"),
+        )
+        await pilot.wait_for_scheduled_animations()
+        screen = app.screen
+        assert isinstance(screen, FooterConfigScreen)
+        assert len(screen._items) == 2  # editor has 2 actions
+        # Switch to explorer area
+        select = screen.query_one("#area_select", Select)
+        select.value = "explorer"
+        await pilot.wait_for_scheduled_animations()
+        assert screen._current_area == "explorer"
+        assert len(screen._items) == 1  # explorer has 1 action
+        assert screen._items[0][0] == "create_file"
+
+
+# ---------------------------------------------------------------------------
+# Group 14: Config error handling (config.py edge cases)
+# ---------------------------------------------------------------------------
+
+
+def test_load_keybindings_toml_decode_error(tmp_path):
+    """load_keybindings returns {} on malformed TOML."""
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text("this is [not valid toml", encoding="utf-8")
+    result = load_keybindings(kb)
+    assert result == {}
+
+
+def test_load_shortcut_display_toml_decode_error(tmp_path):
+    """load_shortcut_display returns {} on malformed TOML."""
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text("this is [not valid toml", encoding="utf-8")
+    result = load_shortcut_display(kb)
+    assert result == {}
+
+
+def test_load_shortcut_display_non_dict_display_section(tmp_path):
+    """load_shortcut_display returns {} when [display] is not a dict."""
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text('display = "not_a_dict"\n', encoding="utf-8")
+    result = load_shortcut_display(kb)
+    assert result == {}
+
+
+def test_load_shortcut_display_non_dict_entry(tmp_path):
+    """load_shortcut_display skips non-dict entries under [display]."""
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text('[display]\nsave = "not_a_dict"\n', encoding="utf-8")
+    result = load_shortcut_display(kb)
+    assert "save" not in result
+
+
+def test_load_shortcut_display_non_bool_palette(tmp_path):
+    """load_shortcut_display skips entries with non-bool palette value."""
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text('[display.save]\npalette = "string"\n', encoding="utf-8")
+    result = load_shortcut_display(kb)
+    assert "save" not in result
+
+
+def test_load_footer_orders_toml_decode_error(tmp_path):
+    """load_footer_orders returns empty FooterOrders on malformed TOML."""
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text("this is [not valid toml", encoding="utf-8")
+    result = load_footer_orders(kb)
+    assert result.for_area("editor") is None
+
+
+def test_load_footer_orders_non_dict_footer(tmp_path):
+    """load_footer_orders returns empty when [footer] is not a dict."""
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text('footer = "not_a_dict"\n', encoding="utf-8")
+    result = load_footer_orders(kb)
+    assert result.for_area("editor") is None
+
+
+@pytest.mark.asyncio
+async def test_show_shortcuts_apply_settings_saves(
+    workspace, tmp_path, restore_bindings
+):
+    """Completing the full flow: F1 → row → settings → save applies the change."""
+    from textual.widgets import Button, DataTable
+
+    from textual_code.modals import ShortcutSettingsScreen
+
+    settings_path = tmp_path / "settings.toml"
+    app = TextualCode(
+        workspace_path=workspace,
+        with_open_file=None,
+        user_config_path=settings_path,
+        skip_sidebar=True,
+    )
+    app.animation_level = "none"
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.action_show_keyboard_shortcuts()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        assert isinstance(app.screen, ShowShortcutsScreen)
+        # Select the first row
+        table = app.screen.query_one(DataTable)
+        table.move_cursor(row=0)
+        table.action_select_cursor()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        assert isinstance(app.screen, ShortcutSettingsScreen)
+        # Click Save to trigger _on_settings_result callback
+        save_btn = app.screen.query_one("#save", Button)
+        save_btn.press()
+        await pilot.wait_for_scheduled_animations()
+        await pilot.wait_for_scheduled_animations()
+        # Should be back to ShowShortcutsScreen
+        assert isinstance(app.screen, ShowShortcutsScreen)
+
+
+def test_load_keybindings_permission_error(tmp_path):
+    """load_keybindings returns {} on PermissionError."""
+    from unittest.mock import patch
+
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text('[bindings]\nsave = "ctrl+s"\n', encoding="utf-8")
+    with patch("builtins.open", side_effect=PermissionError("denied")):
+        result = load_keybindings(kb)
+    assert result == {}
+
+
+def test_load_shortcut_display_permission_error(tmp_path):
+    """load_shortcut_display returns {} on PermissionError."""
+    from unittest.mock import patch
+
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text("[display.save]\npalette = true\n", encoding="utf-8")
+    with patch("builtins.open", side_effect=PermissionError("denied")):
+        result = load_shortcut_display(kb)
+    assert result == {}
+
+
+def test_load_footer_orders_permission_error(tmp_path):
+    """load_footer_orders returns empty on PermissionError."""
+    from unittest.mock import patch
+
+    kb = tmp_path / "keybindings.toml"
+    kb.write_text('[footer.editor]\norder = ["save"]\n', encoding="utf-8")
+    with patch("builtins.open", side_effect=PermissionError("denied")):
+        result = load_footer_orders(kb)
+    assert result.for_area("editor") is None
+
+
+def test_merge_and_write_editor_settings_toml_error(tmp_path):
+    """_merge_and_write_editor_settings returns False on corrupt config."""
+    from textual_code.config import _merge_and_write_editor_settings
+
+    config_path = tmp_path / "settings.toml"
+    config_path.write_text("this is [not valid toml", encoding="utf-8")
+    result = _merge_and_write_editor_settings({"indent_size": 4}, config_path)
+    assert result is False

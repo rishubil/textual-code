@@ -350,3 +350,158 @@ def test_read_workspace_directories_onerror_suppresses(tmp_path: Path) -> None:
 
     assert tmp_path in result
     assert tmp_path / "ok_dir" in result
+
+
+# ── Provider factory tests (commands.py lines 184-361) ───────────────────────
+
+
+def test_create_file_command_provider_properties(tmp_path: Path) -> None:
+    """create_create_file_or_dir_command_provider returns a correct Provider."""
+    from textual.command import Provider
+
+    from textual_code.commands import create_create_file_or_dir_command_provider
+
+    def _noop(p: Path) -> None:
+        pass
+
+    callback = _noop
+    file_cls = create_create_file_or_dir_command_provider(tmp_path, False, callback)
+    dir_cls = create_create_file_or_dir_command_provider(tmp_path, True, callback)
+    assert issubclass(file_cls, Provider)
+    assert issubclass(dir_cls, Provider)
+    # Verify the subclass defines is_dir property (from BaseCreatePathCommandProvider)
+    assert hasattr(file_cls, "is_dir")
+    assert hasattr(dir_cls, "is_dir")
+
+
+def test_rg_scan_absolute_paths(tmp_path: Path) -> None:
+    """_rg_scan with absolute=True returns absolute paths."""
+    from textual_code.commands import _rg_scan
+
+    (tmp_path / "file.txt").write_text("hello", encoding="utf-8")
+    result = _rg_scan(tmp_path, absolute=True)
+    assert len(result) >= 1
+    assert all(p.is_absolute() for p in result)
+
+
+def test_rg_scan_include_dirs(tmp_path: Path) -> None:
+    """_rg_scan with include_dirs=True includes directories."""
+    from textual_code.commands import _rg_scan
+
+    (tmp_path / "subdir").mkdir()
+    (tmp_path / "subdir" / "file.txt").write_text("hello", encoding="utf-8")
+    result = _rg_scan(tmp_path, include_dirs=True, relative_to=str(tmp_path))
+    names = [str(p) for p in result]
+    assert "subdir" in names
+
+
+def test_read_workspace_paths_returns_absolute(tmp_path: Path) -> None:
+    """_read_workspace_paths returns absolute paths including directories."""
+    (tmp_path / "subdir").mkdir()
+    (tmp_path / "subdir" / "file.txt").write_text("hello", encoding="utf-8")
+    (tmp_path / "root.txt").write_text("root", encoding="utf-8")
+    result = _read_workspace_paths(tmp_path)
+    assert len(result) >= 2
+    assert all(p.is_absolute() for p in result)
+    # Should include directories
+    dir_paths = [p for p in result if p.is_dir()]
+    assert len(dir_paths) >= 1
+
+
+# ── Provider integration tests via app actions ───────────────────────────────
+
+
+async def test_new_file_palette_triggers_create_provider(tmp_path: Path) -> None:
+    """action_new_file opens CommandPalette with CreatePathCommandProvider.
+
+    Typing a filename triggers the provider's search() method, which covers
+    BaseCreatePathCommandProvider.search (commands.py lines 322-333).
+    """
+    from textual.command import CommandPalette
+
+    from tests.conftest import make_app
+
+    (tmp_path / "existing.py").write_text("x = 1\n", encoding="utf-8")
+    app = make_app(tmp_path, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await app.action_new_file()
+        await pilot.wait_for_scheduled_animations()
+        # CommandPalette should be the current screen
+        assert isinstance(app.screen, CommandPalette)
+        # Type a filename to trigger CreatePathCommandProvider.search()
+        await pilot.press("t", "e", "s", "t", ".", "p", "y")
+        await pilot.wait_for_scheduled_animations()
+
+
+async def test_new_folder_palette_triggers_create_provider(tmp_path: Path) -> None:
+    """action_new_folder opens CommandPalette with is_dir=True provider."""
+    from textual.command import CommandPalette
+
+    from tests.conftest import make_app
+
+    app = make_app(tmp_path, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        await app.action_new_folder()
+        await pilot.wait_for_scheduled_animations()
+        assert isinstance(app.screen, CommandPalette)
+        await pilot.press("n", "e", "w", "d", "i", "r")
+        await pilot.wait_for_scheduled_animations()
+
+
+async def test_delete_file_palette_opens_path_search(tmp_path: Path) -> None:
+    """action_delete_file_or_directory opens PathSearchModal, triggering
+    the PathActionCommandProvider via _push_path_search.
+    """
+    from tests.conftest import make_app, wait_for_condition
+    from textual_code.modals import PathSearchModal
+
+    (tmp_path / "target.py").write_text("x = 1\n", encoding="utf-8")
+    app = make_app(tmp_path, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.action_delete_file_or_directory()
+        await pilot.wait_for_scheduled_animations()
+        # PathSearchModal should open
+        await wait_for_condition(
+            pilot,
+            lambda: isinstance(app.screen, PathSearchModal),
+            msg="PathSearchModal did not open",
+        )
+
+
+async def test_rename_file_palette_opens_path_search(tmp_path: Path) -> None:
+    """action_rename_file_or_directory opens PathSearchModal."""
+    from tests.conftest import make_app, wait_for_condition
+    from textual_code.modals import PathSearchModal
+
+    (tmp_path / "target.py").write_text("x = 1\n", encoding="utf-8")
+    app = make_app(tmp_path, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.action_rename_file_or_directory()
+        await pilot.wait_for_scheduled_animations()
+        await wait_for_condition(
+            pilot,
+            lambda: isinstance(app.screen, PathSearchModal),
+            msg="PathSearchModal did not open",
+        )
+
+
+async def test_move_file_palette_opens_path_search(tmp_path: Path) -> None:
+    """action_move_file_or_directory opens PathSearchModal."""
+    from tests.conftest import make_app, wait_for_condition
+    from textual_code.modals import PathSearchModal
+
+    (tmp_path / "target.py").write_text("x = 1\n", encoding="utf-8")
+    app = make_app(tmp_path, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.action_move_file_or_directory()
+        await pilot.wait_for_scheduled_animations()
+        await wait_for_condition(
+            pilot,
+            lambda: isinstance(app.screen, PathSearchModal),
+            msg="PathSearchModal did not open",
+        )

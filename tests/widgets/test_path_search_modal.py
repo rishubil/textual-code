@@ -808,3 +808,134 @@ async def test_rapidfuzz_prefers_filename_match(workspace: Path):
         assert "target.py" in top_text, (
             f"Expected 'target.py' as top result, got: {top_text}"
         )
+
+
+# ── Navigation: page_down / page_up ─────────────────────────────────────────
+
+
+async def test_page_down_up_navigation(workspace: Path, sample_files: list[Path]):
+    """page_down / page_up change highlighted index in the option list."""
+    from textual.widgets import OptionList
+
+    from textual_code.commands import _read_workspace_files
+    from textual_code.modals import PathSearchModal
+
+    _populate_cache(workspace, "files", sample_files)
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            PathSearchModal(
+                workspace,
+                scan_func=_read_workspace_files,
+                cache_key="files",
+            )
+        )
+        await pilot.wait_for_scheduled_animations()
+        ol = app.screen.query_one("#path-search-results", OptionList)
+        if ol.option_count > 0:
+            await pilot.press("down")
+            await pilot.wait_for_scheduled_animations()
+            await pilot.press("pagedown")
+            await pilot.wait_for_scheduled_animations()
+            # pagedown should move or stay at end
+            assert ol.highlighted is not None
+            await pilot.press("pageup")
+            await pilot.wait_for_scheduled_animations()
+            assert ol.highlighted is not None
+
+
+# ── Input submission: Enter selects first result ─────────────────────────────
+
+
+async def test_input_submission_selects_first(
+    workspace: Path, sample_files: list[Path]
+):
+    """Pressing Enter without navigation selects the first result."""
+    from textual_code.commands import _read_workspace_files
+    from textual_code.modals import PathSearchModal
+
+    _populate_cache(workspace, "files", sample_files)
+    results = []
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            PathSearchModal(
+                workspace,
+                scan_func=_read_workspace_files,
+                cache_key="files",
+            ),
+            callback=results.append,
+        )
+        await pilot.wait_for_scheduled_animations()
+        # Press Enter immediately to select first discovery item
+        await pilot.press("enter")
+        await pilot.wait_for_scheduled_animations()
+        assert len(results) == 1
+        assert results[0] is not None  # a Path was selected, not dismissed
+
+
+# ── Gitignore toggle noop without unfiltered func ────────────────────────────
+
+
+async def test_gitignore_toggle_noop_without_unfiltered_func(
+    workspace: Path, sample_files: list[Path]
+):
+    """Toggling gitignore off with no unfiltered_scan_func is a no-op."""
+    from textual.widgets import Checkbox
+
+    from textual_code.commands import _read_workspace_files
+    from textual_code.modals import PathSearchModal
+
+    _populate_cache(workspace, "files", sample_files)
+    app = make_app(workspace, light=True)
+    async with app.run_test() as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            PathSearchModal(
+                workspace,
+                scan_func=_read_workspace_files,
+                cache_key="files",
+                show_gitignore_toggle=True,
+                unfiltered_scan_func=None,
+            )
+        )
+        await pilot.wait_for_scheduled_animations()
+        modal = app.screen
+        assert isinstance(modal, PathSearchModal)
+        cb = modal.query_one("#path-search-gitignore", Checkbox)
+        original_func = modal._scan_func
+        cb.value = False
+        await pilot.wait_for_scheduled_animations()
+        # scan_func unchanged because unfiltered_scan_func was None
+        assert modal._scan_func is original_func
+
+
+# ── Click background dismisses modal ─────────────────────────────────────────
+
+
+async def test_click_background_dismisses(workspace: Path, sample_files: list[Path]):
+    """Clicking the background overlay dismisses the modal with None."""
+    from textual_code.commands import _read_workspace_files
+    from textual_code.modals import PathSearchModal
+
+    _populate_cache(workspace, "files", sample_files)
+    results = []
+    app = make_app(workspace, light=True)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.wait_for_scheduled_animations()
+        app.push_screen(
+            PathSearchModal(
+                workspace,
+                scan_func=_read_workspace_files,
+                cache_key="files",
+            ),
+            callback=results.append,
+        )
+        await pilot.wait_for_scheduled_animations()
+        # Click bottom area (background overlay, below the modal container)
+        await pilot.click(offset=(60, 38))
+        await pilot.wait_for_scheduled_animations()
+        assert len(results) == 1
+        assert results[0] is None
