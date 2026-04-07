@@ -85,13 +85,37 @@ async def test_text_transform_with_file_open(
     ],
 )
 async def test_action_no_file_notifies_error(workspace: Path, action_name: str):
-    """App-level action wrappers execute the 'no file open' branch."""
+    """App-level action wrappers notify error when no file is open."""
     app = make_app(workspace, light=True)
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
         assert app.main_view.get_active_code_editor() is None
+        notifications: list[str] = []
+        original_notify = app.notify
+
+        def _capture(
+            message: str,
+            *,
+            title: str = "",
+            severity: str = "information",
+            timeout: float | None = None,
+            markup: bool = True,
+        ) -> None:
+            notifications.append(severity)
+            original_notify(
+                message,
+                title=title,
+                severity=severity,  # type: ignore[arg-type]
+                timeout=timeout,
+                markup=markup,
+            )
+
+        app.notify = _capture  # type: ignore[method-assign]
         getattr(app, action_name)()
         await pilot.wait_for_scheduled_animations()
+        assert "error" in notifications, (
+            f"{action_name} did not notify with severity='error'"
+        )
 
 
 # ── Toggle wrappers ─────────────────────────────────────────────────────────
@@ -310,12 +334,18 @@ async def test_settings_modal_opens(
     workspace: Path, sample_py_file: Path, action_name: str
 ):
     """Settings modal opener actions push a modal screen."""
+    from textual.screen import ModalScreen
+
     app = make_app(workspace, open_file=sample_py_file, light=True)
     async with app.run_test() as pilot:
         await pilot.wait_for_scheduled_animations()
+        initial_screen = app.screen
         getattr(app, action_name)()
         await pilot.wait_for_scheduled_animations()
-        # Dismiss whatever modal opened
+        # A modal or command palette should have been pushed
+        assert app.screen is not initial_screen or isinstance(
+            app.screen, ModalScreen
+        ), f"{action_name} did not push a new screen"
         await pilot.press("escape")
         await pilot.wait_for_scheduled_animations()
 
